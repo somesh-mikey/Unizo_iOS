@@ -15,28 +15,20 @@ class ItemDetailsViewController: UIViewController {
     @IBOutlet weak var titleLabel: UILabel!
     @IBOutlet weak var priceLabel: UILabel!
     @IBOutlet weak var ratingLabel: UILabel!
-
-    @IBOutlet weak var descriptionTitleLabel: UILabel!
     @IBOutlet weak var descriptionTextView: UITextView!
-
-    @IBOutlet weak var featuresTitleLabel: UILabel!
     @IBOutlet weak var featuresTextView: UITextView!
-
     @IBOutlet weak var addToCartButton: UIButton!
     @IBOutlet weak var buyNowButton: UIButton!
-    @IBOutlet weak var bottomBarView: UIView!   // ← Add an empty view at bottom of XIB
 
-
-    // Scroll view and content view
+    // Scroll container (we'll add content here)
     private let scrollView = UIScrollView()
     private let contentView = UIView()
 
     override func viewDidLoad() {
         super.viewDidLoad()
-
         setupNavigationBar()
-        setupScrollLayout()
-        styleUI()
+        setupUI()
+        setupLayout()
     }
 
     // MARK: - Navigation Bar
@@ -50,7 +42,6 @@ class ItemDetailsViewController: UIViewController {
             target: self,
             action: #selector(heartTapped)
         )
-        heartButton.tintColor = .black
 
         let cartButton = UIBarButtonItem(
             image: UIImage(systemName: "cart"),
@@ -58,125 +49,137 @@ class ItemDetailsViewController: UIViewController {
             target: self,
             action: #selector(cartTapped)
         )
-        cartButton.tintColor = .black
 
+        heartButton.tintColor = .black
+        cartButton.tintColor = .black
         navigationItem.rightBarButtonItems = [cartButton, heartButton]
     }
 
-    @objc func heartTapped() {}
-    @objc func cartTapped() {}
+    // MARK: - UI Setup
+    private func setupUI() {
+        view.backgroundColor = .white
 
+        // Image styling
+        productImageView.contentMode = .scaleAspectFit
+        productImageView.layer.cornerRadius = 12
+        productImageView.layer.masksToBounds = true
+        productImageView.backgroundColor = .white
 
-    // MARK: - SCROLL + CONSTRAINTS
-    private func setupScrollLayout() {
+        // Label styling
+        categoryLabel.textColor = .systemGray
+        categoryLabel.font = UIFont.systemFont(ofSize: 13)
+        titleLabel.font = UIFont.boldSystemFont(ofSize: 16)
+        priceLabel.font = UIFont.boldSystemFont(ofSize: 16)
+        ratingLabel.textColor = UIColor(red: 0/255, green: 142/255, blue: 153/255, alpha: 1)
+        ratingLabel.font = UIFont.systemFont(ofSize: 14)
 
-        // 1️⃣ Add scrollView to main view
+        // TextViews styling
+        [descriptionTextView, featuresTextView].forEach {
+            $0?.isScrollEnabled = false
+            $0?.backgroundColor = .clear
+            $0?.textColor = .black
+            $0?.font = UIFont.systemFont(ofSize: 13)
+            $0?.textContainerInset = .zero
+            $0?.textContainer.lineFragmentPadding = 0
+        }
+
+        // Buttons styling
+        addToCartButton.layer.cornerRadius = 22
+        addToCartButton.layer.borderWidth = 1.5
+        addToCartButton.layer.borderColor = UIColor.systemTeal.cgColor
+        addToCartButton.backgroundColor = .clear
+        addToCartButton.setTitleColor(.systemTeal, for: .normal)
+        addToCartButton.titleLabel?.font = UIFont.systemFont(ofSize: 16, weight: .medium)
+
+        buyNowButton.layer.cornerRadius = 22
+        buyNowButton.backgroundColor = UIColor(red: 22/255, green: 63/255, blue: 75/255, alpha: 1)
+        buyNowButton.setTitleColor(.white, for: .normal)
+        buyNowButton.titleLabel?.font = UIFont.systemFont(ofSize: 16, weight: .medium)
+    }
+
+    // MARK: - Layout Setup (Programmatic Constraints)
+    private func setupLayout() {
+        // Move content into scroll view
         view.addSubview(scrollView)
         scrollView.translatesAutoresizingMaskIntoConstraints = false
-
-        NSLayoutConstraint.activate([
-            scrollView.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor),
-            scrollView.leadingAnchor.constraint(equalTo: view.leadingAnchor),
-            scrollView.trailingAnchor.constraint(equalTo: view.trailingAnchor),
-
-            // scrollView ends ABOVE bottom bar
-            scrollView.bottomAnchor.constraint(equalTo: bottomBarView.topAnchor)
-        ])
-
-        // 2️⃣ Add content view inside scroll view
         scrollView.addSubview(contentView)
         contentView.translatesAutoresizingMaskIntoConstraints = false
 
+        // Add subviews to contentView
+        [productImageView, categoryLabel, titleLabel, priceLabel,
+         ratingLabel, descriptionTextView, featuresTextView].forEach {
+            contentView.addSubview($0)
+            $0.translatesAutoresizingMaskIntoConstraints = false
+        }
+
+        // Add buttons at the bottom (outside scrollView)
+        let buttonStack = UIStackView(arrangedSubviews: [addToCartButton, buyNowButton])
+        buttonStack.axis = .horizontal
+        buttonStack.spacing = 12
+        buttonStack.distribution = .fillEqually
+        view.addSubview(buttonStack)
+        buttonStack.translatesAutoresizingMaskIntoConstraints = false
+
+        // ScrollView constraints
         NSLayoutConstraint.activate([
+            scrollView.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor),
+            scrollView.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 16),
+            scrollView.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -16),
+            scrollView.bottomAnchor.constraint(equalTo: buttonStack.topAnchor, constant: -10),
+
             contentView.topAnchor.constraint(equalTo: scrollView.topAnchor),
             contentView.leadingAnchor.constraint(equalTo: scrollView.leadingAnchor),
             contentView.trailingAnchor.constraint(equalTo: scrollView.trailingAnchor),
             contentView.bottomAnchor.constraint(equalTo: scrollView.bottomAnchor),
-
-            // VERY IMPORTANT ↓
             contentView.widthAnchor.constraint(equalTo: scrollView.widthAnchor)
         ])
 
-        // 3️⃣ Move all XIB items → into contentView
-        let allItems: [UIView] = [
-            productImageView, categoryLabel, titleLabel, priceLabel, ratingLabel,
-            descriptionTitleLabel, descriptionTextView,
-            featuresTitleLabel, featuresTextView
-        ]
-
-        allItems.forEach {
-            $0.translatesAutoresizingMaskIntoConstraints = false
-            contentView.addSubview($0)
-        }
-
-        // 4️⃣ Set constraints EXACT according to Figma
-
+        // Product Image constraints
         NSLayoutConstraint.activate([
+            productImageView.topAnchor.constraint(equalTo: contentView.topAnchor, constant: 12),
+            productImageView.leadingAnchor.constraint(equalTo: contentView.leadingAnchor),
+            productImageView.trailingAnchor.constraint(equalTo: contentView.trailingAnchor),
+            productImageView.heightAnchor.constraint(equalToConstant: 220)
+        ])
 
-            // Image
-            productImageView.topAnchor.constraint(equalTo: contentView.topAnchor, constant: 16),
-            productImageView.leadingAnchor.constraint(equalTo: contentView.leadingAnchor, constant: 20),
-            productImageView.trailingAnchor.constraint(equalTo: contentView.trailingAnchor, constant: -20),
-            productImageView.heightAnchor.constraint(equalToConstant: 260),
+        // Text layout constraints
+        NSLayoutConstraint.activate([
+            categoryLabel.topAnchor.constraint(equalTo: productImageView.bottomAnchor, constant: 10),
+            categoryLabel.leadingAnchor.constraint(equalTo: contentView.leadingAnchor),
 
-            // Category
-            categoryLabel.topAnchor.constraint(equalTo: productImageView.bottomAnchor, constant: 14),
-            categoryLabel.leadingAnchor.constraint(equalTo: contentView.leadingAnchor, constant: 20),
-
-            // Title
-            titleLabel.topAnchor.constraint(equalTo: categoryLabel.bottomAnchor, constant: 6),
-            titleLabel.leadingAnchor.constraint(equalTo: contentView.leadingAnchor, constant: 20),
-
-            // Price
+            titleLabel.topAnchor.constraint(equalTo: categoryLabel.bottomAnchor, constant: 4),
+            titleLabel.leadingAnchor.constraint(equalTo: contentView.leadingAnchor),
             priceLabel.centerYAnchor.constraint(equalTo: titleLabel.centerYAnchor),
-            priceLabel.trailingAnchor.constraint(equalTo: contentView.trailingAnchor, constant: -20),
+            priceLabel.trailingAnchor.constraint(equalTo: contentView.trailingAnchor),
 
-            // Rating
             ratingLabel.topAnchor.constraint(equalTo: titleLabel.bottomAnchor, constant: 6),
-            ratingLabel.leadingAnchor.constraint(equalTo: contentView.leadingAnchor, constant: 20),
+            ratingLabel.leadingAnchor.constraint(equalTo: contentView.leadingAnchor),
 
-            // Description Title
-            descriptionTitleLabel.topAnchor.constraint(equalTo: ratingLabel.bottomAnchor, constant: 18),
-            descriptionTitleLabel.leadingAnchor.constraint(equalTo: contentView.leadingAnchor, constant: 20),
+            descriptionTextView.topAnchor.constraint(equalTo: ratingLabel.bottomAnchor, constant: 10),
+            descriptionTextView.leadingAnchor.constraint(equalTo: contentView.leadingAnchor),
+            descriptionTextView.trailingAnchor.constraint(equalTo: contentView.trailingAnchor),
 
-            // Description Text
-            descriptionTextView.topAnchor.constraint(equalTo: descriptionTitleLabel.bottomAnchor, constant: 8),
-            descriptionTextView.leadingAnchor.constraint(equalTo: contentView.leadingAnchor, constant: 20),
-            descriptionTextView.trailingAnchor.constraint(equalTo: contentView.trailingAnchor, constant: -20),
+            featuresTextView.topAnchor.constraint(equalTo: descriptionTextView.bottomAnchor, constant: 10),
+            featuresTextView.leadingAnchor.constraint(equalTo: contentView.leadingAnchor),
+            featuresTextView.trailingAnchor.constraint(equalTo: contentView.trailingAnchor),
+            featuresTextView.bottomAnchor.constraint(equalTo: contentView.bottomAnchor, constant: -20)
+        ])
 
-            // Features Title
-            featuresTitleLabel.topAnchor.constraint(equalTo: descriptionTextView.bottomAnchor, constant: 24),
-            featuresTitleLabel.leadingAnchor.constraint(equalTo: contentView.leadingAnchor, constant: 20),
-
-            // Features Text
-            featuresTextView.topAnchor.constraint(equalTo: featuresTitleLabel.bottomAnchor, constant: 8),
-            featuresTextView.leadingAnchor.constraint(equalTo: contentView.leadingAnchor, constant: 20),
-            featuresTextView.trailingAnchor.constraint(equalTo: contentView.trailingAnchor, constant: -20),
-
-            // BOTTOM OF SCROLL CONTENT (VERY IMPORTANT)
-            featuresTextView.bottomAnchor.constraint(equalTo: contentView.bottomAnchor, constant: -40)
+        // Buttons (bottom tab-style)
+        NSLayoutConstraint.activate([
+            buttonStack.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 16),
+            buttonStack.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -16),
+            buttonStack.bottomAnchor.constraint(equalTo: view.safeAreaLayoutGuide.bottomAnchor, constant: -10),
+            addToCartButton.heightAnchor.constraint(equalToConstant: 44)
         ])
     }
 
+    // MARK: - Actions
+    @objc private func heartTapped() {
+        print("❤️ Heart tapped")
+    }
 
-    // MARK: - UI Styling
-    private func styleUI() {
-
-        descriptionTextView.isEditable = false
-        descriptionTextView.isScrollEnabled = false
-        descriptionTextView.backgroundColor = .clear
-
-        featuresTextView.isEditable = false
-        featuresTextView.isScrollEnabled = false
-        featuresTextView.backgroundColor = .clear
-
-        addToCartButton.layer.cornerRadius = 22
-        addToCartButton.layer.borderWidth = 1
-        addToCartButton.layer.borderColor = UIColor.systemTeal.cgColor
-        addToCartButton.setTitleColor(.systemTeal, for: .normal)
-
-        buyNowButton.layer.cornerRadius = 22
-        buyNowButton.backgroundColor = UIColor(red: 3/255, green: 54/255, blue: 73/255, alpha: 1)
-        buyNowButton.setTitleColor(.white, for: .normal)
+    @objc private func cartTapped() {
+        print("🛒 Cart tapped")
     }
 }

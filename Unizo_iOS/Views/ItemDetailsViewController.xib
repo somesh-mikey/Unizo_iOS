@@ -12,13 +12,10 @@
         <placeholder placeholderIdentifier="IBFilesOwner" id="-1" userLabel="File's Owner" customClass="ItemDetailsViewController" customModule="Unizo_iOS">
             <connections>
                 <outlet property="addToCartButton" destination="vyY-JD-rBD" id="guw-gQ-cCz"/>
-                <outlet property="bottomBarView" destination="nbv-dS-cYj" id="Lu7-Sa-TRb"/>
                 <outlet property="buyNowButton" destination="CqD-qk-Z8m" id="0Gc-dk-bh7"/>
                 <outlet property="categoryLabel" destination="V5U-bK-NEg" id="zCc-uK-4ho"/>
                 <outlet property="descriptionTextView" destination="jVu-bC-PfK" id="gB6-IZ-ESV"/>
-                <outlet property="descriptionTitleLabel" destination="1jd-Ws-3Gt" id="SzJ-Jc-JEv"/>
                 <outlet property="featuresTextView" destination="uam-F2-dlx" id="hqW-CL-bBO"/>
-                <outlet property="featuresTitleLabel" destination="GcI-qx-Kjx" id="Abb-J0-xfE"/>
                 <outlet property="priceLabel" destination="2iq-ef-2jR" id="lKK-rU-9iX"/>
                 <outlet property="productImageView" destination="kHA-aw-QRq" id="VRw-ba-kdK"/>
                 <outlet property="ratingLabel" destination="Gky-XM-3O3" id="aR0-X3-NlW"/>
@@ -52,14 +49,14 @@
                     <color key="textColor" white="0.66666666666666663" alpha="1" colorSpace="custom" customColorSpace="genericGamma22GrayColorSpace"/>
                     <nil key="highlightedColor"/>
                 </label>
-                <label opaque="NO" userInteractionEnabled="NO" contentMode="left" horizontalHuggingPriority="251" verticalHuggingPriority="251" fixedFrame="YES" text="Description" textAlignment="natural" lineBreakMode="tailTruncation" baselineAdjustment="alignBaselines" adjustsFontSizeToFit="NO" translatesAutoresizingMaskIntoConstraints="NO" id="1jd-Ws-3Gt">
-                    <rect key="frame" x="49" y="499" width="85" height="18"/>
+                <label opaque="NO" userInteractionEnabled="NO" contentMode="left" horizontalHuggingPriority="251" verticalHuggingPriority="251" fixedFrame="YES" text="Under Armour Cap" textAlignment="natural" lineBreakMode="tailTruncation" numberOfLines="7" baselineAdjustment="alignBaselines" adjustsFontSizeToFit="NO" translatesAutoresizingMaskIntoConstraints="NO" id="1jd-Ws-3Gt">
+                    <rect key="frame" x="49" y="499" width="137" height="18"/>
                     <autoresizingMask key="autoresizingMask" flexibleMaxX="YES" flexibleMaxY="YES"/>
                     <fontDescription key="fontDescription" type="boldSystem" pointSize="15"/>
                     <nil key="textColor"/>
                     <nil key="highlightedColor"/>
                 </label>
-                <textView clipsSubviews="YES" multipleTouchEnabled="YES" contentMode="scaleToFill" fixedFrame="YES" editable="NO" textAlignment="natural" translatesAutoresizingMaskIntoConstraints="NO" id="jVu-bC-PfK">
+                <textView clipsSubviews="YES" multipleTouchEnabled="YES" contentMode="scaleToFill" fixedFrame="YES" scrollEnabled="NO" editable="NO" textAlignment="natural" translatesAutoresizingMaskIntoConstraints="NO" id="jVu-bC-PfK">
                     <rect key="frame" x="49" y="525" width="314" height="100"/>
                     <autoresizingMask key="autoresizingMask" flexibleMaxX="YES" flexibleMaxY="YES"/>
                     <color key="backgroundColor" systemColor="systemBackgroundColor"/>
@@ -68,18 +65,11 @@
                     <fontDescription key="fontDescription" type="system" pointSize="14"/>
                     <textInputTraits key="textInputTraits" autocapitalizationType="sentences"/>
                 </textView>
-                <label opaque="NO" userInteractionEnabled="NO" contentMode="left" horizontalHuggingPriority="251" verticalHuggingPriority="251" fixedFrame="YES" text="Features:" textAlignment="natural" lineBreakMode="tailTruncation" baselineAdjustment="alignBaselines" adjustsFontSizeToFit="NO" translatesAutoresizingMaskIntoConstraints="NO" id="GcI-qx-Kjx">
-                    <rect key="frame" x="54" y="641" width="70" height="18"/>
-                    <autoresizingMask key="autoresizingMask" flexibleMaxX="YES" flexibleMaxY="YES"/>
-                    <fontDescription key="fontDescription" type="boldSystem" pointSize="15"/>
-                    <nil key="textColor"/>
-                    <nil key="highlightedColor"/>
-                </label>
-                <textView clipsSubviews="YES" multipleTouchEnabled="YES" contentMode="scaleToFill" fixedFrame="YES" textAlignment="natural" translatesAutoresizingMaskIntoConstraints="NO" id="uam-F2-dlx">
+                <textView clipsSubviews="YES" multipleTouchEnabled="YES" contentMode="scaleToFill" fixedFrame="YES" scrollEnabled="NO" textAlignment="natural" translatesAutoresizingMaskIntoConstraints="NO" id="uam-F2-dlx">
                     <rect key="frame" x="54" y="667" width="240" height="58"/>
                     <autoresizingMask key="autoresizingMask" flexibleMaxX="YES" flexibleMaxY="YES"/>
                     <color key="backgroundColor" systemColor="systemBackgroundColor"/>
-                    <string key="text">Lightweight &amp; Breathable: The structured front panels maintain shape while the curved visor offers a sleek, athletic look.
+                    <mutableString key="text">Lightweight &amp; Breathable: The structured front panels maintain shape while the curved visor offers a sleek, athletic look.
 HeatGear® Technology: Wicks sweat and moisture, keeping you cool and dry even in high-intensity conditions.
 Stretch Fit Comfort: Built-in elastic band ensures a secure, comfortable fit without pressure.
 Durable Design: Made from premium polyester and elastane blend that stands up to daily wear.
@@ -89,7 +79,7 @@ Specifications:
 Material: 84% Polyester, 16% Elastane
 Fit: Stretch-fit / Adjustable (depending on variant)
 Care: Hand wash cold, line dry
-Ideal for: Training, Running, Outdoor Sports, Everyday Wear</string>
+Ideal for: Training, Running, Outdoor Sports, Everyday Wear</mutableString>
                     <color key="textColor" systemColor="labelColor"/>
                     <fontDescription key="fontDescription" type="system" pointSize="14"/>
                     <textInputTraits key="textInputTraits" autocapitalizationType="sentences"/>
@@ -131,13 +121,6 @@ Ideal for: Training, Running, Outdoor Sports, Everyday Wear</string>
                     </subviews>
                     <color key="backgroundColor" systemColor="systemBackgroundColor"/>
                 </view>
-                <label opaque="NO" userInteractionEnabled="NO" contentMode="center" horizontalHuggingPriority="251" verticalHuggingPriority="251" fixedFrame="YES" text="Under Armour Cap" textAlignment="natural" lineBreakMode="tailTruncation" baselineAdjustment="alignBaselines" adjustsFontSizeToFit="NO" translatesAutoresizingMaskIntoConstraints="NO" id="p41-kU-YV3">
-                    <rect key="frame" x="33" y="440" width="153" height="21"/>
-                    <autoresizingMask key="autoresizingMask" flexibleMaxX="YES" flexibleMaxY="YES"/>
-                    <fontDescription key="fontDescription" type="boldSystem" pointSize="17"/>
-                    <nil key="textColor"/>
-                    <nil key="highlightedColor"/>
-                </label>
             </subviews>
             <viewLayoutGuide key="safeArea" id="fnl-2z-Ty3"/>
             <color key="backgroundColor" systemColor="systemBackgroundColor"/>
