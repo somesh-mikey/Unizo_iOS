@@ -37,6 +37,14 @@
 			);
 			target = 5701C30F2EC30E92000DB010 /* Unizo_iOS */;
 		};
+		BBA5B2562EC4624E000D964E /* Exceptions for "Unizo_iOS" folder in "Unizo_iOSUITests" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				Controllers/LoginModalViewController.swift,
+				Views/LoginModalViewController.xib,
+			);
+			target = 5701C32F2EC30E93000DB010 /* Unizo_iOSUITests */;
+		};
 /* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
@@ -44,6 +52,7 @@
 			isa = PBXFileSystemSynchronizedRootGroup;
 			exceptions = (
 				5701C3382EC30E93000DB010 /* Exceptions for "Unizo_iOS" folder in "Unizo_iOS" target */,
+				BBA5B2562EC4624E000D964E /* Exceptions for "Unizo_iOS" folder in "Unizo_iOSUITests" target */,
 			);
 			path = Unizo_iOS;
 			sourceTree = "<group>";

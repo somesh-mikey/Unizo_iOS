@@ -200,5 +200,24 @@ class WelcomeViewController: UIViewController {
            button.imageEdgeInsets = UIEdgeInsets(top: 0, left: -6, bottom: 0, right: 0)
            button.titleEdgeInsets = UIEdgeInsets(top: 0, left: 4, bottom: 0, right: -4)
        }
-   }
+    // MARK: - Actions
+    @IBAction func loginButtonTapped(_ sender: UIButton) {
+
+        let loginVC = LoginModalViewController()   // <-- PROGRAMMATIC INIT (NO XIB)
+
+        loginVC.modalPresentationStyle = .overCurrentContext
+        loginVC.modalTransitionStyle = .coverVertical
+
+        present(loginVC, animated: true)
+    }
+    @IBAction func emailSignUpButtonTapped(_ sender: UIButton) {
+
+        let signUpVC = SignUpViewController(nibName: "SignUpViewController", bundle: nil)
+        signUpVC.modalPresentationStyle = .overCurrentContext
+        signUpVC.modalTransitionStyle = .coverVertical
+
+        present(signUpVC, animated: true)
+    }
+    
+}
 

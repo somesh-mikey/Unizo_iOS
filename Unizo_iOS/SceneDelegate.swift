@@ -19,7 +19,7 @@ class SceneDelegate: UIResponder, UIWindowSceneDelegate {
         guard let windowScene = (scene as? UIWindowScene) else { return }
 
             let window = UIWindow(windowScene: windowScene)
-            let welcomeVC = WelcomeViewController(nibName: "WelcomeViewController", bundle: nil)
+            let welcomeVC = WelcomeViewController()
             window.rootViewController = welcomeVC
             self.window = window
             window.makeKeyAndVisible()
