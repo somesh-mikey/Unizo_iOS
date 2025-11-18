@@ -69,7 +69,7 @@
                     <rect key="frame" x="54" y="667" width="240" height="58"/>
                     <autoresizingMask key="autoresizingMask" flexibleMaxX="YES" flexibleMaxY="YES"/>
                     <color key="backgroundColor" systemColor="systemBackgroundColor"/>
-                    <mutableString key="text">Lightweight &amp; Breathable: The structured front panels maintain shape while the curved visor offers a sleek, athletic look.
+                    <string key="text">Lightweight &amp; Breathable: The structured front panels maintain shape while the curved visor offers a sleek, athletic look.
 HeatGear® Technology: Wicks sweat and moisture, keeping you cool and dry even in high-intensity conditions.
 Stretch Fit Comfort: Built-in elastic band ensures a secure, comfortable fit without pressure.
 Durable Design: Made from premium polyester and elastane blend that stands up to daily wear.
@@ -79,7 +79,7 @@ Specifications:
 Material: 84% Polyester, 16% Elastane
 Fit: Stretch-fit / Adjustable (depending on variant)
 Care: Hand wash cold, line dry
-Ideal for: Training, Running, Outdoor Sports, Everyday Wear</mutableString>
+Ideal for: Training, Running, Outdoor Sports, Everyday Wear</string>
                     <color key="textColor" systemColor="labelColor"/>
                     <fontDescription key="fontDescription" type="system" pointSize="14"/>
                     <textInputTraits key="textInputTraits" autocapitalizationType="sentences"/>
@@ -128,7 +128,7 @@ Ideal for: Training, Running, Outdoor Sports, Everyday Wear</mutableString>
         </view>
     </objects>
     <resources>
-        <image name="Cap" width="251" height="335"/>
+        <image name="Cap" width="184" height="238"/>
         <namedColor name="Quarternary">
             <color red="0.015686274509803921" green="0.26666666666666666" blue="0.37254901960784315" alpha="1" colorSpace="custom" customColorSpace="sRGB"/>
         </namedColor>
