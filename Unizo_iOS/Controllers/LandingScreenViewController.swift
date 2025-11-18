@@ -57,6 +57,19 @@ class LandingScreenViewController: UIViewController {
         Product(name: "Table Tennis Bat", price: 999, rating: 4.6, negotiable: false, imageName: "tabletennis"),
         Product(name: "Noise Two Wireless", price: 599, rating: 4.4, negotiable: true, imageName: "headphones2")
     ]
+    private var displayedProducts: [Product] = []
+    private let hostelEssentialsItems: [Product] = [
+        Product(name: "Electric Kettle", price: 649, rating: 4.9, negotiable: false, imageName: "kettle"),
+        Product(name: "Study Lamp", price: 500, rating: 4.2, negotiable: true, imageName: "lamp"),
+        Product(name: "Water Bottle", price: 199, rating: 4.1, negotiable: false, imageName: "bottle")
+    ]
+
+    private let furnitureItems: [Product] = []
+    private let fashionItems: [Product] = []
+    private let sportsItems: [Product] = []
+    private let gadgetsItems: [Product] = []
+
+
 
     // MARK: Init
     init() {
@@ -75,6 +88,8 @@ class LandingScreenViewController: UIViewController {
         setupCarousel()
         setupCollectionView()
         startAutoScroll()
+        displayedProducts = products   // default
+
     }
 
     override func viewDidLayoutSubviews() {
@@ -220,7 +235,8 @@ class LandingScreenViewController: UIViewController {
             ("headphones", "Gadgets")
         ]
         
-        for (icon, caption) in categories {
+        for (index, item) in categories.enumerated() {
+            let (icon, caption) = item
             let vstack = UIStackView()
             vstack.axis = .vertical
             vstack.alignment = .center
@@ -228,6 +244,8 @@ class LandingScreenViewController: UIViewController {
             vstack.spacing = 6
             
             let btn = UIButton(type: .system)
+            btn.tag = categoryStackView.arrangedSubviews.count   // Will represent index
+            btn.addTarget(self, action: #selector(categoryTapped(_:)), for: .touchUpInside)
             btn.setImage(UIImage(systemName: icon), for: .normal)
             btn.tintColor = UIColor(red: 0.03, green: 0.22, blue: 0.27, alpha: 1)
             btn.backgroundColor = UIColor(red: 0.65, green: 0.91, blue: 0.96, alpha: 1)
@@ -310,6 +328,7 @@ class LandingScreenViewController: UIViewController {
         
         // --- Segmented Control ---
         contentView.addSubview(segmentedControl)
+        segmentedControl.addTarget(self, action: #selector(segmentChanged), for: .valueChanged)
         // --- Segmented Control Styling ---
         segmentedControl.selectedSegmentIndex = 0
 
@@ -372,6 +391,80 @@ class LandingScreenViewController: UIViewController {
         tabBar.unselectedItemTintColor = .darkGray    // unselected item color
         tabBar.isTranslucent = false
 
+    }
+    @objc private func segmentChanged() {
+
+        // Update data based on selected segment
+        switch segmentedControl.selectedSegmentIndex {
+
+        case 0: // All
+            displayedProducts = products
+
+        case 1: // Most Popular
+            displayedProducts = products.sorted { $0.rating > $1.rating }
+
+        case 2: // Negotiable
+            displayedProducts = products.filter { $0.negotiable }
+
+        default:
+            break
+        }
+
+        // Animate the update
+        UIView.transition(with: collectionView,
+                          duration: 0.35,
+                          options: [.transitionCrossDissolve],
+                          animations: { [weak self] in
+                              self?.collectionView.reloadData()
+                          },
+                          completion: { [weak self] _ in
+                              self?.updateCollectionHeight()
+                          })
+
+        // Add slight scale bounce
+        collectionView.layer.transform = CATransform3DMakeScale(0.96, 0.96, 1)
+
+        UIView.animate(withDuration: 0.35,
+                       delay: 0,
+                       usingSpringWithDamping: 0.6,
+                       initialSpringVelocity: 0.8,
+                       options: [.curveEaseOut],
+                       animations: {
+                           self.collectionView.layer.transform = CATransform3DIdentity
+                       })
+    }
+    func openCategoryPage(title: String, items: [Product]) {
+        // Preserve old API by forwarding with a default index
+        openCategoryPage(title: title, items: items, categoryIndex: 0)
+    }
+
+    func openCategoryPage(title: String, items: [Product], categoryIndex: Int) {
+        let vc = CategoryPageViewController()
+        vc.title = title
+        vc.items = items
+        vc.categoryIndex = categoryIndex
+        if let nav = navigationController {
+            nav.pushViewController(vc, animated: true)
+        } else {
+            vc.modalPresentationStyle = .fullScreen
+            vc.modalTransitionStyle = .crossDissolve
+            present(vc, animated: true)
+        }
+    }
+
+    @objc private func categoryTapped(_ sender: UIButton) {
+        let index = sender.tag
+
+        let mapping: [(title: String, items: [Product])] = [
+            ("Hostel Essentials", hostelEssentialsItems),
+            ("Furniture", furnitureItems),
+            ("Fashion", fashionItems),
+            ("Sports", sportsItems),
+            ("Gadgets", gadgetsItems)
+        ]
+
+        let selected = mapping[safe: index] ?? (title: "Category", items: [])
+        openCategoryPage(title: selected.title, items: selected.items, categoryIndex: index)
     }
 
 
@@ -499,14 +592,15 @@ extension LandingScreenViewController: UIScrollViewDelegate {
 // MARK: - CollectionView delegate
 extension LandingScreenViewController: UICollectionViewDataSource, UICollectionViewDelegateFlowLayout {
     func collectionView(_ collectionView: UICollectionView, numberOfItemsInSection section: Int) -> Int {
-        products.count
+        displayedProducts.count
     }
 
     func collectionView(_ collectionView: UICollectionView, cellForItemAt indexPath: IndexPath) -> UICollectionViewCell {
             guard let cell = collectionView.dequeueReusableCell(withReuseIdentifier: ProductCell.reuseIdentifier, for: indexPath) as? ProductCell else {
                 return UICollectionViewCell()
             }
-            cell.configure(with: products[indexPath.item])
+        cell.configure(with: displayedProducts[indexPath.item])
+
             return cell
         }
 
@@ -650,4 +744,6 @@ extension LandingScreenViewController: UICollectionViewDataSource, UICollectionV
             return indices.contains(index) ? self[index] : nil
         }
     }
+
+
 
