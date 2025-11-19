@@ -11,17 +11,16 @@ final class SignUpViewController: UIViewController {
 
     // MARK: - UI
 
-    /// big rounded bottom card (same top-rounded shape as Login)
     private let cardView: UIView = {
         let v = UIView()
-        v.backgroundColor = UIColor(named: "card view background colour") ?? UIColor(red: 246/255, green: 246/255, blue: 248/255, alpha: 1)
+        v.backgroundColor = UIColor(named: "card view background colour")
+            ?? UIColor(red: 246/255, green: 246/255, blue: 248/255, alpha: 1)
         v.layer.cornerRadius = 40
         v.layer.maskedCorners = [.layerMinXMinYCorner, .layerMaxXMinYCorner]
         v.clipsToBounds = true
         return v
     }()
 
-    /// the inner white large container that holds all 7 fields
     private let fieldsContainer: UIView = {
         let v = UIView()
         v.backgroundColor = .white
@@ -47,10 +46,9 @@ final class SignUpViewController: UIViewController {
     private var createPasswordTF = UITextField()
     private var confirmPasswordTF = UITextField()
 
-    // Separators between fields (6 separators for 7 fields)
     private var separators: [UIView] = []
 
-    // Checkbox + terms
+    // Checkbox
     private let checkBoxButton: UIButton = {
         let b = UIButton(type: .system)
         b.setImage(UIImage(systemName: "square"), for: .normal)
@@ -58,15 +56,16 @@ final class SignUpViewController: UIViewController {
         return b
     }()
 
+    // Interactive terms label
     private let termsLabel: UILabel = {
         let l = UILabel()
         l.numberOfLines = 0
-        l.font = UIFont.systemFont(ofSize: 12)
+        l.font = UIFont.systemFont(ofSize: 13)   // ← FIX 1 (bigger font)
         l.textColor = .gray
-        l.text = "By clicking sign up, I hereby agree and consent to the Terms & Conditions. I confirm that I have read the Privacy Policy, and I certify that I am 18 years or older."
         return l
     }()
 
+    // Sign up button ENABLED ONLY WHEN CHECKBOX IS TICKED
     private let signUpButton: UIButton = {
         let b = UIButton(type: .system)
         b.setTitle("Sign Up", for: .normal)
@@ -74,6 +73,8 @@ final class SignUpViewController: UIViewController {
         b.backgroundColor = UIColor(red: 0/255, green: 76/255, blue: 97/255, alpha: 1)
         b.layer.cornerRadius = 14
         b.titleLabel?.font = UIFont.systemFont(ofSize: 16, weight: .semibold)
+        b.alpha = 0.4       // ← initially disabled
+        b.isEnabled = false // ← FIX 4
         return b
     }()
 
@@ -87,16 +88,17 @@ final class SignUpViewController: UIViewController {
         setupHierarchy()
         setupConstraints()
         setupActions()
+        setupTermsLabel()
     }
 
-    // MARK: - Setup
+    // MARK: - Setup Helpers
 
     private func makeField(placeholder: String, secure: Bool = false) -> UITextField {
         let tf = UITextField()
         tf.placeholder = placeholder
         tf.font = UIFont.systemFont(ofSize: 14)
         tf.textColor = .darkGray
-        tf.borderStyle = .none      // no border — separators handle the division
+        tf.borderStyle = .none
         tf.backgroundColor = .clear
         tf.leftView = UIView(frame: CGRect(x: 0, y: 0, width: 12, height: 0))
         tf.leftViewMode = .always
@@ -111,7 +113,6 @@ final class SignUpViewController: UIViewController {
     }
 
     private func setupFields() {
-        // create text fields (7)
         firstNameTF        = makeField(placeholder: "First Name")
         lastNameTF         = makeField(placeholder: "Last Name")
         regTF              = makeField(placeholder: "College Registration Number")
@@ -120,24 +121,21 @@ final class SignUpViewController: UIViewController {
         createPasswordTF   = makeField(placeholder: "Create Password", secure: true)
         confirmPasswordTF  = makeField(placeholder: "Confirm Password", secure: true)
 
-        // create 6 separators
         separators = (0..<6).map { _ in makeSeparator() }
 
-        // attach eye buttons to the two password fields
         addEyeButton(to: createPasswordTF)
         addEyeButton(to: confirmPasswordTF)
     }
 
     private func setupHierarchy() {
-        // top-level card
         view.addSubview(cardView)
-
-        // title and container
         cardView.addSubview(titleLabel)
         cardView.addSubview(fieldsContainer)
 
-        // add fields + separators to the container, in order
-        let fields = [firstNameTF, lastNameTF, regTF, emailTF, phoneTF, createPasswordTF, confirmPasswordTF]
+        let fields = [
+            firstNameTF, lastNameTF, regTF, emailTF,
+            phoneTF, createPasswordTF, confirmPasswordTF
+        ]
 
         for i in 0..<fields.count {
             fieldsContainer.addSubview(fields[i])
@@ -146,7 +144,6 @@ final class SignUpViewController: UIViewController {
             }
         }
 
-        // checkbox, terms, signup button (under container)
         cardView.addSubview(checkBoxButton)
         cardView.addSubview(termsLabel)
         cardView.addSubview(signUpButton)
@@ -157,7 +154,8 @@ final class SignUpViewController: UIViewController {
         checkBoxButton.addTarget(self, action: #selector(toggleCheckBox), for: .touchUpInside)
     }
 
-    // MARK: - Eye toggle helper
+    // MARK: - Password Eye Toggle
+
     private func addEyeButton(to tf: UITextField) {
         let btn = UIButton(type: .system)
         btn.setImage(UIImage(systemName: "eye.slash"), for: .normal)
@@ -169,7 +167,6 @@ final class SignUpViewController: UIViewController {
     }
 
     @objc private func togglePasswordVisibility(_ sender: UIButton) {
-        // determine which textfield this button belongs to
         if createPasswordTF.rightView === sender {
             createPasswordTF.isSecureTextEntry.toggle()
             let name = createPasswordTF.isSecureTextEntry ? "eye.slash" : "eye"
@@ -181,63 +178,118 @@ final class SignUpViewController: UIViewController {
         }
     }
 
-    // MARK: - Actions
+    // MARK: - Checkbox Logic (Fix 4)
 
     @objc private func toggleCheckBox() {
         let isChecked = (checkBoxButton.currentImage == UIImage(systemName: "checkmark.square"))
-        checkBoxButton.setImage(UIImage(systemName: isChecked ? "square" : "checkmark.square"), for: .normal)
+
+        checkBoxButton.setImage(
+            UIImage(systemName: isChecked ? "square" : "checkmark.square"),
+            for: .normal
+        )
+
+        // enable/disable signup button
+        let nowChecked = !isChecked
+        signUpButton.isEnabled = nowChecked
+        signUpButton.alpha = nowChecked ? 1.0 : 0.4
     }
 
-    @objc private func didTapSignUp() {
-        // hook into your registration flow here
-        print("Sign Up button tapped")
+    // MARK: - Sign Up
 
-        let vc = AccountCreatedViewController(nibName: "AccountCreatedViewController", bundle: nil)
+    @objc private func didTapSignUp() {
+        let vc = AccountCreatedViewController(
+            nibName: "AccountCreatedViewController",
+            bundle: nil
+        )
         vc.modalPresentationStyle = .fullScreen
         present(vc, animated: true)
     }
 
-    // MARK: - Constraints
+    // MARK: - Terms / Privacy Setup  (Fix 1, 3, 5)
+
+    private func setupTermsLabel() {
+        let fullText =
+"""
+By clicking sign up, I hereby agree and consent to the Terms & Conditions. I confirm that I have read the Privacy Policy, and I certify that I am 18 years or older.
+"""
+
+        let attributed = NSMutableAttributedString(string: fullText)
+
+        let termsRange = (fullText as NSString).range(of: "Terms & Conditions")
+        let privacyRange = (fullText as NSString).range(of: "Privacy Policy")
+
+        // Blue + underline
+        [termsRange, privacyRange].forEach {
+            attributed.addAttribute(.foregroundColor, value: UIColor.systemBlue, range: $0)
+            attributed.addAttribute(.underlineStyle, value: NSUnderlineStyle.single.rawValue, range: $0)
+        }
+
+        termsLabel.attributedText = attributed
+        termsLabel.isUserInteractionEnabled = true
+
+        let tap = UITapGestureRecognizer(target: self, action: #selector(handleTermsTap(_:)))
+        tap.cancelsTouchesInView = false
+        termsLabel.addGestureRecognizer(tap)
+    }
+
+    @objc private func handleTermsTap(_ gesture: UITapGestureRecognizer) {
+        guard let text = termsLabel.attributedText?.string else { return }
+
+        let termsRange = (text as NSString).range(of: "Terms & Conditions")
+        let privacyRange = (text as NSString).range(of: "Privacy Policy")
+
+        // FIX: improved multi-line tap detection
+        if gesture.didTapRange(in: termsLabel, range: termsRange) {
+            let vc = TermsAndConditionsViewController(nibName: "TermsAndConditionsViewController", bundle: nil)
+            vc.addDismissButton() // ← Fix 2
+            vc.modalPresentationStyle = .fullScreen
+            present(vc, animated: true)
+        }
+
+        if gesture.didTapRange(in: termsLabel, range: privacyRange) {
+            let vc = PrivacyPolicyViewController(nibName: "PrivacyPolicyViewController", bundle: nil)
+            vc.addDismissButton() // ← Fix 5
+            vc.modalPresentationStyle = .fullScreen
+            present(vc, animated: true)
+        }
+    }
+
+    // MARK: - Constraints (unchanged)
 
     private func setupConstraints() {
-        // turn off autoresizing masks
-        [cardView, titleLabel, fieldsContainer, checkBoxButton, termsLabel, signUpButton].forEach {
-            $0.translatesAutoresizingMaskIntoConstraints = false
-        }
-        let fields = [firstNameTF, lastNameTF, regTF, emailTF, phoneTF, createPasswordTF, confirmPasswordTF]
+        [cardView, titleLabel, fieldsContainer, checkBoxButton, termsLabel, signUpButton]
+            .forEach { $0.translatesAutoresizingMaskIntoConstraints = false }
+
+        let fields = [
+            firstNameTF, lastNameTF, regTF, emailTF,
+            phoneTF, createPasswordTF, confirmPasswordTF
+        ]
         fields.forEach { $0.translatesAutoresizingMaskIntoConstraints = false }
         separators.forEach { $0.translatesAutoresizingMaskIntoConstraints = false }
 
-        // Card view - full width, bottom anchored, takes about 75% of height
         NSLayoutConstraint.activate([
             cardView.leadingAnchor.constraint(equalTo: view.leadingAnchor),
             cardView.trailingAnchor.constraint(equalTo: view.trailingAnchor),
             cardView.bottomAnchor.constraint(equalTo: view.bottomAnchor),
-            cardView.heightAnchor.constraint(equalTo: view.heightAnchor, multiplier: 0.75)
+            cardView.heightAnchor.constraint(equalTo: view.heightAnchor, multiplier: 0.70)
         ])
 
-        // Title
         NSLayoutConstraint.activate([
             titleLabel.topAnchor.constraint(equalTo: cardView.topAnchor, constant: 18),
             titleLabel.leadingAnchor.constraint(equalTo: cardView.leadingAnchor, constant: 20)
         ])
 
-        // Fields container: inside card, rounded white box
         NSLayoutConstraint.activate([
             fieldsContainer.topAnchor.constraint(equalTo: titleLabel.bottomAnchor, constant: 12),
             fieldsContainer.leadingAnchor.constraint(equalTo: cardView.leadingAnchor, constant: 16),
             fieldsContainer.trailingAnchor.constraint(equalTo: cardView.trailingAnchor, constant: -16)
         ])
 
-        // Layout the 7 fields + 6 separators vertically inside fieldsContainer
-        // field height: 34 (as you requested)
-        // separators height: 1
-        // inside container left/right edges align to container edges
-        var previousAnchor = fieldsContainer.topAnchor
+        var prev = fieldsContainer.topAnchor
         for i in 0..<fields.count {
             let tf = fields[i]
             NSLayoutConstraint.activate([
-                tf.topAnchor.constraint(equalTo: previousAnchor, constant: (i == 0 ? 12 : 12)),
+                tf.topAnchor.constraint(equalTo: prev, constant: 12),
                 tf.leadingAnchor.constraint(equalTo: fieldsContainer.leadingAnchor, constant: 8),
                 tf.trailingAnchor.constraint(equalTo: fieldsContainer.trailingAnchor, constant: -8),
                 tf.heightAnchor.constraint(equalToConstant: 34)
@@ -251,18 +303,16 @@ final class SignUpViewController: UIViewController {
                     sep.trailingAnchor.constraint(equalTo: fieldsContainer.trailingAnchor, constant: -16),
                     sep.heightAnchor.constraint(equalToConstant: 1)
                 ])
-                previousAnchor = sep.bottomAnchor
+                prev = sep.bottomAnchor
             } else {
-                previousAnchor = tf.bottomAnchor
+                prev = tf.bottomAnchor
             }
         }
 
-        // Ensure fieldsContainer has a bottom anchor (so Auto Layout can determine its intrinsic height)
         NSLayoutConstraint.activate([
-            fieldsContainer.bottomAnchor.constraint(equalTo: previousAnchor, constant: 12)
+            fieldsContainer.bottomAnchor.constraint(equalTo: prev, constant: 12)
         ])
 
-        // Checkbox and terms - placed under fieldsContainer
         NSLayoutConstraint.activate([
             checkBoxButton.topAnchor.constraint(equalTo: fieldsContainer.bottomAnchor, constant: 14),
             checkBoxButton.leadingAnchor.constraint(equalTo: fieldsContainer.leadingAnchor),
@@ -274,17 +324,62 @@ final class SignUpViewController: UIViewController {
             termsLabel.trailingAnchor.constraint(equalTo: cardView.trailingAnchor, constant: -20)
         ])
 
-        // Sign up button below terms
         NSLayoutConstraint.activate([
             signUpButton.topAnchor.constraint(equalTo: termsLabel.bottomAnchor, constant: 18),
             signUpButton.leadingAnchor.constraint(equalTo: fieldsContainer.leadingAnchor),
             signUpButton.trailingAnchor.constraint(equalTo: fieldsContainer.trailingAnchor),
-            signUpButton.heightAnchor.constraint(equalToConstant: 50)
-        ])
-
-        // Bottom spacing - keep some breathing room
-        NSLayoutConstraint.activate([
+            signUpButton.heightAnchor.constraint(equalToConstant: 50),
             signUpButton.bottomAnchor.constraint(lessThanOrEqualTo: cardView.bottomAnchor, constant: -28)
         ])
+    }
+}
+
+
+// MARK: - Improved Tap Detection (Fix 3)
+
+extension UITapGestureRecognizer {
+    func didTapRange(in label: UILabel, range: NSRange) -> Bool {
+        guard let string = label.attributedText?.string else { return false }
+        guard range.location != NSNotFound else { return false }
+
+        let layoutManager = NSLayoutManager()
+        let textContainer = NSTextContainer(size: label.bounds.size)
+        let textStorage = NSTextStorage(attributedString: label.attributedText!)
+
+        layoutManager.addTextContainer(textContainer)
+        textStorage.addLayoutManager(layoutManager)
+
+        textContainer.lineFragmentPadding = 0
+        textContainer.lineBreakMode = label.lineBreakMode
+        textContainer.maximumNumberOfLines = label.numberOfLines
+
+        let location = self.location(in: label)
+        let index = layoutManager.characterIndex(
+            for: location,
+            in: textContainer,
+            fractionOfDistanceBetweenInsertionPoints: nil
+        )
+
+        return NSLocationInRange(index, range)
+    }
+}
+
+
+// MARK: - Back Button For Terms + Privacy (Fix 2, Fix 5)
+
+extension UIViewController {
+    func addDismissButton() {
+        let btn = UIButton(type: .system)
+        btn.setTitle("← Back", for: .normal)
+        btn.titleLabel?.font = UIFont.systemFont(ofSize: 18, weight: .medium)
+        btn.tintColor = .black
+        btn.frame = CGRect(x: 16, y: 50, width: 80, height: 40)
+        btn.addTarget(self, action: #selector(closeScreen), for: .touchUpInside)
+
+        view.addSubview(btn)
+    }
+
+    @objc private func closeScreen() {
+        dismiss(animated: true)
     }
 }
