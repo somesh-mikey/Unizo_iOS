@@ -22,11 +22,17 @@ class LandingScreenViewController: UIViewController {
     // MARK: UI
     @IBOutlet weak var trendingCategoriesbg: UIView!
     @IBOutlet weak var scrollbg: UIView!
+    private var collectionView: UICollectionView!
     private let topContainer = UIView()
     private let navBarView = UIView()
     private let homeLabel = UILabel()
     private let toolbar = UIToolbar()
-    private let searchBar = UISearchBar()
+    private let searchBar: UISearchBar = {
+        let sb = UISearchBar()
+        sb.placeholder = "Search"
+        sb.searchBarStyle = .minimal
+        return sb
+    }()
     private let trendingLabel = UILabel()
     private let categoryStackView = UIStackView()
 
@@ -36,7 +42,6 @@ class LandingScreenViewController: UIViewController {
     private let carouselScrollView = UIScrollView()
     private let pageControl = UIPageControl()
     private let segmentedControl = UISegmentedControl(items: ["All", "Most Popular", "Negotiable"])
-    private let collectionView: UICollectionView
 
     private let tabBar = UITabBar()
 
@@ -238,16 +243,6 @@ class LandingScreenViewController: UIViewController {
     ]
 
 
-
-    // MARK: Init
-    init() {
-        let layout = UICollectionViewFlowLayout()
-        layout.scrollDirection = .vertical
-        self.collectionView = UICollectionView(frame: .zero, collectionViewLayout: layout)
-        super.init(nibName: nil, bundle: nil)
-    }
-    required init?(coder: NSCoder) { fatalError("init(coder:) has not been implemented") }
-
     // MARK: Lifecycle
     override func viewDidLoad() {
         super.viewDidLoad()
@@ -257,6 +252,7 @@ class LandingScreenViewController: UIViewController {
         setupCollectionView()
         startAutoScroll()
         displayedProducts = products   // default
+        searchBar.delegate = self
 
     }
 
@@ -526,8 +522,11 @@ class LandingScreenViewController: UIViewController {
         ])
         
         // --- Collection View ---
-        contentView.addSubview(collectionView)
+        let layout = UICollectionViewFlowLayout()
+        layout.scrollDirection = .vertical
+        collectionView = UICollectionView(frame: .zero, collectionViewLayout: layout)
         collectionView.translatesAutoresizingMaskIntoConstraints = false
+        contentView.addSubview(collectionView)
         NSLayoutConstraint.activate([
             collectionView.topAnchor.constraint(equalTo: segmentedControl.bottomAnchor, constant: 10),
             collectionView.leadingAnchor.constraint(equalTo: contentView.leadingAnchor, constant: 10),
@@ -913,5 +912,24 @@ extension LandingScreenViewController: UICollectionViewDataSource, UICollectionV
         }
     }
 
+extension LandingScreenViewController: UISearchBarDelegate {
+    
+    func searchBarTextDidBeginEditing(_ searchBar: UISearchBar) {
 
+        // Combine all products from all categories
+        let combinedProducts =
+            products +
+            hostelEssentialsItems +
+            furnitureItems +
+            fashionItems +
+            sportsItems +
+            gadgetsItems
 
+        let vc = SearchResultsViewController(
+            keyword: searchBar.text ?? "",
+            allProducts: combinedProducts
+        )
+
+        navigationController?.pushViewController(vc, animated: true)
+    }
+}
