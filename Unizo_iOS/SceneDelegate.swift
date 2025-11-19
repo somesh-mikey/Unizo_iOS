@@ -17,22 +17,11 @@ class SceneDelegate: UIResponder, UIWindowSceneDelegate {
         // If using a storyboard, the `window` property will automatically be initialized and attached to the scene.
         // This delegate does not imply the connecting scene or session are new (see `application:configurationForConnectingSceneSession` instead).
         guard let windowScene = (scene as? UIWindowScene) else { return }
+        window = UIWindow(windowScene: windowScene)
+        window?.rootViewController = AddNewAddressViewController()
+        window?.makeKeyAndVisible()
 
-        // Create a new UIWindow for this scene
-            let window = UIWindow(windowScene: windowScene)
-
-            // Load your ItemDetailsViewController from its XIB
-            let itemDetailsVC = ItemDetailsViewController(nibName: "ItemDetailsViewController", bundle: nil)
-
-            // Wrap it inside a UINavigationController (so nav bar shows up properly)
-            let navController = UINavigationController(rootViewController: itemDetailsVC)
-
-            // Set the root view controller to the navigation controller
-            window.rootViewController = navController
-
-            // Assign and make visible
-            self.window = window
-            window.makeKeyAndVisible()
+           
 
     }
 
