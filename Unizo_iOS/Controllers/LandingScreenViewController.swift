@@ -59,15 +59,183 @@ class LandingScreenViewController: UIViewController {
     ]
     private var displayedProducts: [Product] = []
     private let hostelEssentialsItems: [Product] = [
-        Product(name: "Electric Kettle", price: 649, rating: 4.9, negotiable: false, imageName: "kettle"),
-        Product(name: "Study Lamp", price: 500, rating: 4.2, negotiable: true, imageName: "lamp"),
-        Product(name: "Water Bottle", price: 199, rating: 4.1, negotiable: false, imageName: "bottle")
+        Product(name: "Prestige Electric Kettle", price: 649, rating: 4.9, negotiable: false, imageName: "electrickettle"),
+        Product(name: "Table Lamp", price: 500, rating: 4.2, negotiable: true, imageName: "lamp"),
+        Product(name: "Table Fan", price: 849, rating: 4.2, negotiable: false, imageName: "tablefan"),
+        Product(name: "Cooler", price: 5499, rating: 4.4, negotiable: true, imageName: "cooler"),
+        Product(name: "Flask", price: 899, rating: 4.3, negotiable: true, imageName: "flask"),
+        Product(name: "Jhumka", price: 249, rating: 4.1, negotiable: false, imageName: "jhumka"),
+        Product(name: "Study Table", price: 699, rating: 4.8, negotiable: true, imageName: "studytable"),
+        Product(name: "Helmet", price: 579, rating: 4.9, negotiable: false, imageName: "helmet")
     ]
 
-    private let furnitureItems: [Product] = []
-    private let fashionItems: [Product] = []
-    private let sportsItems: [Product] = []
-    private let gadgetsItems: [Product] = []
+    private let furnitureItems: [Product] = [
+        Product(name: "Wooden Dining Chair Set", price: 999, rating: 4.3, negotiable: false, imageName: "woodendiningchair"),
+        Product(name: "Ergonomic Mesh Office Chair", price: 1299, rating: 4.7, negotiable: true, imageName: "ergonomicmeshchair"),
+        Product(name: "Swivel Study Chair", price: 799, rating: 4.1, negotiable: false, imageName: "swivelstudychair"),
+        Product(name: "Classic Metal Frame Chair", price: 499, rating: 3.9, negotiable: false, imageName: "classicmetalframechair"),
+        Product(name: "Padded Chair", price: 899, rating: 4.4, negotiable: true, imageName: "paddedofficechair"),
+        Product(name: "Office Chair", price: 899, rating: 4.3, negotiable: false, imageName: "officechair"),
+        Product(name: "Ergo Comfort Chair", price: 1299, rating: 4.8, negotiable: false, imageName: "ergocomfortchair"),
+        Product(name: "Rolling Task Chair", price: 699, rating: 3.8, negotiable: true, imageName: "rollingtaskchair"),
+        Product(name: "Executive Office Chair", price: 1099, rating: 4.1, negotiable: false, imageName: "executiveofficechair"),
+        Product(name: "Adjustable Work Chair", price: 499, rating: 4.2, negotiable: true, imageName: "adjustableworkchair")
+    ]
+    private let fashionItems: [Product] = [
+        Product(name: "Under Armour Cap", price: 500, rating: 4.6, negotiable: true, imageName: "cap"),
+        Product(name: "M Cap", price: 300, rating: 2.7, negotiable: false, imageName: "MCap"),
+        Product(name: "NY Cap", price: 400, rating: 4.8, negotiable: true, imageName: "yellowcap"),
+        Product(name: "Blue Cap", price: 200, rating: 3.5, negotiable: false, imageName: "streetcap"),
+        Product(name: "Street Cap", price: 200, rating: 3.1, negotiable: true, imageName: "NYcap"),
+        Product(name: "Casual Fit Cap", price: 249, rating: 4.1, negotiable: false, imageName: "casualfitcap")
+    ]
+    private let sportsItems: [Product] = [
+    Product(
+        name: "SS Size 5 Bat",
+        price: 1299,
+        rating: 4.6,
+        negotiable: true,
+        imageName: "SSbat"
+    ),
+
+    Product(
+        name: "Cosco Tennis Ball Set",
+        price: 299,
+        rating: 4.1,
+        negotiable: false,
+        imageName: "coscotennisballs"
+    ),
+
+    Product(
+        name: "BAS Size 6 Bat",
+        price: 899,
+        rating: 4.2,
+        negotiable: false,
+        imageName: "BASbat"
+    ),
+
+    Product(
+        name: "Roller Skates",
+        price: 650,
+        rating: 3.5,
+        negotiable: true,
+        imageName: "rollerskates"
+    ),
+
+    Product(
+        name: "Football Spikes",
+        price: 399,
+        rating: 3.1,
+        negotiable: true,
+        imageName: "footballspikes"
+    ),
+
+    Product(
+        name: "Cricket Kit",
+        price: 2999,
+        rating: 4.9,
+        negotiable: true,
+        imageName: "cricketkit"
+    ),
+
+    Product(
+        name: "Carrom Board",
+        price: 700,
+        rating: 4.2,
+        negotiable: false,
+        imageName: "carromboard"
+    ),
+
+    Product(
+        name: "Cricket Pads",
+        price: 599,
+        rating: 4.3,
+        negotiable: false,
+        imageName: "cricketpads"
+    ),
+
+    Product(
+        name: "Table Tennis Bat",
+        price: 375,
+        rating: 4.9,
+        negotiable: false,
+        imageName: "tabletennis"
+    ),
+
+    Product(
+        name: "Badminton Racket",
+        price: 550,
+        rating: 3.8,
+        negotiable: true,
+        imageName: "badmintonracket"
+    )
+]
+    private let gadgetsItems: [Product] = [
+        
+        Product(
+            name: "pTron Headphones",
+            price: 1000,
+            rating: 4.2,
+            negotiable: true,
+            imageName: "ptronheadphones"
+        ),
+
+        Product(
+            name: "Boult ProBass Headphones",
+            price: 1100,
+            rating: 3.9,
+            negotiable: false,
+            imageName: "boultprobassheadphones"
+        ),
+
+        Product(
+            name: "pTron Headphones",
+            price: 1000,
+            rating: 4.2,
+            negotiable: false,
+            imageName: "ptronheadphones"
+        ),
+
+        Product(
+            name: "JBL T450BT",
+            price: 1500,
+            rating: 4.9,
+            negotiable: true,
+            imageName: "jblheadphones"
+        ),
+
+        Product(
+            name: "boAt Rockerz 450",
+            price: 1200,
+            rating: 3.1,
+            negotiable: false,
+            imageName: "boatrockerzheadphones"
+        ),
+
+        Product(
+            name: "Noise Two Wireless",
+            price: 1800,
+            rating: 2.9,
+            negotiable: true,
+            imageName: "noisetwowireless"
+        ),
+
+        Product(
+            name: "Intex Headphones",
+            price: 1300,
+            rating: 2.1,
+            negotiable: false,
+            imageName: "intexheadphones"
+        ),
+
+        Product(
+            name: "Leaf Bass Wireless",
+            price: 1400,
+            rating: 4.6,
+            negotiable: true,
+            imageName: "leafbasswireless"
+        )
+    ]
 
 
 
