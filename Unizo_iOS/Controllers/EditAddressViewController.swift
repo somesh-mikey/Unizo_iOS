@@ -1,16 +1,16 @@
 //
-//  AddNewAddressViewController.swift
+//  EditAddressViewController.swift
 //  Unizo_iOS
 //
-//  Created by Nishtha on 18/11/25.
+//  Created by Nishtha on 19/11/25.
 //
 
 import UIKit
 
-class AddNewAddressViewController: UIViewController {
+class EditAddressViewController: UIViewController {
 
     @IBOutlet weak var topBarContainer: UIView!
-    @IBOutlet weak var titleContainer: UIView!   // we will hide this
+    @IBOutlet weak var titleContainer: UIView!   // hidden like previous screen
     @IBOutlet weak var fieldsContainer: UIView!
     @IBOutlet weak var saveButton: UIButton!
 
@@ -35,13 +35,14 @@ class AddNewAddressViewController: UIViewController {
 
         view.backgroundColor = UIColor(red: 0.96, green: 0.97, blue: 1.0, alpha: 1.0)
 
-        titleContainer.isHidden = true  // ❗ remove white bar entirely
+        titleContainer.isHidden = true
 
         applyContainerConstraints()
         setupTopBar()
         setupFields()
         setupSaveButton()
     }
+
 
     // ------------------------------------------------------------
     // FIXED CONTAINER LAYOUT
@@ -53,18 +54,15 @@ class AddNewAddressViewController: UIViewController {
         fieldsContainer.translatesAutoresizingMaskIntoConstraints = false
 
         NSLayoutConstraint.activate([
-
-            // TOP BAR — same as figma single bar
+            // TOP BAR (same height as figma)
             topBarContainer.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor),
             topBarContainer.leadingAnchor.constraint(equalTo: view.leadingAnchor),
             topBarContainer.trailingAnchor.constraint(equalTo: view.trailingAnchor),
             topBarContainer.heightAnchor.constraint(equalToConstant: 60),
 
-            // Since titleContainer is hidden we keep minimal height
             titleContainer.topAnchor.constraint(equalTo: topBarContainer.bottomAnchor),
             titleContainer.heightAnchor.constraint(equalToConstant: 1),
 
-            // FIELDS CONTAINER
             fieldsContainer.topAnchor.constraint(equalTo: topBarContainer.bottomAnchor, constant: 20),
             fieldsContainer.leadingAnchor.constraint(equalTo: view.leadingAnchor),
             fieldsContainer.trailingAnchor.constraint(equalTo: view.trailingAnchor),
@@ -74,7 +72,7 @@ class AddNewAddressViewController: UIViewController {
 
 
     // ------------------------------------------------------------
-    // TOP BAR — includes title centered with icons
+    // TOP BAR — identical to Add New Address
     // ------------------------------------------------------------
     func setupTopBar() {
 
@@ -86,7 +84,7 @@ class AddNewAddressViewController: UIViewController {
         heartButton.tintColor = .black
         heartButton.translatesAutoresizingMaskIntoConstraints = false
 
-        titleLabel.text = "Add New Address"
+        titleLabel.text = "Edit Address"
         titleLabel.font = UIFont.systemFont(ofSize: 18, weight: .semibold)
         titleLabel.textColor = .black
         titleLabel.translatesAutoresizingMaskIntoConstraints = false
@@ -96,7 +94,6 @@ class AddNewAddressViewController: UIViewController {
         topBarContainer.addSubview(titleLabel)
 
         NSLayoutConstraint.activate([
-
             backButton.leadingAnchor.constraint(equalTo: topBarContainer.leadingAnchor, constant: 20),
             backButton.centerYAnchor.constraint(equalTo: topBarContainer.centerYAnchor),
             backButton.widthAnchor.constraint(equalToConstant: 28),
@@ -107,7 +104,6 @@ class AddNewAddressViewController: UIViewController {
             heartButton.widthAnchor.constraint(equalToConstant: 28),
             heartButton.heightAnchor.constraint(equalToConstant: 28),
 
-            // Title centered between back + heart buttons
             titleLabel.centerXAnchor.constraint(equalTo: topBarContainer.centerXAnchor),
             titleLabel.centerYAnchor.constraint(equalTo: topBarContainer.centerYAnchor)
         ])
@@ -115,13 +111,24 @@ class AddNewAddressViewController: UIViewController {
 
 
     // ------------------------------------------------------------
-    // FIELDS (same as before)
+    // FIELDS — prefilled values + same layout as Add New Address
     // ------------------------------------------------------------
     func setupFields() {
 
         sectionLabel.text = "Current Address"
         sectionLabel.font = UIFont.systemFont(ofSize: 15, weight: .semibold)
         sectionLabel.translatesAutoresizingMaskIntoConstraints = false
+
+        fieldsContainer.addSubview(sectionLabel)
+
+        // PREFILLED DATA (edit mode)
+        nameField.text = "Jonathan"
+        phoneField.text = "90078 91599"
+        address1Field.text = "4517 Washington Ave, Manchester"
+        address2Field.text = ""
+        cityField.text = "Manchester"
+        stateField.text = "Kentucky"
+        pincodeField.text = "39495"
 
         let stack = UIStackView(arrangedSubviews: [
             nameField,
@@ -136,16 +143,15 @@ class AddNewAddressViewController: UIViewController {
         stack.spacing = 15
         stack.translatesAutoresizingMaskIntoConstraints = false
 
-        fieldsContainer.addSubview(sectionLabel)
         fieldsContainer.addSubview(stack)
 
-        setupTextField(nameField, "Name")
-        setupTextField(phoneField, "Phone Number")
-        setupTextField(address1Field, "Address Line 1")
+        setupTextField(nameField, "")
+        setupTextField(phoneField, "")
+        setupTextField(address1Field, "")
         setupTextField(address2Field, "Address Line 2 (Optional)")
-        setupTextField(cityField, "City")
-        setupTextField(stateField, "State")
-        setupTextField(pincodeField, "Pincode")
+        setupTextField(cityField, "")
+        setupTextField(stateField, "")
+        setupTextField(pincodeField, "")
 
         NSLayoutConstraint.activate([
             sectionLabel.topAnchor.constraint(equalTo: fieldsContainer.topAnchor),
@@ -190,11 +196,13 @@ class AddNewAddressViewController: UIViewController {
 }
 
 
-//// Padding helper
-//extension UITextField {
-//    func setLeftPaddingPoints(_ amount: CGFloat) {
-//        let paddingView = UIView(frame: CGRect(x: 0, y: 0, width: amount, height: self.frame.height))
-//        self.leftView = paddingView
-//        self.leftViewMode = .always
-//    }
-//}
+// ------------------------------------------------------------
+// TEXTFIELD PADDING ONLY ONCE IN PROJECT (ensure no duplicates)
+// ------------------------------------------------------------
+extension UITextField {
+    func setLeftPaddingPoints(_ amount: CGFloat) {
+        let paddingView = UIView(frame: CGRect(x: 0, y: 0, width: amount, height: self.frame.height))
+        self.leftView = paddingView
+        self.leftViewMode = .always
+    }
+}
