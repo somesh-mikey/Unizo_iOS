@@ -57,6 +57,187 @@ class LandingScreenViewController: UIViewController {
         Product(name: "Table Tennis Bat", price: 999, rating: 4.6, negotiable: false, imageName: "tabletennis"),
         Product(name: "Noise Two Wireless", price: 599, rating: 4.4, negotiable: true, imageName: "headphones2")
     ]
+    private var displayedProducts: [Product] = []
+    private let hostelEssentialsItems: [Product] = [
+        Product(name: "Prestige Electric Kettle", price: 649, rating: 4.9, negotiable: false, imageName: "electrickettle"),
+        Product(name: "Table Lamp", price: 500, rating: 4.2, negotiable: true, imageName: "lamp"),
+        Product(name: "Table Fan", price: 849, rating: 4.2, negotiable: false, imageName: "tablefan"),
+        Product(name: "Cooler", price: 5499, rating: 4.4, negotiable: true, imageName: "cooler"),
+        Product(name: "Flask", price: 899, rating: 4.3, negotiable: true, imageName: "flask"),
+        Product(name: "Jhumka", price: 249, rating: 4.1, negotiable: false, imageName: "jhumka"),
+        Product(name: "Study Table", price: 699, rating: 4.8, negotiable: true, imageName: "studytable"),
+        Product(name: "Helmet", price: 579, rating: 4.9, negotiable: false, imageName: "helmet")
+    ]
+
+    private let furnitureItems: [Product] = [
+        Product(name: "Wooden Dining Chair Set", price: 999, rating: 4.3, negotiable: false, imageName: "woodendiningchair"),
+        Product(name: "Ergonomic Mesh Office Chair", price: 1299, rating: 4.7, negotiable: true, imageName: "ergonomicmeshchair"),
+        Product(name: "Swivel Study Chair", price: 799, rating: 4.1, negotiable: false, imageName: "swivelstudychair"),
+        Product(name: "Classic Metal Frame Chair", price: 499, rating: 3.9, negotiable: false, imageName: "classicmetalframechair"),
+        Product(name: "Padded Chair", price: 899, rating: 4.4, negotiable: true, imageName: "paddedofficechair"),
+        Product(name: "Office Chair", price: 899, rating: 4.3, negotiable: false, imageName: "officechair"),
+        Product(name: "Ergo Comfort Chair", price: 1299, rating: 4.8, negotiable: false, imageName: "ergocomfortchair"),
+        Product(name: "Rolling Task Chair", price: 699, rating: 3.8, negotiable: true, imageName: "rollingtaskchair"),
+        Product(name: "Executive Office Chair", price: 1099, rating: 4.1, negotiable: false, imageName: "executiveofficechair"),
+        Product(name: "Adjustable Work Chair", price: 499, rating: 4.2, negotiable: true, imageName: "adjustableworkchair")
+    ]
+    private let fashionItems: [Product] = [
+        Product(name: "Under Armour Cap", price: 500, rating: 4.6, negotiable: true, imageName: "cap"),
+        Product(name: "M Cap", price: 300, rating: 2.7, negotiable: false, imageName: "MCap"),
+        Product(name: "NY Cap", price: 400, rating: 4.8, negotiable: true, imageName: "yellowcap"),
+        Product(name: "Blue Cap", price: 200, rating: 3.5, negotiable: false, imageName: "streetcap"),
+        Product(name: "Street Cap", price: 200, rating: 3.1, negotiable: true, imageName: "NYcap"),
+        Product(name: "Casual Fit Cap", price: 249, rating: 4.1, negotiable: false, imageName: "casualfitcap")
+    ]
+    private let sportsItems: [Product] = [
+    Product(
+        name: "SS Size 5 Bat",
+        price: 1299,
+        rating: 4.6,
+        negotiable: true,
+        imageName: "SSbat"
+    ),
+
+    Product(
+        name: "Cosco Tennis Ball Set",
+        price: 299,
+        rating: 4.1,
+        negotiable: false,
+        imageName: "coscotennisballs"
+    ),
+
+    Product(
+        name: "BAS Size 6 Bat",
+        price: 899,
+        rating: 4.2,
+        negotiable: false,
+        imageName: "BASbat"
+    ),
+
+    Product(
+        name: "Roller Skates",
+        price: 650,
+        rating: 3.5,
+        negotiable: true,
+        imageName: "rollerskates"
+    ),
+
+    Product(
+        name: "Football Spikes",
+        price: 399,
+        rating: 3.1,
+        negotiable: true,
+        imageName: "footballspikes"
+    ),
+
+    Product(
+        name: "Cricket Kit",
+        price: 2999,
+        rating: 4.9,
+        negotiable: true,
+        imageName: "cricketkit"
+    ),
+
+    Product(
+        name: "Carrom Board",
+        price: 700,
+        rating: 4.2,
+        negotiable: false,
+        imageName: "carromboard"
+    ),
+
+    Product(
+        name: "Cricket Pads",
+        price: 599,
+        rating: 4.3,
+        negotiable: false,
+        imageName: "cricketpads"
+    ),
+
+    Product(
+        name: "Table Tennis Bat",
+        price: 375,
+        rating: 4.9,
+        negotiable: false,
+        imageName: "tabletennis"
+    ),
+
+    Product(
+        name: "Badminton Racket",
+        price: 550,
+        rating: 3.8,
+        negotiable: true,
+        imageName: "badmintonracket"
+    )
+]
+    private let gadgetsItems: [Product] = [
+        
+        Product(
+            name: "pTron Headphones",
+            price: 1000,
+            rating: 4.2,
+            negotiable: true,
+            imageName: "ptronheadphones"
+        ),
+
+        Product(
+            name: "Boult ProBass Headphones",
+            price: 1100,
+            rating: 3.9,
+            negotiable: false,
+            imageName: "boultprobassheadphones"
+        ),
+
+        Product(
+            name: "pTron Headphones",
+            price: 1000,
+            rating: 4.2,
+            negotiable: false,
+            imageName: "ptronheadphones"
+        ),
+
+        Product(
+            name: "JBL T450BT",
+            price: 1500,
+            rating: 4.9,
+            negotiable: true,
+            imageName: "jblheadphones"
+        ),
+
+        Product(
+            name: "boAt Rockerz 450",
+            price: 1200,
+            rating: 3.1,
+            negotiable: false,
+            imageName: "boatrockerzheadphones"
+        ),
+
+        Product(
+            name: "Noise Two Wireless",
+            price: 1800,
+            rating: 2.9,
+            negotiable: true,
+            imageName: "noisetwowireless"
+        ),
+
+        Product(
+            name: "Intex Headphones",
+            price: 1300,
+            rating: 2.1,
+            negotiable: false,
+            imageName: "intexheadphones"
+        ),
+
+        Product(
+            name: "Leaf Bass Wireless",
+            price: 1400,
+            rating: 4.6,
+            negotiable: true,
+            imageName: "leafbasswireless"
+        )
+    ]
+
+
 
     // MARK: Init
     init() {
@@ -75,6 +256,8 @@ class LandingScreenViewController: UIViewController {
         setupCarousel()
         setupCollectionView()
         startAutoScroll()
+        displayedProducts = products   // default
+
     }
 
     override func viewDidLayoutSubviews() {
@@ -220,7 +403,8 @@ class LandingScreenViewController: UIViewController {
             ("headphones", "Gadgets")
         ]
         
-        for (icon, caption) in categories {
+        for (index, item) in categories.enumerated() {
+            let (icon, caption) = item
             let vstack = UIStackView()
             vstack.axis = .vertical
             vstack.alignment = .center
@@ -228,6 +412,8 @@ class LandingScreenViewController: UIViewController {
             vstack.spacing = 6
             
             let btn = UIButton(type: .system)
+            btn.tag = categoryStackView.arrangedSubviews.count   // Will represent index
+            btn.addTarget(self, action: #selector(categoryTapped(_:)), for: .touchUpInside)
             btn.setImage(UIImage(systemName: icon), for: .normal)
             btn.tintColor = UIColor(red: 0.03, green: 0.22, blue: 0.27, alpha: 1)
             btn.backgroundColor = UIColor(red: 0.65, green: 0.91, blue: 0.96, alpha: 1)
@@ -310,6 +496,7 @@ class LandingScreenViewController: UIViewController {
         
         // --- Segmented Control ---
         contentView.addSubview(segmentedControl)
+        segmentedControl.addTarget(self, action: #selector(segmentChanged), for: .valueChanged)
         // --- Segmented Control Styling ---
         segmentedControl.selectedSegmentIndex = 0
 
@@ -372,6 +559,80 @@ class LandingScreenViewController: UIViewController {
         tabBar.unselectedItemTintColor = .darkGray    // unselected item color
         tabBar.isTranslucent = false
 
+    }
+    @objc private func segmentChanged() {
+
+        // Update data based on selected segment
+        switch segmentedControl.selectedSegmentIndex {
+
+        case 0: // All
+            displayedProducts = products
+
+        case 1: // Most Popular
+            displayedProducts = products.sorted { $0.rating > $1.rating }
+
+        case 2: // Negotiable
+            displayedProducts = products.filter { $0.negotiable }
+
+        default:
+            break
+        }
+
+        // Animate the update
+        UIView.transition(with: collectionView,
+                          duration: 0.35,
+                          options: [.transitionCrossDissolve],
+                          animations: { [weak self] in
+                              self?.collectionView.reloadData()
+                          },
+                          completion: { [weak self] _ in
+                              self?.updateCollectionHeight()
+                          })
+
+        // Add slight scale bounce
+        collectionView.layer.transform = CATransform3DMakeScale(0.96, 0.96, 1)
+
+        UIView.animate(withDuration: 0.35,
+                       delay: 0,
+                       usingSpringWithDamping: 0.6,
+                       initialSpringVelocity: 0.8,
+                       options: [.curveEaseOut],
+                       animations: {
+                           self.collectionView.layer.transform = CATransform3DIdentity
+                       })
+    }
+    func openCategoryPage(title: String, items: [Product]) {
+        // Preserve old API by forwarding with a default index
+        openCategoryPage(title: title, items: items, categoryIndex: 0)
+    }
+
+    func openCategoryPage(title: String, items: [Product], categoryIndex: Int) {
+        let vc = CategoryPageViewController()
+        vc.title = title
+        vc.items = items
+        vc.categoryIndex = categoryIndex
+        if let nav = navigationController {
+            nav.pushViewController(vc, animated: true)
+        } else {
+            vc.modalPresentationStyle = .fullScreen
+            vc.modalTransitionStyle = .crossDissolve
+            present(vc, animated: true)
+        }
+    }
+
+    @objc private func categoryTapped(_ sender: UIButton) {
+        let index = sender.tag
+
+        let mapping: [(title: String, items: [Product])] = [
+            ("Hostel Essentials", hostelEssentialsItems),
+            ("Furniture", furnitureItems),
+            ("Fashion", fashionItems),
+            ("Sports", sportsItems),
+            ("Gadgets", gadgetsItems)
+        ]
+
+        let selected = mapping[safe: index] ?? (title: "Category", items: [])
+        openCategoryPage(title: selected.title, items: selected.items, categoryIndex: index)
     }
 
 
@@ -499,14 +760,15 @@ extension LandingScreenViewController: UIScrollViewDelegate {
 // MARK: - CollectionView delegate
 extension LandingScreenViewController: UICollectionViewDataSource, UICollectionViewDelegateFlowLayout {
     func collectionView(_ collectionView: UICollectionView, numberOfItemsInSection section: Int) -> Int {
-        products.count
+        displayedProducts.count
     }
 
     func collectionView(_ collectionView: UICollectionView, cellForItemAt indexPath: IndexPath) -> UICollectionViewCell {
             guard let cell = collectionView.dequeueReusableCell(withReuseIdentifier: ProductCell.reuseIdentifier, for: indexPath) as? ProductCell else {
                 return UICollectionViewCell()
             }
-            cell.configure(with: products[indexPath.item])
+        cell.configure(with: displayedProducts[indexPath.item])
+
             return cell
         }
 
@@ -650,4 +912,6 @@ extension LandingScreenViewController: UICollectionViewDataSource, UICollectionV
             return indices.contains(index) ? self[index] : nil
         }
     }
+
+
 
