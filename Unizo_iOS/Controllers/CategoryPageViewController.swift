@@ -520,8 +520,7 @@ class CategoryPageViewController: UIViewController, UITabBarDelegate {
 
         tabBar.tintColor = UIColor(red: 0.239, green: 0.486, blue: 0.596, alpha: 1)
         tabBar.unselectedItemTintColor = .darkGray
-        tabBar.isTranslucent = false
-        tabBar.backgroundColor = .white
+        tabBar.isTranslucent = true
     }
     func tabBar(_ tabBar: UITabBar, didSelect item: UITabBarItem) {
         if item.tag == 0 {   // Home

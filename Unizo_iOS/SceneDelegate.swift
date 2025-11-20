@@ -13,21 +13,24 @@ class SceneDelegate: UIResponder, UIWindowSceneDelegate {
 
 
     func scene(_ scene: UIScene,
-                willConnectTo session: UISceneSession,
-                options connectionOptions: UIScene.ConnectionOptions) {
+                   willConnectTo session: UISceneSession,
+                   options connectionOptions: UIScene.ConnectionOptions) {
 
-         guard let windowScene = (scene as? UIWindowScene) else { return }
+            guard let windowScene = (scene as? UIWindowScene) else { return }
 
-         window = UIWindow(windowScene: windowScene)
+            window = UIWindow(windowScene: windowScene)
 
-         let landingVC = LandingScreenViewController()
-         let navController = UINavigationController(rootViewController: landingVC)
-         navController.isNavigationBarHidden = true   // hide native bar, since you use custom one
+            // 👉 Load Wishlist Screen Directly
+            let wishlistVC = WishlistViewController()
 
-         window?.rootViewController = navController
-         window?.makeKeyAndVisible()
-     }
+            // 👉 Navigation Controller wrapper (for back button, nav stack)
+            let navController = UINavigationController(rootViewController: wishlistVC)
+            navController.isNavigationBarHidden = true   // hiding native nav bar
 
+            // 👉 Set root view controller
+            window?.rootViewController = navController
+            window?.makeKeyAndVisible()
+        }
     func sceneDidDisconnect(_ scene: UIScene) {
         // Called as the scene is being released by the system.
         // This occurs shortly after the scene enters the background, or when its session is discarded.
