@@ -429,8 +429,8 @@ class CategoryPageViewController: UIViewController, UITabBarDelegate {
 
         scrollView.backgroundColor = .white
         contentView.backgroundColor = .white
-        scrollView.delaysContentTouches = false
-        scrollView.canCancelContentTouches = false
+        scrollView.delaysContentTouches = true
+        scrollView.canCancelContentTouches = true
 
         view.addSubview(scrollView)
         scrollView.translatesAutoresizingMaskIntoConstraints = false
