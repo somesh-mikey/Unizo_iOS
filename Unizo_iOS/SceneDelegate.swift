@@ -18,18 +18,16 @@ class SceneDelegate: UIResponder, UIWindowSceneDelegate {
         // This delegate does not imply the connecting scene or session are new (see `application:configurationForConnectingSceneSession` instead).
         guard let windowScene = (scene as? UIWindowScene) else { return }
 
-            let window = UIWindow(windowScene: windowScene)
+                window = UIWindow(windowScene: windowScene)
 
-            /// 👉 This is where you set the CartViewController as the starting screen
-            let rootVC = CartViewController()
+                // CHANGE THIS TO YOUR STARTING SCREEN
+                let rootVC = OrderDetailsViewController()
 
-            /// Navigation controller for proper nav bar look
-            let nav = UINavigationController(rootViewController: rootVC)
-            nav.navigationBar.tintColor = .black
+                let nav = UINavigationController(rootViewController: rootVC)
+                nav.navigationBar.prefersLargeTitles = false
 
-            window.rootViewController = nav
-            window.makeKeyAndVisible()
-            self.window = window
+                window?.rootViewController = nav
+                window?.makeKeyAndVisible()
     }
 
     func sceneDidDisconnect(_ scene: UIScene) {
