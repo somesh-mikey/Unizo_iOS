@@ -18,20 +18,10 @@ class SceneDelegate: UIResponder, UIWindowSceneDelegate {
         // This delegate does not imply the connecting scene or session are new (see `application:configurationForConnectingSceneSession` instead).
         guard let windowScene = (scene as? UIWindowScene) else { return }
 
-                window = UIWindow(windowScene: windowScene)
-
-             
-                // let rootVC = OrderPlacedViewController()
-                // let rootVC = CartViewController()
-                // let rootVC = OrderDetailsViewController()
-                let rootVC = NotificationsViewController()   // <— currently opening Notifications
-
-                let nav = UINavigationController(rootViewController: rootVC)
-                nav.navigationBar.tintColor = .black
-                nav.navigationBar.isTranslucent = true
-
-                window?.rootViewController = nav
-                window?.makeKeyAndVisible()
+               window = UIWindow(windowScene: windowScene)
+               let nav = UINavigationController(rootViewController: SettingsViewController())
+               window?.rootViewController = nav
+               window?.makeKeyAndVisible()
     }
 
     func sceneDidDisconnect(_ scene: UIScene) {
