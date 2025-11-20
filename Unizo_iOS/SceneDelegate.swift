@@ -20,11 +20,15 @@ class SceneDelegate: UIResponder, UIWindowSceneDelegate {
 
                 window = UIWindow(windowScene: windowScene)
 
-                // CHANGE THIS TO YOUR STARTING SCREEN
-                let rootVC = OrderDetailsViewController()
+             
+                // let rootVC = OrderPlacedViewController()
+                // let rootVC = CartViewController()
+                // let rootVC = OrderDetailsViewController()
+                let rootVC = NotificationsViewController()   // <— currently opening Notifications
 
                 let nav = UINavigationController(rootViewController: rootVC)
-                nav.navigationBar.prefersLargeTitles = false
+                nav.navigationBar.tintColor = .black
+                nav.navigationBar.isTranslucent = true
 
                 window?.rootViewController = nav
                 window?.makeKeyAndVisible()
