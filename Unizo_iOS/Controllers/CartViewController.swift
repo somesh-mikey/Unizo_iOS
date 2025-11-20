@@ -21,6 +21,8 @@ class CartViewController: UIViewController {
     private let mainItemSeller = UILabel()
     private let mainItemPrice = UILabel()
 
+   
+
     // Section labels
     private let itemsTitle = UILabel()
     private let suggestionsTitle = UILabel()
@@ -33,6 +35,20 @@ class CartViewController: UIViewController {
     private let itemsCountLabel = UILabel()
     private let totalPriceLabel = UILabel()
     private let checkoutButton = UIButton()
+
+    // DARK TEAL (same as Checkout)
+    
+    private let checkBoxButton = UIButton(type: .system)
+    private let darkTeal = UIColor(red: 0.02, green: 0.34, blue: 0.46, alpha: 1.0)
+
+    @objc private func toggleCheckbox() {
+        if checkBoxButton.currentImage == UIImage(systemName: "square") {
+            checkBoxButton.setImage(UIImage(systemName: "checkmark.square.fill"), for: .normal)
+        } else {
+            checkBoxButton.setImage(UIImage(systemName: "square"), for: .normal)
+        }
+    }
+
 
     override func viewDidLoad() {
         super.viewDidLoad()
@@ -105,47 +121,87 @@ class CartViewController: UIViewController {
             itemsTitle.leadingAnchor.constraint(equalTo: contentView.leadingAnchor, constant: 20)
         ])
 
-        // Main card
         mainItemCard.backgroundColor = .white
         mainItemCard.layer.cornerRadius = 14
         mainItemCard.translatesAutoresizingMaskIntoConstraints = false
         contentView.addSubview(mainItemCard)
 
-        // Image
+        // CLICKABLE CHECKBOX
+        checkBoxButton.setImage(UIImage(systemName: "square"), for: .normal)
+        checkBoxButton.tintColor = darkTeal
+        checkBoxButton.addTarget(self, action: #selector(toggleCheckbox), for: .touchUpInside)
+        checkBoxButton.translatesAutoresizingMaskIntoConstraints = false
+        mainItemCard.addSubview(checkBoxButton)
+
+        // MAIN IMAGE
         mainItemImage.image = UIImage(named: "Cap")
         mainItemImage.contentMode = .scaleAspectFill
         mainItemImage.layer.cornerRadius = 12
         mainItemImage.clipsToBounds = true
         mainItemImage.translatesAutoresizingMaskIntoConstraints = false
+        mainItemCard.addSubview(mainItemImage)
 
-        // TEXTS
+        // CATEGORY
         mainItemCategory.text = "Fashion"
         mainItemCategory.textColor = .gray
         mainItemCategory.font = UIFont.systemFont(ofSize: 12)
+        mainItemCategory.translatesAutoresizingMaskIntoConstraints = false
 
+        // TITLE
         mainItemTitle.text = "Under Armour Cap"
         mainItemTitle.font = UIFont.systemFont(ofSize: 15, weight: .semibold)
+        mainItemTitle.translatesAutoresizingMaskIntoConstraints = false
 
-        mainItemSeller.text = "Sold by Paul McKinney"
+        // SOLD BY (teal + gray)
+        let soldByLabel = UILabel()
+        soldByLabel.text = "Sold by"
+        soldByLabel.textColor = darkTeal
+        soldByLabel.font = UIFont.systemFont(ofSize: 12)
+        soldByLabel.translatesAutoresizingMaskIntoConstraints = false
+
+        mainItemSeller.text = "Paul McKinney"
+        mainItemSeller.textColor = .gray
         mainItemSeller.font = UIFont.systemFont(ofSize: 12)
-        mainItemSeller.textColor = UIColor.systemBlue
+        mainItemSeller.translatesAutoresizingMaskIntoConstraints = false
 
+        // EDIT ICON
+        let editIcon = UIButton(type: .system)
+        editIcon.setImage(UIImage(systemName: "pencil"), for: .normal)
+        editIcon.tintColor = darkTeal
+        editIcon.translatesAutoresizingMaskIntoConstraints = false
+        editIcon.addTarget(self, action: #selector(editTapped), for: .touchUpInside)
+
+        // DELETE ICON
+        let deleteIcon = UIButton(type: .system)
+        deleteIcon.setImage(UIImage(systemName: "trash"), for: .normal)
+        deleteIcon.tintColor = darkTeal
+        deleteIcon.translatesAutoresizingMaskIntoConstraints = false
+        deleteIcon.addTarget(self, action: #selector(deleteTapped), for: .touchUpInside)
+
+        // PRICE
         mainItemPrice.text = "₹500"
         mainItemPrice.font = UIFont.systemFont(ofSize: 16, weight: .semibold)
+        mainItemPrice.translatesAutoresizingMaskIntoConstraints = false
 
-        for v in [mainItemImage, mainItemCategory, mainItemTitle, mainItemSeller, mainItemPrice] {
-            v.translatesAutoresizingMaskIntoConstraints = false
+        // Add all
+        for v in [mainItemCategory, mainItemTitle, soldByLabel, mainItemSeller, editIcon, deleteIcon, mainItemPrice] {
             mainItemCard.addSubview(v)
         }
 
+        // --- Layout ---
         NSLayoutConstraint.activate([
             mainItemCard.topAnchor.constraint(equalTo: itemsTitle.bottomAnchor, constant: 15),
             mainItemCard.leadingAnchor.constraint(equalTo: contentView.leadingAnchor, constant: 20),
             mainItemCard.trailingAnchor.constraint(equalTo: contentView.trailingAnchor, constant: -20),
-            mainItemCard.heightAnchor.constraint(equalToConstant: 110),
+            mainItemCard.heightAnchor.constraint(equalToConstant: 150),
 
-            mainItemImage.leadingAnchor.constraint(equalTo: mainItemCard.leadingAnchor, constant: 12),
-            mainItemImage.centerYAnchor.constraint(equalTo: mainItemCard.centerYAnchor),
+            checkBoxButton.leadingAnchor.constraint(equalTo: mainItemCard.leadingAnchor, constant: 12),
+            checkBoxButton.centerYAnchor.constraint(equalTo: mainItemCard.centerYAnchor),
+            checkBoxButton.widthAnchor.constraint(equalToConstant: 24),
+            checkBoxButton.heightAnchor.constraint(equalToConstant: 24),
+
+            mainItemImage.leadingAnchor.constraint(equalTo: checkBoxButton.trailingAnchor, constant: 10),
+            mainItemImage.topAnchor.constraint(equalTo: mainItemCard.topAnchor, constant: 20),
             mainItemImage.widthAnchor.constraint(equalToConstant: 60),
             mainItemImage.heightAnchor.constraint(equalToConstant: 60),
 
@@ -155,12 +211,36 @@ class CartViewController: UIViewController {
             mainItemTitle.topAnchor.constraint(equalTo: mainItemCategory.bottomAnchor, constant: 2),
             mainItemTitle.leadingAnchor.constraint(equalTo: mainItemCategory.leadingAnchor),
 
-            mainItemSeller.topAnchor.constraint(equalTo: mainItemTitle.bottomAnchor, constant: 2),
-            mainItemSeller.leadingAnchor.constraint(equalTo: mainItemCategory.leadingAnchor),
+            soldByLabel.topAnchor.constraint(equalTo: mainItemTitle.bottomAnchor, constant: 3),
+            soldByLabel.leadingAnchor.constraint(equalTo: mainItemCategory.leadingAnchor),
 
+            mainItemSeller.centerYAnchor.constraint(equalTo: soldByLabel.centerYAnchor),
+            mainItemSeller.leadingAnchor.constraint(equalTo: soldByLabel.trailingAnchor, constant: 4),
+
+            // EDIT BUTTON (under Sold By)
+            editIcon.topAnchor.constraint(equalTo: soldByLabel.bottomAnchor, constant: 6),
+            editIcon.leadingAnchor.constraint(equalTo: soldByLabel.leadingAnchor),
+            editIcon.widthAnchor.constraint(equalToConstant: 18),
+            editIcon.heightAnchor.constraint(equalToConstant: 18),
+
+            // DELETE BUTTON (next to edit button)
+            deleteIcon.centerYAnchor.constraint(equalTo: editIcon.centerYAnchor),
+            deleteIcon.leadingAnchor.constraint(equalTo: editIcon.trailingAnchor, constant: 12),
+            deleteIcon.widthAnchor.constraint(equalToConstant: 18),
+            deleteIcon.heightAnchor.constraint(equalToConstant: 18),
+
+            // PRICE
             mainItemPrice.trailingAnchor.constraint(equalTo: mainItemCard.trailingAnchor, constant: -12),
             mainItemPrice.topAnchor.constraint(equalTo: mainItemCard.topAnchor, constant: 20)
         ])
+    }
+
+    @objc private func editTapped() {
+        print("EDIT tapped")
+    }
+
+    @objc private func deleteTapped() {
+        print("DELETE tapped")
     }
 
     // MARK: - You May Also Like
@@ -190,10 +270,10 @@ class CartViewController: UIViewController {
 
         // Create rows of 2 cards each
         let items = [
-            ("PinkBicycle", "Pink Bicycle", "₹7500"),
-            ("Bat", "BAS Size 6 Cricket Bat", "₹899"),
-            ("Rackets", "Tennis Rackets", "₹2300"),
-            ("NoiseHeadphone", "Noise Two Wireless", "₹1800")
+            ("PinkBicycle", "Pink Bicycle", "4.1", "Negotiable", "₹7500"),
+            ("Bat", "BAS Size 6 Cricket Bat", "4.1", "Negotiable", "₹899"),
+            ("Rackets", "Tennis Rackets", "3.9", "Negotiable", "₹2300"),
+            ("NoiseHeadphone", "Noise Two Wireless", "2.9", "Negotiable", "₹1800")
         ]
 
         var rowStack: UIStackView?
@@ -208,13 +288,19 @@ class CartViewController: UIViewController {
                 suggestionsContainer.addArrangedSubview(rowStack!)
             }
 
-            let card = createSuggestionCard(imageName: item.0, title: item.1, price: item.2)
+            let card = createSuggestionCard(
+                imageName: item.0,
+                title: item.1,
+                rating: item.2,
+                negotiable: item.3,
+                price: item.4
+            )
             rowStack?.addArrangedSubview(card)
         }
 
-        // Bottom spacing
+        // Bottom space
         let bottomSpace = UIView()
-        bottomSpace.heightAnchor.constraint(equalToConstant: 40).isActive = true
+        bottomSpace.heightAnchor.constraint(equalToConstant: 60).isActive = true
         contentView.addSubview(bottomSpace)
 
         bottomSpace.translatesAutoresizingMaskIntoConstraints = false
@@ -226,12 +312,18 @@ class CartViewController: UIViewController {
         ])
     }
 
-    // MARK: - Suggestion Card (2 per row)
-    private func createSuggestionCard(imageName: String, title: String, price: String) -> UIView {
+    // MARK: - Suggestion Card (Wide Cards + Full Details)
+    private func createSuggestionCard(
+        imageName: String,
+        title: String,
+        rating: String,
+        negotiable: String,
+        price: String
+    ) -> UIView {
 
         let card = UIView()
         card.backgroundColor = .white
-        card.layer.cornerRadius = 12
+        card.layer.cornerRadius = 14
         card.translatesAutoresizingMaskIntoConstraints = false
 
         let img = UIImageView(image: UIImage(named: imageName))
@@ -240,35 +332,54 @@ class CartViewController: UIViewController {
         img.layer.cornerRadius = 10
         img.translatesAutoresizingMaskIntoConstraints = false
 
+        // Separator line
+        let line = UIView()
+        line.backgroundColor = UIColor(red: 0.90, green: 0.92, blue: 0.95, alpha: 1)
+        line.translatesAutoresizingMaskIntoConstraints = false
+
         let titleLabel = UILabel()
         titleLabel.text = title
-        titleLabel.font = UIFont.systemFont(ofSize: 12, weight: .medium)
+        titleLabel.font = UIFont.systemFont(ofSize: 13, weight: .semibold)
         titleLabel.numberOfLines = 2
         titleLabel.translatesAutoresizingMaskIntoConstraints = false
 
+        let ratingLabel = UILabel()
+        ratingLabel.text = "★ \(rating)  |  \(negotiable)"
+        ratingLabel.textColor = darkTeal
+        ratingLabel.font = UIFont.systemFont(ofSize: 12)
+        ratingLabel.translatesAutoresizingMaskIntoConstraints = false
+
         let priceLabel = UILabel()
         priceLabel.text = price
-        priceLabel.textColor = UIColor.systemBlue
-        priceLabel.font = UIFont.systemFont(ofSize: 12, weight: .semibold)
+        priceLabel.textColor = darkTeal
+        priceLabel.font = UIFont.systemFont(ofSize: 13, weight: .semibold)
         priceLabel.translatesAutoresizingMaskIntoConstraints = false
 
-        card.addSubview(img)
-        card.addSubview(titleLabel)
-        card.addSubview(priceLabel)
+        for v in [img, line, titleLabel, ratingLabel, priceLabel] {
+            card.addSubview(v)
+        }
 
         NSLayoutConstraint.activate([
-            card.heightAnchor.constraint(equalToConstant: 190),
+            card.heightAnchor.constraint(equalToConstant: 210),
 
             img.topAnchor.constraint(equalTo: card.topAnchor, constant: 10),
             img.centerXAnchor.constraint(equalTo: card.centerXAnchor),
-            img.widthAnchor.constraint(equalToConstant: 120),
-            img.heightAnchor.constraint(equalToConstant: 120),
+            img.widthAnchor.constraint(equalToConstant: 85),
+            img.heightAnchor.constraint(equalToConstant: 110),
 
-            titleLabel.topAnchor.constraint(equalTo: img.bottomAnchor, constant: 6),
-            titleLabel.leadingAnchor.constraint(equalTo: card.leadingAnchor, constant: 8),
-            titleLabel.trailingAnchor.constraint(equalTo: card.trailingAnchor, constant: -8),
+            line.topAnchor.constraint(equalTo: img.bottomAnchor, constant: 8),
+            line.leadingAnchor.constraint(equalTo: card.leadingAnchor, constant: 10),
+            line.trailingAnchor.constraint(equalTo: card.trailingAnchor, constant: -10),
+            line.heightAnchor.constraint(equalToConstant: 1),
 
-            priceLabel.topAnchor.constraint(equalTo: titleLabel.bottomAnchor, constant: 4),
+            titleLabel.topAnchor.constraint(equalTo: line.bottomAnchor, constant: 6),
+            titleLabel.leadingAnchor.constraint(equalTo: card.leadingAnchor, constant: 10),
+            titleLabel.trailingAnchor.constraint(equalTo: card.trailingAnchor, constant: -10),
+
+            ratingLabel.topAnchor.constraint(equalTo: titleLabel.bottomAnchor, constant: 3),
+            ratingLabel.leadingAnchor.constraint(equalTo: titleLabel.leadingAnchor),
+
+            priceLabel.topAnchor.constraint(equalTo: ratingLabel.bottomAnchor, constant: 4),
             priceLabel.leadingAnchor.constraint(equalTo: titleLabel.leadingAnchor)
         ])
 
@@ -292,7 +403,7 @@ class CartViewController: UIViewController {
         totalPriceLabel.translatesAutoresizingMaskIntoConstraints = false
 
         checkoutButton.setTitle("Checkout", for: .normal)
-        checkoutButton.backgroundColor = UIColor(red: 0.07, green: 0.33, blue: 0.42, alpha: 1)
+        checkoutButton.backgroundColor = darkTeal
         checkoutButton.layer.cornerRadius = 22
         checkoutButton.titleLabel?.font = UIFont.systemFont(ofSize: 17, weight: .semibold)
         checkoutButton.translatesAutoresizingMaskIntoConstraints = false

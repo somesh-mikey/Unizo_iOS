@@ -18,17 +18,18 @@ class SceneDelegate: UIResponder, UIWindowSceneDelegate {
         // This delegate does not imply the connecting scene or session are new (see `application:configurationForConnectingSceneSession` instead).
         guard let windowScene = (scene as? UIWindowScene) else { return }
 
-                window = UIWindow(windowScene: windowScene)
+            let window = UIWindow(windowScene: windowScene)
 
-                //  Load XIB file
-                let vc = OrderPlacedViewController(nibName: "OrderPlacedViewController", bundle: nil)
+            /// 👉 This is where you set the CartViewController as the starting screen
+            let rootVC = CartViewController()
 
-                let nav = UINavigationController(rootViewController: vc)
-                nav.isNavigationBarHidden = true     // hide default bar (we use custom one)
+            /// Navigation controller for proper nav bar look
+            let nav = UINavigationController(rootViewController: rootVC)
+            nav.navigationBar.tintColor = .black
 
-                window?.rootViewController = nav
-                window?.makeKeyAndVisible()
-
+            window.rootViewController = nav
+            window.makeKeyAndVisible()
+            self.window = window
     }
 
     func sceneDidDisconnect(_ scene: UIScene) {
