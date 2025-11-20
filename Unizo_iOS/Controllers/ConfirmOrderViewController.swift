@@ -78,6 +78,9 @@ class ConfirmOrderViewController: UIViewController {
         setupPaymentMethodSection()
         setupInstructionsSection()
         setupPlaceOrderButton()
+        
+        placeOrderButton.addTarget(self, action: #selector(placeOrderTapped), for: .touchUpInside)
+        
     }
 
     // MARK: - Container layout
@@ -421,7 +424,7 @@ class ConfirmOrderViewController: UIViewController {
 
         // Inside card
         let productImage = UIImageView()
-        productImage.image = UIImage(named: "Cap")
+        productImage.image = UIImage(named: "cap")
         productImage.layer.cornerRadius = 8
         productImage.clipsToBounds = true
         productImage.translatesAutoresizingMaskIntoConstraints = false
@@ -693,6 +696,13 @@ class ConfirmOrderViewController: UIViewController {
         }
     }
     
-    
+    @objc private func placeOrderTapped() {
+        let vc = OrderPlacedViewController()
+
+        vc.modalPresentationStyle = .fullScreen
+        vc.modalTransitionStyle = .coverVertical
+
+        present(vc, animated: true)
+    }
 
 }

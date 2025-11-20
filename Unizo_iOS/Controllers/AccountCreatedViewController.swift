@@ -132,8 +132,9 @@ class AccountCreatedViewController: UIViewController {
     @objc private func getStartedTapped() {
         print("Get Started Pressed")
         
-        // TODO: Navigate to next screen
-        // For now:
-        self.dismiss(animated: true)
+        let vc = LandingScreenViewController(nibName: "LandingScreenViewController", bundle: nil)
+        vc.modalPresentationStyle = .fullScreen
+        vc.modalTransitionStyle = .coverVertical   // slide from bottom → top
+        present(vc, animated: true)
     }
 }

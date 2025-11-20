@@ -391,6 +391,7 @@ class LandingScreenViewController: UIViewController {
         ])
         
         // --- Categories ---
+        // --- Categories (FIXED BUTTON INTERACTION) ---
         let categories = [
             ("cart", "Hostel Essentials"),
             ("tablecells", "Furniture"),
@@ -398,43 +399,40 @@ class LandingScreenViewController: UIViewController {
             ("sportscourt", "Sports"),
             ("headphones", "Gadgets")
         ]
-        
-        for (index, item) in categories.enumerated() {
-            let (icon, caption) = item
-            let vstack = UIStackView()
-            vstack.axis = .vertical
-            vstack.alignment = .center
-            vstack.distribution = .fill
-            vstack.spacing = 6
-            
+
+        for i in 0..<categories.count {
+
+            let (icon, caption) = categories[i]
+
+            let v = UIStackView()
+            v.axis = .vertical
+            v.alignment = .center
+            v.distribution = .fill
+            v.spacing = 6
+            v.isUserInteractionEnabled = true   // CRITICAL FIX
+
             let btn = UIButton(type: .system)
-            btn.tag = categoryStackView.arrangedSubviews.count   // Will represent index
+            btn.tag = i                         // CORRECT TAG
+            btn.isUserInteractionEnabled = true
             btn.addTarget(self, action: #selector(categoryTapped(_:)), for: .touchUpInside)
             btn.setImage(UIImage(systemName: icon), for: .normal)
             btn.tintColor = UIColor(red: 0.03, green: 0.22, blue: 0.27, alpha: 1)
             btn.backgroundColor = UIColor(red: 0.65, green: 0.91, blue: 0.96, alpha: 1)
             btn.layer.cornerRadius = 28
             btn.translatesAutoresizingMaskIntoConstraints = false
-            NSLayoutConstraint.activate([
-                btn.widthAnchor.constraint(equalToConstant: 56),
-                btn.heightAnchor.constraint(equalToConstant: 56)
-            ])
-            
+            btn.widthAnchor.constraint(equalToConstant: 56).isActive = true
+            btn.heightAnchor.constraint(equalToConstant: 56).isActive = true
+
             let lbl = UILabel()
             lbl.text = caption
             lbl.font = UIFont.systemFont(ofSize: 12)
             lbl.textAlignment = .center
-            lbl.textColor = .black
             lbl.numberOfLines = 2
-            lbl.lineBreakMode = .byWordWrapping
-            lbl.adjustsFontSizeToFitWidth = true
-            lbl.minimumScaleFactor = 0.7
-            lbl.setContentCompressionResistancePriority(.defaultLow, for: .vertical)
-            lbl.setContentHuggingPriority(.required, for: .vertical)
-            
-            vstack.addArrangedSubview(btn)
-            vstack.addArrangedSubview(lbl)
-            categoryStackView.addArrangedSubview(vstack)
+            lbl.isUserInteractionEnabled = false
+
+            v.addArrangedSubview(btn)
+            v.addArrangedSubview(lbl)
+            categoryStackView.addArrangedSubview(v)
         }
         
         // --- Main Scroll Section ---
@@ -638,9 +636,27 @@ class LandingScreenViewController: UIViewController {
     // MARK: Toolbar Menu Action
     @objc private func menuButtonTapped() {
         let alert = UIAlertController(title: nil, message: nil, preferredStyle: .actionSheet)
-        alert.addAction(UIAlertAction(title: "Cart", style: .default))
-        alert.addAction(UIAlertAction(title: "Wishlist", style: .default))
-        alert.addAction(UIAlertAction(title: "Notifications", style: .default))
+
+        // --- CART ---
+        alert.addAction(UIAlertAction(title: "Cart", style: .default, handler: { _ in
+            let vc = CartViewController()
+            vc.modalPresentationStyle = .fullScreen   // slides up from bottom
+            vc.modalTransitionStyle = .coverVertical // smooth bottom animation
+            self.present(vc, animated: true)
+        }))
+
+        // --- WISHLIST ---
+        alert.addAction(UIAlertAction(title: "Wishlist", style: .default, handler: { _ in
+            // Add your Wishlist VC here later
+            print("Wishlist tapped")
+        }))
+
+        // --- NOTIFICATIONS ---
+        alert.addAction(UIAlertAction(title: "Notifications", style: .default, handler: { _ in
+            // Add Notifications VC here later
+            print("Notifications tapped")
+        }))
+
         alert.addAction(UIAlertAction(title: "Cancel", style: .cancel))
 
         if let popover = alert.popoverPresentationController {

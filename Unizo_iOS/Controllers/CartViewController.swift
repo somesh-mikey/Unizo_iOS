@@ -112,7 +112,7 @@ class CartViewController: UIViewController {
         contentView.addSubview(mainItemCard)
 
         // Image
-        mainItemImage.image = UIImage(named: "Cap")
+        mainItemImage.image = UIImage(named: "cap")
         mainItemImage.contentMode = .scaleAspectFill
         mainItemImage.layer.cornerRadius = 12
         mainItemImage.clipsToBounds = true
@@ -190,8 +190,8 @@ class CartViewController: UIViewController {
 
         // Create rows of 2 cards each
         let items = [
-            ("PinkBicycle", "Pink Bicycle", "₹7500"),
-            ("Bat", "BAS Size 6 Cricket Bat", "₹899"),
+            ("pinkbicycle", "Pink Bicycle", "₹7500"),
+            ("bat", "BAS Size 6 Cricket Bat", "₹899"),
             ("Rackets", "Tennis Rackets", "₹2300"),
             ("NoiseHeadphone", "Noise Two Wireless", "₹1800")
         ]
@@ -296,6 +296,8 @@ class CartViewController: UIViewController {
         checkoutButton.layer.cornerRadius = 22
         checkoutButton.titleLabel?.font = UIFont.systemFont(ofSize: 17, weight: .semibold)
         checkoutButton.translatesAutoresizingMaskIntoConstraints = false
+        
+        checkoutButton.addTarget(self, action: #selector(checkoutButtonTapped), for: .touchUpInside)
 
         for v in [itemsCountLabel, totalPriceLabel, checkoutButton] {
             bottomBar.addSubview(v)
@@ -318,5 +320,14 @@ class CartViewController: UIViewController {
             checkoutButton.widthAnchor.constraint(equalToConstant: 130),
             checkoutButton.heightAnchor.constraint(equalToConstant: 45)
         ])
+    }
+    @objc private func checkoutButtonTapped() {
+        let vc = AddressViewController()
+
+        // FULL SCREEN + SLIDES FROM BOTTOM (same style as your Cart screen)
+        vc.modalPresentationStyle = .fullScreen
+        vc.modalTransitionStyle = .coverVertical
+
+        self.present(vc, animated: true, completion: nil)
     }
 }

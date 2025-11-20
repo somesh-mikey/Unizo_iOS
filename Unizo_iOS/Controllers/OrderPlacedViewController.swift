@@ -17,6 +17,10 @@ class OrderPlacedViewController: UIViewController {
     @IBOutlet weak var suggestedTitleContainer: UIView!
     @IBOutlet weak var productsContainer: UIView!
 
+    // MARK: - Buttons (ADDED)
+    private let continueShoppingButton = UIButton(type: .system)
+    private let backButton = UIButton(type: .system)
+
     // MARK: - Colors
     private let bgColor      = UIColor(red: 0.96, green: 0.97, blue: 1.0, alpha: 1.0)
     private let primaryTeal  = UIColor(red: 0.02, green: 0.34, blue: 0.46, alpha: 1.0)
@@ -34,10 +38,13 @@ class OrderPlacedViewController: UIViewController {
         setupButtons()
         setupSuggestedTitle()
         setupProductsSection()
+
+        // MARK: - Attach Actions (ADDED)
+        continueShoppingButton.addTarget(self, action: #selector(continueShoppingTapped), for: .touchUpInside)
+        backButton.addTarget(self, action: #selector(backPressed), for: .touchUpInside)
     }
 
-    // MARK: - Layout containers (pin to main view)
-
+    // MARK: - Layout containers
     private func layoutContainers() {
         let allContainers: [UIView] = [
             topBarContainer,
@@ -54,47 +61,39 @@ class OrderPlacedViewController: UIViewController {
         }
 
         NSLayoutConstraint.activate([
-            // Top bar
             topBarContainer.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor),
             topBarContainer.leadingAnchor.constraint(equalTo: view.leadingAnchor),
             topBarContainer.trailingAnchor.constraint(equalTo: view.trailingAnchor),
             topBarContainer.heightAnchor.constraint(equalToConstant: 56),
 
-            // Icon section
             iconContainer.topAnchor.constraint(equalTo: topBarContainer.bottomAnchor, constant: 16),
             iconContainer.leadingAnchor.constraint(equalTo: view.leadingAnchor),
             iconContainer.trailingAnchor.constraint(equalTo: view.trailingAnchor),
             iconContainer.heightAnchor.constraint(equalToConstant: 180),
 
-            // Title section
             titleContainer.topAnchor.constraint(equalTo: iconContainer.bottomAnchor, constant: 8),
             titleContainer.leadingAnchor.constraint(equalTo: view.leadingAnchor),
             titleContainer.trailingAnchor.constraint(equalTo: view.trailingAnchor),
             titleContainer.heightAnchor.constraint(equalToConstant: 80),
 
-            // Buttons
             buttonContainer.topAnchor.constraint(equalTo: titleContainer.bottomAnchor, constant: 20),
             buttonContainer.leadingAnchor.constraint(equalTo: view.leadingAnchor),
             buttonContainer.trailingAnchor.constraint(equalTo: view.trailingAnchor),
             buttonContainer.heightAnchor.constraint(equalToConstant: 120),
 
-            // "Products you might like" title
             suggestedTitleContainer.topAnchor.constraint(equalTo: buttonContainer.bottomAnchor, constant: 24),
             suggestedTitleContainer.leadingAnchor.constraint(equalTo: view.leadingAnchor),
             suggestedTitleContainer.trailingAnchor.constraint(equalTo: view.trailingAnchor),
             suggestedTitleContainer.heightAnchor.constraint(equalToConstant: 30),
 
-            // Products list
             productsContainer.topAnchor.constraint(equalTo: suggestedTitleContainer.bottomAnchor, constant: 8),
             productsContainer.leadingAnchor.constraint(equalTo: view.leadingAnchor),
             productsContainer.trailingAnchor.constraint(equalTo: view.trailingAnchor),
-            // give a bit more height so lower row is visible / half-visible
             productsContainer.bottomAnchor.constraint(equalTo: view.safeAreaLayoutGuide.bottomAnchor, constant: 40)
         ])
     }
 
     // MARK: - Top bar (back button)
-
     private func setupTopBar() {
         let backCircle = UIView()
         backCircle.backgroundColor = .white
@@ -105,7 +104,7 @@ class OrderPlacedViewController: UIViewController {
         backCircle.layer.shadowOffset = CGSize(width: 0, height: 2)
         backCircle.translatesAutoresizingMaskIntoConstraints = false
 
-        let backButton = UIButton(type: .system)
+        // MARK: - Use CLASS backButton (CHANGED)
         backButton.setImage(UIImage(systemName: "chevron.left"), for: .normal)
         backButton.tintColor = .black
         backButton.translatesAutoresizingMaskIntoConstraints = false
@@ -124,8 +123,7 @@ class OrderPlacedViewController: UIViewController {
         ])
     }
 
-    // MARK: - Icon illustration
-
+    // MARK: - Icon section
     private func setupIconSection() {
         let circle = UIView()
         circle.backgroundColor = UIColor(red: 0.87, green: 0.94, blue: 0.98, alpha: 1.0)
@@ -154,8 +152,7 @@ class OrderPlacedViewController: UIViewController {
         ])
     }
 
-    // MARK: - Title + subtitle
-
+    // MARK: - Title section
     private func setupTitleSection() {
         let titleLabel = UILabel()
         titleLabel.text = "Order Placed!"
@@ -180,14 +177,13 @@ class OrderPlacedViewController: UIViewController {
 
             subtitleLabel.topAnchor.constraint(equalTo: titleLabel.bottomAnchor, constant: 6),
             subtitleLabel.leadingAnchor.constraint(equalTo: titleContainer.leadingAnchor, constant: 40),
-            subtitleLabel.trailingAnchor.constraint(equalTo: titleContainer.trailingAnchor, constant: -40),
-            subtitleLabel.bottomAnchor.constraint(lessThanOrEqualTo: titleContainer.bottomAnchor)
+            subtitleLabel.trailingAnchor.constraint(equalTo: titleContainer.trailingAnchor, constant: -40)
         ])
     }
 
     // MARK: - Buttons
-
     private func setupButtons() {
+
         let primaryButton = UIButton(type: .system)
         primaryButton.setTitle("My Order Detail", for: .normal)
         primaryButton.setTitleColor(.white, for: .normal)
@@ -196,18 +192,18 @@ class OrderPlacedViewController: UIViewController {
         primaryButton.titleLabel?.font = UIFont.systemFont(ofSize: 15, weight: .semibold)
         primaryButton.translatesAutoresizingMaskIntoConstraints = false
 
-        let secondaryButton = UIButton(type: .system)
-        secondaryButton.setTitle("Continue Shopping", for: .normal)
-        secondaryButton.setTitleColor(primaryTeal, for: .normal)
-        secondaryButton.backgroundColor = .clear
-        secondaryButton.layer.cornerRadius = 24
-        secondaryButton.layer.borderWidth = 2
-        secondaryButton.layer.borderColor = primaryTeal.cgColor
-        secondaryButton.titleLabel?.font = UIFont.systemFont(ofSize: 15, weight: .semibold)
-        secondaryButton.translatesAutoresizingMaskIntoConstraints = false
+        // MARK: - Use CLASS continueShoppingButton (CHANGED)
+        continueShoppingButton.setTitle("Continue Shopping", for: .normal)
+        continueShoppingButton.setTitleColor(primaryTeal, for: .normal)
+        continueShoppingButton.backgroundColor = .clear
+        continueShoppingButton.layer.cornerRadius = 24
+        continueShoppingButton.layer.borderWidth = 2
+        continueShoppingButton.layer.borderColor = primaryTeal.cgColor
+        continueShoppingButton.titleLabel?.font = UIFont.systemFont(ofSize: 15, weight: .semibold)
+        continueShoppingButton.translatesAutoresizingMaskIntoConstraints = false
 
         buttonContainer.addSubview(primaryButton)
-        buttonContainer.addSubview(secondaryButton)
+        buttonContainer.addSubview(continueShoppingButton)
 
         NSLayoutConstraint.activate([
             primaryButton.topAnchor.constraint(equalTo: buttonContainer.topAnchor),
@@ -215,15 +211,14 @@ class OrderPlacedViewController: UIViewController {
             primaryButton.trailingAnchor.constraint(equalTo: buttonContainer.trailingAnchor, constant: -30),
             primaryButton.heightAnchor.constraint(equalToConstant: 50),
 
-            secondaryButton.topAnchor.constraint(equalTo: primaryButton.bottomAnchor, constant: 14),
-            secondaryButton.leadingAnchor.constraint(equalTo: primaryButton.leadingAnchor),
-            secondaryButton.trailingAnchor.constraint(equalTo: primaryButton.trailingAnchor),
-            secondaryButton.heightAnchor.constraint(equalToConstant: 50)
+            continueShoppingButton.topAnchor.constraint(equalTo: primaryButton.bottomAnchor, constant: 14),
+            continueShoppingButton.leadingAnchor.constraint(equalTo: primaryButton.leadingAnchor),
+            continueShoppingButton.trailingAnchor.constraint(equalTo: primaryButton.trailingAnchor),
+            continueShoppingButton.heightAnchor.constraint(equalToConstant: 50)
         ])
     }
 
-    // MARK: - "Products You Might Like"
-
+    // MARK: - Suggested title
     private func setupSuggestedTitle() {
         let label = UILabel()
         label.text = "Products You Might Like"
@@ -238,12 +233,8 @@ class OrderPlacedViewController: UIViewController {
         ])
     }
 
-    // MARK: - Products grid (2 columns, vertical)
-
-    // MARK: - Products Grid (EXACT FIGMA MATCH)
-
+    // MARK: - Products grid
     private func setupProductsSection() {
-
         let productsStack = UIStackView()
         productsStack.axis = .vertical
         productsStack.spacing = 24
@@ -258,36 +249,26 @@ class OrderPlacedViewController: UIViewController {
             productsStack.bottomAnchor.constraint(equalTo: productsContainer.bottomAnchor, constant: -16)
         ])
 
-        // -------------------------
-        // FIRST ROW (WITH DETAILS)
-        // -------------------------
         let row1 = UIStackView()
         row1.axis = .horizontal
         row1.spacing = 16
         row1.distribution = .fillEqually
         row1.translatesAutoresizingMaskIntoConstraints = false
 
-        row1.addArrangedSubview(makeDetailedProductCard(
-            imageName: "Kettle",
-            title: "Prestige Electric Kettle",
-            rating: "4.9",
-            negotiableStatus: "Non - Negotiable",
-            price: "₹649"
-        ))
+        row1.addArrangedSubview(makeDetailedProductCard(imageName: "Kettle",
+                                                        title: "Prestige Electric Kettle",
+                                                        rating: "4.9",
+                                                        negotiableStatus: "Non - Negotiable",
+                                                        price: "₹649"))
 
-        row1.addArrangedSubview(makeDetailedProductCard(
-            imageName: "Lamp",
-            title: "Table Lamp",
-            rating: "4.2",
-            negotiableStatus: "Negotiable",
-            price: "₹500"
-        ))
+        row1.addArrangedSubview(makeDetailedProductCard(imageName: "lamp",
+                                                        title: "Table Lamp",
+                                                        rating: "4.2",
+                                                        negotiableStatus: "Negotiable",
+                                                        price: "₹500"))
 
         productsStack.addArrangedSubview(row1)
 
-        // -------------------------
-        // SECOND ROW (IMAGES ONLY)
-        // -------------------------
         let row2 = UIStackView()
         row2.axis = .horizontal
         row2.spacing = 16
@@ -317,7 +298,6 @@ class OrderPlacedViewController: UIViewController {
         card.layer.shadowRadius = 4
         card.translatesAutoresizingMaskIntoConstraints = false
 
-        // Image
         let productImage = UIImageView()
         productImage.image = UIImage(named: imageName)
         productImage.contentMode = .scaleAspectFill
@@ -325,27 +305,23 @@ class OrderPlacedViewController: UIViewController {
         productImage.layer.cornerRadius = 10
         productImage.translatesAutoresizingMaskIntoConstraints = false
 
-        // Title
         let nameLabel = UILabel()
         nameLabel.text = title
         nameLabel.font = UIFont.systemFont(ofSize: 13, weight: .semibold)
         nameLabel.numberOfLines = 2
         nameLabel.translatesAutoresizingMaskIntoConstraints = false
 
-        // Rating + Negotiable
         let ratingLabel = UILabel()
         ratingLabel.font = UIFont.systemFont(ofSize: 12)
         ratingLabel.textColor = UIColor(red: 0, green: 0.55, blue: 0.75, alpha: 1)
         ratingLabel.text = "★ \(rating)  |  \(negotiableStatus)"
         ratingLabel.translatesAutoresizingMaskIntoConstraints = false
 
-        // Price
         let priceLabel = UILabel()
         priceLabel.text = price
         priceLabel.font = UIFont.systemFont(ofSize: 14, weight: .bold)
         priceLabel.translatesAutoresizingMaskIntoConstraints = false
 
-        // Add views
         card.addSubview(productImage)
         card.addSubview(nameLabel)
         card.addSubview(ratingLabel)
@@ -371,7 +347,7 @@ class OrderPlacedViewController: UIViewController {
 
         return card
     }
-    
+
     private func makeSimpleImageCard(imageName: String) -> UIView {
         let card = UIView()
         card.backgroundColor = .white
@@ -402,93 +378,15 @@ class OrderPlacedViewController: UIViewController {
         return card
     }
 
-
-    // MARK: - Product Card Builder (FIGMA SPEC EXACT)
-
-    private func makeProductCard(
-        imageName: String,
-        title: String,
-        rating: String,
-        negotiable: String,
-        price: String,
-        showDetails: Bool
-    ) -> UIView {
-
-        let card = UIView()
-        card.backgroundColor = .white
-        card.layer.cornerRadius = 14
-        card.layer.shadowColor = UIColor.black.cgColor
-        card.layer.shadowOpacity = 0.08
-        card.layer.shadowRadius = 5
-        card.layer.shadowOffset = CGSize(width: 0, height: 3)
-        card.translatesAutoresizingMaskIntoConstraints = false
-
-        // ----- IMAGE -----
-        let imageView = UIImageView()
-        imageView.image = UIImage(named: imageName)
-        imageView.contentMode = .scaleAspectFill
-        imageView.clipsToBounds = true
-        imageView.layer.cornerRadius = 10
-        imageView.translatesAutoresizingMaskIntoConstraints = false
-
-        card.addSubview(imageView)
-
-        NSLayoutConstraint.activate([
-            imageView.topAnchor.constraint(equalTo: card.topAnchor, constant: 10),
-            imageView.centerXAnchor.constraint(equalTo: card.centerXAnchor),
-            imageView.widthAnchor.constraint(equalToConstant: 92),
-            imageView.heightAnchor.constraint(equalToConstant: 119)
-        ])
-
-        // ----- DETAIL SECTION -----
-        if showDetails {
-            // Product Name
-            let titleLabel = UILabel()
-            titleLabel.text = title
-            titleLabel.font = UIFont.systemFont(ofSize: 13, weight: .semibold)
-            titleLabel.textColor = .black
-            titleLabel.numberOfLines = 2
-            titleLabel.translatesAutoresizingMaskIntoConstraints = false
-
-            // rating + negotiable row
-            let ratingLabel = UILabel()
-            ratingLabel.font = UIFont.systemFont(ofSize: 12)
-            ratingLabel.textColor = UIColor(red: 0.0, green: 0.55, blue: 0.75, alpha: 1.0)
-            ratingLabel.text = "★ \(rating)  |  \(negotiable)"
-            ratingLabel.translatesAutoresizingMaskIntoConstraints = false
-
-            // price
-            let priceLabel = UILabel()
-            priceLabel.text = price
-            priceLabel.font = UIFont.systemFont(ofSize: 14, weight: .semibold)
-            priceLabel.textColor = .black
-            priceLabel.translatesAutoresizingMaskIntoConstraints = false
-
-            card.addSubview(titleLabel)
-            card.addSubview(ratingLabel)
-            card.addSubview(priceLabel)
-
-            NSLayoutConstraint.activate([
-                titleLabel.topAnchor.constraint(equalTo: imageView.bottomAnchor, constant: 8),
-                titleLabel.leadingAnchor.constraint(equalTo: card.leadingAnchor, constant: 10),
-                titleLabel.trailingAnchor.constraint(equalTo: card.trailingAnchor, constant: -10),
-
-                ratingLabel.topAnchor.constraint(equalTo: titleLabel.bottomAnchor, constant: 4),
-                ratingLabel.leadingAnchor.constraint(equalTo: titleLabel.leadingAnchor),
-
-                priceLabel.topAnchor.constraint(equalTo: ratingLabel.bottomAnchor, constant: 6),
-                priceLabel.leadingAnchor.constraint(equalTo: titleLabel.leadingAnchor),
-                priceLabel.bottomAnchor.constraint(equalTo: card.bottomAnchor, constant: -10)
-            ])
-
-        } else {
-            // ONLY IMAGE — NO TEXT
-            NSLayoutConstraint.activate([
-                imageView.bottomAnchor.constraint(equalTo: card.bottomAnchor, constant: -10)
-            ])
-        }
-
-        return card
+    // MARK: - Actions
+    @objc private func backPressed() {
+        dismiss(animated: true, completion: nil)
     }
 
+    @objc private func continueShoppingTapped() {
+        let vc = LandingScreenViewController()
+        vc.modalPresentationStyle = .fullScreen
+        vc.modalTransitionStyle = .coverVertical
+        self.present(vc, animated: true, completion: nil)
+    }
 }

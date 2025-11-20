@@ -33,6 +33,9 @@ class AddressViewController: UIViewController {
         addNewAddressButton.translatesAutoresizingMaskIntoConstraints = false
         continueButton.translatesAutoresizingMaskIntoConstraints = false
         
+        addNewAddressButton.addTarget(self, action: #selector(openAddNewAddress), for: .touchUpInside)
+        continueButton.addTarget(self, action: #selector(continuePressed), for: .touchUpInside)
+        
         setupBaseAppearance()
         buildTopBar()
         buildStepIndicator()          // uses a left + right arrangement so "Confirm Order" sits to the right
@@ -360,5 +363,21 @@ class AddressViewController: UIViewController {
             continueButton.bottomAnchor.constraint(equalTo: safe.bottomAnchor, constant: -18),
             continueButton.heightAnchor.constraint(equalToConstant: 56)
         ])
+    }
+    @objc private func openAddNewAddress() {
+
+        let vc = AddNewAddressViewController()
+
+        // FULL SCREEN + SLIDE FROM BOTTOM (same as Cart screen)
+        vc.modalPresentationStyle = .fullScreen
+        vc.modalTransitionStyle = .coverVertical
+
+        self.present(vc, animated: true)
+    }
+    @objc private func continuePressed() {
+        let vc = ConfirmOrderViewController()
+        vc.modalPresentationStyle = .fullScreen
+        vc.modalTransitionStyle = .coverVertical
+        present(vc, animated: true)
     }
 }
