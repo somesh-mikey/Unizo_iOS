@@ -20,14 +20,14 @@ class SceneDelegate: UIResponder, UIWindowSceneDelegate {
 
             window = UIWindow(windowScene: windowScene)
 
-            // 👉 Load Wishlist Screen Directly
-            let wishlistVC = WishlistViewController()
+            // 👉 Load Confirm Order Screen directly
+            let confirmVC = ConfirmOrderSellerViewController(nibName: "ConfirmOrderSellerViewController", bundle: nil)
 
-            // 👉 Navigation Controller wrapper (for back button, nav stack)
-            let navController = UINavigationController(rootViewController: wishlistVC)
-            navController.isNavigationBarHidden = true   // hiding native nav bar
+            // 👉 Wrap inside Navigation Controller (for back button support)
+            let navController = UINavigationController(rootViewController: confirmVC)
+            navController.isNavigationBarHidden = true   // Hide iOS default navbar
 
-            // 👉 Set root view controller
+            // 👉 Set as root
             window?.rootViewController = navController
             window?.makeKeyAndVisible()
         }
