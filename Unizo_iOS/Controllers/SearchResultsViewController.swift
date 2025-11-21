@@ -7,7 +7,7 @@
 
 import UIKit
 
-class SearchResultsViewController: UIViewController {
+class SearchResultsViewController: UIViewController, UICollectionViewDataSource, UICollectionViewDelegateFlowLayout {
 
     // MARK: - Data
     var allProducts: [Product] = []
@@ -23,6 +23,7 @@ class SearchResultsViewController: UIViewController {
     private let scrollView = UIScrollView()
     private let contentView = UIView()
     private let collectionView: UICollectionView
+    private var collectionViewHeightConstraint: NSLayoutConstraint?
 
     // Empty State
     private let emptyStateLabel = UILabel()
@@ -74,7 +75,9 @@ class SearchResultsViewController: UIViewController {
 
         // Expand collectionView height inside scroll view
         let height = collectionView.collectionViewLayout.collectionViewContentSize.height
-        collectionView.heightAnchor.constraint(equalToConstant: height).isActive = true
+        collectionViewHeightConstraint?.isActive = false
+        collectionViewHeightConstraint = collectionView.heightAnchor.constraint(equalToConstant: height)
+        collectionViewHeightConstraint?.isActive = true
 
         if filteredProducts.isEmpty {
             emptyStateLabel.isHidden = false
@@ -195,6 +198,9 @@ class SearchResultsViewController: UIViewController {
             collectionView.trailingAnchor.constraint(equalTo: contentView.trailingAnchor, constant: -10),
             collectionView.bottomAnchor.constraint(equalTo: contentView.bottomAnchor)
         ])
+
+        collectionViewHeightConstraint = collectionView.heightAnchor.constraint(equalToConstant: 0)
+        collectionViewHeightConstraint?.isActive = true
     }
 
     // MARK: - Empty State UI
@@ -217,44 +223,42 @@ class SearchResultsViewController: UIViewController {
 
 // MARK: - Live Search
 extension SearchResultsViewController: UISearchBarDelegate {
-
     func searchBar(_ searchBar: UISearchBar, textDidChange searchText: String) {
-        // 1️⃣ CATEGORY SHORTCUTS (place at top)
         let lower = searchText.lowercased()
 
-        // Category shortcuts by keyword
+        // 1️⃣ CATEGORY SHORTCUTS
         if lower == "sports" || lower == "sport" {
-            filteredProducts = allProducts.filter { $0.name.lowercased().contains("bat") ||
-                                                    $0.name.lowercased().contains("ball") ||
-                                                    $0.name.lowercased().contains("racket") ||
-                                                    $0.name.lowercased().contains("skate") ||
-                                                    $0.name.lowercased().contains("football") ||
-                                                    $0.name.lowercased().contains("cricket") ||
-                                                    $0.name.lowercased().contains("carrom") }
+            filteredProducts = allProducts.filter { name in
+                let n = name.name.lowercased()
+                return n.contains("bat") || n.contains("ball") || n.contains("racket") || n.contains("skate") || n.contains("football") || n.contains("cricket") || n.contains("carrom")
+            }
             updateUI()
             return
         }
 
-        if lower == "fashion" || lower == "cap" || lower == "apparel" {
-            filteredProducts = allProducts.filter { $0.name.lowercased().contains("cap") ||
-                                                    $0.name.lowercased().contains("jeans") ||
-                                                    $0.name.lowercased().contains("shirt") }
+        if lower == "fashion" || lower == "apparel" {
+            filteredProducts = allProducts.filter { $0.name.lowercased().contains("jeans") || $0.name.lowercased().contains("shirt") }
+            updateUI()
+            return
+        }
+
+        if lower == "cap" {
+            filteredProducts = allProducts.filter { $0.name.lowercased().contains("cap") }
             updateUI()
             return
         }
 
         if lower == "gadgets" || lower == "gadget" || lower == "headphones" {
-            filteredProducts = allProducts.filter { $0.name.lowercased().contains("headphone") ||
-                                                    $0.name.lowercased().contains("wireless") ||
-                                                    $0.name.lowercased().contains("jbl") ||
-                                                    $0.name.lowercased().contains("noise") ||
-                                                    $0.name.lowercased().contains("boat") }
+            filteredProducts = allProducts.filter { name in
+                let n = name.name.lowercased()
+                return n.contains("headphone") || n.contains("wireless") || n.contains("jbl") || n.contains("noise") || n.contains("boat")
+            }
             updateUI()
             return
         }
 
-        // 2️⃣ NORMAL TEXT SEARCH (after category checks)
-        if lower.isEmpty {
+        // 2️⃣ NORMAL TEXT SEARCH
+        if lower.trimmingCharacters(in: .whitespaces).isEmpty {
             filteredProducts = []
             updateUI()
             return
@@ -263,35 +267,25 @@ extension SearchResultsViewController: UISearchBarDelegate {
         filteredProducts = allProducts.filter { $0.name.lowercased().contains(lower) }
         updateUI()
     }
+
     func searchBarSearchButtonClicked(_ searchBar: UISearchBar) {
         searchBar.resignFirstResponder()
     }
 }
 
-// MARK: - CollectionView Delegates
-extension SearchResultsViewController: UICollectionViewDataSource, UICollectionViewDelegateFlowLayout {
-
-    func collectionView(_ collectionView: UICollectionView,
-                        numberOfItemsInSection section: Int) -> Int {
+// MARK: - CollectionView DataSource & DelegateFlowLayout
+extension SearchResultsViewController {
+    func collectionView(_ collectionView: UICollectionView, numberOfItemsInSection section: Int) -> Int {
         return filteredProducts.count
     }
 
-    func collectionView(_ collectionView: UICollectionView,
-                        cellForItemAt indexPath: IndexPath) -> UICollectionViewCell {
-
-        let cell = collectionView.dequeueReusableCell(
-            withReuseIdentifier: ProductCell.reuseIdentifier,
-            for: indexPath
-        ) as! ProductCell
-
+    func collectionView(_ collectionView: UICollectionView, cellForItemAt indexPath: IndexPath) -> UICollectionViewCell {
+        let cell = collectionView.dequeueReusableCell(withReuseIdentifier: ProductCell.reuseIdentifier, for: indexPath) as! ProductCell
         cell.configure(with: filteredProducts[indexPath.item])
         return cell
     }
 
-    func collectionView(_ collectionView: UICollectionView,
-                        layout collectionViewLayout: UICollectionViewLayout,
-                        sizeForItemAt indexPath: IndexPath) -> CGSize {
-
+    func collectionView(_ collectionView: UICollectionView, layout collectionViewLayout: UICollectionViewLayout, sizeForItemAt indexPath: IndexPath) -> CGSize {
         let width = (collectionView.bounds.width - 30) / 2
         return CGSize(width: width, height: 260)
     }
