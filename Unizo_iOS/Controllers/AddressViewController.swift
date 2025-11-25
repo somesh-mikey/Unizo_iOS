@@ -4,6 +4,7 @@
 //
 //  Created by Nishtha on 18/11/25.
 //
+
 import UIKit
 
 class AddressViewController: UIViewController {
@@ -18,13 +19,16 @@ class AddressViewController: UIViewController {
     @IBOutlet weak var addNewAddressButton: UIButton!
     @IBOutlet weak var continueButton: UIButton!
     
+    // MARK: - Colors (ADDED)
+    private let teal74E7DA = UIColor(red: 0x74/255, green: 0xE7/255, blue: 0xDA/255, alpha: 1) // 1 & 2
+    private let blue189AB4 = UIColor(red: 0x18/255, green: 0x9A/255, blue: 0xB4/255, alpha: 1) // Add new address
+    
     // MARK: - state
     private var selectedAddressIndex = 1
     
     override func viewDidLoad() {
         super.viewDidLoad()
         
-        // ensure we control AutoLayout in code (important when modifying positions programmatically)
         topBarContainer.translatesAutoresizingMaskIntoConstraints = false
         stepIndicatorContainer.translatesAutoresizingMaskIntoConstraints = false
         address1Container.translatesAutoresizingMaskIntoConstraints = false
@@ -38,15 +42,14 @@ class AddressViewController: UIViewController {
         
         setupBaseAppearance()
         buildTopBar()
-        buildStepIndicator()          // uses a left + right arrangement so "Confirm Order" sits to the right
+        buildStepIndicator()
         buildAddressCards()
         styleButtons()
         applyConstraints()
         
-        updateSelectionUI()           // show selected circle on load
+        updateSelectionUI()
     }
     
-    // MARK: - Base appearance
     private func setupBaseAppearance() {
         view.backgroundColor = UIColor(red: 246/255, green: 247/255, blue: 251/255, alpha: 1)
         
@@ -58,15 +61,14 @@ class AddressViewController: UIViewController {
             c.layer.shadowOpacity = 0.06
             c.layer.shadowOffset = CGSize(width: 0, height: 2)
             c.layer.shadowRadius = 6
-            c.translatesAutoresizingMaskIntoConstraints = false
         }
     }
     
-    // MARK: - Top bar (back / title / heart)
     private func buildTopBar() {
         topBarContainer.subviews.forEach { $0.removeFromSuperview() }
         
         let back = circleButton(systemName: "chevron.left")
+        back.addTarget(self, action: #selector(goBack), for: .touchUpInside)
         let heart = circleButton(systemName: "heart")
         let title = UILabel()
         title.text = "Address"
@@ -103,11 +105,9 @@ class AddressViewController: UIViewController {
         return b
     }
     
-    // MARK: - Step indicator (left and right arrangement)
     private func buildStepIndicator() {
         stepIndicatorContainer.subviews.forEach { $0.removeFromSuperview() }
         
-        // left: step1 + arrow
         let leftStack = UIStackView()
         leftStack.axis = .horizontal
         leftStack.spacing = 8
@@ -118,10 +118,10 @@ class AddressViewController: UIViewController {
         let arrow = UIImageView(image: UIImage(systemName: "chevron.right"))
         arrow.tintColor = .lightGray
         arrow.translatesAutoresizingMaskIntoConstraints = false
+        
         leftStack.addArrangedSubview(step1)
         leftStack.addArrangedSubview(arrow)
         
-        // right: step2 anchored to trailing
         let step2 = smallStepBubble(number: "2", label: "Confirm Order", highlighted: false)
         step2.translatesAutoresizingMaskIntoConstraints = false
         
@@ -131,7 +131,7 @@ class AddressViewController: UIViewController {
         NSLayoutConstraint.activate([
             leftStack.leadingAnchor.constraint(equalTo: stepIndicatorContainer.leadingAnchor, constant: 14),
             leftStack.centerYAnchor.constraint(equalTo: stepIndicatorContainer.centerYAnchor),
-            step1.leadingAnchor.constraint(equalTo: stepIndicatorContainer.leadingAnchor, constant: 40),
+            
             step2.centerYAnchor.constraint(equalTo: stepIndicatorContainer.centerYAnchor),
             step2.trailingAnchor.constraint(equalTo: stepIndicatorContainer.trailingAnchor, constant: -40)
         ])
@@ -149,7 +149,9 @@ class AddressViewController: UIViewController {
         bubble.widthAnchor.constraint(equalToConstant: 26).isActive = true
         bubble.heightAnchor.constraint(equalToConstant: 26).isActive = true
         bubble.layer.cornerRadius = 13
-        bubble.backgroundColor = highlighted ? UIColor.systemTeal : UIColor(white: 0.92, alpha: 1)
+        
+        // UPDATED COLOR
+        bubble.backgroundColor = highlighted ? teal74E7DA : UIColor(white: 0.92, alpha: 1)
         
         let n = UILabel()
         n.text = number
@@ -157,6 +159,7 @@ class AddressViewController: UIViewController {
         n.textColor = .white
         n.translatesAutoresizingMaskIntoConstraints = false
         bubble.addSubview(n)
+        
         NSLayoutConstraint.activate([
             n.centerXAnchor.constraint(equalTo: bubble.centerXAnchor),
             n.centerYAnchor.constraint(equalTo: bubble.centerYAnchor)
@@ -172,9 +175,7 @@ class AddressViewController: UIViewController {
         return h
     }
     
-    // MARK: - Cards
     private func buildAddressCards() {
-        // clear any subviews then add our content
         addAddressCard(into: address1Container, tag: 1,
                        name: "Jonathan", phone: "(+91) 90078 91599",
                        address: "4517 Washington Ave,\nManchester, Kentucky 39495")
@@ -191,14 +192,14 @@ class AddressViewController: UIViewController {
     private func addAddressCard(into container: UIView?, tag: Int, name: String, phone: String, address: String) {
         guard let container = container else { return }
         container.subviews.forEach { $0.removeFromSuperview() }
-        container.layer.cornerRadius = 14
-        container.clipsToBounds = false
         container.tag = tag
         
         let radioOuter = UIView()
         radioOuter.translatesAutoresizingMaskIntoConstraints = false
         radioOuter.layer.cornerRadius = 16
         radioOuter.layer.borderWidth = 2
+        
+        // UPDATED DEFAULT BORDER COLOR
         radioOuter.layer.borderColor = UIColor.lightGray.cgColor
         
         let radioInner = UIView()
@@ -233,19 +234,13 @@ class AddressViewController: UIViewController {
         edit.tintColor = .gray
         edit.translatesAutoresizingMaskIntoConstraints = false
         
-        let content = UIView()
-        content.translatesAutoresizingMaskIntoConstraints = false
-        content.backgroundColor = .clear
+        let tap = UITapGestureRecognizer(target: self, action: #selector(cardTapped(_:)))
+        container.addGestureRecognizer(tap)
         
         container.addSubview(radioOuter)
         container.addSubview(namePhone)
         container.addSubview(addr)
         container.addSubview(edit)
-        container.addSubview(content)
-        
-        // tap to select
-        let tap = UITapGestureRecognizer(target: self, action: #selector(cardTapped(_:)))
-        container.addGestureRecognizer(tap)
         
         NSLayoutConstraint.activate([
             radioOuter.leadingAnchor.constraint(equalTo: container.leadingAnchor, constant: 16),
@@ -283,42 +278,42 @@ class AddressViewController: UIViewController {
     
     private func updateSelectionUI() {
         let cards = [address1Container, address2Container, address3Container]
+        
         for (index, card) in cards.enumerated() {
             guard let card = card else { continue }
             let selected = (index + 1) == selectedAddressIndex
-            // find radio outer by assumption: first subview is radioOuter
-            if let radioOuter = card.subviews.first(where: { $0.frame.width == 32 || $0.layer.cornerRadius == 16 }) {
-                radioOuter.layer.borderColor = selected ? UIColor.systemTeal.cgColor : UIColor.lightGray.cgColor
+            
+            if let radioOuter = card.subviews.first(where: { $0.layer.cornerRadius == 16 }) {
+                
+                // UPDATED SELECTED COLOR
+                radioOuter.layer.borderColor = selected ? teal74E7DA.cgColor : UIColor.lightGray.cgColor
+                
                 if let inner = radioOuter.subviews.first {
-                    inner.backgroundColor = selected ? UIColor.systemTeal : UIColor.clear
+                    inner.backgroundColor = selected ? teal74E7DA : .clear
                 }
             }
         }
     }
     
-    // MARK: - Buttons styling
     private func styleButtons() {
-        // Add new address (left aligned small pill)
+        
         addNewAddressButton.setTitle("Add New Address", for: .normal)
-        addNewAddressButton.setTitleColor(UIColor.systemTeal, for: .normal)
+        addNewAddressButton.setTitleColor(blue189AB4, for: .normal)  // UPDATED
         addNewAddressButton.layer.borderWidth = 1.5
-        addNewAddressButton.layer.borderColor = UIColor.systemTeal.cgColor
+        addNewAddressButton.layer.borderColor = blue189AB4.cgColor   // UPDATED
         addNewAddressButton.layer.cornerRadius = 20
         addNewAddressButton.titleLabel?.font = UIFont.systemFont(ofSize: 15, weight: .regular)
         addNewAddressButton.contentEdgeInsets = UIEdgeInsets(top: 8, left: 12, bottom: 8, right: 12)
         
-        // Continue (full width bottom)
         continueButton.setTitle("Continue", for: .normal)
         continueButton.setTitleColor(.white, for: .normal)
         continueButton.backgroundColor = UIColor(red: 0/255, green: 60/255, blue: 78/255, alpha: 1)
         continueButton.layer.cornerRadius = 26
     }
     
-    // MARK: - apply final constraints (positions)
     private func applyConstraints() {
         guard let safe = view?.safeAreaLayoutGuide else { return }
         
-        // topBarContainer - we assume set in XIB top but enforce height
         NSLayoutConstraint.activate([
             topBarContainer.topAnchor.constraint(equalTo: safe.topAnchor, constant: 8),
             topBarContainer.leadingAnchor.constraint(equalTo: safe.leadingAnchor, constant: 10),
@@ -333,12 +328,10 @@ class AddressViewController: UIViewController {
             stepIndicatorContainer.heightAnchor.constraint(equalToConstant: 40)
         ])
         
-        // Address cards stacked with the spacing visible in Figma
         NSLayoutConstraint.activate([
             address1Container.topAnchor.constraint(equalTo: stepIndicatorContainer.bottomAnchor, constant: 8),
             address1Container.leadingAnchor.constraint(equalTo: safe.leadingAnchor, constant: 14),
             address1Container.trailingAnchor.constraint(equalTo: safe.trailingAnchor, constant: -14),
-            // set min height so text fits nicely
             address1Container.heightAnchor.constraint(greaterThanOrEqualToConstant: 92),
             
             address2Container.topAnchor.constraint(equalTo: address1Container.bottomAnchor, constant: 14),
@@ -351,33 +344,37 @@ class AddressViewController: UIViewController {
             address3Container.trailingAnchor.constraint(equalTo: safe.trailingAnchor, constant: -14),
             address3Container.heightAnchor.constraint(greaterThanOrEqualToConstant: 88),
             
-            // addNewAddressButton: left aligned and sized similar to figma
             addNewAddressButton.topAnchor.constraint(equalTo: address3Container.bottomAnchor, constant: 18),
             addNewAddressButton.leadingAnchor.constraint(equalTo: safe.leadingAnchor, constant: 14),
             addNewAddressButton.heightAnchor.constraint(equalToConstant: 42),
             addNewAddressButton.widthAnchor.constraint(equalToConstant: 170),
             
-            // continue bottom full width with safe padding like figma
             continueButton.leadingAnchor.constraint(equalTo: safe.leadingAnchor, constant: 18),
             continueButton.trailingAnchor.constraint(equalTo: safe.trailingAnchor, constant: -18),
             continueButton.bottomAnchor.constraint(equalTo: safe.bottomAnchor, constant: -18),
             continueButton.heightAnchor.constraint(equalToConstant: 56)
         ])
     }
+    
     @objc private func openAddNewAddress() {
-
         let vc = AddNewAddressViewController()
-
-        // FULL SCREEN + SLIDE FROM BOTTOM (same as Cart screen)
-        vc.modalPresentationStyle = .fullScreen
-        vc.modalTransitionStyle = .coverVertical
-
-        self.present(vc, animated: true)
-    }
-    @objc private func continuePressed() {
-        let vc = ConfirmOrderViewController()
         vc.modalPresentationStyle = .fullScreen
         vc.modalTransitionStyle = .coverVertical
         present(vc, animated: true)
+    }
+    
+    @objc private func continuePressed() {
+        let vc = ConfirmOrderViewController(nibName: "ConfirmOrderViewController", bundle: nil)
+        vc.modalPresentationStyle = .fullScreen
+        vc.modalTransitionStyle = .coverVertical
+        present(vc, animated: true)
+    }
+    
+    @objc private func goBack() {
+        if let nav = self.navigationController {
+            nav.popViewController(animated: true)   // Pop to previous VC (Cart)
+        } else {
+            self.dismiss(animated: true)            // In case it was presented
+        }
     }
 }

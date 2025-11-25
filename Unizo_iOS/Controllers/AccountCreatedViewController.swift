@@ -17,6 +17,18 @@ class AccountCreatedViewController: UIViewController {
         return view
     }()
     
+    func goToMainTabBar() {
+        let tabBar = MainTabBarController()
+        tabBar.modalPresentationStyle = .fullScreen
+        
+        // Replace current controller stack with tab bar
+        if let nav = navigationController {
+            nav.setViewControllers([tabBar], animated: true)
+        } else {
+            present(tabBar, animated: true)
+        }
+    }
+    
     private let iconInnerCircle: UIImageView = {
         let imageView = UIImageView()
         imageView.backgroundColor = .white
@@ -131,6 +143,7 @@ class AccountCreatedViewController: UIViewController {
     // MARK: - Actions
     @objc private func getStartedTapped() {
         print("Get Started Pressed")
+        goToMainTabBar()
         
         let vc = LandingScreenViewController(nibName: "LandingScreenViewController", bundle: nil)
         vc.modalPresentationStyle = .fullScreen

@@ -648,7 +648,14 @@ class LandingScreenViewController: UIViewController {
         // --- WISHLIST ---
         alert.addAction(UIAlertAction(title: "Wishlist", style: .default, handler: { _ in
             // Add your Wishlist VC here later
-            print("Wishlist tapped")
+            let vc = WishlistViewController()
+                if let nav = self.navigationController {
+                    nav.pushViewController(vc, animated: true)
+                } else {
+                    vc.modalPresentationStyle = .fullScreen
+                    vc.modalTransitionStyle = .coverVertical
+                    self.present(vc, animated: true)
+                }
         }))
 
         // --- NOTIFICATIONS ---
