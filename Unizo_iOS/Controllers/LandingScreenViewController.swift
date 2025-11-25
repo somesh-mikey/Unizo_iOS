@@ -43,8 +43,6 @@ class LandingScreenViewController: UIViewController {
     private let pageControl = UIPageControl()
     private let segmentedControl = UISegmentedControl(items: ["All", "Most Popular", "Negotiable"])
 
-    private let tabBar = UITabBar()
-
     // MARK: Data
     private let banners = ["banner1", "banner2", "banner3"]
     private var timer: Timer?
@@ -355,7 +353,7 @@ class LandingScreenViewController: UIViewController {
             trendingCategoriesbg.leadingAnchor.constraint(equalTo: topContainer.leadingAnchor, constant: 0),
             trendingCategoriesbg.trailingAnchor.constraint(equalTo: topContainer.trailingAnchor, constant: 0),
             trendingCategoriesbg.topAnchor.constraint(equalTo: searchBar.bottomAnchor, constant: 10),
-            trendingCategoriesbg.bottomAnchor.constraint(equalTo: topContainer.bottomAnchor, constant: -10)
+            trendingCategoriesbg.bottomAnchor.constraint(equalTo: topContainer.bottomAnchor, constant: 0)
         ])
         
         // Optional soft shadow (Figma look)
@@ -531,31 +529,6 @@ class LandingScreenViewController: UIViewController {
             collectionView.trailingAnchor.constraint(equalTo: contentView.trailingAnchor, constant: -10),
             collectionView.bottomAnchor.constraint(equalTo: contentView.bottomAnchor, constant: -20)
         ])
-        
-        // --- Tab Bar ---
-        view.addSubview(tabBar)
-        tabBar.translatesAutoresizingMaskIntoConstraints = false
-        NSLayoutConstraint.activate([
-            tabBar.leadingAnchor.constraint(equalTo: view.leadingAnchor),
-            tabBar.trailingAnchor.constraint(equalTo: view.trailingAnchor),
-            tabBar.bottomAnchor.constraint(equalTo: view.safeAreaLayoutGuide.bottomAnchor),
-            tabBar.heightAnchor.constraint(equalToConstant: 80)
-        ])
-        
-        tabBar.items = [
-            UITabBarItem(title: "Home", image: UIImage(systemName: "house.fill"), tag: 0),
-            UITabBarItem(title: "Chat", image: UIImage(systemName: "message.fill"), tag: 1),
-            UITabBarItem(title: "Post", image: UIImage(systemName: "square.and.arrow.up.fill"), tag: 2),
-            UITabBarItem(title: "Listings", image: UIImage(systemName: "rectangle.grid.2x2.fill"), tag: 3),
-            UITabBarItem(title: "Profile", image: UIImage(systemName: "person.crop.circle.fill"), tag: 4)
-        ]
-        tabBar.selectedItem = tabBar.items?.first
-        
-        // --- Tab Bar Styling ---
-        tabBar.tintColor = UIColor(red: 0.239, green: 0.486, blue: 0.596, alpha: 1)                    // selected item color
-        tabBar.unselectedItemTintColor = .darkGray    // unselected item color
-        tabBar.isTranslucent = false
-
     }
     @objc private func segmentChanged() {
 
