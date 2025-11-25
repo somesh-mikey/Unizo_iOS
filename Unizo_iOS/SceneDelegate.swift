@@ -11,26 +11,25 @@ class SceneDelegate: UIResponder, UIWindowSceneDelegate {
 
     var window: UIWindow?
 
-
     func scene(_ scene: UIScene,
-                   willConnectTo session: UISceneSession,
-                   options connectionOptions: UIScene.ConnectionOptions) {
+               willConnectTo session: UISceneSession,
+               options connectionOptions: UIScene.ConnectionOptions) {
 
-            guard let windowScene = (scene as? UIWindowScene) else { return }
+        guard let windowScene = (scene as? UIWindowScene) else { return }
 
-            window = UIWindow(windowScene: windowScene)
+        window = UIWindow(windowScene: windowScene)
 
-            // 👉 Load Confirm Order Screen directly
-            let confirmVC = ConfirmOrderSellerViewController(nibName: "ConfirmOrderSellerViewController", bundle: nil)
+        // 👉 Load MyOrdersViewController
+        let myOrdersVC = MyOrdersViewController()
 
-            // 👉 Wrap inside Navigation Controller (for back button support)
-            let navController = UINavigationController(rootViewController: confirmVC)
-            navController.isNavigationBarHidden = true   // Hide iOS default navbar
+        // 👉 Wrap inside NavigationController
+        let navController = UINavigationController(rootViewController: myOrdersVC)
+        navController.isNavigationBarHidden = true   // Hide iOS default navbar
 
-            // 👉 Set as root
-            window?.rootViewController = navController
-            window?.makeKeyAndVisible()
-        }
+        // 👉 Set as root controller
+        window?.rootViewController = navController
+        window?.makeKeyAndVisible()
+    }
     func sceneDidDisconnect(_ scene: UIScene) {
         // Called as the scene is being released by the system.
         // This occurs shortly after the scene enters the background, or when its session is discarded.
