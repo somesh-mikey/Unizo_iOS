@@ -17,13 +17,19 @@ class SceneDelegate: UIResponder, UIWindowSceneDelegate {
         // If using a storyboard, the `window` property will automatically be initialized and attached to the scene.
         // This delegate does not imply the connecting scene or session are new (see `application:configurationForConnectingSceneSession` instead).
         guard let windowScene = (scene as? UIWindowScene) else { return }
-
-           window = UIWindow(windowScene: windowScene)
-
-           let vc = AddNewAddressViewController(nibName: "AddNewAddressViewController", bundle: nil)
-
-           window?.rootViewController = UINavigationController(rootViewController: vc)
-           window?.makeKeyAndVisible()
+            
+            let window = UIWindow(windowScene: windowScene)
+            
+            // Load EditAddressViewController from XIB
+            let editVC = EditAddressViewController(nibName: "EditAddressViewController", bundle: nil)
+            
+            // Embed inside navigation controller
+            let nav = UINavigationController(rootViewController: editVC)
+            nav.isNavigationBarHidden = true   // Hide default nav bar
+            
+            window.rootViewController = nav
+            self.window = window
+            window.makeKeyAndVisible()
     }
 
     func sceneDidDisconnect(_ scene: UIScene) {

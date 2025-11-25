@@ -172,7 +172,7 @@ class AddNewAddressViewController: UIViewController {
             field.placeholder = placeholder
             field.backgroundColor = .white
             field.font = UIFont.systemFont(ofSize: 15)
-            field.setLeftPaddingPoints(10)
+//            field.setLeftPaddingPoints(10)
 
             whiteContainer.addSubview(field)
 
