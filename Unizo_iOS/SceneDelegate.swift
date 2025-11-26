@@ -11,25 +11,25 @@ class SceneDelegate: UIResponder, UIWindowSceneDelegate {
 
     var window: UIWindow?
 
-    func scene(_ scene: UIScene,
-               willConnectTo session: UISceneSession,
-               options connectionOptions: UIScene.ConnectionOptions) {
+        func scene(_ scene: UIScene,
+                   willConnectTo session: UISceneSession,
+                   options connectionOptions: UIScene.ConnectionOptions) {
 
-        guard let windowScene = (scene as? UIWindowScene) else { return }
+            guard let windowScene = (scene as? UIWindowScene) else { return }
 
-        window = UIWindow(windowScene: windowScene)
+            window = UIWindow(windowScene: windowScene)
 
-        // 👉 Load BrowseEventsViewController
-        let browseEventsVC = BrowseEventsViewController()
+            // 👉 Load ListingsViewController
+            let listingsVC = ListingsViewController()
 
-        // 👉 Wrap inside NavigationController
-        let navController = UINavigationController(rootViewController: browseEventsVC)
-        navController.isNavigationBarHidden = false   // Show navigation bar if needed
+            // 👉 Wrap inside NavigationController
+            let navController = UINavigationController(rootViewController: listingsVC)
+            navController.isNavigationBarHidden = false   // Keep nav bar visible (optional)
 
-        // 👉 Set as root controller
-        window?.rootViewController = navController
-        window?.makeKeyAndVisible()
-    }
+            // 👉 Set root controller
+            window?.rootViewController = navController
+            window?.makeKeyAndVisible()
+        }
     func sceneDidDisconnect(_ scene: UIScene) {
         // Called as the scene is being released by the system.
         // This occurs shortly after the scene enters the background, or when its session is discarded.
