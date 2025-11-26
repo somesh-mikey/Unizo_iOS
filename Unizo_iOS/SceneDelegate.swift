@@ -18,16 +18,14 @@ class SceneDelegate: UIResponder, UIWindowSceneDelegate {
         // This delegate does not imply the connecting scene or session are new (see `application:configurationForConnectingSceneSession` instead).
         guard let windowScene = (scene as? UIWindowScene) else { return }
 
-                window = UIWindow(windowScene: windowScene)
+               window = UIWindow(windowScene: windowScene)
 
-                // ---> Set your starting screen here
-                let rootVC = ProductPostedViewController()
+               let vc = SplashViewController()
+               let nav = UINavigationController(rootViewController: vc)
+               nav.isNavigationBarHidden = true
 
-                let nav = UINavigationController(rootViewController: rootVC)
-                nav.isNavigationBarHidden = true   // ALWAYS HIDE NAV BAR (same as your design)
-
-                window?.rootViewController = nav
-                window?.makeKeyAndVisible()
+               window?.rootViewController = nav
+               window?.makeKeyAndVisible()
     }
 
     func sceneDidDisconnect(_ scene: UIScene) {
