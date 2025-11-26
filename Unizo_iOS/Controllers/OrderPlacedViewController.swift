@@ -25,6 +25,7 @@ class OrderPlacedViewController: UIViewController {
     private let bgColor      = UIColor(red: 0.96, green: 0.97, blue: 1.0, alpha: 1.0)
     private let primaryTeal  = UIColor(red: 0.02, green: 0.34, blue: 0.46, alpha: 1.0)
     private let accentTeal   = UIColor(red: 0.00, green: 0.62, blue: 0.71, alpha: 1.0)
+    private let myOrderDetailButton = UIButton(type: .system)
 
     override func viewDidLoad() {
         super.viewDidLoad()
@@ -38,6 +39,7 @@ class OrderPlacedViewController: UIViewController {
         setupButtons()
         setupSuggestedTitle()
         setupProductsSection()
+        myOrderDetailButton.addTarget(self, action: #selector(openOrderDetails), for: .touchUpInside)
 
         // MARK: - Attach Actions (ADDED)
         continueShoppingButton.addTarget(self, action: #selector(continueShoppingTapped), for: .touchUpInside)
@@ -184,7 +186,7 @@ class OrderPlacedViewController: UIViewController {
     // MARK: - Buttons
     private func setupButtons() {
 
-        let primaryButton = UIButton(type: .system)
+        let primaryButton = myOrderDetailButton
         primaryButton.setTitle("My Order Detail", for: .normal)
         primaryButton.setTitleColor(.white, for: .normal)
         primaryButton.backgroundColor = primaryTeal
@@ -388,5 +390,18 @@ class OrderPlacedViewController: UIViewController {
         vc.modalPresentationStyle = .fullScreen
         vc.modalTransitionStyle = .coverVertical
         self.present(vc, animated: true, completion: nil)
+    }
+    @objc private func openOrderDetails() {
+        let vc = OrderDetailsViewController()
+
+        // If you are using a navigation controller (recommended)
+        if let nav = navigationController {
+            nav.pushViewController(vc, animated: true)
+            return
+        }
+
+        // If the screen was presented modally
+        vc.modalPresentationStyle = .fullScreen
+        present(vc, animated: true)
     }
 }

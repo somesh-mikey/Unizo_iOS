@@ -633,8 +633,18 @@ class LandingScreenViewController: UIViewController {
 
         // --- NOTIFICATIONS ---
         alert.addAction(UIAlertAction(title: "Notifications", style: .default, handler: { _ in
-            // Add Notifications VC here later
-            print("Notifications tapped")
+            let vc = NotificationsViewController()
+
+                    // CASE 1 — If inside a NavigationController
+                    if let nav = self.navigationController {
+                        nav.pushViewController(vc, animated: true)
+                        return
+                    }
+
+                    // CASE 2 — If presented modally
+                    vc.modalPresentationStyle = .fullScreen
+                    vc.modalTransitionStyle = .coverVertical
+                    self.present(vc, animated: true)
         }))
 
         alert.addAction(UIAlertAction(title: "Cancel", style: .cancel))
@@ -672,6 +682,8 @@ class LandingScreenViewController: UIViewController {
                 width: cardWidth,
                 height: cardHeight
             )
+            wrapper.isUserInteractionEnabled = true
+            wrapper.addGestureRecognizer(UITapGestureRecognizer(target: self, action: #selector(openEventsPage)))
 
             wrapper.backgroundColor = .clear
             wrapper.layer.shadowColor = UIColor.black.cgColor
@@ -817,5 +829,17 @@ extension LandingScreenViewController: UISearchBarDelegate {
         )
 
         navigationController?.pushViewController(vc, animated: true)
+    }
+    @objc private func openEventsPage() {
+        let vc = BrowseEventsViewController()
+
+        if let nav = navigationController {
+            nav.pushViewController(vc, animated: true)
+            return
+        }
+
+        vc.modalPresentationStyle = .fullScreen
+        vc.modalTransitionStyle = .coverVertical
+        present(vc, animated: true)
     }
 }

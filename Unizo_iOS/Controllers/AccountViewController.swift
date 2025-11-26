@@ -204,7 +204,12 @@ class AccountViewController: UIViewController {
 
         featureStack.addArrangedSubview(itemPayments)
         featureStack.addArrangedSubview(itemTickets)
+        itemTickets.isUserInteractionEnabled = true
+        itemTickets.addGestureRecognizer(UITapGestureRecognizer(target: self, action: #selector(openEvents)))
         featureStack.addArrangedSubview(itemDashboard)
+        itemDashboard.addGestureRecognizer(
+            UITapGestureRecognizer(target: self, action: #selector(openSellerDashboard))
+        )
 
         contentView.addSubview(generalSettingsLabel)
         contentView.addSubview(rowMyOrders)
@@ -321,12 +326,120 @@ class AccountViewController: UIViewController {
 
     // MARK: - Navigation Actions
 
-    @objc private func openOrders() { print("My Orders") }
-    @objc private func openProfile() { print("My Profile") }
-    @objc private func openAddress() { print("My Address") }
-    @objc private func openNotifications() { print("Notifications") }
+    @objc private func openOrders()
+    {
+            let vc = MyOrdersViewController()
 
-    @objc private func openTerms() { print("Terms & Conditions") }
-    @objc private func openPrivacy() { print("Privacy Policy") }
-    @objc private func openSettings() { print("Settings") }
+            // IF inside Navigation Controller → PUSH
+            if let nav = navigationController {
+                nav.pushViewController(vc, animated: true)
+                return
+            }
+
+            // ELSE present modally
+            vc.modalPresentationStyle = .fullScreen
+            vc.modalTransitionStyle = .coverVertical
+            present(vc, animated: true)
+    }
+    
+    @objc private func openProfile() { print("My Profile") }
+    @objc private func openAddress()
+    {
+            
+        let vc = AddressViewController()
+        vc.flowSource = .fromAccount
+        // CASE 1 — If inside NavigationController → push
+        if let nav = navigationController {
+            nav.pushViewController(vc, animated: true)
+            return
+        }
+
+        // CASE 2 — Presented modally → present full screen
+        vc.modalPresentationStyle = .fullScreen
+        vc.modalTransitionStyle = .coverVertical
+        present(vc, animated: true)
+    }
+    @objc private func openNotifications()
+    {
+        let vc = NotificationsViewController()
+
+            // If inside a Navigation Controller → PUSH
+            if let nav = navigationController {
+                nav.pushViewController(vc, animated: true)
+                return
+            }
+
+            // If NOT inside Navigation Controller → PRESENT
+            vc.modalPresentationStyle = .fullScreen
+            vc.modalTransitionStyle = .coverVertical
+            present(vc, animated: true)
+    }
+
+    @objc private func openTerms()
+    {
+        let vc = TermsAndConditionsViewController()
+
+            if let nav = navigationController {
+                nav.pushViewController(vc, animated: true)
+                return
+            }
+
+            vc.modalPresentationStyle = .fullScreen
+            vc.modalTransitionStyle = .coverVertical
+            present(vc, animated: true)
+    }
+    @objc private func openPrivacy()
+    {
+        let vc = PrivacyPolicyViewController()
+        
+        if let nav = navigationController {
+            nav.pushViewController(vc, animated: true)
+            return
+        }
+        
+        vc.modalPresentationStyle = .fullScreen
+        vc.modalTransitionStyle = .coverVertical
+        present(vc, animated: true)
+    }
+    @objc private func openSettings()
+    {
+        let vc = SettingsViewController()
+
+            if let nav = navigationController {
+                nav.pushViewController(vc, animated: true)
+                return
+            }
+
+            vc.modalPresentationStyle = .fullScreen
+            vc.modalTransitionStyle = .coverVertical
+            present(vc, animated: true)
+    }
+    @objc private func openSellerDashboard() {
+        let vc = SellerDashboardViewController()
+
+        // If inside a Navigation Controller → PUSH
+        if let nav = navigationController {
+            nav.pushViewController(vc, animated: true)
+            return
+        }
+
+        // Else → PRESENT modally
+        vc.modalPresentationStyle = .fullScreen
+        vc.modalTransitionStyle = .coverVertical
+        present(vc, animated: true)
+    }
+    @objc private func openEvents() {
+        let vc = BrowseEventsViewController() // your target VC
+
+        // If the Account screen is inside a navigation controller -> push
+        if let nav = navigationController {
+            nav.pushViewController(vc, animated: true)
+            return
+        }
+
+        // Otherwise present modally full screen
+        vc.modalPresentationStyle = .fullScreen
+        vc.modalTransitionStyle = .coverVertical
+        present(vc, animated: true)
+    }
 }

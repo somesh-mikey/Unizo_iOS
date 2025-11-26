@@ -23,6 +23,7 @@ class WishlistViewController: UIViewController {
         loadDummyWishlist()
         setupNavigationBar()
         setupCollectionView()
+        backButton.addTarget(self, action: #selector(backPressed), for: .touchUpInside)
     }
     // MARK: Dummy Data
     private func loadDummyWishlist() {
@@ -55,7 +56,6 @@ class WishlistViewController: UIViewController {
         // Back Button
         backButton.setImage(UIImage(systemName: "chevron.backward"), for: .normal)
         backButton.tintColor = .black
-        backButton.addTarget(self, action: #selector(backTapped), for: .touchUpInside)
 
         // Title
         titleLabel.text = "My Wishlist"
@@ -154,6 +154,34 @@ extension WishlistViewController: UICollectionViewDataSource, UICollectionViewDe
                         layout collectionViewLayout: UICollectionViewLayout,
                         minimumLineSpacingForSectionAt section: Int) -> CGFloat {
         15
+    }
+    @objc private func backPressed() {
+
+        // CASE 1 — If opened with Navigation Controller
+        if let nav = navigationController {
+            nav.popViewController(animated: true)
+            return
+        }
+
+        // CASE 2 — If presented modally
+        if presentingViewController != nil {
+            dismiss(animated: true)
+            return
+        }
+
+        // CASE 3 — Fallback (rare)
+        let landingVC = LandingScreenViewController()
+        landingVC.modalPresentationStyle = .fullScreen
+        present(landingVC, animated: true)
+    }
+    override func viewWillAppear(_ animated: Bool) {
+            super.viewWillAppear(animated)
+            navigationController?.setNavigationBarHidden(true, animated: false)
+        }
+
+    override func viewWillDisappear(_ animated: Bool) {
+        super.viewWillDisappear(animated)
+        navigationController?.setNavigationBarHidden(false, animated: false)
     }
 }
 

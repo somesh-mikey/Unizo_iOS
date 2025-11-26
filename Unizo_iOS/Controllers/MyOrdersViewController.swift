@@ -79,6 +79,11 @@ class MyOrdersViewController: UIViewController {
         setupUI()
         setupConstraints()
         loadOrders(filter: "All")
+        navigationController?.setNavigationBarHidden(true, animated: false)
+    }
+    override func viewWillDisappear(_ animated: Bool) {
+        super.viewWillDisappear(animated)
+        navigationController?.setNavigationBarHidden(false, animated: false)
     }
 
     // MARK: - Setup UI

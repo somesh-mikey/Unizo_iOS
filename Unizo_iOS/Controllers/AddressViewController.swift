@@ -7,7 +7,14 @@
 
 import UIKit
 
+enum AddressFlowSource {
+    case fromAccount
+    case fromCart
+}
+
 class AddressViewController: UIViewController {
+    
+    var flowSource: AddressFlowSource = .fromCart
 
     // MARK: - Colors
     private let bgColor     = UIColor(red: 0.96, green: 0.97, blue: 1.0, alpha: 1.0)
@@ -50,6 +57,14 @@ class AddressViewController: UIViewController {
         setupAddNewAddressButton()
         setupContinueButton()
         updateSelectionUI()
+    }
+    override func viewWillAppear(_ animated: Bool) {
+        super.viewWillAppear(animated)
+        navigationController?.setNavigationBarHidden(true, animated: false)
+    }
+    override func viewWillDisappear(_ animated: Bool) {
+        super.viewWillDisappear(animated)
+        navigationController?.setNavigationBarHidden(false, animated: false)
     }
 
     // MARK: - NAV BAR
@@ -102,8 +117,21 @@ class AddressViewController: UIViewController {
         ])
     }
 
+    // UPDATED: Back navigation -> pop to CartViewController if present, else pop/dismiss
     @objc private func backTapped() {
-        navigationController?.popViewController(animated: true)
+        // If part of a navigation controller, try to pop to CartViewController if it exists
+        if let nav = navigationController {
+            if let cartVC = nav.viewControllers.first(where: { $0 is CartViewController }) {
+                nav.popToViewController(cartVC, animated: true)
+                return
+            }
+            // fallback: normal pop
+            nav.popViewController(animated: true)
+            return
+        }
+
+        // If presented modally, dismiss
+        dismiss(animated: true)
     }
 
     // MARK: - STEP INDICATOR
@@ -323,8 +351,8 @@ class AddressViewController: UIViewController {
             addressLabel.topAnchor.constraint(equalTo: nameLabel.bottomAnchor, constant: 4),
             addressLabel.bottomAnchor.constraint(equalTo: card.bottomAnchor, constant: -14)
         ])
-        
-        
+
+
         // EDIT (pencil) icon
         let editIcon = UIImageView(image: UIImage(systemName: "pencil"))
         editIcon.tintColor = .gray
@@ -411,14 +439,15 @@ class AddressViewController: UIViewController {
         ])
     }
 
+    // UPDATED: navigate to AddNewAddressViewController (push or modal)
     @objc private func addAddressTapped() {
-        let alert = UIAlertController(
-            title: "Add New Address",
-            message: "Here you can navigate to Add New Address screen.",
-            preferredStyle: .alert
-        )
-        alert.addAction(UIAlertAction(title: "OK", style: .default))
-        present(alert, animated: true)
+        let newVC = AddNewAddressViewController()
+        if let nav = navigationController {
+            nav.pushViewController(newVC, animated: true)
+        } else {
+            newVC.modalPresentationStyle = .fullScreen
+            present(newVC, animated: true)
+        }
     }
 
     // MARK: - CONTINUE BUTTON
@@ -441,13 +470,28 @@ class AddressViewController: UIViewController {
         ])
     }
 
-    @objc private func continueTapped() {
-        let alert = UIAlertController(
-            title: "Continue",
-            message: "Selected address index: \(selectedIndex + 1)",
-            preferredStyle: .alert
-        )
-        alert.addAction(UIAlertAction(title: "OK", style: .default))
-        present(alert, animated: true)
+    @objc func continueTapped() {
+
+        switch flowSource {
+
+        case .fromAccount:
+            // Go BACK to Account screen
+            if navigationController != nil {
+                navigationController?.popViewController(animated: true)
+            } else {
+                dismiss(animated: true)
+            }
+
+        case .fromCart:
+            // Move to Confirm Order screen
+            let vc = ConfirmOrderViewController()
+            vc.modalPresentationStyle = .fullScreen
+
+            if let nav = navigationController {
+                nav.pushViewController(vc, animated: true)
+            } else {
+                present(vc, animated: true)
+            }
+        }
     }
 }

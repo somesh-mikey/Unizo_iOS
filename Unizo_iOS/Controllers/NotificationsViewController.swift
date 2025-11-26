@@ -202,6 +202,17 @@ extension NotificationsViewController: UITableViewDataSource, UITableViewDelegat
         cell.configure(with: currentData[indexPath.row])
         return cell
     }
+    func tableView(_ tableView: UITableView, didSelectRowAt indexPath: IndexPath) {
+        let vc = ConfirmOrderSellerViewController()
+
+        if let nav = navigationController {
+            nav.pushViewController(vc, animated: true)
+        } else {
+            vc.modalPresentationStyle = .fullScreen
+            vc.modalTransitionStyle = .coverVertical
+            present(vc, animated: true)
+        }
+    }
 }
 
 // MARK: CUSTOM CELL (Figma exact)
@@ -214,6 +225,8 @@ class NotificationCell: UITableViewCell {
 
     override init(style: UITableViewCell.CellStyle, reuseIdentifier: String?) {
         super.init(style: style, reuseIdentifier: reuseIdentifier)
+        timeLabel.setContentCompressionResistancePriority(.required, for: .horizontal)
+        timeLabel.setContentHuggingPriority(.required, for: .horizontal)
 
         selectionStyle = .none
         backgroundColor = .clear

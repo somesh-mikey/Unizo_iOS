@@ -120,10 +120,6 @@ class OrderDetailsViewController: UIViewController {
         ])
     }
 
-    @objc private func backPressed() {
-        navigationController?.popViewController(animated: true)
-    }
-
     // MARK: - Scroll + content layout (scrollable content BELOW topBar)
     private func setupScrollHierarchy() {
         scrollView.translatesAutoresizingMaskIntoConstraints = false
@@ -565,5 +561,20 @@ class OrderDetailsViewController: UIViewController {
 
     @objc private func helpTapped() {
         print("Help tapped")
+    }
+    @objc private func backPressed() {
+
+        // If screen is inside a navigation controller → go to LandingScreen
+        if let nav = navigationController {
+            let vc = LandingScreenViewController()
+            nav.setViewControllers([vc], animated: true)
+            return
+        }
+
+        // Otherwise → presented modally, so present LandingScreen
+        let vc = LandingScreenViewController()
+        vc.modalPresentationStyle = .fullScreen
+        vc.modalTransitionStyle = .coverVertical
+        present(vc, animated: true)
     }
 }

@@ -15,40 +15,40 @@ class ConfirmOrderSellerViewController: UIViewController {
     private let contentView = UIView()
     
     // MARK: - Toolbar
-    private let backButton: UIButton = {
-        let btn = UIButton(type: .system)
-        btn.setImage(UIImage(systemName: "chevron.left"), for: .normal)
-        btn.tintColor = .black
-        btn.backgroundColor = .white
-        btn.layer.cornerRadius = 22
-        return btn
-    }()
-    
-    private let titleLabel: UILabel = {
-        let lbl = UILabel()
-        lbl.text = "Confirm Order"
-        lbl.font = UIFont.systemFont(ofSize: 20, weight: .semibold)
-        lbl.textAlignment = .center
-        return lbl
-    }()
-    
-    private let heartButton: UIButton = {
-        let btn = UIButton(type: .system)
-        btn.setImage(UIImage(systemName: "heart"), for: .normal)
-        btn.tintColor = .black
-        btn.backgroundColor = .white
-        btn.layer.cornerRadius = 22
-        return btn
-    }()
-    private let toolbarBackground: UIView = {
-        let v = UIView()
-        v.backgroundColor = .white      // opaque white
-        v.layer.shadowColor = UIColor.black.cgColor
-        v.layer.shadowOpacity = 0.05     // subtle shadow like iOS navigation bars
-        v.layer.shadowRadius = 4
-        v.layer.shadowOffset = CGSize(width: 0, height: 2)
-        return v
-    }()
+//    private let backButton: UIButton = {
+//        let btn = UIButton(type: .system)
+//        btn.setImage(UIImage(systemName: "chevron.left"), for: .normal)
+//        btn.tintColor = .black
+//        btn.backgroundColor = .white
+//        btn.layer.cornerRadius = 22
+//        return btn
+//    }()
+//    
+//    private let titleLabel: UILabel = {
+//        let lbl = UILabel()
+//        lbl.text = "Confirm Order"
+//        lbl.font = UIFont.systemFont(ofSize: 20, weight: .semibold)
+//        lbl.textAlignment = .center
+//        return lbl
+//    }()
+//    
+//    private let heartButton: UIButton = {
+//        let btn = UIButton(type: .system)
+//        btn.setImage(UIImage(systemName: "heart"), for: .normal)
+//        btn.tintColor = .black
+//        btn.backgroundColor = .white
+//        btn.layer.cornerRadius = 22
+//        return btn
+//    }()
+//    private let toolbarBackground: UIView = {
+//        let v = UIView()
+//        v.backgroundColor = .white      // opaque white
+//        v.layer.shadowColor = UIColor.black.cgColor
+//        v.layer.shadowOpacity = 0.05     // subtle shadow like iOS navigation bars
+//        v.layer.shadowRadius = 4
+//        v.layer.shadowOffset = CGSize(width: 0, height: 2)
+//        return v
+//    }()
 
     
     
@@ -73,14 +73,14 @@ class ConfirmOrderSellerViewController: UIViewController {
     private let titleText: UILabel = {
         let lbl = UILabel()
         lbl.text = "Hostel Table Lamp"
-        lbl.font = UIFont.systemFont(ofSize: 28, weight: .semibold)
+        lbl.font = UIFont.systemFont(ofSize: 22, weight: .semibold)    // UPDATED
         return lbl
     }()
     
     private let priceLabel: UILabel = {
         let lbl = UILabel()
         lbl.text = "₹500"
-        lbl.font = UIFont.systemFont(ofSize: 26, weight: .bold)
+        lbl.font = UIFont.systemFont(ofSize: 22, weight: .semibold)    // UPDATED
         return lbl
     }()
     
@@ -159,9 +159,9 @@ class ConfirmOrderSellerViewController: UIViewController {
     
     
     // MARK: - Bottom Buttons
-    private let declineButton: UIButton = {
+    private let rejectButton: UIButton = {
         let btn = UIButton(type: .system)
-        btn.setTitle("Decline", for: .normal)
+        btn.setTitle("Reject", for: .normal)              // UPDATED TITLE
         btn.backgroundColor = .systemRed
         btn.setTitleColor(.white, for: .normal)
         btn.titleLabel?.font = .systemFont(ofSize: 20, weight: .bold)
@@ -183,7 +183,34 @@ class ConfirmOrderSellerViewController: UIViewController {
     override func viewDidLoad() {
         super.viewDidLoad()
         setupUI()
+        self.title = "Confirm Order"
+        navigationItem.backButtonTitle = ""
+        navigationItem.rightBarButtonItem = UIBarButtonItem(
+            image: UIImage(systemName: "heart"),
+            style: .plain,
+            target: self,
+            action: #selector(heartTapped)
+        )
     }
+    override func viewWillAppear(_ animated: Bool) {
+        super.viewWillAppear(animated)
+        navigationController?.setNavigationBarHidden(false, animated: false)
+    }
+    @objc func heartTapped() {
+        let vc = WishlistViewController()
+
+        // CASE 1 — If inside navigation controller → push properly
+        if let nav = navigationController {
+            nav.pushViewController(vc, animated: true)
+            return
+        }
+
+        // CASE 2 — If not inside navigation controller → present full screen
+        vc.modalPresentationStyle = .fullScreen
+        vc.modalTransitionStyle = .coverVertical
+        present(vc, animated: true)
+    }
+    
 }
 
 
@@ -213,34 +240,34 @@ extension ConfirmOrderSellerViewController {
             contentView.bottomAnchor.constraint(equalTo: scrollView.bottomAnchor),
             contentView.widthAnchor.constraint(equalTo: scrollView.widthAnchor)
         ])
-        view.addSubview(toolbarBackground)
-        view.addSubview(backButton)
-        view.addSubview(titleLabel)
-        view.addSubview(heartButton)
-        toolbarBackground.translatesAutoresizingMaskIntoConstraints = false
-        backButton.translatesAutoresizingMaskIntoConstraints = false
-        titleLabel.translatesAutoresizingMaskIntoConstraints = false
-        heartButton.translatesAutoresizingMaskIntoConstraints = false
-
-        NSLayoutConstraint.activate([
-            toolbarBackground.topAnchor.constraint(equalTo: view.topAnchor),
-            toolbarBackground.leadingAnchor.constraint(equalTo: view.leadingAnchor),
-            toolbarBackground.trailingAnchor.constraint(equalTo: view.trailingAnchor),
-            toolbarBackground.bottomAnchor.constraint(equalTo: backButton.bottomAnchor, constant: 10),
-
-            backButton.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor, constant: 10),
-            backButton.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 16),
-            backButton.widthAnchor.constraint(equalToConstant: 44),
-            backButton.heightAnchor.constraint(equalToConstant: 44),
-            
-            heartButton.centerYAnchor.constraint(equalTo: backButton.centerYAnchor),
-            heartButton.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -16),
-            heartButton.widthAnchor.constraint(equalToConstant: 44),
-            heartButton.heightAnchor.constraint(equalToConstant: 44),
-            
-            titleLabel.centerXAnchor.constraint(equalTo: view.centerXAnchor),
-            titleLabel.centerYAnchor.constraint(equalTo: backButton.centerYAnchor)
-        ])
+//        view.addSubview(toolbarBackground)
+//        view.addSubview(backButton)
+//        view.addSubview(titleLabel)
+//        view.addSubview(heartButton)
+//        toolbarBackground.translatesAutoresizingMaskIntoConstraints = false
+//        backButton.translatesAutoresizingMaskIntoConstraints = false
+//        titleLabel.translatesAutoresizingMaskIntoConstraints = false
+//        heartButton.translatesAutoresizingMaskIntoConstraints = false
+//
+//        NSLayoutConstraint.activate([
+//            toolbarBackground.topAnchor.constraint(equalTo: view.topAnchor),
+//            toolbarBackground.leadingAnchor.constraint(equalTo: view.leadingAnchor),
+//            toolbarBackground.trailingAnchor.constraint(equalTo: view.trailingAnchor),
+//            toolbarBackground.bottomAnchor.constraint(equalTo: backButton.bottomAnchor, constant: 10),
+//
+//            backButton.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor, constant: 10),
+//            backButton.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 16),
+//            backButton.widthAnchor.constraint(equalToConstant: 44),
+//            backButton.heightAnchor.constraint(equalToConstant: 44),
+//            
+//            heartButton.centerYAnchor.constraint(equalTo: backButton.centerYAnchor),
+//            heartButton.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -16),
+//            heartButton.widthAnchor.constraint(equalToConstant: 44),
+//            heartButton.heightAnchor.constraint(equalToConstant: 44),
+//            
+//            titleLabel.centerXAnchor.constraint(equalTo: view.centerXAnchor),
+//            titleLabel.centerYAnchor.constraint(equalTo: backButton.centerYAnchor)
+//        ])
         
         
         // MARK: - Scroll Items
@@ -348,22 +375,25 @@ extension ConfirmOrderSellerViewController {
         
         
         // MARK: - Bottom Buttons
-        view.addSubview(declineButton)
-        view.addSubview(acceptButton)
+        contentView.addSubview(rejectButton)
+        contentView.addSubview(acceptButton)
+
         
-        declineButton.translatesAutoresizingMaskIntoConstraints = false
+        rejectButton.translatesAutoresizingMaskIntoConstraints = false
         acceptButton.translatesAutoresizingMaskIntoConstraints = false
         
         NSLayoutConstraint.activate([
-            declineButton.bottomAnchor.constraint(equalTo: view.safeAreaLayoutGuide.bottomAnchor, constant: -20),
-            declineButton.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 20),
-            declineButton.widthAnchor.constraint(equalTo: view.widthAnchor, multiplier: 0.42),
-            declineButton.heightAnchor.constraint(equalToConstant: 60),
-            
-            acceptButton.bottomAnchor.constraint(equalTo: declineButton.bottomAnchor),
-            acceptButton.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -20),
-            acceptButton.widthAnchor.constraint(equalTo: view.widthAnchor, multiplier: 0.42),
-            acceptButton.heightAnchor.constraint(equalToConstant: 60)
+            rejectButton.topAnchor.constraint(equalTo: messageField.bottomAnchor, constant: 20),
+            rejectButton.leadingAnchor.constraint(equalTo: contentView.leadingAnchor, constant: 20),
+            rejectButton.widthAnchor.constraint(equalTo: contentView.widthAnchor, multiplier: 0.42),
+            rejectButton.heightAnchor.constraint(equalToConstant: 60),
+
+            acceptButton.centerYAnchor.constraint(equalTo: rejectButton.centerYAnchor),
+            acceptButton.trailingAnchor.constraint(equalTo: contentView.trailingAnchor, constant: -20),
+            acceptButton.widthAnchor.constraint(equalTo: contentView.widthAnchor, multiplier: 0.42),
+            acceptButton.heightAnchor.constraint(equalToConstant: 60),
+
+            acceptButton.bottomAnchor.constraint(equalTo: contentView.bottomAnchor, constant: -20)
         ])
     }
 }

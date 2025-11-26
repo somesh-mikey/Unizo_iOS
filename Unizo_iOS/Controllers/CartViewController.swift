@@ -434,6 +434,8 @@ class CartViewController: UIViewController {
     }
     @objc private func checkoutButtonTapped() {
         let vc = AddressViewController()
+        vc.flowSource = .fromCart    // ← IMPORTANT
+
 
         // FULL SCREEN + SLIDES FROM BOTTOM (same style as your Cart screen)
         vc.modalPresentationStyle = .fullScreen

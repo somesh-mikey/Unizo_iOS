@@ -23,7 +23,7 @@ class EditAddressViewController: UIViewController {
     private let sectionLabel = UILabel()
     private let whiteContainer = UIView()
 
-    // MARK: - Address Rows (Labels + Values)
+    // MARK: - Address Rows
     private func makeRow(title: String, value: String) -> UIView {
         let row = UIView()
         row.translatesAutoresizingMaskIntoConstraints = false
@@ -60,7 +60,6 @@ class EditAddressViewController: UIViewController {
         ])
 
         row.heightAnchor.constraint(equalToConstant: 48).isActive = true
-
         return row
     }
 
@@ -86,26 +85,23 @@ class EditAddressViewController: UIViewController {
         view.addSubview(navBar)
 
         NSLayoutConstraint.activate([
-            navBar.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor, constant: 0),
+            navBar.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor),
             navBar.leadingAnchor.constraint(equalTo: view.leadingAnchor),
             navBar.trailingAnchor.constraint(equalTo: view.trailingAnchor),
             navBar.heightAnchor.constraint(equalToConstant: 50)
         ])
 
-        // Back button
         backButton.setImage(UIImage(systemName: "chevron.left"), for: .normal)
         backButton.tintColor = .black
         backButton.translatesAutoresizingMaskIntoConstraints = false
         backButton.addTarget(self, action: #selector(goBack), for: .touchUpInside)
         navBar.addSubview(backButton)
 
-        // Heart button
         heartButton.setImage(UIImage(systemName: "heart"), for: .normal)
         heartButton.tintColor = .black
         heartButton.translatesAutoresizingMaskIntoConstraints = false
         navBar.addSubview(heartButton)
 
-        // Title
         titleLabel.text = "Edit Address"
         titleLabel.font = UIFont.systemFont(ofSize: 18, weight: .semibold)
         titleLabel.translatesAutoresizingMaskIntoConstraints = false
@@ -163,7 +159,7 @@ class EditAddressViewController: UIViewController {
         ])
     }
 
-    // MARK: - White Rounded Container
+    // MARK: - White Container
     private func setupWhiteContainer() {
         whiteContainer.backgroundColor = .white
         whiteContainer.layer.cornerRadius = 20
@@ -192,7 +188,7 @@ class EditAddressViewController: UIViewController {
 
         let stack = UIStackView(arrangedSubviews: rows)
         stack.axis = .vertical
-        stack.spacing = 1      // spacing = divider thickness
+        stack.spacing = 1
         stack.translatesAutoresizingMaskIntoConstraints = false
 
         whiteContainer.addSubview(stack)
@@ -204,7 +200,6 @@ class EditAddressViewController: UIViewController {
             stack.bottomAnchor.constraint(equalTo: whiteContainer.bottomAnchor, constant: -10)
         ])
 
-        // Add light dividers (Figma style)
         for row in rows {
             let divider = UIView()
             divider.backgroundColor = UIColor.lightGray.withAlphaComponent(0.4)
@@ -238,8 +233,8 @@ class EditAddressViewController: UIViewController {
             saveButton.bottomAnchor.constraint(equalTo: contentView.bottomAnchor, constant: -40)
         ])
     }
-}
 
+    // MARK: - Save Action
     @objc private func savePressed() {
         let alert = UIAlertController(title: "Success", message: "Address Updated!", preferredStyle: .alert)
         alert.addAction(UIAlertAction(title: "OK", style: .default))
