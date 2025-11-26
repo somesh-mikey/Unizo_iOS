@@ -20,10 +20,10 @@ class SceneDelegate: UIResponder, UIWindowSceneDelegate {
 
                 window = UIWindow(windowScene: windowScene)
 
-                // 👉 Set AddressViewController as FIRST screen
-                let rootVC = AddressViewController()
+                // Set your main screen here
+                let rootVC = PaymentsViewController()   // ← YOUR SCREEN
                 let nav = UINavigationController(rootViewController: rootVC)
-                nav.navigationBar.isHidden = true   // Hide default bar (you made custom)
+                nav.isNavigationBarHidden = true        // Using custom nav bar
 
                 window?.rootViewController = nav
                 window?.makeKeyAndVisible()
