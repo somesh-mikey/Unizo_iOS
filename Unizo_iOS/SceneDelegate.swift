@@ -20,10 +20,11 @@ class SceneDelegate: UIResponder, UIWindowSceneDelegate {
 
                 window = UIWindow(windowScene: windowScene)
 
-                // Set your main screen here
-                let rootVC = PaymentsViewController()   // ← YOUR SCREEN
+                // 👉 CHANGE THIS SCREEN TO ANY SCREEN YOU WANT TO OPEN FIRST
+                let rootVC = PostItemViewController()
+                
                 let nav = UINavigationController(rootViewController: rootVC)
-                nav.isNavigationBarHidden = true        // Using custom nav bar
+                nav.navigationBar.isHidden = true  // You are using custom nav bars
 
                 window?.rootViewController = nav
                 window?.makeKeyAndVisible()
