@@ -19,12 +19,12 @@ class SceneDelegate: UIResponder, UIWindowSceneDelegate {
 
             window = UIWindow(windowScene: windowScene)
 
-            // 👉 Load ListingsViewController
-            let listingsVC = ListingsViewController()
+            // 👉 Load ProfileViewController directly
+            let profileVC = ProfileViewController()
 
-            // 👉 Wrap inside NavigationController
-            let navController = UINavigationController(rootViewController: listingsVC)
-            navController.isNavigationBarHidden = false   // Keep nav bar visible (optional)
+            // 👉 Wrap inside NavigationController (optional but recommended for large screens)
+            let navController = UINavigationController(rootViewController: profileVC)
+            navController.isNavigationBarHidden = false
 
             // 👉 Set root controller
             window?.rootViewController = navController
