@@ -210,24 +210,11 @@ class CategoryPageViewController: UIViewController, UITabBarDelegate {
     private let bannerImage = UIImageView()
     private let collectionView: UICollectionView
 
-    private let tabBar = UITabBar()
-
     override func viewDidLayoutSubviews() {
         super.viewDidLayoutSubviews()
-
-        // Ensure the tab bar stays visually on top of the scroll view
-        view.bringSubviewToFront(tabBar)
         updateCollectionHeight()
-
-        // Add bottom inset so content above the tab bar is accessible
-        let tabBarHeight = tabBar.frame.height
-        var insets = scrollView.contentInset
-        if insets.bottom != tabBarHeight {
-            insets.bottom = tabBarHeight
-            scrollView.contentInset = insets
-            scrollView.scrollIndicatorInsets = insets
-        }
     }
+
 
     // MARK: - Init
     init() {
@@ -245,7 +232,6 @@ class CategoryPageViewController: UIViewController, UITabBarDelegate {
         // Full teal background (same as Landing)
         view.backgroundColor = UIColor(red: 0.239, green: 0.486, blue: 0.596, alpha: 1)
 
-        setupTabBar()          // ← IMPORTANT: Tab bar added first
         setupTopSection()      // Top identical to Landing
         setupScrollSection()   // White content section
         buildTrendingCategories()
@@ -461,7 +447,7 @@ class CategoryPageViewController: UIViewController, UITabBarDelegate {
             scrollView.trailingAnchor.constraint(equalTo: view.trailingAnchor),
 
             // SAFE: TabBar already added to hierarchy
-            scrollView.bottomAnchor.constraint(equalTo: view.bottomAnchor)
+            scrollView.bottomAnchor.constraint(equalTo: view.safeAreaLayoutGuide.bottomAnchor)
         ])
 
         scrollView.addSubview(contentView)
@@ -512,39 +498,6 @@ class CategoryPageViewController: UIViewController, UITabBarDelegate {
         }
 
         collectionView.heightAnchor.constraint(equalToConstant: contentHeight).isActive = true
-    }
-
-
-    // MARK: - TAB BAR (added first!)
-    private func setupTabBar() {
-
-        view.addSubview(tabBar)
-        tabBar.translatesAutoresizingMaskIntoConstraints = false
-        tabBar.delegate = self
-
-        NSLayoutConstraint.activate([
-            tabBar.leadingAnchor.constraint(equalTo: view.leadingAnchor),
-            tabBar.trailingAnchor.constraint(equalTo: view.trailingAnchor),
-            tabBar.bottomAnchor.constraint(equalTo: view.safeAreaLayoutGuide.bottomAnchor),
-            tabBar.heightAnchor.constraint(equalToConstant: 80)
-        ])
-
-        tabBar.items = [
-            UITabBarItem(title: "Home", image: UIImage(systemName: "house.fill"), tag: 0),
-            UITabBarItem(title: "Chat", image: UIImage(systemName: "message.fill"), tag: 1),
-            UITabBarItem(title: "Post", image: UIImage(systemName: "square.and.arrow.up.fill"), tag: 2),
-            UITabBarItem(title: "Listings", image: UIImage(systemName: "rectangle.grid.2x2.fill"), tag: 3),
-            UITabBarItem(title: "Profile", image: UIImage(systemName: "person.crop.circle"), tag: 4)
-        ]
-
-        tabBar.tintColor = UIColor(red: 0.239, green: 0.486, blue: 0.596, alpha: 1)
-        tabBar.unselectedItemTintColor = .darkGray
-        tabBar.isTranslucent = true
-    }
-    func tabBar(_ tabBar: UITabBar, didSelect item: UITabBarItem) {
-        if item.tag == 0 {   // Home
-            navigationController?.popToRootViewController(animated: true)
-        }
     }
 
 
