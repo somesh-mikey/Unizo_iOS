@@ -18,14 +18,16 @@ class SceneDelegate: UIResponder, UIWindowSceneDelegate {
         // This delegate does not imply the connecting scene or session are new (see `application:configurationForConnectingSceneSession` instead).
         guard let windowScene = (scene as? UIWindowScene) else { return }
 
-               window = UIWindow(windowScene: windowScene)
+                window = UIWindow(windowScene: windowScene)
 
-               let vc = SplashViewController()
-               let nav = UINavigationController(rootViewController: vc)
-               nav.isNavigationBarHidden = true
+                // ⭐ Load XIB file
+                let vc = OrderPlacedViewController(nibName: "OrderPlacedViewController", bundle: nil)
 
-               window?.rootViewController = nav
-               window?.makeKeyAndVisible()
+                let nav = UINavigationController(rootViewController: vc)
+                nav.isNavigationBarHidden = true     // hide default bar (we use custom one)
+
+                window?.rootViewController = nav
+                window?.makeKeyAndVisible()
     }
 
     func sceneDidDisconnect(_ scene: UIScene) {
