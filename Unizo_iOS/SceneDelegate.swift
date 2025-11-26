@@ -20,11 +20,11 @@ class SceneDelegate: UIResponder, UIWindowSceneDelegate {
 
                 window = UIWindow(windowScene: windowScene)
 
-                // 👉 CHANGE THIS SCREEN TO ANY SCREEN YOU WANT TO OPEN FIRST
-                let rootVC = PostItemViewController()
-                
+                // ---> Set your starting screen here
+                let rootVC = ProductPostedViewController()
+
                 let nav = UINavigationController(rootViewController: rootVC)
-                nav.navigationBar.isHidden = true  // You are using custom nav bars
+                nav.isNavigationBarHidden = true   // ALWAYS HIDE NAV BAR (same as your design)
 
                 window?.rootViewController = nav
                 window?.makeKeyAndVisible()
