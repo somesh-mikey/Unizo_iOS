@@ -14,44 +14,6 @@ class ConfirmOrderSellerViewController: UIViewController {
     private let scrollView = UIScrollView()
     private let contentView = UIView()
     
-    // MARK: - Toolbar
-//    private let backButton: UIButton = {
-//        let btn = UIButton(type: .system)
-//        btn.setImage(UIImage(systemName: "chevron.left"), for: .normal)
-//        btn.tintColor = .black
-//        btn.backgroundColor = .white
-//        btn.layer.cornerRadius = 22
-//        return btn
-//    }()
-//    
-//    private let titleLabel: UILabel = {
-//        let lbl = UILabel()
-//        lbl.text = "Confirm Order"
-//        lbl.font = UIFont.systemFont(ofSize: 20, weight: .semibold)
-//        lbl.textAlignment = .center
-//        return lbl
-//    }()
-//    
-//    private let heartButton: UIButton = {
-//        let btn = UIButton(type: .system)
-//        btn.setImage(UIImage(systemName: "heart"), for: .normal)
-//        btn.tintColor = .black
-//        btn.backgroundColor = .white
-//        btn.layer.cornerRadius = 22
-//        return btn
-//    }()
-//    private let toolbarBackground: UIView = {
-//        let v = UIView()
-//        v.backgroundColor = .white      // opaque white
-//        v.layer.shadowColor = UIColor.black.cgColor
-//        v.layer.shadowOpacity = 0.05     // subtle shadow like iOS navigation bars
-//        v.layer.shadowRadius = 4
-//        v.layer.shadowOffset = CGSize(width: 0, height: 2)
-//        return v
-//    }()
-
-    
-    
     // MARK: - Product Section
     
     private let productImageView: UIImageView = {
@@ -191,6 +153,8 @@ class ConfirmOrderSellerViewController: UIViewController {
             target: self,
             action: #selector(heartTapped)
         )
+        rejectButton.addTarget(self, action: #selector(openRejectedPage), for: .touchUpInside)
+        acceptButton.addTarget(self, action: #selector(openAcceptedPage), for: .touchUpInside)
     }
     override func viewWillAppear(_ animated: Bool) {
         super.viewWillAppear(animated)
@@ -240,34 +204,6 @@ extension ConfirmOrderSellerViewController {
             contentView.bottomAnchor.constraint(equalTo: scrollView.bottomAnchor),
             contentView.widthAnchor.constraint(equalTo: scrollView.widthAnchor)
         ])
-//        view.addSubview(toolbarBackground)
-//        view.addSubview(backButton)
-//        view.addSubview(titleLabel)
-//        view.addSubview(heartButton)
-//        toolbarBackground.translatesAutoresizingMaskIntoConstraints = false
-//        backButton.translatesAutoresizingMaskIntoConstraints = false
-//        titleLabel.translatesAutoresizingMaskIntoConstraints = false
-//        heartButton.translatesAutoresizingMaskIntoConstraints = false
-//
-//        NSLayoutConstraint.activate([
-//            toolbarBackground.topAnchor.constraint(equalTo: view.topAnchor),
-//            toolbarBackground.leadingAnchor.constraint(equalTo: view.leadingAnchor),
-//            toolbarBackground.trailingAnchor.constraint(equalTo: view.trailingAnchor),
-//            toolbarBackground.bottomAnchor.constraint(equalTo: backButton.bottomAnchor, constant: 10),
-//
-//            backButton.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor, constant: 10),
-//            backButton.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 16),
-//            backButton.widthAnchor.constraint(equalToConstant: 44),
-//            backButton.heightAnchor.constraint(equalToConstant: 44),
-//            
-//            heartButton.centerYAnchor.constraint(equalTo: backButton.centerYAnchor),
-//            heartButton.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -16),
-//            heartButton.widthAnchor.constraint(equalToConstant: 44),
-//            heartButton.heightAnchor.constraint(equalToConstant: 44),
-//            
-//            titleLabel.centerXAnchor.constraint(equalTo: view.centerXAnchor),
-//            titleLabel.centerYAnchor.constraint(equalTo: backButton.centerYAnchor)
-//        ])
         
         
         // MARK: - Scroll Items
@@ -396,6 +332,27 @@ extension ConfirmOrderSellerViewController {
             acceptButton.bottomAnchor.constraint(equalTo: contentView.bottomAnchor, constant: -20)
         ])
     }
+    @objc private func openAcceptedPage() {
+        let vc = OrderAcceptedViewController()
+
+        if let nav = navigationController {
+            nav.pushViewController(vc, animated: true)
+        } else {
+            vc.modalPresentationStyle = .fullScreen
+            present(vc, animated: true)
+        }
+    }
+
+    @objc private func openRejectedPage() {
+        let vc = OrderRejectedViewController()
+
+        if let nav = navigationController {
+            nav.pushViewController(vc, animated: true)
+        } else {
+            vc.modalPresentationStyle = .fullScreen
+            present(vc, animated: true)
+        }
+    }
 }
 
 
@@ -406,4 +363,5 @@ extension UITextField {
         leftView = padding
         leftViewMode = .always
     }
+    
 }

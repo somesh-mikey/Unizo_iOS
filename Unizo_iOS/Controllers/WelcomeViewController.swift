@@ -66,15 +66,16 @@ class WelcomeViewController: UIViewController {
            loginButton.layer.cornerRadius = 10
 
            // --- SIGN-UP BUTTONS ---
-           setupOutlinedButton(emailSignUpButton,
-                               title: "Sign Up with Email",
-                               iconName: "envelope.fill",
-                               tintColor: UIColor(red: 0/255, green: 76/255, blue: 97/255, alpha: 1))
+        setupOutlinedButton(emailSignUpButton,
+                            title: "Sign Up with Email",
+                            iconName: "envelope.fill",
+                            tintColor: UIColor(red: 0/255, green: 76/255, blue: 97/255, alpha: 1))
 
-           setupOutlinedButton(appleSignUpButton,
-                               title: "Sign Up with Apple",
-                               iconName: "apple.logo",
-                               tintColor: .black)
+        setupOutlinedButton(appleSignUpButton,
+                            title: "Sign Up with Google",
+                            iconName: "google_logo",   // ⭐️ Your asset name
+                            tintColor: UIColor(red: 0/255, green: 76/255, blue: 97/255, alpha: 1))
+
        }
 
        // MARK: - Constraints Setup
@@ -184,22 +185,61 @@ class WelcomeViewController: UIViewController {
            imageView.clipsToBounds = true
        }
 
-       private func setupOutlinedButton(_ button: UIButton, title: String, iconName: String, tintColor: UIColor) {
-           button.setTitle(title, for: .normal)
-           button.setTitleColor(tintColor, for: .normal)
-           button.titleLabel?.font = UIFont.systemFont(ofSize: 15, weight: .medium)
-           button.layer.borderColor = tintColor.cgColor
-           button.layer.borderWidth = 1
-           button.layer.cornerRadius = 10
-           button.tintColor = tintColor
+    private func setupOutlinedButton(_ button: UIButton,
+                                     title: String,
+                                     iconName: String,
+                                     tintColor: UIColor) {
 
-           let icon = UIImage(systemName: iconName)
-           button.setImage(icon, for: .normal)
-           button.imageView?.contentMode = .scaleAspectFit
-           button.contentHorizontalAlignment = .center
-           button.imageEdgeInsets = UIEdgeInsets(top: 0, left: -6, bottom: 0, right: 0)
-           button.titleEdgeInsets = UIEdgeInsets(top: 0, left: 4, bottom: 0, right: -4)
-       }
+        button.setTitle(title, for: .normal)
+        button.setTitleColor(tintColor, for: .normal)
+        button.titleLabel?.font = UIFont.systemFont(ofSize: 15, weight: .medium)
+
+        // 🔥 Bolder border
+        button.layer.borderColor = tintColor.cgColor
+        button.layer.borderWidth = 1.4
+        button.layer.cornerRadius = 10
+
+        // ----- ICON SETUP -----
+        var icon: UIImage?
+
+        if iconName == "google_logo" {
+            // Use the asset and scale it down explicitly
+            let base = UIImage(named: "google_logo")
+            // Target smaller size (e.g., 14x14) for a subtler look
+            let targetSize = CGSize(width: 30, height: 30)
+            if let base = base {
+                // Render a resized image to avoid layout fighting
+                UIGraphicsBeginImageContextWithOptions(targetSize, false, 0.0)
+                base.draw(in: CGRect(origin: .zero, size: targetSize))
+                icon = UIGraphicsGetImageFromCurrentImageContext()
+                UIGraphicsEndImageContext()
+            }
+        } else {
+            icon = UIImage(systemName: iconName)
+        }
+
+        button.setImage(icon, for: .normal)
+        // Ensure SF Symbols render with the provided tint (teal)
+        if iconName != "google_logo" {
+            button.tintColor = UIColor(red: 0/255, green: 76/255, blue: 97/255, alpha: 1)
+        }
+        button.imageView?.contentMode = .scaleAspectFit
+
+        if iconName == "google_logo" {
+            // More spacing between Google icon and text
+            button.imageEdgeInsets = UIEdgeInsets(top: 0, left: -22, bottom: 0, right: 16)
+            button.titleEdgeInsets = UIEdgeInsets(top: 0, left: 20, bottom: 0, right: -20)
+        } else {
+            // More spacing between email SF symbol and text (updated as per instructions)
+            button.imageEdgeInsets = UIEdgeInsets(top: 0, left: -26, bottom: 0, right: 20)
+            button.titleEdgeInsets = UIEdgeInsets(top: 0, left: 24, bottom: 0, right: -24)
+        }
+
+
+        // Prevent the icon from shrinking
+        button.imageView?.setContentHuggingPriority(.required, for: .horizontal)
+    }
+
     // MARK: - Actions
     @IBAction func loginButtonTapped(_ sender: UIButton) {
 
@@ -220,4 +260,3 @@ class WelcomeViewController: UIViewController {
     }
     
 }
-

@@ -253,6 +253,16 @@ class LandingScreenViewController: UIViewController {
         searchBar.delegate = self
 
     }
+    // THIS REMOVES THE WEIRD ITEM BUTTON ON THE TOP....
+    override func viewWillAppear(_ animated: Bool) {
+        super.viewWillAppear(animated)
+        navigationController?.setNavigationBarHidden(true, animated: false)
+    }
+
+    override func viewWillDisappear(_ animated: Bool) {
+        super.viewWillDisappear(animated)
+        navigationController?.setNavigationBarHidden(false, animated: false)
+    }
 
     override func viewDidLayoutSubviews() {
         super.viewDidLayoutSubviews()
@@ -766,6 +776,15 @@ extension LandingScreenViewController: UIScrollViewDelegate {
 
 // MARK: - CollectionView delegate
 extension LandingScreenViewController: UICollectionViewDataSource, UICollectionViewDelegateFlowLayout {
+    func collectionView(_ collectionView: UICollectionView, didSelectItemAt indexPath: IndexPath) {
+
+        let selected = displayedProducts[indexPath.item]
+
+        let vc = ItemDetailsViewController(nibName: "ItemDetailsViewController", bundle: nil)
+        vc.product = selected
+
+        navigationController?.pushViewController(vc, animated: true)
+    }
     func collectionView(_ collectionView: UICollectionView, numberOfItemsInSection section: Int) -> Int {
         displayedProducts.count
     }

@@ -323,11 +323,11 @@ class PostItemViewController: UIViewController,
 }
 
 // Helper for padding
-extension UITextField {
-    func setLeftPaddingPoints(_ amount: CGFloat) {
-        let padding = UIView(frame: CGRect(x: 0, y: 0, width: amount, height: frame.height))
-        leftView = padding
-        leftViewMode = .always
-    }
-}
+//extension UITextField {
+//    func setLeftPaddingPoints(_ amount: CGFloat) {
+//        let padding = UIView(frame: CGRect(x: 0, y: 0, width: amount, height: frame.height))
+//        leftView = padding
+//        leftViewMode = .always
+//    }
+//}
     

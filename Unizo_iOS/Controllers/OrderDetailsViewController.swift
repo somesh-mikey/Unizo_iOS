@@ -326,7 +326,7 @@ class OrderDetailsViewController: UIViewController {
         contentView.addSubview(itemCard)
 
         // Image
-        itemImageView.image = UIImage(named: "Cap")
+        itemImageView.image = UIImage(named: "cap")
         itemImageView.contentMode = .scaleAspectFill
         itemImageView.clipsToBounds = true
         itemImageView.layer.cornerRadius = 8

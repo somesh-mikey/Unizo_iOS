@@ -219,9 +219,9 @@ class ChatViewController: UIViewController {
         .init(role: .buyer, title: "Slip Jeans", time: "11:10", unreadCount: 0),
         .init(role: .seller, title: "Table Lamp", time: "10:00", unreadCount: 0),
         .init(role: .seller, title: "Football Posters", time: "09:00", unreadCount: 0),
-        .init(role: .buyer, title: "MacBook Pro 2021", time: "08:45", unreadCount: 3),
+        .init(role: .buyer, title: "MacBook Pro 2021", time: "08:45", unreadCount: 0),
         .init(role: .seller, title: "Nike Backpack", time: "08:10", unreadCount: 0),
-        .init(role: .buyer, title: "Bluetooth Speaker", time: "07:50", unreadCount: 5)
+        .init(role: .buyer, title: "Bluetooth Speaker", time: "07:50", unreadCount: 0)
     ]
 
     private var filteredItems: [ChatItem] = []

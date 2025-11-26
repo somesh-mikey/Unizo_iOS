@@ -18,7 +18,6 @@ class ResetPasswordViewController: UIViewController {
     private let emailField = UITextField()
     private let phoneField = UITextField()
     
-    private let separatorView = UIView()
     private let orLabel = UILabel()
     
     private let backToLoginButton = UIButton(type: .system)
@@ -62,9 +61,6 @@ class ResetPasswordViewController: UIViewController {
         setupTextField(emailField, placeholder: "College Email")
         setupTextField(phoneField, placeholder: "Your Phone Number")
 
-        // Separator
-        separatorView.backgroundColor = UIColor.lightGray.withAlphaComponent(0.4)
-
         // OR Label
         orLabel.text = "OR"
         orLabel.font = UIFont.systemFont(ofSize: 13, weight: .medium)
@@ -86,7 +82,7 @@ class ResetPasswordViewController: UIViewController {
         sendResetButton.addTarget(self, action: #selector(sendResetTapped), for: .touchUpInside)
 
         // Add Subviews
-        [titleLabel, subtitleLabel, emailField, separatorView, orLabel, phoneField, backToLoginButton, sendResetButton]
+        [titleLabel, subtitleLabel, emailField, orLabel, phoneField, backToLoginButton, sendResetButton]
             .forEach { cardView.addSubview($0) }
     }
 
@@ -109,7 +105,6 @@ class ResetPasswordViewController: UIViewController {
         titleLabel.translatesAutoresizingMaskIntoConstraints = false
         subtitleLabel.translatesAutoresizingMaskIntoConstraints = false
         emailField.translatesAutoresizingMaskIntoConstraints = false
-        separatorView.translatesAutoresizingMaskIntoConstraints = false
         orLabel.translatesAutoresizingMaskIntoConstraints = false
         phoneField.translatesAutoresizingMaskIntoConstraints = false
         backToLoginButton.translatesAutoresizingMaskIntoConstraints = false
@@ -137,14 +132,8 @@ class ResetPasswordViewController: UIViewController {
             emailField.trailingAnchor.constraint(equalTo: cardView.trailingAnchor, constant: -32),
             emailField.heightAnchor.constraint(equalToConstant: 44),
 
-            // Separator
-            separatorView.topAnchor.constraint(equalTo: emailField.bottomAnchor, constant: 12),
-            separatorView.leadingAnchor.constraint(equalTo: emailField.leadingAnchor),
-            separatorView.trailingAnchor.constraint(equalTo: emailField.trailingAnchor),
-            separatorView.heightAnchor.constraint(equalToConstant: 1),
-
             // OR Label
-            orLabel.topAnchor.constraint(equalTo: separatorView.bottomAnchor, constant: 6),
+            orLabel.topAnchor.constraint(equalTo: emailField.bottomAnchor, constant: 12),
             orLabel.centerXAnchor.constraint(equalTo: cardView.centerXAnchor),
 
             // Phone Field

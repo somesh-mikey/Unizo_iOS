@@ -203,6 +203,10 @@ class AccountViewController: UIViewController {
         featureContainer.addSubview(featureStack)
 
         featureStack.addArrangedSubview(itemPayments)
+        itemPayments.isUserInteractionEnabled = true
+        itemPayments.addGestureRecognizer(
+            UITapGestureRecognizer(target: self, action: #selector(openPayments))
+        )
         featureStack.addArrangedSubview(itemTickets)
         itemTickets.isUserInteractionEnabled = true
         itemTickets.addGestureRecognizer(UITapGestureRecognizer(target: self, action: #selector(openEvents)))
@@ -342,7 +346,21 @@ class AccountViewController: UIViewController {
             present(vc, animated: true)
     }
     
-    @objc private func openProfile() { print("My Profile") }
+    @objc private func openProfile()
+    {
+        let vc = ProfileViewController()
+
+            // If inside Navigation Controller → PUSH
+            if let nav = navigationController {
+                nav.pushViewController(vc, animated: true)
+                return
+            }
+
+            // Otherwise → present full screen
+            vc.modalPresentationStyle = .fullScreen
+            vc.modalTransitionStyle = .coverVertical
+            present(vc, animated: true)
+    }
     @objc private func openAddress()
     {
             
@@ -438,6 +456,18 @@ class AccountViewController: UIViewController {
         }
 
         // Otherwise present modally full screen
+        vc.modalPresentationStyle = .fullScreen
+        vc.modalTransitionStyle = .coverVertical
+        present(vc, animated: true)
+    }
+    @objc private func openPayments() {
+        let vc = PaymentsViewController()
+
+        if let nav = navigationController {
+            nav.pushViewController(vc, animated: true)
+            return
+        }
+
         vc.modalPresentationStyle = .fullScreen
         vc.modalTransitionStyle = .coverVertical
         present(vc, animated: true)
