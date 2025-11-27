@@ -49,9 +49,9 @@ class LandingScreenViewController: UIViewController {
     private var currentBannerIndex = 0
 
     private let products: [Product] = [
-        Product(name: "Under Armour Cap", price: 500, rating: 4.6, negotiable: true, imageName: "cap"),
+        Product(name: "Under Armour Cap", price: 500, rating: 4.6, negotiable: true, imageName: "Cap"),
         Product(name: "Slip Jeans", price: 349, rating: 3.7, negotiable: true, imageName: "jeans"),
-        Product(name: "Pink Bicycle", price: 8900, rating: 4.6, negotiable: true, imageName: "pinkbicycle"),
+        Product(name: "Pink Bicycle", price: 8900, rating: 4.6, negotiable: true, imageName: "PinkBicycle"),
         Product(name: "BAS Cricket Bat", price: 799, rating: 4.5, negotiable: false, imageName: "bat"),
         Product(name: "Bluetooth Headphones", price: 500, rating: 4.8, negotiable: true, imageName: "headphones1"),
         Product(name: "NY Cap", price: 499, rating: 4.1, negotiable: true, imageName: "NYcap"),
@@ -85,7 +85,7 @@ class LandingScreenViewController: UIViewController {
         Product(name: "Adjustable Work Chair", price: 499, rating: 4.2, negotiable: true, imageName: "adjustableworkchair")
     ]
     private let fashionItems: [Product] = [
-        Product(name: "Under Armour Cap", price: 500, rating: 4.6, negotiable: true, imageName: "cap"),
+        Product(name: "Under Armour Cap", price: 500, rating: 4.6, negotiable: true, imageName: "Cap"),
         Product(name: "M Cap", price: 300, rating: 2.7, negotiable: false, imageName: "MCap"),
         Product(name: "NY Cap", price: 400, rating: 4.8, negotiable: true, imageName: "yellowcap"),
         Product(name: "Blue Cap", price: 200, rating: 3.5, negotiable: false, imageName: "streetcap"),
@@ -295,7 +295,7 @@ class LandingScreenViewController: UIViewController {
         ])
         
         // --- NavBar ---
-        navBarView.backgroundColor = UIColor(red: 0.21, green: 0.49, blue: 0.57, alpha: 1) // teal
+        navBarView.backgroundColor = UIColor(red: 0.239, green: 0.486, blue: 0.596, alpha: 1) // teal
         topContainer.addSubview(navBarView)
         navBarView.translatesAutoresizingMaskIntoConstraints = false
         NSLayoutConstraint.activate([

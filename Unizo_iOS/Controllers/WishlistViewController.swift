@@ -25,6 +25,7 @@ class WishlistViewController: UIViewController {
         setupCollectionView()
         backButton.addTarget(self, action: #selector(backPressed), for: .touchUpInside)
     }
+    
     // MARK: Dummy Data
     private func loadDummyWishlist() {
            wishlistItems = [
@@ -44,7 +45,7 @@ class WishlistViewController: UIViewController {
 
             Product(name: "Skates", price: 799, rating: 4.2, negotiable: true, imageName: "skates"),
 
-            Product(name: "Pink bicycle", price: 2000, rating: 4.9, negotiable: false, imageName: "pinkbicycle"),
+            Product(name: "Pink bicycle", price: 2000, rating: 4.9, negotiable: false, imageName: "PinkBicycle"),
 
             Product(name: "Carrom board", price: 600, rating: 3.8, negotiable: true, imageName: "carromboard")
         ]
@@ -177,11 +178,13 @@ extension WishlistViewController: UICollectionViewDataSource, UICollectionViewDe
     override func viewWillAppear(_ animated: Bool) {
             super.viewWillAppear(animated)
             navigationController?.setNavigationBarHidden(true, animated: false)
+            tabBarController?.tabBar.isHidden = true
         }
 
     override func viewWillDisappear(_ animated: Bool) {
         super.viewWillDisappear(animated)
         navigationController?.setNavigationBarHidden(false, animated: false)
+        tabBarController?.tabBar.isHidden = false
     }
 }
 

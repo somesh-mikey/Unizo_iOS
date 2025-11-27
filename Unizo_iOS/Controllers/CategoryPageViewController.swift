@@ -38,7 +38,7 @@ class CategoryPageViewController: UIViewController, UITabBarDelegate {
     ]
 
     private let fashionItems: [Product] = [
-        Product(name: "Under Armour Cap", price: 500, rating: 4.6, negotiable: true, imageName: "cap"),
+        Product(name: "Under Armour Cap", price: 500, rating: 4.6, negotiable: true, imageName: "Cap"),
         Product(name: "M Cap", price: 300, rating: 2.7, negotiable: false, imageName: "MCap"),
         Product(name: "NY Cap", price: 400, rating: 4.8, negotiable: true, imageName: "yellowcap"),
         Product(name: "Blue Cap", price: 200, rating: 3.5, negotiable: false, imageName: "streetcap"),
@@ -253,6 +253,25 @@ class CategoryPageViewController: UIViewController, UITabBarDelegate {
         setupCollectionView()
         loadCategoryBanner()
         collectionView.reloadData()
+        let backButton = UIBarButtonItem(
+                image: UIImage(systemName: "chevron.backward"),
+                style: .plain,
+                target: self,
+                action: #selector(backToLanding)
+            )
+            backButton.tintColor = .white
+            navigationItem.leftBarButtonItem = backButton
+        setupNavigationBarMenuButton()
+
+        if let navBar = navigationController?.navigationBar {
+            navBar.layoutMargins = .zero
+            navBar.subviews.first?.layoutMargins = .zero
+            navBar.directionalLayoutMargins = .zero
+        }
+        navigationController?.navigationBar.titleTextAttributes = [
+            .foregroundColor: UIColor.white
+        ]
+        
     }
 
     // MARK: - TOP SECTION (Identical to Landing)
@@ -270,7 +289,7 @@ class CategoryPageViewController: UIViewController, UITabBarDelegate {
         ])
 
         // NAVBAR
-        navBarView.backgroundColor = UIColor(red: 0.21, green: 0.49, blue: 0.57, alpha: 1)
+        navBarView.backgroundColor = UIColor(red: 0.239, green: 0.486, blue: 0.596, alpha: 1)
         topContainer.addSubview(navBarView)
         navBarView.translatesAutoresizingMaskIntoConstraints = false
 
@@ -282,29 +301,29 @@ class CategoryPageViewController: UIViewController, UITabBarDelegate {
         ])
 
         // TOOLBAR
-        navBarView.addSubview(toolbar)
-        toolbar.translatesAutoresizingMaskIntoConstraints = false
-        toolbar.tintColor = .white
-        toolbar.isTranslucent = false
-        toolbar.setBackgroundImage(UIImage(), forToolbarPosition: .any, barMetrics: .default)
-        toolbar.setShadowImage(UIImage(), forToolbarPosition: .any)
-
-        NSLayoutConstraint.activate([
-            toolbar.topAnchor.constraint(equalTo: navBarView.topAnchor),
-            toolbar.leadingAnchor.constraint(equalTo: navBarView.leadingAnchor),
-            toolbar.trailingAnchor.constraint(equalTo: navBarView.trailingAnchor),
-            toolbar.heightAnchor.constraint(equalToConstant: 44)
-        ])
-
-        let flex = UIBarButtonItem(barButtonSystemItem: .flexibleSpace, target: nil, action: nil)
-        let menu = UIBarButtonItem(image: UIImage(systemName: "ellipsis"),
-                                   style: .plain,
-                                   target: self,
-                                   action: #selector(menuButtonTapped))
-        toolbar.setItems([flex, menu], animated: false)
+//        navBarView.addSubview(toolbar)
+//        toolbar.translatesAutoresizingMaskIntoConstraints = false
+//        toolbar.tintColor = .white
+//        toolbar.isTranslucent = false
+//        toolbar.setBackgroundImage(UIImage(), forToolbarPosition: .any, barMetrics: .default)
+//        toolbar.setShadowImage(UIImage(), forToolbarPosition: .any)
+//
+//        NSLayoutConstraint.activate([
+//            toolbar.topAnchor.constraint(equalTo: navBarView.topAnchor),
+//            toolbar.leadingAnchor.constraint(equalTo: navBarView.leadingAnchor),
+//            toolbar.trailingAnchor.constraint(equalTo: navBarView.trailingAnchor),
+//            toolbar.heightAnchor.constraint(equalToConstant: 44)
+//        ])
+//
+//        let flex = UIBarButtonItem(barButtonSystemItem: .flexibleSpace, target: nil, action: nil)
+//        let menu = UIBarButtonItem(image: UIImage(systemName: "ellipsis"),
+//                                   style: .plain,
+//                                   target: self,
+//                                   action: #selector(menuButtonTapped))
+//        toolbar.setItems([flex, menu], animated: false)
 
         // Hostel Essentials LABEL
-        homeLabel.text = "Home"
+        homeLabel.text = "Categories"
         homeLabel.textColor = .white
         homeLabel.font = UIFont.systemFont(ofSize: 36, weight: .bold)
         navBarView.addSubview(homeLabel)
@@ -338,7 +357,7 @@ class CategoryPageViewController: UIViewController, UITabBarDelegate {
             trendingCategoriesbg.leadingAnchor.constraint(equalTo: topContainer.leadingAnchor),
             trendingCategoriesbg.trailingAnchor.constraint(equalTo: topContainer.trailingAnchor),
             trendingCategoriesbg.topAnchor.constraint(equalTo: searchBar.bottomAnchor, constant: 10),
-            trendingCategoriesbg.bottomAnchor.constraint(equalTo: topContainer.bottomAnchor, constant: -10)
+            trendingCategoriesbg.bottomAnchor.constraint(equalTo: topContainer.bottomAnchor)
         ])
 
         // TRENDING LABEL
@@ -562,15 +581,38 @@ class CategoryPageViewController: UIViewController, UITabBarDelegate {
     }
 
     // MARK: - Actions
+//    @objc private func menuButtonTapped() {
+//        let alert = UIAlertController(title: nil, message: nil, preferredStyle: .actionSheet)
+//        alert.addAction(UIAlertAction(title: "Cart", style: .default))
+//        alert.addAction(UIAlertAction(title: "Wishlist", style: .default))
+//        alert.addAction(UIAlertAction(title: "Notifications", style: .default))
+//        alert.addAction(UIAlertAction(title: "Cancel", style: .cancel))
+//
+//        if let popover = alert.popoverPresentationController {
+//            popover.barButtonItem = toolbar.items?.last
+//        }
+//
+//        present(alert, animated: true)
+//    }
     @objc private func menuButtonTapped() {
         let alert = UIAlertController(title: nil, message: nil, preferredStyle: .actionSheet)
-        alert.addAction(UIAlertAction(title: "Cart", style: .default))
-        alert.addAction(UIAlertAction(title: "Wishlist", style: .default))
-        alert.addAction(UIAlertAction(title: "Notifications", style: .default))
+        alert.addAction(UIAlertAction(title: "Cart", style: .default, handler: { _ in
+            // push Cart screen
+            let vc = CartViewController()
+            self.navigationController?.pushViewController(vc, animated: true)
+        }))
+        alert.addAction(UIAlertAction(title: "Wishlist", style: .default, handler: { _ in
+            let vc = WishlistViewController()
+            self.navigationController?.pushViewController(vc, animated: true)
+        }))
+        alert.addAction(UIAlertAction(title: "Notifications", style: .default, handler: { _ in
+            let vc = NotificationsViewController()
+            self.navigationController?.pushViewController(vc, animated: true)
+        }))
         alert.addAction(UIAlertAction(title: "Cancel", style: .cancel))
 
         if let popover = alert.popoverPresentationController {
-            popover.barButtonItem = toolbar.items?.last
+            popover.barButtonItem = navigationItem.rightBarButtonItem
         }
 
         present(alert, animated: true)
@@ -591,7 +633,7 @@ class CategoryPageViewController: UIViewController, UITabBarDelegate {
         guard index < mapping.count else { return }
 
         let selectedCategory = mapping[index]
-
+        
         // OPEN NEW CATEGORY PAGE
         let vc = CategoryPageViewController()
         vc.items = selectedCategory.items
@@ -634,5 +676,75 @@ extension CategoryPageViewController: UICollectionViewDataSource, UICollectionVi
         let width = (collectionView.bounds.width - 30) / 2
         return CGSize(width: width, height: 260)
     }
-}
+    override func viewWillAppear(_ animated: Bool) {
+        super.viewWillAppear(animated)
+        tabBarController?.tabBar.isHidden = true
+    }
 
+    override func viewWillDisappear(_ animated: Bool) {
+        super.viewWillDisappear(animated)
+        tabBarController?.tabBar.isHidden = false
+    }
+    @objc private func backToLanding() {
+        navigationController?.popToRootViewController(animated: true)
+    }
+    private func setupNavigationBarMenuButton() {
+        navigationItem.rightBarButtonItem = makeEllipsisButton(
+            target: self,
+            action: #selector(menuButtonTapped)
+        )
+        navigationItem.rightBarButtonItem?.customView?.translatesAutoresizingMaskIntoConstraints = false
+        navigationItem.rightBarButtonItem?.customView?.widthAnchor.constraint(equalToConstant: 44).isActive = true
+        navigationItem.rightBarButtonItem?.customView?.heightAnchor.constraint(equalToConstant: 44).isActive = true
+    }
+}
+extension UIViewController {
+    func makeEllipsisButton(target: Any?, action: Selector) -> UIBarButtonItem {
+
+        // FIX 1 — Correct container size
+        let container = UIView()
+        container.translatesAutoresizingMaskIntoConstraints = false
+        NSLayoutConstraint.activate([
+            container.widthAnchor.constraint(equalToConstant: 44),
+            container.heightAnchor.constraint(equalToConstant: 44)
+        ])
+
+        // FIX 2 — Exact replica button
+        let btn = UIButton(type: .system)
+        btn.translatesAutoresizingMaskIntoConstraints = false
+
+        // IDENTICAL BACKGROUND COLOR
+        btn.backgroundColor = UIColor(red: 0.83, green: 0.95, blue: 0.96, alpha: 1)
+
+        // IDENTICAL BORDER
+        btn.layer.cornerRadius = 22
+        btn.layer.borderColor = UIColor.white.withAlphaComponent(0.45).cgColor
+        btn.layer.borderWidth = 1.5
+
+        // IDENTICAL SHADOW
+        btn.layer.shadowColor = UIColor.black.cgColor
+        btn.layer.shadowOpacity = 0.12
+        btn.layer.shadowOffset = CGSize(width: 0, height: 3)
+        btn.layer.shadowRadius = 6
+
+        // ICON
+        btn.setImage(UIImage(systemName: "ellipsis"), for: .normal)
+        btn.tintColor = .black
+
+        // IMPORTANT — remove automatic padding
+        btn.contentEdgeInsets = .zero
+
+        btn.addTarget(target, action: action, for: .touchUpInside)
+
+        // ADD → CENTER
+        container.addSubview(btn)
+        NSLayoutConstraint.activate([
+            btn.widthAnchor.constraint(equalToConstant: 44),
+            btn.heightAnchor.constraint(equalToConstant: 44),
+            btn.centerXAnchor.constraint(equalTo: container.centerXAnchor),
+            btn.centerYAnchor.constraint(equalTo: container.centerYAnchor)
+        ])
+
+        return UIBarButtonItem(customView: container)
+    }
+}

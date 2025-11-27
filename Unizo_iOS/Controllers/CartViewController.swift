@@ -60,6 +60,15 @@ class CartViewController: UIViewController {
         setupSuggestions()
         setupBottomBar()
     }
+    override func viewWillAppear(_ animated: Bool) {
+        super.viewWillAppear(animated)
+        tabBarController?.tabBar.isHidden = true
+    }
+
+    override func viewWillDisappear(_ animated: Bool) {
+        super.viewWillDisappear(animated)
+        tabBarController?.tabBar.isHidden = false
+    }
 
     // MARK: - Navigation Bar
     private func setupNavBar() {
@@ -134,7 +143,7 @@ class CartViewController: UIViewController {
         mainItemCard.addSubview(checkBoxButton)
 
         // MAIN IMAGE
-        mainItemImage.image = UIImage(named: "cap")
+        mainItemImage.image = UIImage(named: "Cap")
         mainItemImage.contentMode = .scaleAspectFill
         mainItemImage.layer.cornerRadius = 12
         mainItemImage.clipsToBounds = true
@@ -270,7 +279,7 @@ class CartViewController: UIViewController {
 
         // Create rows of 2 cards each
         let items = [
-            ("pinkbicycle", "Pink Bicycle", "4.1", "Negotiable", "₹7500"),
+            ("PinkBicycle", "Pink Bicycle", "4.1", "Negotiable", "₹7500"),
             ("bat", "BAS Size 6 Cricket Bat", "4.1", "Negotiable", "₹899"),
             ("Rackets", "Tennis Rackets", "3.9", "Negotiable", "₹2300"),
             ("NoiseHeadphone", "Noise Two Wireless", "2.9", "Negotiable", "₹1800")

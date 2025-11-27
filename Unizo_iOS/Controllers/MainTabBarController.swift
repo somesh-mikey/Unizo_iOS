@@ -7,23 +7,29 @@ import UIKit
 
 class MainTabBarController: UITabBarController {
 
-    // MARK: - Lifecycle
     override func viewDidLoad() {
-        super.viewDidLoad()
-        setupTabs()
-        styleTabBar()
+            super.viewDidLoad()
+            setupTabs()
+            styleTabBar()
+        }
+
+        override func viewDidAppear(_ animated: Bool) {
+            super.viewDidAppear(animated)
+            fixFloatingBar()   // <— Apply only here
+        }
+
+    private func fixFloatingBar() {
+        DispatchQueue.main.async {
+            guard !self.tabBar.isHidden else { return }
+
+            let height: CGFloat = 70
+            var frame = self.tabBar.frame
+            frame.size.height = height
+            frame.origin.y = self.view.frame.height - height - 20
+            self.tabBar.frame = frame
+        }
     }
 
-    override func viewDidLayoutSubviews() {
-        super.viewDidLayoutSubviews()
-
-        // Floating tab bar with pill shape
-        let height: CGFloat = 70
-        var frame = tabBar.frame
-        frame.size.height = height
-        frame.origin.y = view.frame.height - height - 20
-        tabBar.frame = frame
-    }
 
     // MARK: - Setup Tabs
     private func setupTabs() {
@@ -64,7 +70,6 @@ class MainTabBarController: UITabBarController {
             tag: 4
         )
 
-        // Order exactly as Figma screenshot
         viewControllers = [
             homeVC,
             chatVC,
@@ -72,9 +77,16 @@ class MainTabBarController: UITabBarController {
             listingsVC,
             accountVC
         ]
+
+        // Adjust icon + title for floating style
+        for item in tabBar.items ?? [] {
+            item.titlePositionAdjustment = UIOffset(horizontal: 0, vertical: 4)
+            item.imageInsets = UIEdgeInsets(top: -4, left: 0, bottom: 4, right: 0)
+        }
     }
 
-    // MARK: - Style Floating Tab Bar
+
+    // MARK: - Floating Tab Bar Styling
     private func styleTabBar() {
 
         let appearance = UITabBarAppearance()
@@ -85,19 +97,29 @@ class MainTabBarController: UITabBarController {
         tabBar.standardAppearance = appearance
         tabBar.scrollEdgeAppearance = appearance
 
-        tabBar.backgroundColor = .clear
         tabBar.isTranslucent = true
         tabBar.clipsToBounds = false
 
-        // Remove system background view
+        tabBar.tintColor = UIColor(red: 0.10, green: 0.45, blue: 0.72, alpha: 1)   // Active blue
+        tabBar.unselectedItemTintColor = .darkGray
+
+        // Remove default background view
         if let bg = tabBar.subviews.first(where: {
             String(describing: type(of: $0)) == "_UITabBarBackgroundView"
         }) {
             bg.removeFromSuperview()
         }
-
-        // Tab item colors
-        tabBar.tintColor = UIColor(red: 0.10, green: 0.45, blue: 0.72, alpha: 1)   // active blue
-        tabBar.unselectedItemTintColor = .darkGray
     }
-}
+
+
+    // MARK: - Public API for Hiding / Showing (for child VCs)
+    func hideFloatingTabBar() {
+        tabBar.isHidden = true
+    }
+
+
+    func showFloatingTabBar() {
+        tabBar.isHidden = false
+        fixFloatingBar()
+    }
+    }
