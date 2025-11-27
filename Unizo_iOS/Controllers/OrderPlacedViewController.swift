@@ -45,6 +45,20 @@ class OrderPlacedViewController: UIViewController {
         continueShoppingButton.addTarget(self, action: #selector(continueShoppingTapped), for: .touchUpInside)
         backButton.addTarget(self, action: #selector(backPressed), for: .touchUpInside)
     }
+    override func viewWillAppear(_ animated: Bool) {
+        super.viewWillAppear(animated)
+        tabBarController?.tabBar.isHidden = true
+    }
+
+    override func viewWillDisappear(_ animated: Bool) {
+        super.viewWillDisappear(animated)
+        tabBarController?.tabBar.isHidden = false
+
+        // Restore floating pill tab bar height + position
+        if let mainTab = tabBarController as? MainTabBarController {
+        }
+    }
+
 
     // MARK: - Layout containers
     private func layoutContainers() {

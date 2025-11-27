@@ -212,7 +212,14 @@ class CategoryPageViewController: UIViewController, UITabBarDelegate {
 
     override func viewDidLayoutSubviews() {
         super.viewDidLayoutSubviews()
+
         updateCollectionHeight()
+
+        // Extend scroll behind tab bar but avoid clipping content
+        if let tabBarHeight = self.tabBarController?.tabBar.frame.height {
+            scrollView.contentInset.bottom = tabBarHeight + 20
+            scrollView.scrollIndicatorInsets.bottom = tabBarHeight
+        }
     }
 
 

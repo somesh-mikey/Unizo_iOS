@@ -113,6 +113,18 @@ class BrowseEventsViewController: UIViewController {
         setupLayout()
         loadEventCards()
     }
+    
+    override func viewWillAppear(_ animated: Bool) {
+        super.viewWillAppear(animated)
+        (tabBarController as? MainTabBarController)?.hideFloatingTabBar()
+    }
+
+    override func viewWillDisappear(_ animated: Bool) {
+        super.viewWillDisappear(animated)
+        (tabBarController as? MainTabBarController)?.showFloatingTabBar()
+    }
+
+
 
 
     // MARK: - Navigation Bar

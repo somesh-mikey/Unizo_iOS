@@ -79,6 +79,22 @@ class AccountCreatedViewController: UIViewController {
         
         getStartedButton.addTarget(self, action: #selector(getStartedTapped), for: .touchUpInside)
     }
+    override func viewWillAppear(_ animated: Bool) {
+        super.viewWillAppear(animated)
+        tabBarController?.tabBar.isHidden = true
+    }
+
+    override func viewWillDisappear(_ animated: Bool) {
+        super.viewWillDisappear(animated)
+
+        // Un-hide the tab bar when leaving
+        tabBarController?.tabBar.isHidden = false
+
+        // Restore floating position & height
+        if let mainTab = tabBarController as? MainTabBarController {
+
+        }
+    }
 
     
     // MARK: - UI Setup

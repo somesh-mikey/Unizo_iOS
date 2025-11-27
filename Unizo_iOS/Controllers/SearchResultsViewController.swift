@@ -53,6 +53,19 @@ class SearchResultsViewController: UIViewController, UICollectionViewDataSource,
 
         filterProducts(text: keyword)
     }
+    override func viewWillAppear(_ animated: Bool) {
+        super.viewWillAppear(animated)
+        tabBarController?.tabBar.isHidden = true
+    }
+
+    override func viewWillDisappear(_ animated: Bool) {
+        super.viewWillDisappear(animated)
+        tabBarController?.tabBar.isHidden = false
+
+        // If you use a floating/custom tab bar controller
+        if let tab = tabBarController as? MainTabBarController {
+        }
+    }
 
     // MARK: - Filtering Logic
     private func filterProducts(text: String) {

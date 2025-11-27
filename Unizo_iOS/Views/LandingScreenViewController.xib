@@ -10,7 +10,6 @@
     <objects>
         <placeholder placeholderIdentifier="IBFilesOwner" id="-1" userLabel="File's Owner" customClass="LandingScreenViewController" customModule="Unizo_iOS" customModuleProvider="target">
             <connections>
-                <outlet property="scrollbg" destination="0KJ-cf-MxK" id="JX2-vY-OBc"/>
                 <outlet property="trendingCategoriesbg" destination="0KJ-cf-MxK" id="tx5-9G-XKS"/>
                 <outlet property="view" destination="i5M-Pr-FkT" id="sfx-zR-JGt"/>
             </connections>

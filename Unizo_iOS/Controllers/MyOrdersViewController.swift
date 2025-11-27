@@ -75,16 +75,30 @@ class MyOrdersViewController: UIViewController {
     override func viewDidLoad() {
         super.viewDidLoad()
         view.backgroundColor = UIColor.systemGray6
-
+        
         setupUI()
         setupConstraints()
         loadOrders(filter: "All")
         navigationController?.setNavigationBarHidden(true, animated: false)
     }
+    override func viewWillAppear(_ animated: Bool) {
+        super.viewWillAppear(animated)
+        
+        // Hide the floating tab bar
+        tabBarController?.tabBar.isHidden = true
+    }
+
     override func viewWillDisappear(_ animated: Bool) {
         super.viewWillDisappear(animated)
-        navigationController?.setNavigationBarHidden(false, animated: false)
+        
+        // Show again when leaving
+        tabBarController?.tabBar.isHidden = false
+        
+        // Restore floating pill shape + position
+        if let mainTab = tabBarController as? MainTabBarController {
+        }
     }
+
 
     // MARK: - Setup UI
     private func setupUI() {

@@ -23,6 +23,19 @@ class SettingsViewController: UIViewController {
         setupScroll()
         setupSections()
     }
+    override func viewWillAppear(_ animated: Bool) {
+        super.viewWillAppear(animated)
+        tabBarController?.tabBar.isHidden = true
+    }
+
+    override func viewWillDisappear(_ animated: Bool) {
+        super.viewWillDisappear(animated)
+        tabBarController?.tabBar.isHidden = false
+
+        // If you have a custom floating tab bar
+        if let tab = tabBarController as? MainTabBarController {
+        }
+    }
 
     // MARK: - NAV BAR
     private func setupNavBar() {

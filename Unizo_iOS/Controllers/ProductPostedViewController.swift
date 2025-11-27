@@ -27,6 +27,20 @@ class ProductPostedViewController: UIViewController {
         setupText()
         setupButton()
     }
+    override func viewWillAppear(_ animated: Bool) {
+        super.viewWillAppear(animated)
+        tabBarController?.tabBar.isHidden = true
+    }
+
+    override func viewWillDisappear(_ animated: Bool) {
+        super.viewWillDisappear(animated)
+        tabBarController?.tabBar.isHidden = false
+
+        // Restore floating pill shape
+        if let tab = tabBarController as? MainTabBarController {
+        }
+    }
+
 
     // MARK: Icon Setup
     private func setupIcon() {

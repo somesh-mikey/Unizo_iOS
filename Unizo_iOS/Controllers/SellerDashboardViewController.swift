@@ -343,12 +343,22 @@ final class SellerDashboardViewController: UIViewController {
     }
     override func viewWillAppear(_ animated: Bool) {
         super.viewWillAppear(animated)
+
         navigationController?.setNavigationBarHidden(true, animated: false)
+
+        // Correct way to hide the floating tab bar
+        (tabBarController as? MainTabBarController)?.hideFloatingTabBar()
     }
+
     override func viewWillDisappear(_ animated: Bool) {
         super.viewWillDisappear(animated)
+
         navigationController?.setNavigationBarHidden(false, animated: false)
+
+        // Correct way to restore it
+        (tabBarController as? MainTabBarController)?.showFloatingTabBar()
     }
+
 
     private func setupUI() {
         scrollView.translatesAutoresizingMaskIntoConstraints = false

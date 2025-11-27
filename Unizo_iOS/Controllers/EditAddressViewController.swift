@@ -77,6 +77,19 @@ class EditAddressViewController: UIViewController {
         setupRows()
         setupSaveButton()
     }
+    override func viewWillAppear(_ animated: Bool) {
+        super.viewWillAppear(animated)
+        tabBarController?.tabBar.isHidden = true
+    }
+
+    override func viewWillDisappear(_ animated: Bool) {
+        super.viewWillDisappear(animated)
+        tabBarController?.tabBar.isHidden = false
+
+        // Restore floating tab bar height & position
+        if let mainTab = tabBarController as? MainTabBarController {
+        }
+    }
 
     // MARK: - Custom Nav Bar
     private func setupNavBar() {

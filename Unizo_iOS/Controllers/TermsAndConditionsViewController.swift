@@ -21,6 +21,19 @@ class TermsAndConditionsViewController: UIViewController {
         setupTextView()
         setupConstraints()
     }
+    override func viewWillAppear(_ animated: Bool) {
+        super.viewWillAppear(animated)
+        tabBarController?.tabBar.isHidden = true
+    }
+
+    override func viewWillDisappear(_ animated: Bool) {
+        super.viewWillDisappear(animated)
+        tabBarController?.tabBar.isHidden = false
+
+        // If using a custom floating tab bar in MainTabBarController
+        if let tab = tabBarController as? MainTabBarController {
+        }
+    }
 
     private func setupTextView() {
         textView.translatesAutoresizingMaskIntoConstraints = false

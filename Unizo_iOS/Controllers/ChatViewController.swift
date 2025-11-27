@@ -241,6 +241,15 @@ class ChatViewController: UIViewController {
         searchTextField.addTarget(self, action: #selector(searchChanged), for: .editingChanged)
     }
 
+    override func viewDidLayoutSubviews() {
+        super.viewDidLayoutSubviews()
+
+        if let tabBar = tabBarController?.tabBar {
+            let bottomInset = tabBar.frame.height + 16
+            tableView.contentInset.bottom = bottomInset
+            tableView.scrollIndicatorInsets.bottom = bottomInset
+        }
+    }
     // MARK: - Setup
     private func setupViews() {
         // top title
@@ -322,7 +331,7 @@ class ChatViewController: UIViewController {
             tableView.leadingAnchor.constraint(equalTo: view.leadingAnchor),
             tableView.trailingAnchor.constraint(equalTo: view.trailingAnchor),
             // no fake bottom tab - use safeArea bottom
-            tableView.bottomAnchor.constraint(equalTo: view.safeAreaLayoutGuide.bottomAnchor, constant: -20)
+            tableView.bottomAnchor.constraint(equalTo: view.bottomAnchor)
         ])
     }
 

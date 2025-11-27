@@ -159,7 +159,14 @@ class ConfirmOrderSellerViewController: UIViewController {
     override func viewWillAppear(_ animated: Bool) {
         super.viewWillAppear(animated)
         navigationController?.setNavigationBarHidden(false, animated: false)
+        tabBarController?.tabBar.isHidden = true
     }
+    override func viewWillDisappear(_ animated: Bool) {
+            super.viewWillDisappear(animated)
+            tabBarController?.tabBar.isHidden = false
+            if let mainTab = tabBarController as? MainTabBarController {
+            }
+        }
     @objc func heartTapped() {
         let vc = WishlistViewController()
 

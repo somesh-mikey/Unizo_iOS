@@ -21,7 +21,6 @@ class LandingScreenViewController: UIViewController {
 
     // MARK: UI
     @IBOutlet weak var trendingCategoriesbg: UIView!
-    @IBOutlet weak var scrollbg: UIView!
     private var collectionView: UICollectionView!
     private let topContainer = UIView()
     private let navBarView = UIView()
@@ -250,24 +249,25 @@ class LandingScreenViewController: UIViewController {
         setupCollectionView()
         startAutoScroll()
         displayedProducts = products   // default
+        navigationController?.setNavigationBarHidden(true, animated: false)
         searchBar.delegate = self
 
     }
-    // THIS REMOVES THE WEIRD ITEM BUTTON ON THE TOP....
     override func viewWillAppear(_ animated: Bool) {
         super.viewWillAppear(animated)
-        navigationController?.setNavigationBarHidden(true, animated: false)
-    }
-
-    override func viewWillDisappear(_ animated: Bool) {
-        super.viewWillDisappear(animated)
-        navigationController?.setNavigationBarHidden(false, animated: false)
+        (tabBarController as? MainTabBarController)?.showFloatingTabBar()
     }
 
     override func viewDidLayoutSubviews() {
         super.viewDidLayoutSubviews()
         updateCollectionHeight()
+
+        // Restore floating tab bar AFTER all auto layout passes
+
     }
+
+
+
 
     deinit {
         timer?.invalidate()
@@ -282,7 +282,6 @@ class LandingScreenViewController: UIViewController {
         topContainer.backgroundColor = .clear
 
         // --- Scroll background solid white (covers below topContainer) ---
-        scrollbg.backgroundColor = .white
 
         // --- Top Container ---
         view.addSubview(topContainer)
@@ -451,7 +450,7 @@ class LandingScreenViewController: UIViewController {
             mainScrollView.topAnchor.constraint(equalTo: topContainer.bottomAnchor),
             mainScrollView.leadingAnchor.constraint(equalTo: view.leadingAnchor),
             mainScrollView.trailingAnchor.constraint(equalTo: view.trailingAnchor),
-            mainScrollView.bottomAnchor.constraint(equalTo: view.bottomAnchor)
+            mainScrollView.bottomAnchor.constraint(equalTo: view.safeAreaLayoutGuide.bottomAnchor)
         ])
         
         mainScrollView.addSubview(contentView)

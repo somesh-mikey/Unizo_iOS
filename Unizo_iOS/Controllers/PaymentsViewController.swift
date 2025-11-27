@@ -22,13 +22,23 @@ class PaymentsViewController: UIViewController {
     }
     override func viewWillAppear(_ animated: Bool) {
         super.viewWillAppear(animated)
+
         navigationController?.setNavigationBarHidden(true, animated: false)
+
+        // Correct floating tab bar hiding
+        (tabBarController as? MainTabBarController)?.hideFloatingTabBar()
     }
 
     override func viewWillDisappear(_ animated: Bool) {
         super.viewWillDisappear(animated)
+
         navigationController?.setNavigationBarHidden(false, animated: false)
+
+        // Correct floating tab bar restoring
+        (tabBarController as? MainTabBarController)?.showFloatingTabBar()
     }
+
+
 
     // MARK: - Custom Navigation Bar
     private func setupNavBar() {

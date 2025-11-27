@@ -97,6 +97,19 @@ final class ProfileViewController: UIViewController {
         configureInteractions()
         setupDOBPicker()
     }
+    override func viewWillAppear(_ animated: Bool) {
+        super.viewWillAppear(animated)
+        tabBarController?.tabBar.isHidden = true
+    }
+
+    override func viewWillDisappear(_ animated: Bool) {
+        super.viewWillDisappear(animated)
+        tabBarController?.tabBar.isHidden = false
+
+        // Restore floating tab bar style if custom class
+        if let tab = tabBarController as? MainTabBarController {
+        }
+    }
 
     override func viewDidLayoutSubviews() {
         super.viewDidLayoutSubviews()

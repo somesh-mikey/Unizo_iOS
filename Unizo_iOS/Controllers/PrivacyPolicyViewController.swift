@@ -17,6 +17,20 @@ class PrivacyPolicyViewController: UIViewController {
         title = "Privacy Policy"
         setupTextView()
     }
+    override func viewWillAppear(_ animated: Bool) {
+        super.viewWillAppear(animated)
+        tabBarController?.tabBar.isHidden = true
+    }
+
+    override func viewWillDisappear(_ animated: Bool) {
+        super.viewWillDisappear(animated)
+        tabBarController?.tabBar.isHidden = false
+
+        // Required to restore floating pill shape when returning
+        if let mainTab = tabBarController as? MainTabBarController {
+        }
+    }
+
 
     private func setupTextView() {
         textView.translatesAutoresizingMaskIntoConstraints = false

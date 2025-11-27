@@ -67,8 +67,15 @@ class CartViewController: UIViewController {
 
     override func viewWillDisappear(_ animated: Bool) {
         super.viewWillDisappear(animated)
+
+        // Un-hide the tab bar when leaving
         tabBarController?.tabBar.isHidden = false
+
+        // Restore floating position & height
+        if let mainTab = tabBarController as? MainTabBarController {
+        }
     }
+
 
     // MARK: - Navigation Bar
     private func setupNavBar() {
@@ -143,7 +150,7 @@ class CartViewController: UIViewController {
         mainItemCard.addSubview(checkBoxButton)
 
         // MAIN IMAGE
-        mainItemImage.image = UIImage(named: "Cap")
+        mainItemImage.image = UIImage(named: "cap")
         mainItemImage.contentMode = .scaleAspectFill
         mainItemImage.layer.cornerRadius = 12
         mainItemImage.clipsToBounds = true
@@ -279,7 +286,7 @@ class CartViewController: UIViewController {
 
         // Create rows of 2 cards each
         let items = [
-            ("PinkBicycle", "Pink Bicycle", "4.1", "Negotiable", "₹7500"),
+            ("pinkbicycle", "Pink Bicycle", "4.1", "Negotiable", "₹7500"),
             ("bat", "BAS Size 6 Cricket Bat", "4.1", "Negotiable", "₹899"),
             ("Rackets", "Tennis Rackets", "3.9", "Negotiable", "₹2300"),
             ("NoiseHeadphone", "Noise Two Wireless", "2.9", "Negotiable", "₹1800")
