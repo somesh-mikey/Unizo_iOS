@@ -21,8 +21,8 @@ class SceneDelegate: UIResponder, UIWindowSceneDelegate {
                 let window = UIWindow(windowScene: windowScene)
 
                 // Root View Controller
-                let languageVC = LanguageViewController()
-                let navigationController = UINavigationController(rootViewController: languageVC)
+                let changePasswordVC = ChangePasswordViewController()
+                let navigationController = UINavigationController(rootViewController: changePasswordVC)
 
                 // Navigation bar appearance
                 let appearance = UINavigationBarAppearance()
