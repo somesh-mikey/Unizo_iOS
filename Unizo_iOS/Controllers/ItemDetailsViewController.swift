@@ -153,17 +153,17 @@ class ItemDetailsViewController: UIViewController {
         }
     }
 
-    override func viewWillAppear(_ animated: Bool) {
-        super.viewWillAppear(animated)
-        // hide tab bar while this screen is visible
-        tabBarController?.tabBar.isHidden = true
-        navigationController?.setNavigationBarHidden(false, animated: false)
-    }
-
-    override func viewWillDisappear(_ animated: Bool) {
-        super.viewWillDisappear(animated)
-        tabBarController?.tabBar.isHidden = false
-    }
+//    override func viewWillAppear(_ animated: Bool) {
+//        super.viewWillAppear(animated)
+//        // hide tab bar while this screen is visible
+//        tabBarController?.tabBar.isHidden = true
+//        navigationController?.setNavigationBarHidden(false, animated: false)
+//    }
+//
+//    override func viewWillDisappear(_ animated: Bool) {
+//        super.viewWillDisappear(animated)
+//        tabBarController?.tabBar.isHidden = false
+//    }
 
     // MARK: - Populate
     private func populateData() {

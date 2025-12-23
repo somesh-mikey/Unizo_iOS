@@ -5,230 +5,125 @@
 
 import UIKit
 
-class AccountViewController: UIViewController {
+final class AccountViewController: UIViewController {
 
-    // MARK: - ScrollView & Content View
-
+    // MARK: - Scroll
     private let scrollView = UIScrollView()
     private let contentView = UIView()
 
-    // MARK: - UI Components
-
+    // MARK: - Header
     private let titleLabel: UILabel = {
-        let label = UILabel()
-        label.text = "Account"
-        label.font = .systemFont(ofSize: 32, weight: .bold)
-        return label
+        let l = UILabel()
+        l.text = "Account"
+        l.font = .systemFont(ofSize: 32, weight: .bold)
+        return l
     }()
 
     private let profileImageView: UIImageView = {
-        let img = UIImageView()
-        img.layer.cornerRadius = 35
-        img.clipsToBounds = true
-        img.image = UIImage(named: "nishtha")
-        img.contentMode = .scaleAspectFill
-        return img
+        let iv = UIImageView(image: UIImage(named: "nishtha"))
+        iv.layer.cornerRadius = 35
+        iv.clipsToBounds = true
+        iv.contentMode = .scaleAspectFill
+        return iv
     }()
 
     private let nameLabel: UILabel = {
-        let label = UILabel()
-        label.text = "Nishtha"
-        label.font = .systemFont(ofSize: 22, weight: .semibold)
-        return label
+        let l = UILabel()
+        l.text = "Nishtha"
+        l.font = .systemFont(ofSize: 22, weight: .semibold)
+        return l
     }()
 
     private let emailLabel: UILabel = {
-        let label = UILabel()
-        label.text = "ng7389@srmist.edu.in"
-        label.font = .systemFont(ofSize: 14)
-        label.textColor = .secondaryLabel
-        return label
+        let l = UILabel()
+        l.text = "ng7389@srmist.edu.in"
+        l.font = .systemFont(ofSize: 14)
+        l.textColor = .secondaryLabel
+        return l
     }()
 
-    // MARK: - Feature Buttons Section (with teal backgrounds)
-
+    // MARK: - Feature Container (UPDATED)
     private let featureContainer: UIView = {
         let v = UIView()
-        v.backgroundColor = UIColor(red: 0.85, green: 0.96, blue: 0.98, alpha: 1)
-        v.layer.cornerRadius = 30
+        v.backgroundColor = UIColor(red: 0.88, green: 0.97, blue: 0.97, alpha: 1)
+        v.layer.cornerRadius = 22
 
-        // ADD SHADOW HERE
+        // Subtle depth (almost flat like mockup)
         v.layer.shadowColor = UIColor.black.cgColor
-        v.layer.shadowOpacity = 0.25
-        v.layer.shadowRadius = 18
+        v.layer.shadowOpacity = 0.06
+        v.layer.shadowRadius = 10
         v.layer.shadowOffset = CGSize(width: 0, height: 4)
-        v.layer.masksToBounds = false
 
         return v
     }()
-
-
-    private func makeFeatureItem(icon: String, title: String) -> UIStackView {
-
-        // Background circle (#74E7DA)
-        let bgView = UIView()
-        bgView.backgroundColor = UIColor(red: 0.454, green: 0.906, blue: 0.855, alpha: 1)
-        bgView.layer.cornerRadius = 22
-        bgView.translatesAutoresizingMaskIntoConstraints = false
-        bgView.widthAnchor.constraint(equalToConstant: 65).isActive = true
-        bgView.heightAnchor.constraint(equalToConstant: 65).isActive = true
-
-        // Icon (BLACK)
-        let imageView = UIImageView(image: UIImage(systemName: icon))
-        imageView.tintColor = .black         // ← FIXED HERE
-        imageView.contentMode = .scaleAspectFit
-
-        bgView.addSubview(imageView)
-        imageView.translatesAutoresizingMaskIntoConstraints = false
-
-        NSLayoutConstraint.activate([
-            imageView.centerXAnchor.constraint(equalTo: bgView.centerXAnchor),
-            imageView.centerYAnchor.constraint(equalTo: bgView.centerYAnchor),
-            imageView.widthAnchor.constraint(equalToConstant: 26),
-            imageView.heightAnchor.constraint(equalToConstant: 26)
-        ])
-
-        // Label (BLACK)
-        let label = UILabel()
-        label.text = title
-        label.font = .systemFont(ofSize: 14, weight: .medium)
-        label.textColor = .black             // ← FIXED HERE
-        label.textAlignment = .center
-        label.numberOfLines = 2
-
-        // Stack
-        let stack = UIStackView(arrangedSubviews: [bgView, label])
-        stack.axis = .vertical
-        stack.alignment = .center
-        stack.spacing = 6
-        stack.isUserInteractionEnabled = true
-
-        return stack
-    }
-
-    private lazy var itemPayments = makeFeatureItem(icon: "creditcard", title: "Payments")
-    private lazy var itemTickets = makeFeatureItem(icon: "ticket", title: "Event\nTickets")
-    private lazy var itemDashboard = makeFeatureItem(icon: "chart.bar", title: "Seller\nDashboard")
 
     private let featureStack: UIStackView = {
         let st = UIStackView()
         st.axis = .horizontal
         st.distribution = .equalSpacing
         st.alignment = .center
-        st.spacing = 20
         return st
     }()
 
-    // MARK: - Settings Section Labels
+    // MARK: - Section Labels
+    private let generalLabel = AccountViewController.makeSectionLabel("General Settings")
+    private let otherLabel = AccountViewController.makeSectionLabel("Other")
 
-    private let generalSettingsLabel: UILabel = {
-        let lbl = UILabel()
-        lbl.text = "General Settings"
-        lbl.font = .systemFont(ofSize: 18, weight: .bold)
-        return lbl
-    }()
+    // MARK: - Cards
+    private let generalCard = AccountViewController.makeCard()
+    private let otherCard = AccountViewController.makeCard()
 
-    private let otherSettingsLabel: UILabel = {
-        let lbl = UILabel()
-        lbl.text = "Other"
-        lbl.font = .systemFont(ofSize: 18, weight: .bold)
-        return lbl
-    }()
+    // MARK: - Rows
+    private lazy var rowMyOrders = makeRow("My Orders", action: #selector(openOrders))
+    private lazy var rowProfile = makeRow("My Profile", action: #selector(openProfile))
+    private lazy var rowAddress = makeRow("My Address", action: #selector(openAddress))
+    private lazy var rowNotifications = makeRow("Notifications", action: #selector(openNotifications))
 
-    // MARK: - Settings Rows
+    private lazy var rowTerms = makeRow("Terms & Conditions", action: #selector(openTerms))
+    private lazy var rowPrivacy = makeRow("Privacy Policy", action: #selector(openPrivacy))
+    private lazy var rowSettings = makeRow("Settings", action: #selector(openSettings))
 
-    private func makeRow(title: String, action: Selector) -> UIView {
-        let container = UIView()
-
-        let label = UILabel()
-        label.text = title
-        label.font = .systemFont(ofSize: 16)
-
-        let arrow = UIImageView(image: UIImage(systemName: "chevron.right"))
-        arrow.tintColor = .lightGray
-
-        container.addSubview(label)
-        container.addSubview(arrow)
-
-        label.translatesAutoresizingMaskIntoConstraints = false
-        arrow.translatesAutoresizingMaskIntoConstraints = false
-
-        NSLayoutConstraint.activate([
-            label.leadingAnchor.constraint(equalTo: container.leadingAnchor),
-            label.centerYAnchor.constraint(equalTo: container.centerYAnchor),
-
-            arrow.trailingAnchor.constraint(equalTo: container.trailingAnchor),
-            arrow.centerYAnchor.constraint(equalTo: container.centerYAnchor)
-        ])
-
-        container.isUserInteractionEnabled = true
-        container.addGestureRecognizer(UITapGestureRecognizer(target: self, action: action))
-
-        return container
-    }
-
-    private lazy var rowMyOrders = makeRow(title: "My Orders", action: #selector(openOrders))
-    private lazy var rowProfile = makeRow(title: "My Profile", action: #selector(openProfile))
-    private lazy var rowAddress = makeRow(title: "My Address", action: #selector(openAddress))
-    private lazy var rowNotifications = makeRow(title: "Notifications", action: #selector(openNotifications))
-
-    private lazy var rowTerms = makeRow(title: "Terms & Conditions", action: #selector(openTerms))
-    private lazy var rowPrivacy = makeRow(title: "Privacy Policy", action: #selector(openPrivacy))
-    private lazy var rowSettings = makeRow(title: "Settings", action: #selector(openSettings))
-
-    // MARK: - View Lifecycle
-
+    // MARK: - Lifecycle
     override func viewDidLoad() {
         super.viewDidLoad()
-        view.backgroundColor = UIColor.systemGray6
+        view.backgroundColor = .systemGray6
         setupUI()
         setupConstraints()
     }
 
     // MARK: - Setup UI
-
     private func setupUI() {
-
-        // Scroll setup
         view.addSubview(scrollView)
         scrollView.addSubview(contentView)
 
-        // Main components
-        contentView.addSubview(titleLabel)
-        contentView.addSubview(profileImageView)
-        contentView.addSubview(nameLabel)
-        contentView.addSubview(emailLabel)
+        [
+            titleLabel, profileImageView, nameLabel, emailLabel,
+            featureContainer, generalLabel, generalCard,
+            otherLabel, otherCard
+        ].forEach {
+            $0.translatesAutoresizingMaskIntoConstraints = false
+            contentView.addSubview($0)
+        }
 
-        contentView.addSubview(featureContainer)
         featureContainer.addSubview(featureStack)
+        featureStack.translatesAutoresizingMaskIntoConstraints = false
 
-        featureStack.addArrangedSubview(itemPayments)
-        itemPayments.isUserInteractionEnabled = true
-        itemPayments.addGestureRecognizer(
-            UITapGestureRecognizer(target: self, action: #selector(openPayments))
-        )
-        featureStack.addArrangedSubview(itemTickets)
-        itemTickets.isUserInteractionEnabled = true
-        itemTickets.addGestureRecognizer(UITapGestureRecognizer(target: self, action: #selector(openEvents)))
-        featureStack.addArrangedSubview(itemDashboard)
-        itemDashboard.addGestureRecognizer(
-            UITapGestureRecognizer(target: self, action: #selector(openSellerDashboard))
+        featureStack.addArrangedSubview(makeFeatureItem("creditcard", "Payments", #selector(openPayments)))
+        featureStack.addArrangedSubview(makeFeatureItem("ticket", "Event Tickets", #selector(openEvents)))
+        featureStack.addArrangedSubview(makeFeatureItem("chart.bar", "Seller Dashboard", #selector(openSellerDashboard)))
+
+        addGroupedRows(
+            rows: [rowMyOrders, rowProfile, rowAddress, rowNotifications],
+            to: generalCard
         )
 
-        contentView.addSubview(generalSettingsLabel)
-        contentView.addSubview(rowMyOrders)
-        contentView.addSubview(rowProfile)
-        contentView.addSubview(rowAddress)
-        contentView.addSubview(rowNotifications)
-
-        contentView.addSubview(otherSettingsLabel)
-        contentView.addSubview(rowTerms)
-        contentView.addSubview(rowPrivacy)
-        contentView.addSubview(rowSettings)
+        addGroupedRows(
+            rows: [rowTerms, rowPrivacy, rowSettings],
+            to: otherCard
+        )
     }
 
     // MARK: - Constraints
-
     private func setupConstraints() {
 
         scrollView.translatesAutoresizingMaskIntoConstraints = false
@@ -244,19 +139,9 @@ class AccountViewController: UIViewController {
             contentView.leadingAnchor.constraint(equalTo: scrollView.leadingAnchor),
             contentView.trailingAnchor.constraint(equalTo: scrollView.trailingAnchor),
             contentView.bottomAnchor.constraint(equalTo: scrollView.bottomAnchor),
-            contentView.widthAnchor.constraint(equalTo: scrollView.widthAnchor)
-        ])
+            contentView.widthAnchor.constraint(equalTo: scrollView.widthAnchor),
 
-        // All other constraints
-        [
-            titleLabel, profileImageView, nameLabel, emailLabel,
-            featureContainer, featureStack,
-            generalSettingsLabel, rowMyOrders, rowProfile, rowAddress, rowNotifications,
-            otherSettingsLabel, rowTerms, rowPrivacy, rowSettings
-        ].forEach { $0.translatesAutoresizingMaskIntoConstraints = false }
-
-        NSLayoutConstraint.activate([
-            titleLabel.topAnchor.constraint(equalTo: contentView.safeAreaLayoutGuide.topAnchor, constant: 10),
+            titleLabel.topAnchor.constraint(equalTo: contentView.safeAreaLayoutGuide.topAnchor, constant: 12),
             titleLabel.leadingAnchor.constraint(equalTo: contentView.leadingAnchor, constant: 20),
 
             profileImageView.topAnchor.constraint(equalTo: titleLabel.bottomAnchor, constant: 20),
@@ -265,211 +150,178 @@ class AccountViewController: UIViewController {
             profileImageView.heightAnchor.constraint(equalToConstant: 70),
 
             nameLabel.leadingAnchor.constraint(equalTo: profileImageView.trailingAnchor, constant: 12),
-            nameLabel.topAnchor.constraint(equalTo: profileImageView.topAnchor, constant: 5),
+            nameLabel.topAnchor.constraint(equalTo: profileImageView.topAnchor, constant: 6),
 
             emailLabel.leadingAnchor.constraint(equalTo: nameLabel.leadingAnchor),
             emailLabel.topAnchor.constraint(equalTo: nameLabel.bottomAnchor, constant: 4),
 
-            featureContainer.topAnchor.constraint(equalTo: profileImageView.bottomAnchor, constant: 35),
+            featureContainer.topAnchor.constraint(equalTo: profileImageView.bottomAnchor, constant: 30),
             featureContainer.leadingAnchor.constraint(equalTo: contentView.leadingAnchor, constant: 20),
             featureContainer.trailingAnchor.constraint(equalTo: contentView.trailingAnchor, constant: -20),
-            featureContainer.heightAnchor.constraint(equalToConstant: 150),
+            featureContainer.heightAnchor.constraint(equalToConstant: 120),
 
             featureStack.centerXAnchor.constraint(equalTo: featureContainer.centerXAnchor),
             featureStack.centerYAnchor.constraint(equalTo: featureContainer.centerYAnchor),
-            featureStack.leadingAnchor.constraint(equalTo: featureContainer.leadingAnchor, constant: 30),
-            featureStack.trailingAnchor.constraint(equalTo: featureContainer.trailingAnchor, constant: -30),
+            featureStack.leadingAnchor.constraint(equalTo: featureContainer.leadingAnchor, constant: 24),
+            featureStack.trailingAnchor.constraint(equalTo: featureContainer.trailingAnchor, constant: -24),
 
-            // Raise Payments button slightly
-            itemPayments.topAnchor.constraint(equalTo: featureStack.topAnchor, constant: 0),
+            generalLabel.topAnchor.constraint(equalTo: featureContainer.bottomAnchor, constant: 35),
+            generalLabel.leadingAnchor.constraint(equalTo: contentView.leadingAnchor, constant: 20),
 
-            generalSettingsLabel.topAnchor.constraint(equalTo: featureContainer.bottomAnchor, constant: 40),
-            generalSettingsLabel.leadingAnchor.constraint(equalTo: contentView.leadingAnchor, constant: 20),
+            generalCard.topAnchor.constraint(equalTo: generalLabel.bottomAnchor, constant: 12),
+            generalCard.leadingAnchor.constraint(equalTo: featureContainer.leadingAnchor),
+            generalCard.trailingAnchor.constraint(equalTo: featureContainer.trailingAnchor),
 
-            rowMyOrders.topAnchor.constraint(equalTo: generalSettingsLabel.bottomAnchor, constant: 18),
-            rowMyOrders.leadingAnchor.constraint(equalTo: contentView.leadingAnchor, constant: 36),
-            rowMyOrders.trailingAnchor.constraint(equalTo: contentView.trailingAnchor, constant: -20),
-            rowMyOrders.heightAnchor.constraint(equalToConstant: 45),
+            otherLabel.topAnchor.constraint(equalTo: generalCard.bottomAnchor, constant: 30),
+            otherLabel.leadingAnchor.constraint(equalTo: generalLabel.leadingAnchor),
 
-            rowProfile.topAnchor.constraint(equalTo: rowMyOrders.bottomAnchor, constant: 12),
-            rowProfile.leadingAnchor.constraint(equalTo: contentView.leadingAnchor, constant: 36),
-            rowProfile.trailingAnchor.constraint(equalTo: contentView.trailingAnchor, constant: -20),
-            rowProfile.heightAnchor.constraint(equalToConstant: 45),
-
-            rowAddress.topAnchor.constraint(equalTo: rowProfile.bottomAnchor, constant: 12),
-            rowAddress.leadingAnchor.constraint(equalTo: contentView.leadingAnchor, constant: 36),
-            rowAddress.trailingAnchor.constraint(equalTo: contentView.trailingAnchor, constant: -20),
-            rowAddress.heightAnchor.constraint(equalToConstant: 45),
-
-            rowNotifications.topAnchor.constraint(equalTo: rowAddress.bottomAnchor, constant: 12),
-            rowNotifications.leadingAnchor.constraint(equalTo: contentView.leadingAnchor, constant: 36),
-            rowNotifications.trailingAnchor.constraint(equalTo: contentView.trailingAnchor, constant: -20),
-            rowNotifications.heightAnchor.constraint(equalToConstant: 45),
-
-
-            otherSettingsLabel.topAnchor.constraint(equalTo: rowNotifications.bottomAnchor, constant: 35),
-            otherSettingsLabel.leadingAnchor.constraint(equalTo: generalSettingsLabel.leadingAnchor),
-
-            rowTerms.topAnchor.constraint(equalTo: otherSettingsLabel.bottomAnchor, constant: 18),
-            rowTerms.leadingAnchor.constraint(equalTo: contentView.leadingAnchor, constant: 36),
-            rowTerms.trailingAnchor.constraint(equalTo: contentView.trailingAnchor, constant: -20),
-            rowTerms.heightAnchor.constraint(equalToConstant: 45),
-
-            rowPrivacy.topAnchor.constraint(equalTo: rowTerms.bottomAnchor, constant: 12),
-            rowPrivacy.leadingAnchor.constraint(equalTo: contentView.leadingAnchor, constant: 36),
-            rowPrivacy.trailingAnchor.constraint(equalTo: rowTerms.trailingAnchor),
-            rowPrivacy.heightAnchor.constraint(equalToConstant: 45),
-
-            rowSettings.topAnchor.constraint(equalTo: rowPrivacy.bottomAnchor, constant: 12),
-            rowSettings.leadingAnchor.constraint(equalTo: contentView.leadingAnchor, constant: 36),
-            rowSettings.trailingAnchor.constraint(equalTo: rowPrivacy.trailingAnchor),
-            rowSettings.heightAnchor.constraint(equalToConstant: 45),
-            rowSettings.bottomAnchor.constraint(equalTo: contentView.bottomAnchor, constant: -40)
+            otherCard.topAnchor.constraint(equalTo: otherLabel.bottomAnchor, constant: 12),
+            otherCard.leadingAnchor.constraint(equalTo: generalCard.leadingAnchor),
+            otherCard.trailingAnchor.constraint(equalTo: generalCard.trailingAnchor),
+            otherCard.bottomAnchor.constraint(equalTo: contentView.bottomAnchor, constant: -40)
         ])
     }
 
-    // MARK: - Navigation Actions
+    // MARK: - Helpers
 
-    @objc private func openOrders()
-    {
-            let vc = MyOrdersViewController()
-
-            // IF inside Navigation Controller → PUSH
-            if let nav = navigationController {
-                nav.pushViewController(vc, animated: true)
-                return
-            }
-
-            // ELSE present modally
-            vc.modalPresentationStyle = .fullScreen
-            vc.modalTransitionStyle = .coverVertical
-            present(vc, animated: true)
+    private static func makeSectionLabel(_ text: String) -> UILabel {
+        let l = UILabel()
+        l.text = text
+        l.font = .systemFont(ofSize: 18, weight: .bold)
+        return l
     }
-    
-    @objc private func openProfile()
-    {
-        let vc = ProfileViewController()
 
-            // If inside Navigation Controller → PUSH
-            if let nav = navigationController {
-                nav.pushViewController(vc, animated: true)
-                return
-            }
-
-            // Otherwise → present full screen
-            vc.modalPresentationStyle = .fullScreen
-            vc.modalTransitionStyle = .coverVertical
-            present(vc, animated: true)
+    private static func makeCard() -> UIView {
+        let v = UIView()
+        v.backgroundColor = .white
+        v.layer.cornerRadius = 18
+        return v
     }
-    @objc private func openAddress()
-    {
-            
+
+    // MARK: - Feature Item (UPDATED)
+    private func makeFeatureItem(_ icon: String, _ title: String, _ action: Selector) -> UIStackView {
+
+        let bg = UIView()
+        bg.backgroundColor = UIColor(red: 0.56, green: 0.91, blue: 0.87, alpha: 1)
+        bg.layer.cornerRadius = 20
+        bg.translatesAutoresizingMaskIntoConstraints = false
+        bg.widthAnchor.constraint(equalToConstant: 56).isActive = true
+        bg.heightAnchor.constraint(equalToConstant: 56).isActive = true
+
+        let iv = UIImageView(image: UIImage(systemName: icon))
+        iv.tintColor = .black
+        iv.translatesAutoresizingMaskIntoConstraints = false
+        bg.addSubview(iv)
+
+        NSLayoutConstraint.activate([
+            iv.centerXAnchor.constraint(equalTo: bg.centerXAnchor),
+            iv.centerYAnchor.constraint(equalTo: bg.centerYAnchor),
+            iv.widthAnchor.constraint(equalToConstant: 24),
+            iv.heightAnchor.constraint(equalToConstant: 24)
+        ])
+
+        let lbl = UILabel()
+        lbl.text = title
+        lbl.font = .systemFont(ofSize: 13, weight: .medium)
+        lbl.textAlignment = .center
+        lbl.numberOfLines = 2
+
+        let stack = UIStackView(arrangedSubviews: [bg, lbl])
+        stack.axis = .vertical
+        stack.alignment = .center
+        stack.spacing = 6
+        stack.isUserInteractionEnabled = true
+        stack.addGestureRecognizer(UITapGestureRecognizer(target: self, action: action))
+
+        return stack
+    }
+
+    private func makeRow(_ title: String, action: Selector) -> UIView {
+        let row = UIView()
+
+        let label = UILabel()
+        label.text = title
+        label.font = .systemFont(ofSize: 16)
+
+        let chevron = UIImageView(image: UIImage(systemName: "chevron.right"))
+        chevron.tintColor = .systemGray3
+
+        [label, chevron].forEach {
+            $0.translatesAutoresizingMaskIntoConstraints = false
+            row.addSubview($0)
+        }
+
+        NSLayoutConstraint.activate([
+            row.heightAnchor.constraint(equalToConstant: 50),
+
+            label.leadingAnchor.constraint(equalTo: row.leadingAnchor, constant: 16),
+            label.centerYAnchor.constraint(equalTo: row.centerYAnchor),
+
+            chevron.trailingAnchor.constraint(equalTo: row.trailingAnchor, constant: -16),
+            chevron.centerYAnchor.constraint(equalTo: row.centerYAnchor)
+        ])
+
+        row.addGestureRecognizer(UITapGestureRecognizer(target: self, action: action))
+        return row
+    }
+
+    private func addGroupedRows(rows: [UIView], to card: UIView) {
+        var last: UIView?
+
+        for (index, row) in rows.enumerated() {
+            row.translatesAutoresizingMaskIntoConstraints = false
+            card.addSubview(row)
+
+            NSLayoutConstraint.activate([
+                row.leadingAnchor.constraint(equalTo: card.leadingAnchor),
+                row.trailingAnchor.constraint(equalTo: card.trailingAnchor),
+                row.topAnchor.constraint(equalTo: last?.bottomAnchor ?? card.topAnchor)
+            ])
+
+            if index < rows.count - 1 {
+                let sep = UIView()
+                sep.backgroundColor = UIColor.systemGray4
+                sep.translatesAutoresizingMaskIntoConstraints = false
+                card.addSubview(sep)
+
+                NSLayoutConstraint.activate([
+                    sep.topAnchor.constraint(equalTo: row.bottomAnchor),
+                    sep.leadingAnchor.constraint(equalTo: card.leadingAnchor, constant: 16),
+                    sep.trailingAnchor.constraint(equalTo: card.trailingAnchor, constant: -16),
+                    sep.heightAnchor.constraint(equalToConstant: 1)
+                ])
+
+                last = sep
+            } else {
+                last = row
+            }
+        }
+
+        last?.bottomAnchor.constraint(equalTo: card.bottomAnchor).isActive = true
+    }
+
+    // MARK: - Navigation
+    @objc private func openOrders() { push(MyOrdersViewController()) }
+    @objc private func openProfile() { push(ProfileViewController()) }
+    @objc private func openAddress() {
         let vc = AddressViewController()
         vc.flowSource = .fromAccount
-        // CASE 1 — If inside NavigationController → push
+        push(vc)
+    }
+    @objc private func openNotifications() { push(NotificationsViewController()) }
+    @objc private func openTerms() { push(TermsAndConditionsViewController()) }
+    @objc private func openPrivacy() { push(PrivacyPolicyViewController()) }
+    @objc private func openSettings() { push(SettingsViewController()) }
+    @objc private func openSellerDashboard() { push(SellerDashboardViewController()) }
+    @objc private func openEvents() { push(BrowseEventsViewController()) }
+    @objc private func openPayments() { push(PaymentsViewController()) }
+
+    private func push(_ vc: UIViewController) {
         if let nav = navigationController {
             nav.pushViewController(vc, animated: true)
-            return
-        }
-
-        // CASE 2 — Presented modally → present full screen
-        vc.modalPresentationStyle = .fullScreen
-        vc.modalTransitionStyle = .coverVertical
-        present(vc, animated: true)
-    }
-    @objc private func openNotifications()
-    {
-        let vc = NotificationsViewController()
-
-            // If inside a Navigation Controller → PUSH
-            if let nav = navigationController {
-                nav.pushViewController(vc, animated: true)
-                return
-            }
-
-            // If NOT inside Navigation Controller → PRESENT
+        } else {
             vc.modalPresentationStyle = .fullScreen
-            vc.modalTransitionStyle = .coverVertical
             present(vc, animated: true)
-    }
-
-    @objc private func openTerms()
-    {
-        let vc = TermsAndConditionsViewController()
-
-            if let nav = navigationController {
-                nav.pushViewController(vc, animated: true)
-                return
-            }
-
-            vc.modalPresentationStyle = .fullScreen
-            vc.modalTransitionStyle = .coverVertical
-            present(vc, animated: true)
-    }
-    @objc private func openPrivacy()
-    {
-        let vc = PrivacyPolicyViewController()
-        
-        if let nav = navigationController {
-            nav.pushViewController(vc, animated: true)
-            return
         }
-        
-        vc.modalPresentationStyle = .fullScreen
-        vc.modalTransitionStyle = .coverVertical
-        present(vc, animated: true)
-    }
-    @objc private func openSettings()
-    {
-        let vc = SettingsViewController()
-
-            if let nav = navigationController {
-                nav.pushViewController(vc, animated: true)
-                return
-            }
-
-            vc.modalPresentationStyle = .fullScreen
-            vc.modalTransitionStyle = .coverVertical
-            present(vc, animated: true)
-    }
-    @objc private func openSellerDashboard() {
-        let vc = SellerDashboardViewController()
-
-        // If inside a Navigation Controller → PUSH
-        if let nav = navigationController {
-            nav.pushViewController(vc, animated: true)
-            return
-        }
-
-        // Else → PRESENT modally
-        vc.modalPresentationStyle = .fullScreen
-        vc.modalTransitionStyle = .coverVertical
-        present(vc, animated: true)
-    }
-    @objc private func openEvents() {
-        let vc = BrowseEventsViewController() // your target VC
-
-        // If the Account screen is inside a navigation controller -> push
-        if let nav = navigationController {
-            nav.pushViewController(vc, animated: true)
-            return
-        }
-
-        // Otherwise present modally full screen
-        vc.modalPresentationStyle = .fullScreen
-        vc.modalTransitionStyle = .coverVertical
-        present(vc, animated: true)
-    }
-    @objc private func openPayments() {
-        let vc = PaymentsViewController()
-
-        if let nav = navigationController {
-            nav.pushViewController(vc, animated: true)
-            return
-        }
-
-        vc.modalPresentationStyle = .fullScreen
-        vc.modalTransitionStyle = .coverVertical
-        present(vc, animated: true)
     }
 }

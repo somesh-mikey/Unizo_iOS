@@ -2,33 +2,35 @@
 //  PostItemViewController.swift
 //  Unizo_iOS
 //
-//  Created by Nishtha on 26/11/25.
-//
 
 import UIKit
 
-class PostItemViewController: UIViewController,
-                               UIImagePickerControllerDelegate,
-                               UINavigationControllerDelegate {
+final class PostItemViewController: UIViewController,
+                                    UIImagePickerControllerDelegate,
+                                    UINavigationControllerDelegate {
 
-    // MARK: UI
+    // MARK: - Scroll
     private let scrollView = UIScrollView()
     private let contentView = UIView()
 
-    // Header
-    private let titleLabel = UILabel()
+    // MARK: - Header
+    private let titleLabel: UILabel = {
+        let l = UILabel()
+        l.text = "Post Item"
+        l.font = .systemFont(ofSize: 28, weight: .bold)
+        return l
+    }()
 
-    // Upload card
+    // MARK: - Upload Card
     private let uploadCard = UIView()
-    private let uploadImageView = UIImageView()
+    private let uploadImageView = UIImageView(image: UIImage(systemName: "camera"))
     private let sizeLabel = UILabel()
     private let uploadButton = UIButton(type: .system)
 
-    // Product details
+    // MARK: - Product Details
     private let productDetailsLabel = UILabel()
     private let productCard = UIView()
 
-    // Editable fields
     private let fieldTitles = [
         "Product Name",
         "Price (in Rupees)",
@@ -40,36 +42,56 @@ class PostItemViewController: UIViewController,
     ]
     private var fields: [UITextField] = []
 
-    // Negotiable options
+    // MARK: - Picker Data
+    private let categories = [
+        "Electronics", "Clothing", "Books",
+        "Furniture", "Sports", "Hostel Essentials"
+    ]
+
+    private let conditions = [
+        "New", "Like New", "Good", "Fair", "Used"
+    ]
+
+    private let pickerView = UIPickerView()
+    private weak var activePickerField: UITextField?
+
+    // MARK: - Negotiable
     private let negotiableContainer = UIStackView()
     private let negButton = UIButton(type: .system)
     private let nonNegButton = UIButton(type: .system)
     private let negLabel = UILabel()
     private let nonNegLabel = UILabel()
-    private var isNegotiable = true { didSet { updateNegotiableButtons() } }
 
-    // Upload Product Button
+    private var isNegotiable = true {
+        didSet { updateNegotiableButtons() }
+    }
+
+    // MARK: - Final Button
     private let finalUploadButton = UIButton(type: .system)
 
+    // MARK: - Lifecycle
     override func viewDidLoad() {
         super.viewDidLoad()
-
-        view.backgroundColor = UIColor(red: 0.96, green: 0.97, blue: 1.0, alpha: 1.0)
+        view.backgroundColor = UIColor(red: 0.96, green: 0.97, blue: 1.0, alpha: 1)
         navigationController?.navigationBar.isHidden = true
 
-        setupScrollView()
+        pickerView.delegate = self
+        pickerView.dataSource = self
+
+        setupScroll()
         setupHeader()
         setupUploadCard()
         setupProductDetails()
         setupNegotiableSection()
-        setupFinalUploadButton()
+        setupFinalButton()
         updateNegotiableButtons()
     }
 
-    // MARK: - ScrollView Setup
-    private func setupScrollView() {
-        scrollView.translatesAutoresizingMaskIntoConstraints = false
-        contentView.translatesAutoresizingMaskIntoConstraints = false
+    // MARK: - Scroll Setup
+    private func setupScroll() {
+        [scrollView, contentView].forEach {
+            $0.translatesAutoresizingMaskIntoConstraints = false
+        }
 
         view.addSubview(scrollView)
         scrollView.addSubview(contentView)
@@ -90,8 +112,6 @@ class PostItemViewController: UIViewController,
 
     // MARK: - Header
     private func setupHeader() {
-        titleLabel.text = "Post Item"
-        titleLabel.font = UIFont.systemFont(ofSize: 28, weight: .bold)
         titleLabel.translatesAutoresizingMaskIntoConstraints = false
         contentView.addSubview(titleLabel)
 
@@ -108,44 +128,39 @@ class PostItemViewController: UIViewController,
         uploadCard.layer.borderWidth = 0.5
         uploadCard.layer.borderColor = UIColor.lightGray.cgColor
         uploadCard.translatesAutoresizingMaskIntoConstraints = false
-        contentView.addSubview(uploadCard)
 
-        NSLayoutConstraint.activate([
-            uploadCard.topAnchor.constraint(equalTo: titleLabel.bottomAnchor, constant: 20),
-            uploadCard.leadingAnchor.constraint(equalTo: contentView.leadingAnchor, constant: 20),
-            uploadCard.trailingAnchor.constraint(equalTo: contentView.trailingAnchor, constant: -20)
-        ])
-
-        uploadImageView.image = UIImage(systemName: "camera")
         uploadImageView.tintColor = .gray
         uploadImageView.contentMode = .scaleAspectFit
-        uploadImageView.clipsToBounds = true
-        uploadImageView.translatesAutoresizingMaskIntoConstraints = false
 
         sizeLabel.text = "Maximum size: 2 MB"
-        sizeLabel.font = UIFont.systemFont(ofSize: 12)
+        sizeLabel.font = .systemFont(ofSize: 12)
         sizeLabel.textAlignment = .center
         sizeLabel.textColor = .gray
-        sizeLabel.translatesAutoresizingMaskIntoConstraints = false
 
         uploadButton.setTitle("Upload Photo", for: .normal)
-        uploadButton.setTitleColor(.white, for: .normal)
         uploadButton.backgroundColor = UIColor(red: 0.07, green: 0.33, blue: 0.42, alpha: 1)
+        uploadButton.setTitleColor(.white, for: .normal)
         uploadButton.layer.cornerRadius = 22
-        uploadButton.translatesAutoresizingMaskIntoConstraints = false
         uploadButton.addTarget(self, action: #selector(openGallery), for: .touchUpInside)
 
+        [uploadCard, uploadImageView, sizeLabel, uploadButton].forEach {
+            $0.translatesAutoresizingMaskIntoConstraints = false
+        }
+
+        contentView.addSubview(uploadCard)
         uploadCard.addSubview(uploadImageView)
         uploadCard.addSubview(sizeLabel)
         uploadCard.addSubview(uploadButton)
 
         NSLayoutConstraint.activate([
+            uploadCard.topAnchor.constraint(equalTo: titleLabel.bottomAnchor, constant: 20),
+            uploadCard.leadingAnchor.constraint(equalTo: contentView.leadingAnchor, constant: 20),
+            uploadCard.trailingAnchor.constraint(equalTo: contentView.trailingAnchor, constant: -20),
+
             uploadImageView.topAnchor.constraint(equalTo: uploadCard.topAnchor, constant: 20),
             uploadImageView.centerXAnchor.constraint(equalTo: uploadCard.centerXAnchor),
-            
-            uploadImageView.widthAnchor.constraint(equalTo: uploadCard.widthAnchor),
             uploadImageView.heightAnchor.constraint(equalToConstant: 70),
-
+            uploadImageView.widthAnchor.constraint(equalTo: uploadCard.widthAnchor),
 
             sizeLabel.topAnchor.constraint(equalTo: uploadImageView.bottomAnchor, constant: 8),
             sizeLabel.leadingAnchor.constraint(equalTo: uploadCard.leadingAnchor),
@@ -159,75 +174,82 @@ class PostItemViewController: UIViewController,
         ])
     }
 
-    // MARK: - Product Details Card
+    // MARK: - Product Details
     private func setupProductDetails() {
         productDetailsLabel.text = "Product Details"
-        productDetailsLabel.font = UIFont.systemFont(ofSize: 16, weight: .semibold)
+        productDetailsLabel.font = .systemFont(ofSize: 16, weight: .semibold)
         productDetailsLabel.translatesAutoresizingMaskIntoConstraints = false
-        contentView.addSubview(productDetailsLabel)
-
-        NSLayoutConstraint.activate([
-            productDetailsLabel.topAnchor.constraint(equalTo: uploadCard.bottomAnchor, constant: 25),
-            productDetailsLabel.leadingAnchor.constraint(equalTo: contentView.leadingAnchor, constant: 20)
-        ])
-
+        
         productCard.backgroundColor = .white
         productCard.layer.cornerRadius = 20
         productCard.translatesAutoresizingMaskIntoConstraints = false
+        
+        contentView.addSubview(productDetailsLabel)
         contentView.addSubview(productCard)
-
+        
         NSLayoutConstraint.activate([
+            productDetailsLabel.topAnchor.constraint(equalTo: uploadCard.bottomAnchor, constant: 25),
+            productDetailsLabel.leadingAnchor.constraint(equalTo: contentView.leadingAnchor, constant: 20),
+            
             productCard.topAnchor.constraint(equalTo: productDetailsLabel.bottomAnchor, constant: 10),
             productCard.leadingAnchor.constraint(equalTo: contentView.leadingAnchor, constant: 20),
             productCard.trailingAnchor.constraint(equalTo: contentView.trailingAnchor, constant: -20)
         ])
-
-        var last: UIView? = nil
-        for (i, title) in fieldTitles.enumerated() {
+        
+        var lastField: UIView?
+        
+        for (index, title) in fieldTitles.enumerated() {
+            
             let field = UITextField()
             field.placeholder = title
-            field.font = UIFont.systemFont(ofSize: 15)
-            field.translatesAutoresizingMaskIntoConstraints = false
+            field.font = .systemFont(ofSize: 15)
             field.setLeftPaddingPoints(18)
+            field.translatesAutoresizingMaskIntoConstraints = false
+            
+            // Picker fields
+            if title == "Category" || title == "Condition" {
+                field.delegate = self
+                field.inputView = pickerView
+                field.inputAccessoryView = makePickerToolbar()
+                field.tintColor = .clear
+            }
+            
             productCard.addSubview(field)
             fields.append(field)
-
+            
             NSLayoutConstraint.activate([
                 field.leadingAnchor.constraint(equalTo: productCard.leadingAnchor),
                 field.trailingAnchor.constraint(equalTo: productCard.trailingAnchor),
-                field.heightAnchor.constraint(equalToConstant: 50)
+                field.heightAnchor.constraint(equalToConstant: 50),
+                field.topAnchor.constraint(equalTo: lastField?.bottomAnchor ?? productCard.topAnchor)
             ])
-
-            if let prev = last {
-                field.topAnchor.constraint(equalTo: prev.bottomAnchor).isActive = true
-            } else {
-                field.topAnchor.constraint(equalTo: productCard.topAnchor).isActive = true
-            }
-
-            if i < fieldTitles.count - 1 {
-                let sep = UIView()
-                sep.backgroundColor = UIColor.lightGray.withAlphaComponent(0.3)
-                sep.translatesAutoresizingMaskIntoConstraints = false
-                productCard.addSubview(sep)
-
+            
+            // 🔹 Separator (except last field)
+            if index < fieldTitles.count - 1 {
+                let separator = UIView()
+                separator.backgroundColor = UIColor.lightGray.withAlphaComponent(0.3)
+                separator.translatesAutoresizingMaskIntoConstraints = false
+                productCard.addSubview(separator)
+                
                 NSLayoutConstraint.activate([
-                    sep.heightAnchor.constraint(equalToConstant: 1),
-                    sep.leadingAnchor.constraint(equalTo: productCard.leadingAnchor, constant: 16),
-                    sep.trailingAnchor.constraint(equalTo: productCard.trailingAnchor, constant: -16),
-                    sep.bottomAnchor.constraint(equalTo: field.bottomAnchor)
+                    separator.topAnchor.constraint(equalTo: field.bottomAnchor),
+                    separator.leadingAnchor.constraint(equalTo: productCard.leadingAnchor, constant: 16),
+                    separator.trailingAnchor.constraint(equalTo: productCard.trailingAnchor, constant: -16),
+                    separator.heightAnchor.constraint(equalToConstant: 1)
                 ])
             }
-
-            last = field
+            
+            lastField = field
         }
-
-        last?.bottomAnchor.constraint(equalTo: productCard.bottomAnchor, constant: -12).isActive = true
+        
+        lastField?.bottomAnchor
+            .constraint(equalTo: productCard.bottomAnchor, constant: -12)
+            .isActive = true
     }
 
-    // MARK: - Negotiable Section
+    // MARK: - Negotiable
     private func setupNegotiableSection() {
         negotiableContainer.axis = .horizontal
-        negotiableContainer.alignment = .center
         negotiableContainer.distribution = .equalSpacing
         negotiableContainer.translatesAutoresizingMaskIntoConstraints = false
 
@@ -236,27 +258,23 @@ class PostItemViewController: UIViewController,
 
         negLabel.text = "Negotiable"
         nonNegLabel.text = "Non - Negotiable"
-        negLabel.font = UIFont.systemFont(ofSize: 15)
-        nonNegLabel.font = UIFont.systemFont(ofSize: 15)
 
         let left = UIStackView(arrangedSubviews: [negButton, negLabel])
-        left.axis = .horizontal
-        left.spacing = 8
-
         let right = UIStackView(arrangedSubviews: [nonNegButton, nonNegLabel])
-        right.axis = .horizontal
-        right.spacing = 8
+
+        [left, right].forEach {
+            $0.axis = .horizontal
+            $0.spacing = 8
+        }
 
         negotiableContainer.addArrangedSubview(left)
         negotiableContainer.addArrangedSubview(right)
-
         contentView.addSubview(negotiableContainer)
 
         NSLayoutConstraint.activate([
             negotiableContainer.topAnchor.constraint(equalTo: productCard.bottomAnchor, constant: 25),
-            negotiableContainer.centerXAnchor.constraint(equalTo: contentView.centerXAnchor),
             negotiableContainer.leadingAnchor.constraint(equalTo: contentView.leadingAnchor, constant: 20),
-            
+            negotiableContainer.trailingAnchor.constraint(equalTo: contentView.trailingAnchor, constant: -20)
         ])
 
         negButton.addTarget(self, action: #selector(setNegotiable), for: .touchUpInside)
@@ -273,19 +291,15 @@ class PostItemViewController: UIViewController,
     private func updateNegotiableButtons() {
         let filled = UIImage(systemName: "record.circle")
         let empty = UIImage(systemName: "circle")
-
         negButton.setImage(isNegotiable ? filled : empty, for: .normal)
         nonNegButton.setImage(isNegotiable ? empty : filled, for: .normal)
     }
 
-    @objc private func setNegotiable() { isNegotiable = true }
-    @objc private func setNonNegotiable() { isNegotiable = false }
-
-    // MARK: - Upload Product Button
-    private func setupFinalUploadButton() {
+    // MARK: - Final Button
+    private func setupFinalButton() {
         finalUploadButton.setTitle("Upload Product", for: .normal)
-        finalUploadButton.setTitleColor(.white, for: .normal)
         finalUploadButton.backgroundColor = UIColor(red: 0.07, green: 0.33, blue: 0.42, alpha: 1)
+        finalUploadButton.setTitleColor(.white, for: .normal)
         finalUploadButton.layer.cornerRadius = 22
         finalUploadButton.translatesAutoresizingMaskIntoConstraints = false
 
@@ -300,7 +314,22 @@ class PostItemViewController: UIViewController,
         ])
     }
 
-    // MARK: - Gallery Picker
+    // MARK: - Picker Toolbar
+    private func makePickerToolbar() -> UIToolbar {
+        let bar = UIToolbar()
+        bar.sizeToFit()
+        bar.items = [
+            UIBarButtonItem(barButtonSystemItem: .flexibleSpace, target: nil, action: nil),
+            UIBarButtonItem(title: "Done", style: .done, target: self, action: #selector(donePicking))
+        ]
+        return bar
+    }
+
+    @objc private func donePicking() {
+        activePickerField?.resignFirstResponder()
+    }
+
+    // MARK: - Image Picker
     @objc private func openGallery() {
         let picker = UIImagePickerController()
         picker.delegate = self
@@ -311,23 +340,40 @@ class PostItemViewController: UIViewController,
 
     func imagePickerController(_ picker: UIImagePickerController,
                                didFinishPickingMediaWithInfo info: [UIImagePickerController.InfoKey : Any]) {
-
         if let img = info[.editedImage] as? UIImage ?? info[.originalImage] as? UIImage {
             uploadImageView.image = img
             uploadImageView.contentMode = .scaleAspectFill
-            uploadImageView.clipsToBounds = true
         }
-
         dismiss(animated: true)
+    }
+
+    @objc private func setNegotiable() { isNegotiable = true }
+    @objc private func setNonNegotiable() { isNegotiable = false }
+}
+
+// MARK: - Picker Delegates
+extension PostItemViewController: UIPickerViewDelegate, UIPickerViewDataSource {
+
+    func numberOfComponents(in pickerView: UIPickerView) -> Int { 1 }
+
+    func pickerView(_ pickerView: UIPickerView, numberOfRowsInComponent component: Int) -> Int {
+        activePickerField?.placeholder == "Category" ? categories.count : conditions.count
+    }
+
+    func pickerView(_ pickerView: UIPickerView, titleForRow row: Int, forComponent component: Int) -> String? {
+        activePickerField?.placeholder == "Category" ? categories[row] : conditions[row]
+    }
+
+    func pickerView(_ pickerView: UIPickerView, didSelectRow row: Int, inComponent component: Int) {
+        activePickerField?.text =
+            activePickerField?.placeholder == "Category" ? categories[row] : conditions[row]
     }
 }
 
-// Helper for padding
-//extension UITextField {
-//    func setLeftPaddingPoints(_ amount: CGFloat) {
-//        let padding = UIView(frame: CGRect(x: 0, y: 0, width: amount, height: frame.height))
-//        leftView = padding
-//        leftViewMode = .always
-//    }
-//}
-    
+// MARK: - TextField Delegate
+extension PostItemViewController: UITextFieldDelegate {
+    func textFieldDidBeginEditing(_ textField: UITextField) {
+        activePickerField = textField
+        pickerView.reloadAllComponents()
+    }
+}

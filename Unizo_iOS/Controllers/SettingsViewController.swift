@@ -2,27 +2,25 @@
 //  SettingsViewController.swift
 //  Unizo_iOS
 //
-//  Created by Nishtha on 20/11/25.
-//
 
 import UIKit
 
-class SettingsViewController: UIViewController {
+final class SettingsViewController: UIViewController {
 
-    // Scroll View
+    // MARK: - Scroll View
     private let scrollView = UIScrollView()
     private let contentView = UIView()
 
-    // MARK: - LIFE CYCLE
+    // MARK: - Lifecycle
     override func viewDidLoad() {
         super.viewDidLoad()
 
         view.backgroundColor = UIColor(red: 0.95, green: 0.96, blue: 0.98, alpha: 1)
-
         setupNavBar()
         setupScroll()
         setupSections()
     }
+
     override func viewWillAppear(_ animated: Bool) {
         super.viewWillAppear(animated)
         tabBarController?.tabBar.isHidden = true
@@ -31,13 +29,9 @@ class SettingsViewController: UIViewController {
     override func viewWillDisappear(_ animated: Bool) {
         super.viewWillDisappear(animated)
         tabBarController?.tabBar.isHidden = false
-
-        // If you have a custom floating tab bar
-        if let tab = tabBarController as? MainTabBarController {
-        }
     }
 
-    // MARK: - NAV BAR
+    // MARK: - Navigation Bar
     private func setupNavBar() {
         title = "Settings"
         navigationController?.navigationBar.prefersLargeTitles = false
@@ -61,7 +55,7 @@ class SettingsViewController: UIViewController {
         navigationController?.popViewController(animated: true)
     }
 
-    // MARK: - SCROLL SETUP
+    // MARK: - Scroll Setup
     private func setupScroll() {
         scrollView.translatesAutoresizingMaskIntoConstraints = false
         scrollView.showsVerticalScrollIndicator = false
@@ -84,13 +78,13 @@ class SettingsViewController: UIViewController {
         ])
     }
 
-    // MARK: - MAIN SECTION LAYOUT
+    // MARK: - Sections Layout
     private func setupSections() {
 
         var lastBottom: NSLayoutYAxisAnchor = contentView.topAnchor
         let sectionSpacing: CGFloat = 28
 
-        // PREFERENCES SECTION
+        // Preferences
         let prefLabel = makeHeader("Preferences")
         contentView.addSubview(prefLabel)
         NSLayoutConstraint.activate([
@@ -99,16 +93,16 @@ class SettingsViewController: UIViewController {
         ])
         lastBottom = prefLabel.bottomAnchor
 
-        let preferencesCard = makePreferencesCard()
-        contentView.addSubview(preferencesCard)
+        let prefCard = makePreferencesCard()
+        contentView.addSubview(prefCard)
         NSLayoutConstraint.activate([
-            preferencesCard.topAnchor.constraint(equalTo: lastBottom, constant: 10),
-            preferencesCard.leadingAnchor.constraint(equalTo: contentView.leadingAnchor, constant: 20),
-            preferencesCard.trailingAnchor.constraint(equalTo: contentView.trailingAnchor, constant: -20)
+            prefCard.topAnchor.constraint(equalTo: lastBottom, constant: 10),
+            prefCard.leadingAnchor.constraint(equalTo: contentView.leadingAnchor, constant: 20),
+            prefCard.trailingAnchor.constraint(equalTo: contentView.trailingAnchor, constant: -20)
         ])
-        lastBottom = preferencesCard.bottomAnchor
+        lastBottom = prefCard.bottomAnchor
 
-        // SUPPORT SECTION
+        // Support
         let supportLabel = makeHeader("Support")
         contentView.addSubview(supportLabel)
         NSLayoutConstraint.activate([
@@ -126,7 +120,7 @@ class SettingsViewController: UIViewController {
         ])
         lastBottom = supportCard.bottomAnchor
 
-        // SECURITY SECTION
+        // Security
         let securityLabel = makeHeader("Security")
         contentView.addSubview(securityLabel)
         NSLayoutConstraint.activate([
@@ -144,7 +138,7 @@ class SettingsViewController: UIViewController {
         ])
         lastBottom = securityCard.bottomAnchor
 
-        // ACCOUNT ACTIONS SECTION
+        // Account Actions
         let accountLabel = makeHeader("Account Actions")
         contentView.addSubview(accountLabel)
         NSLayoutConstraint.activate([
@@ -163,62 +157,16 @@ class SettingsViewController: UIViewController {
         ])
     }
 
-    // MARK: - SECTION HEADER LABEL
+    // MARK: - Header Label
     private func makeHeader(_ title: String) -> UILabel {
         let lbl = UILabel()
         lbl.text = title
-        lbl.font = UIFont.systemFont(ofSize: 18, weight: .semibold)
+        lbl.font = .systemFont(ofSize: 18, weight: .semibold)
         lbl.translatesAutoresizingMaskIntoConstraints = false
         return lbl
     }
 
-    // MARK: - CARDS (white rounded blocks)
-
-    // Preferences card (Push notifications + Email + Language + Currency)
-    private func makePreferencesCard() -> UIView {
-        let card = buildCard()
-
-        let item1 = makeSwitchRow(icon: "bell", title: "Push Notifications", selector: #selector(togglePush))
-        let item2 = makeSwitchRow(icon: "envelope", title: "Email Marketing", selector: #selector(toggleEmail))
-        let item3 = makeArrowRow(icon: "globe", title: "Language")
-        let item4 = makeArrowRow(icon: "dollarsign.circle", title: "Currency")
-
-        stackRows(card, rows: [item1, item2, item3, item4])
-        return card
-    }
-
-    private func makeSupportCard() -> UIView {
-        let card = buildCard()
-
-        let row1 = makeArrowRow(icon: "questionmark.circle", title: "Help Center")
-        let row2 = makeArrowRow(icon: "phone", title: "Contact Us")
-        let row3 = makeArrowRow(icon: "star", title: "Rate Our App")
-
-        stackRows(card, rows: [row1, row2, row3])
-        return card
-    }
-
-    private func makeSecurityCard() -> UIView {
-        let card = buildCard()
-
-        let row1 = makeArrowRow(icon: "key", title: "Change Password")
-        let row2 = makeSwitchRow(icon: "touchid", title: "Biometric Login", selector: #selector(toggleBiometric))
-
-        stackRows(card, rows: [row1, row2])
-        return card
-    }
-
-    private func makeAccountCard() -> UIView {
-        let card = buildCard()
-
-        let row1 = makeArrowRow(icon: "arrow.right.square", title: "Sign Out")
-        let row2 = makeArrowRow(icon: "trash", title: "Delete Account")
-
-        stackRows(card, rows: [row1, row2])
-        return card
-    }
-
-    // MARK: - CARD UI TEMPLATE
+    // MARK: - Cards
     private func buildCard() -> UIView {
         let v = UIView()
         v.backgroundColor = .white
@@ -227,7 +175,47 @@ class SettingsViewController: UIViewController {
         return v
     }
 
-    // MARK: - ROW STYLES
+    // MARK: - Cards Content
+    private func makePreferencesCard() -> UIView {
+        let card = buildCard()
+        stackRows(card, rows: [
+            makeSwitchRow(icon: "bell", title: "Push Notifications", selector: #selector(togglePush)),
+            makeSwitchRow(icon: "envelope", title: "Email Marketing", selector: #selector(toggleEmail)),
+            makeArrowRow(icon: "globe", title: "Language"),
+            makeArrowRow(icon: "dollarsign.circle", title: "Currency")
+        ])
+        return card
+    }
+
+    private func makeSupportCard() -> UIView {
+        let card = buildCard()
+        stackRows(card, rows: [
+            makeArrowRow(icon: "questionmark.circle", title: "Help Center"),
+            makeArrowRow(icon: "phone", title: "Contact Us"),
+            makeArrowRow(icon: "star", title: "Rate Our App")
+        ])
+        return card
+    }
+
+    private func makeSecurityCard() -> UIView {
+        let card = buildCard()
+        stackRows(card, rows: [
+            makeArrowRow(icon: "key", title: "Change Password"),
+            makeSwitchRow(icon: "touchid", title: "Biometric Login", selector: #selector(toggleBiometric))
+        ])
+        return card
+    }
+
+    private func makeAccountCard() -> UIView {
+        let card = buildCard()
+        stackRows(card, rows: [
+            makeArrowRow(icon: "arrow.right.square", title: "Sign Out"),
+            makeArrowRow(icon: "trash", title: "Delete Account")
+        ])
+        return card
+    }
+
+    // MARK: - Rows
     private func makeArrowRow(icon: String, title: String) -> UIView {
         let row = UIView()
         row.translatesAutoresizingMaskIntoConstraints = false
@@ -238,7 +226,7 @@ class SettingsViewController: UIViewController {
 
         let label = UILabel()
         label.text = title
-        label.font = UIFont.systemFont(ofSize: 16)
+        label.font = .systemFont(ofSize: 16)
         label.translatesAutoresizingMaskIntoConstraints = false
 
         let arrow = UIImageView(image: UIImage(systemName: "chevron.right"))
@@ -277,7 +265,7 @@ class SettingsViewController: UIViewController {
 
         let label = UILabel()
         label.text = title
-        label.font = UIFont.systemFont(ofSize: 16)
+        label.font = .systemFont(ofSize: 16)
         label.translatesAutoresizingMaskIntoConstraints = false
 
         let sw = UISwitch()
@@ -307,10 +295,20 @@ class SettingsViewController: UIViewController {
         return row
     }
 
+    // MARK: - Separators + Stack Rows
+    private func makeSeparator() -> UIView {
+        let v = UIView()
+        v.backgroundColor = UIColor.lightGray.withAlphaComponent(0.3)
+        v.translatesAutoresizingMaskIntoConstraints = false
+        return v
+    }
+
     private func stackRows(_ card: UIView, rows: [UIView]) {
+
         var previous: UIView? = nil
 
-        for row in rows {
+        for (index, row) in rows.enumerated() {
+
             card.addSubview(row)
 
             NSLayoutConstraint.activate([
@@ -325,12 +323,26 @@ class SettingsViewController: UIViewController {
             }
 
             previous = row
+
+            if index < rows.count - 1 {
+                let sep = makeSeparator()
+                card.addSubview(sep)
+
+                NSLayoutConstraint.activate([
+                    sep.topAnchor.constraint(equalTo: row.bottomAnchor),
+                    sep.leadingAnchor.constraint(equalTo: card.leadingAnchor, constant: 56),
+                    sep.trailingAnchor.constraint(equalTo: card.trailingAnchor, constant: -16),
+                    sep.heightAnchor.constraint(equalToConstant: 1)
+                ])
+
+                previous = sep
+            }
         }
 
         previous?.bottomAnchor.constraint(equalTo: card.bottomAnchor).isActive = true
     }
 
-    // MARK: - SWITCH ACTIONS
+    // MARK: - Switch Actions
     @objc private func togglePush(_ sender: UISwitch) {
         print("Push Notifications:", sender.isOn)
     }

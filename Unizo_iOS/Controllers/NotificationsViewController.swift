@@ -2,11 +2,10 @@
 //  NotificationsViewController.swift
 //  Unizo_iOS
 //
-//  Created by Nishtha on 20/11/25.
-//
 
 import UIKit
 
+// MARK: - Model
 struct NotificationItem {
     let icon: String
     let title: String
@@ -14,32 +13,55 @@ struct NotificationItem {
     let time: String
 }
 
-class NotificationsViewController: UIViewController {
+final class NotificationsViewController: UIViewController {
 
-    private let darkTeal = UIColor(red: 0.07, green: 0.33, blue: 0.42, alpha: 1.0)
+    // MARK: - Colors
+    private let bgColor = UIColor(red: 0.94, green: 0.95, blue: 0.98, alpha: 1)
 
-    // segmented control wrapper
-    private let segmentBackground = UIView()
-    private var segmentedControl: UISegmentedControl!
+    // MARK: - Segmented Control Wrapper
+    private let segmentBackground: UIView = {
+        let v = UIView()
+        v.backgroundColor = UIColor(red: 0.92, green: 0.93, blue: 0.96, alpha: 1)
+        v.layer.cornerRadius = 22
+        v.translatesAutoresizingMaskIntoConstraints = false
+        return v
+    }()
 
-    private let tableView = UITableView(frame: .zero, style: .plain)
+    private let segmentedControl: UISegmentedControl = {
+        let sc = UISegmentedControl(items: ["All", "Buying", "Selling"])
+        sc.translatesAutoresizingMaskIntoConstraints = false
+        sc.applyPrimarySegmentStyle() // ✅ GLOBAL STYLE
+        return sc
+    }()
 
-    // DATA
+    // MARK: - Table
+    private let tableView: UITableView = {
+        let t = UITableView(frame: .zero, style: .plain)
+        t.separatorStyle = .none
+        t.backgroundColor = .clear
+        t.estimatedRowHeight = 70
+        t.rowHeight = UITableView.automaticDimension
+        t.translatesAutoresizingMaskIntoConstraints = false
+        return t
+    }()
+
+    // MARK: - Data
     private var allData: [NotificationItem] = []
     private var buyingData: [NotificationItem] = []
     private var sellingData: [NotificationItem] = []
-
     private var currentData: [NotificationItem] = []
 
+    // MARK: - Lifecycle
     override func viewDidLoad() {
         super.viewDidLoad()
-        view.backgroundColor = UIColor(red: 0.94, green: 0.95, blue: 0.98, alpha: 1)
+        view.backgroundColor = bgColor
 
-        setupNav()
+        setupNavigation()
         loadData()
         setupSegment()
         setupTable()
     }
+
     override func viewWillAppear(_ animated: Bool) {
         super.viewWillAppear(animated)
         tabBarController?.tabBar.isHidden = true
@@ -48,15 +70,10 @@ class NotificationsViewController: UIViewController {
     override func viewWillDisappear(_ animated: Bool) {
         super.viewWillDisappear(animated)
         tabBarController?.tabBar.isHidden = false
-
-        // Restore floating tab bar height & position
-        if let mainTab = tabBarController as? MainTabBarController {
-        }
     }
 
-
-    // MARK: NAV BAR
-    private func setupNav() {
+    // MARK: - Navigation Bar
+    private func setupNavigation() {
         title = "Notifications"
         navigationController?.navigationBar.prefersLargeTitles = false
 
@@ -79,85 +96,55 @@ class NotificationsViewController: UIViewController {
         navigationController?.popViewController(animated: true)
     }
 
-    // MARK: LOAD DATA (Figma exact)
+    // MARK: - Data
     private func loadData() {
 
         allData = [
-            NotificationItem(
-                icon: "cart",
-                title: "Jiya",
-                subtitle: "wants to place order for\nHostel Table Lamp.",
-                time: "16:04"
-            ),
-            NotificationItem(
-                icon: "cart",
-                title: "Arjun",
-                subtitle: "wants to place order for\nUnder Armour Cap.",
-                time: "15:38"
-            ),
-            NotificationItem(
-                icon: "gift",
-                title: "Order Confirmed!",
-                subtitle: "Your order for Slip Jeans Medium\nhas been confirmed.",
-                time: "14:23"
-            ),
-            NotificationItem(
-                icon: "indianrupeesign.circle",
-                title: "Payment Received",
-                subtitle: "The payment for your recent sale\nhas been successfully processed.",
-                time: "13:02"
-            )
+            .init(icon: "cart",
+                  title: "Jiya",
+                  subtitle: "wants to place order for\nHostel Table Lamp.",
+                  time: "16:04"),
+
+            .init(icon: "cart",
+                  title: "Arjun",
+                  subtitle: "wants to place order for\nUnder Armour Cap.",
+                  time: "15:38"),
+
+            .init(icon: "gift",
+                  title: "Order Confirmed!",
+                  subtitle: "Your order for Slip Jeans Medium\nhas been confirmed.",
+                  time: "14:23"),
+
+            .init(icon: "indianrupeesign.circle",
+                  title: "Payment Received",
+                  subtitle: "The payment for your recent sale\nhas been successfully processed.",
+                  time: "13:02")
         ]
 
         buyingData = [
-            NotificationItem(
-                icon: "gift",
-                title: "Order Confirmed!",
-                subtitle: "Your order for Slip Jeans Medium\nhas been confirmed.",
-                time: "14:23"
-            ),
-            NotificationItem(
-                icon: "indianrupeesign.circle",
-                title: "Payment Received",
-                subtitle: "The payment for your recent sale\nhas been successfully processed.",
-                time: "13:02"
-            )
+            allData[2],
+            allData[3]
         ]
 
         sellingData = [
-            NotificationItem(
-                icon: "cart",
-                title: "Jiya",
-                subtitle: "wants to place order for\nHostel Table Lamp.",
-                time: "16:04"
-            ),
-            NotificationItem(
-                icon: "cart",
-                title: "Arjun",
-                subtitle: "wants to place order for\nUnder Armour Cap.",
-                time: "15:38"
-            )
+            allData[0],
+            allData[1]
         ]
 
         currentData = allData
     }
 
-    // MARK: SEGMENT
+    // MARK: - Segmented Control
     private func setupSegment() {
 
-        segmentBackground.backgroundColor = UIColor(red: 0.92, green: 0.93, blue: 0.96, alpha: 1)
-        segmentBackground.layer.cornerRadius = 22
-        segmentBackground.translatesAutoresizingMaskIntoConstraints = false
         view.addSubview(segmentBackground)
-
-        segmentedControl = UISegmentedControl(items: ["All", "Buying", "Selling"])
-        segmentedControl.selectedSegmentIndex = 0
-        segmentedControl.backgroundColor = .clear
-        segmentedControl.setTitleTextAttributes([.foregroundColor: UIColor.darkGray], for: .normal)
-        segmentedControl.setTitleTextAttributes([.foregroundColor: UIColor.black], for: .selected)
-        segmentedControl.translatesAutoresizingMaskIntoConstraints = false
-        segmentedControl.addTarget(self, action: #selector(segmentChanged), for: .valueChanged)
         segmentBackground.addSubview(segmentedControl)
+
+        segmentedControl.addTarget(
+            self,
+            action: #selector(segmentChanged),
+            for: .valueChanged
+        )
 
         NSLayoutConstraint.activate([
             segmentBackground.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor, constant: 10),
@@ -182,17 +169,13 @@ class NotificationsViewController: UIViewController {
         tableView.reloadData()
     }
 
-    // MARK: TABLE
+    // MARK: - Table
     private func setupTable() {
-        tableView.translatesAutoresizingMaskIntoConstraints = false
-        tableView.separatorStyle = .none
-        tableView.backgroundColor = .clear
-        tableView.rowHeight = UITableView.automaticDimension
-        tableView.estimatedRowHeight = 70
+        view.addSubview(tableView)
+
         tableView.dataSource = self
         tableView.delegate = self
-        tableView.register(NotificationCell.self, forCellReuseIdentifier: "NotificationCell")
-        view.addSubview(tableView)
+        tableView.register(NotificationCell.self, forCellReuseIdentifier: NotificationCell.reuseId)
 
         NSLayoutConstraint.activate([
             tableView.topAnchor.constraint(equalTo: segmentBackground.bottomAnchor, constant: 15),
@@ -203,34 +186,42 @@ class NotificationsViewController: UIViewController {
     }
 }
 
-// MARK: - TABLE DATASOURCE
+// MARK: - UITableViewDataSource / Delegate
 extension NotificationsViewController: UITableViewDataSource, UITableViewDelegate {
 
     func tableView(_ tableView: UITableView, numberOfRowsInSection section: Int) -> Int {
-        return currentData.count
+        currentData.count
     }
 
-    func tableView(_ tableView: UITableView, cellForRowAt indexPath: IndexPath) -> UITableViewCell {
+    func tableView(_ tableView: UITableView,
+                   cellForRowAt indexPath: IndexPath) -> UITableViewCell {
 
-        let cell = tableView.dequeueReusableCell(withIdentifier: "NotificationCell", for: indexPath) as! NotificationCell
+        let cell = tableView.dequeueReusableCell(
+            withIdentifier: NotificationCell.reuseId,
+            for: indexPath
+        ) as! NotificationCell
+
         cell.configure(with: currentData[indexPath.row])
         return cell
     }
+
     func tableView(_ tableView: UITableView, didSelectRowAt indexPath: IndexPath) {
+
         let vc = ConfirmOrderSellerViewController()
 
         if let nav = navigationController {
             nav.pushViewController(vc, animated: true)
         } else {
             vc.modalPresentationStyle = .fullScreen
-            vc.modalTransitionStyle = .coverVertical
             present(vc, animated: true)
         }
     }
 }
 
-// MARK: CUSTOM CELL (Figma exact)
-class NotificationCell: UITableViewCell {
+// MARK: - Notification Cell
+final class NotificationCell: UITableViewCell {
+
+    static let reuseId = "NotificationCell"
 
     private let iconView = UIImageView()
     private let titleLabel = UILabel()
@@ -239,26 +230,26 @@ class NotificationCell: UITableViewCell {
 
     override init(style: UITableViewCell.CellStyle, reuseIdentifier: String?) {
         super.init(style: style, reuseIdentifier: reuseIdentifier)
-        timeLabel.setContentCompressionResistancePriority(.required, for: .horizontal)
-        timeLabel.setContentHuggingPriority(.required, for: .horizontal)
 
         selectionStyle = .none
         backgroundColor = .clear
 
-        iconView.translatesAutoresizingMaskIntoConstraints = false
         iconView.tintColor = .black
+        iconView.translatesAutoresizingMaskIntoConstraints = false
 
-        titleLabel.font = UIFont.systemFont(ofSize: 15, weight: .semibold)
+        titleLabel.font = .systemFont(ofSize: 15, weight: .semibold)
         titleLabel.translatesAutoresizingMaskIntoConstraints = false
 
-        subtitleLabel.font = UIFont.systemFont(ofSize: 13)
+        subtitleLabel.font = .systemFont(ofSize: 13)
         subtitleLabel.textColor = .darkGray
         subtitleLabel.numberOfLines = 2
         subtitleLabel.translatesAutoresizingMaskIntoConstraints = false
 
-        timeLabel.font = UIFont.systemFont(ofSize: 13)
+        timeLabel.font = .systemFont(ofSize: 13)
         timeLabel.textColor = .gray
         timeLabel.translatesAutoresizingMaskIntoConstraints = false
+        timeLabel.setContentHuggingPriority(.required, for: .horizontal)
+        timeLabel.setContentCompressionResistancePriority(.required, for: .horizontal)
 
         contentView.addSubview(iconView)
         contentView.addSubview(titleLabel)
@@ -284,15 +275,14 @@ class NotificationCell: UITableViewCell {
         ])
     }
 
-    required init?(coder: NSCoder) { fatalError("init(coder:) has not been implemented") }
+    required init?(coder: NSCoder) { fatalError() }
 
     func configure(with item: NotificationItem) {
+
         iconView.image = UIImage(systemName: item.icon)
         titleLabel.text = item.title
         timeLabel.text = item.time
 
-        // Highlight product names inside subtitle
-        let fullText = item.subtitle as NSString
         let attributed = NSMutableAttributedString(
             string: item.subtitle,
             attributes: [
@@ -301,14 +291,10 @@ class NotificationCell: UITableViewCell {
             ]
         )
 
-        // List of product names to highlight (you can expand this)
-        let productsToBold = [
-            "Hostel Table Lamp",
-            "Under Armour Cap"
-        ]
+        let highlights = ["Hostel Table Lamp", "Under Armour Cap"]
 
-        for product in productsToBold {
-            let range = fullText.range(of: product)
+        for text in highlights {
+            let range = (item.subtitle as NSString).range(of: text)
             if range.location != NSNotFound {
                 attributed.addAttributes(
                     [
@@ -322,5 +308,4 @@ class NotificationCell: UITableViewCell {
 
         subtitleLabel.attributedText = attributed
     }
-
 }
