@@ -18,16 +18,27 @@ class SceneDelegate: UIResponder, UIWindowSceneDelegate {
         // This delegate does not imply the connecting scene or session are new (see `application:configurationForConnectingSceneSession` instead).
         guard let windowScene = (scene as? UIWindowScene) else { return }
 
-                window = UIWindow(windowScene: windowScene)
+                let window = UIWindow(windowScene: windowScene)
 
-                // ⭐ Load XIB file
-                let vc = OrderPlacedViewController(nibName: "OrderPlacedViewController", bundle: nil)
+                // Root View Controller
+                let languageVC = LanguageViewController()
+                let navigationController = UINavigationController(rootViewController: languageVC)
 
-                let nav = UINavigationController(rootViewController: vc)
-                nav.isNavigationBarHidden = true     // hide default bar (we use custom one)
+                // Navigation bar appearance
+                let appearance = UINavigationBarAppearance()
+                appearance.configureWithOpaqueBackground()
+                appearance.backgroundColor = .systemBackground
+                appearance.titleTextAttributes = [
+                    .font: UIFont.systemFont(ofSize: 17, weight: .semibold)
+                ]
 
-                window?.rootViewController = nav
-                window?.makeKeyAndVisible()
+                navigationController.navigationBar.standardAppearance = appearance
+                navigationController.navigationBar.scrollEdgeAppearance = appearance
+                navigationController.navigationBar.tintColor = .label
+
+                window.rootViewController = navigationController
+                self.window = window
+                window.makeKeyAndVisible()
     }
 
     func sceneDidDisconnect(_ scene: UIScene) {
