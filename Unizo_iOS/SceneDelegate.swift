@@ -20,11 +20,9 @@ class SceneDelegate: UIResponder, UIWindowSceneDelegate {
 
                 let window = UIWindow(windowScene: windowScene)
 
-                // Root View Controller
-                let changePasswordVC = ChangePasswordViewController()
-                let navigationController = UINavigationController(rootViewController: changePasswordVC)
+                let contactVC = ContactUsViewController()
+                let navController = UINavigationController(rootViewController: contactVC)
 
-                // Navigation bar appearance
                 let appearance = UINavigationBarAppearance()
                 appearance.configureWithOpaqueBackground()
                 appearance.backgroundColor = .systemBackground
@@ -32,11 +30,11 @@ class SceneDelegate: UIResponder, UIWindowSceneDelegate {
                     .font: UIFont.systemFont(ofSize: 17, weight: .semibold)
                 ]
 
-                navigationController.navigationBar.standardAppearance = appearance
-                navigationController.navigationBar.scrollEdgeAppearance = appearance
-                navigationController.navigationBar.tintColor = .label
+                navController.navigationBar.standardAppearance = appearance
+                navController.navigationBar.scrollEdgeAppearance = appearance
+                navController.navigationBar.tintColor = .label
 
-                window.rootViewController = navigationController
+                window.rootViewController = navController
                 self.window = window
                 window.makeKeyAndVisible()
     }
