@@ -83,6 +83,17 @@ class ConfirmOrderViewController: UIViewController,UITextViewDelegate {
         instructionsTextView.delegate = self
         
     }
+    override func viewWillAppear(_ animated: Bool) {
+        super.viewWillAppear(animated)
+        navigationController?.setNavigationBarHidden(true, animated: false)
+        tabBarController?.tabBar.isHidden = true
+    }
+
+    override func viewWillDisappear(_ animated: Bool) {
+        super.viewWillDisappear(animated)
+        navigationController?.setNavigationBarHidden(false, animated: false)
+        tabBarController?.tabBar.isHidden = false
+    }
 
     // MARK: - Container layout
 
@@ -427,7 +438,7 @@ class ConfirmOrderViewController: UIViewController,UITextViewDelegate {
 
         // Inside card
         let productImage = UIImageView()
-        productImage.image = UIImage(named: "cap")
+        productImage.image = UIImage(named: "Cap")
         productImage.layer.cornerRadius = 8
         productImage.clipsToBounds = true
         productImage.translatesAutoresizingMaskIntoConstraints = false

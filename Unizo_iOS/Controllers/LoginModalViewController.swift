@@ -250,20 +250,64 @@ final class LoginModalViewController: UIViewController {
     }
 
     @objc private func loginTapped() {
-        dismiss(animated: true)
+
+        // 1. Dismiss modal FIRST
+        dismiss(animated: true) {
+
+            // 2. After dismissing, replace window root with MainTabBarController
+            guard let scene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
+                  let window = scene.windows.first else { return }
+
+            // ✔ Main App Shell
+            let tab = MainTabBarController()
+            tab.selectedIndex = 0   // ✔ Landing Screen tab
+
+            window.rootViewController = tab
+            window.makeKeyAndVisible()
+
+            // ✔ Smooth transition
+            UIView.transition(with: window,
+                              duration: 0.25,
+                              options: .transitionCrossDissolve,
+                              animations: nil,
+                              completion: nil)
+        }
     }
 
     @objc private func forgotPasswordTapped() {
-        dismiss(animated: true) {
-            if let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
-               let window = windowScene.windows.first,
-               let rootVC = window.rootViewController {
 
-                let resetVC = ResetPasswordViewController(nibName: "ResetPasswordViewController", bundle: nil)
-                resetVC.modalPresentationStyle = .overCurrentContext
-                resetVC.modalTransitionStyle = .coverVertical
-                rootVC.present(resetVC, animated: true)
+        print("FORGOT PASSWORD TAPPED")
+
+        dismiss(animated: true) {
+
+            // 1. Get active window
+            guard let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
+                  let window = windowScene.windows.first else {
+                print(" No window found")
+                return
             }
+
+            // 2. Get the actual visible controller
+            var presenter = window.rootViewController
+
+            // If something is already presented on root → present from that instead
+            while let presented = presenter?.presentedViewController {
+                presenter = presented
+            }
+
+            guard let safePresenter = presenter else {
+                print(" No presenter available")
+                return
+            }
+
+            // 3. Create reset screen
+            let resetVC = ResetPasswordViewController()
+            resetVC.modalPresentationStyle = .overFullScreen
+            resetVC.modalTransitionStyle = .coverVertical
+
+            // 4. Present safely
+            safePresenter.present(resetVC, animated: true)
+            print(" ResetPasswordVC Presented")
         }
     }
 }

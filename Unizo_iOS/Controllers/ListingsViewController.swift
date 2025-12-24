@@ -86,7 +86,7 @@ class ListingsViewController: UIViewController {
                 price: "₹5499"),
 
         // 7 — Fashion
-        Listing(image: UIImage(named: "cap"),
+        Listing(image: UIImage(named: "Cap"),
                 category: "Fashion",
                 name: "Under Armour Cap",
                 status: "Sold for",

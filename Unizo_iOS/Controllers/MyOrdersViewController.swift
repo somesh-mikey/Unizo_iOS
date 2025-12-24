@@ -81,9 +81,15 @@ class MyOrdersViewController: UIViewController {
         loadOrders(filter: "All")
         navigationController?.setNavigationBarHidden(true, animated: false)
     }
+    override func viewWillAppear(_ animated: Bool) {
+        super.viewWillAppear(animated)
+        self.tabBarController?.tabBar.isHidden = true
+    }
     override func viewWillDisappear(_ animated: Bool) {
         super.viewWillDisappear(animated)
         navigationController?.setNavigationBarHidden(false, animated: false)
+        self.tabBarController?.tabBar.isHidden = false
+
     }
 
     // MARK: - Setup UI
@@ -165,7 +171,7 @@ class MyOrdersViewController: UIViewController {
                 statusColor: .systemGreen,
                 items: [
                     OrderItem(
-                        imageName: "cap",
+                        imageName: "Cap",
                         title: "Under Armour Cap",
                         detail: "Color: Black • One Size",
                         price: "₹500"
@@ -319,7 +325,7 @@ class MyOrdersViewController: UIViewController {
                 statusColor: .systemGreen,
                 items: [
                     OrderItem(
-                        imageName: "pinkbicycle",
+                        imageName: "PinkBicycle",
                         title: "Pink Bicycle",
                         detail: "Kids • 16 inch",
                         price: "₹8900"

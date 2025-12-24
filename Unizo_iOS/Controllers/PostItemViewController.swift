@@ -288,6 +288,8 @@ class PostItemViewController: UIViewController,
         finalUploadButton.backgroundColor = UIColor(red: 0.07, green: 0.33, blue: 0.42, alpha: 1)
         finalUploadButton.layer.cornerRadius = 22
         finalUploadButton.translatesAutoresizingMaskIntoConstraints = false
+        
+        finalUploadButton.addTarget(self, action: #selector(uploadProductTapped), for: .touchUpInside)
 
         contentView.addSubview(finalUploadButton)
 
@@ -319,6 +321,21 @@ class PostItemViewController: UIViewController,
         }
 
         dismiss(animated: true)
+    }
+    @objc private func uploadProductTapped() {
+        // Optionally: validate fields & prepare product info here before navigating
+
+        let postedVC = ProductPostedViewController()
+
+        // Prefer pushing onto navigation stack (keeps back behaviour)
+        if let nav = navigationController {
+            nav.pushViewController(postedVC, animated: true)
+            return
+        }
+
+        // Fallback — present modally if there's no navigation controller
+        postedVC.modalPresentationStyle = .fullScreen
+        present(postedVC, animated: true)
     }
 }
 

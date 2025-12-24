@@ -26,6 +26,7 @@ class ProductPostedViewController: UIViewController {
         setupIcon()
         setupText()
         setupButton()
+        viewListingsButton.addTarget(self, action: #selector(openListings), for: .touchUpInside)
     }
 
     // MARK: Icon Setup
@@ -122,5 +123,22 @@ class ProductPostedViewController: UIViewController {
     @objc private func goToListings() {
         print("View Listings tapped")
         // Push next VC here
+    }
+    override func viewWillAppear(_ animated: Bool) {
+        super.viewWillAppear(animated)
+        self.tabBarController?.tabBar.isHidden = true
+    }
+
+    override func viewWillDisappear(_ animated: Bool) {
+        super.viewWillDisappear(animated)
+        self.tabBarController?.tabBar.isHidden = false
+    }
+    @objc private func openListings() {
+
+        let tabBar = MainTabBarController()
+        tabBar.selectedIndex = 3   // 0=Home, 1=Chat, 2=Post, 3=Listings, 4=Account
+
+        tabBar.modalPresentationStyle = .fullScreen
+        present(tabBar, animated: true)
     }
 }

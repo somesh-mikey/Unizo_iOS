@@ -67,7 +67,7 @@ class CategoryPageViewController: UIViewController, UITabBarDelegate {
                 price: 899,
                 rating: 4.2,
                 negotiable: false,
-                imageName: "BASbat"
+                imageName: "bat"
             ),
 
             Product(

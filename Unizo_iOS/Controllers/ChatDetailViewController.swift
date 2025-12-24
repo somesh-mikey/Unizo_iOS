@@ -138,10 +138,16 @@ class ChatDetailViewController: UIViewController, UITableViewDataSource, UITable
         titleLabel.text = chatTitle
         roleLabel.text = isSeller ? "Seller" : "Buyer"
     }
+    override func viewWillAppear(_ animated: Bool) {
+        super.viewWillAppear(animated)
+        self.tabBarController?.tabBar.isHidden = true
+    }
 
     override func viewWillDisappear(_ animated: Bool) {
         super.viewWillDisappear(animated)
         navigationController?.setNavigationBarHidden(false, animated: false)
+        self.tabBarController?.tabBar.isHidden = false
+
     }
 
     // MARK: - HEADER
@@ -340,6 +346,7 @@ final class ChatBubbleCell: UITableViewCell {
             ])
         }
     }
+    
 }
 
 

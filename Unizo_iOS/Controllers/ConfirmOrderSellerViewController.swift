@@ -159,6 +159,11 @@ class ConfirmOrderSellerViewController: UIViewController {
     override func viewWillAppear(_ animated: Bool) {
         super.viewWillAppear(animated)
         navigationController?.setNavigationBarHidden(false, animated: false)
+        self.tabBarController?.tabBar.isHidden = true
+    }
+    override func viewWillDisappear(_ animated: Bool) {
+        super.viewWillDisappear(animated)
+        self.tabBarController?.tabBar.isHidden = false
     }
     @objc func heartTapped() {
         let vc = WishlistViewController()
@@ -191,7 +196,7 @@ extension ConfirmOrderSellerViewController {
             scrollView.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor),
             scrollView.leadingAnchor.constraint(equalTo: view.leadingAnchor),
             scrollView.trailingAnchor.constraint(equalTo: view.trailingAnchor),
-            scrollView.bottomAnchor.constraint(equalTo: view.bottomAnchor, constant: -120)
+            scrollView.bottomAnchor.constraint(equalTo: view.bottomAnchor, constant: 0)
         ])
         
         scrollView.addSubview(contentView)

@@ -320,50 +320,64 @@ class LandingScreenViewController: UIViewController {
             toolbar.heightAnchor.constraint(equalToConstant: 44)
         ])
         
-        let flexSpace = UIBarButtonItem(barButtonSystemItem: .flexibleSpace, target: nil, action: nil)
+        let flexSpace = UIBarButtonItem(
+            barButtonSystemItem: .flexibleSpace,
+            target: nil,
+            action: nil
+        )
+
         let menuItem = UIBarButtonItem(
             image: UIImage(systemName: "ellipsis"),
             style: .plain,
             target: self,
             action: #selector(menuButtonTapped)
         )
+
         toolbar.setItems([flexSpace, menuItem], animated: false)
         
-        // --- Home Label ---
+        // --- Home title (PLAIN LABEL, not a toolbar item) ---
         homeLabel.text = "Home"
         homeLabel.textColor = .white
-        homeLabel.font = UIFont.systemFont(ofSize: 36, weight: .bold)
-        homeLabel.adjustsFontSizeToFitWidth = true
-        homeLabel.minimumScaleFactor = 0.9
+        homeLabel.font = UIFont.systemFont(ofSize: 35, weight: .bold)
+        homeLabel.isUserInteractionEnabled = false
+        homeLabel.backgroundColor = .clear
+
         navBarView.addSubview(homeLabel)
         homeLabel.translatesAutoresizingMaskIntoConstraints = false
+
         NSLayoutConstraint.activate([
             homeLabel.leadingAnchor.constraint(equalTo: navBarView.leadingAnchor, constant: 20),
-            homeLabel.bottomAnchor.constraint(equalTo: navBarView.bottomAnchor, constant: -10)
+            homeLabel.centerYAnchor.constraint(equalTo: toolbar.centerYAnchor)
         ])
         
         // --- Search Bar ---
-        topContainer.addSubview(searchBar)
+        //topContainer.addSubview(searchBar)
+        navBarView.addSubview(searchBar)
         searchBar.translatesAutoresizingMaskIntoConstraints = false
         searchBar.searchBarStyle = .minimal
         searchBar.placeholder = "Search"
         NSLayoutConstraint.activate([
-            searchBar.topAnchor.constraint(equalTo: navBarView.bottomAnchor, constant: 8),
-            searchBar.leadingAnchor.constraint(equalTo: topContainer.leadingAnchor, constant: 20),
-            searchBar.trailingAnchor.constraint(equalTo: topContainer.trailingAnchor, constant: -20),
+            //searchBar.topAnchor.constraint(equalTo: navBarView.bottomAnchor, constant: 8),
+            searchBar.topAnchor.constraint(equalTo: toolbar.bottomAnchor, constant: 18),
+            searchBar.leadingAnchor.constraint(equalTo: navBarView.leadingAnchor, constant: 20),
+            searchBar.trailingAnchor.constraint(equalTo: navBarView.trailingAnchor, constant: -20),
             searchBar.heightAnchor.constraint(equalToConstant: 44)
         ])
         
         // --- Trending Categories Background ---
         trendingCategoriesbg.backgroundColor = UIColor(red: 0.83, green: 0.95, blue: 0.96, alpha: 1) // #D4F2F4
         trendingCategoriesbg.layer.cornerRadius = 20
+        trendingCategoriesbg.layer.maskedCorners = [
+            .layerMinXMinYCorner, // top-left
+            .layerMaxXMinYCorner  // top-right
+        ]
+        trendingCategoriesbg.clipsToBounds = true
         trendingCategoriesbg.translatesAutoresizingMaskIntoConstraints = false
         topContainer.addSubview(trendingCategoriesbg)
         NSLayoutConstraint.activate([
-            trendingCategoriesbg.leadingAnchor.constraint(equalTo: topContainer.leadingAnchor, constant: 0),
-            trendingCategoriesbg.trailingAnchor.constraint(equalTo: topContainer.trailingAnchor, constant: 0),
-            trendingCategoriesbg.topAnchor.constraint(equalTo: searchBar.bottomAnchor, constant: 10),
-            trendingCategoriesbg.bottomAnchor.constraint(equalTo: topContainer.bottomAnchor, constant: 0)
+            trendingCategoriesbg.leadingAnchor.constraint(equalTo: topContainer.leadingAnchor),
+            trendingCategoriesbg.trailingAnchor.constraint(equalTo: topContainer.trailingAnchor),
+            trendingCategoriesbg.topAnchor.constraint(equalTo: searchBar.bottomAnchor, constant: 22)
         ])
         
         // Optional soft shadow (Figma look)
@@ -395,8 +409,11 @@ class LandingScreenViewController: UIViewController {
             categoryStackView.topAnchor.constraint(equalTo: trendingLabel.bottomAnchor, constant: 10),
             categoryStackView.leadingAnchor.constraint(equalTo: trendingCategoriesbg.leadingAnchor, constant: 10),
             categoryStackView.trailingAnchor.constraint(equalTo: trendingCategoriesbg.trailingAnchor, constant: -10),
-            categoryStackView.bottomAnchor.constraint(equalTo: trendingCategoriesbg.bottomAnchor, constant: -12)
+            categoryStackView.bottomAnchor.constraint(equalTo: trendingCategoriesbg.bottomAnchor, constant: -8)
         ])
+        trendingCategoriesbg.bottomAnchor
+            .constraint(equalTo: categoryStackView.bottomAnchor, constant: 25)
+            .isActive = true
         
         // --- Categories ---
         // --- Categories (FIXED BUTTON INTERACTION) ---
@@ -448,7 +465,7 @@ class LandingScreenViewController: UIViewController {
         mainScrollView.translatesAutoresizingMaskIntoConstraints = false
         mainScrollView.backgroundColor = .white
         NSLayoutConstraint.activate([
-            mainScrollView.topAnchor.constraint(equalTo: topContainer.bottomAnchor),
+            mainScrollView.topAnchor.constraint(equalTo: trendingCategoriesbg.bottomAnchor),
             mainScrollView.leadingAnchor.constraint(equalTo: view.leadingAnchor),
             mainScrollView.trailingAnchor.constraint(equalTo: view.trailingAnchor),
             mainScrollView.bottomAnchor.constraint(equalTo: view.bottomAnchor)
@@ -622,12 +639,21 @@ class LandingScreenViewController: UIViewController {
 
         // --- CART ---
         alert.addAction(UIAlertAction(title: "Cart", style: .default, handler: { _ in
-            let vc = CartViewController()
-            vc.modalPresentationStyle = .fullScreen   // slides up from bottom
-            vc.modalTransitionStyle = .coverVertical // smooth bottom animation
-            self.present(vc, animated: true)
-        }))
 
+            // 1️⃣ Make sure the navigation bar is not hidden
+            self.navigationController?.setNavigationBarHidden(false, animated: false)
+
+            // 2️⃣ Push Cart screen properly
+            let vc = CartViewController()
+            if let nav = self.navigationController {
+                nav.pushViewController(vc, animated: true)
+            } else {
+                // fallback (rare case)
+                let navController = UINavigationController(rootViewController: vc)
+                navController.modalPresentationStyle = .fullScreen
+                self.present(navController, animated: true)
+            }
+        }))
         // --- WISHLIST ---
         alert.addAction(UIAlertAction(title: "Wishlist", style: .default, handler: { _ in
             // Add your Wishlist VC here later

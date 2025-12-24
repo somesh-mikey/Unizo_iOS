@@ -159,7 +159,20 @@ class ItemDetailsViewController: UIViewController {
         title = p.name
         titleLabel.text = p.name
         priceLabel.text = "₹\(p.price)"
-        ratingLabel.text = "⭐️ \(String(format: "%.1f", p.rating))"
+        // MARK: - Rating (SF Symbol star + teal color)
+        let ratingText = NSMutableAttributedString()
+
+        let starImage = UIImage(systemName: "star.fill")?
+            .withTintColor(UIColor(red: 0/255, green: 142/255, blue: 153/255, alpha: 1), renderingMode: .alwaysOriginal)
+
+        let starAttachment = NSTextAttachment()
+        starAttachment.image = starImage
+        starAttachment.bounds = CGRect(x: 0, y: -2, width: 16, height: 16)
+
+        ratingText.append(NSAttributedString(attachment: starAttachment))
+        ratingText.append(NSAttributedString(string: "  \(String(format: "%.1f", p.rating))"))
+
+        ratingLabel.attributedText = ratingText
         productImageView.image = UIImage(named: p.imageName)
         categoryLabel.text = "General"
 
