@@ -11,187 +11,7 @@ class CategoryPageViewController: UIViewController, UITabBarDelegate {
 
     // MARK: - Data
     var categoryIndex: Int = 0
-    var items: [Product] = []
-    // MARK: - Category Data
-    private let hostelEssentialsItems: [Product] = [
-        Product(name: "Prestige Electric Kettle", price: 649, rating: 4.9, negotiable: false, imageName: "electrickettle"),
-        Product(name: "Table Lamp", price: 500, rating: 4.2, negotiable: true, imageName: "lamp"),
-        Product(name: "Table Fan", price: 849, rating: 4.2, negotiable: false, imageName: "tablefan"),
-        Product(name: "Cooler", price: 5499, rating: 4.4, negotiable: true, imageName: "cooler"),
-        Product(name: "Flask", price: 899, rating: 4.3, negotiable: true, imageName: "flask"),
-        Product(name: "Jhumka", price: 249, rating: 4.1, negotiable: false, imageName: "jhumka"),
-        Product(name: "Study Table", price: 699, rating: 4.8, negotiable: true, imageName: "studytable"),
-        Product(name: "Helmet", price: 579, rating: 4.9, negotiable: false, imageName: "helmet")
-    ]
-
-    private let furnitureItems: [Product] = [
-        Product(name: "Wooden Dining Chair Set", price: 999, rating: 4.3, negotiable: false, imageName: "woodendiningchair"),
-        Product(name: "Ergonomic Mesh Office Chair", price: 1299, rating: 4.7, negotiable: true, imageName: "ergonomicmeshchair"),
-        Product(name: "Swivel Study Chair", price: 799, rating: 4.1, negotiable: false, imageName: "swivelstudychair"),
-        Product(name: "Classic Metal Frame Chair", price: 499, rating: 3.9, negotiable: false, imageName: "classicmetalframechair"),
-        Product(name: "Padded Chair", price: 899, rating: 4.4, negotiable: true, imageName: "paddedofficechair"),
-        Product(name: "Office Chair", price: 899, rating: 4.3, negotiable: false, imageName: "officechair"),
-        Product(name: "Ergo Comfort Chair", price: 1299, rating: 4.8, negotiable: false, imageName: "ergocomfortchair"),
-        Product(name: "Rolling Task Chair", price: 699, rating: 3.8, negotiable: true, imageName: "rollingtaskchair"),
-        Product(name: "Executive Office Chair", price: 1099, rating: 4.1, negotiable: false, imageName: "executiveofficechair"),
-        Product(name: "Adjustable Work Chair", price: 499, rating: 4.2, negotiable: true, imageName: "adjustableworkchair")
-    ]
-
-    private let fashionItems: [Product] = [
-        Product(name: "Under Armour Cap", price: 500, rating: 4.6, negotiable: true, imageName: "Cap"),
-        Product(name: "M Cap", price: 300, rating: 2.7, negotiable: false, imageName: "MCap"),
-        Product(name: "NY Cap", price: 400, rating: 4.8, negotiable: true, imageName: "yellowcap"),
-        Product(name: "Blue Cap", price: 200, rating: 3.5, negotiable: false, imageName: "streetcap"),
-        Product(name: "Street Cap", price: 200, rating: 3.1, negotiable: true, imageName: "NYcap"),
-        Product(name: "Casual Fit Cap", price: 249, rating: 4.1, negotiable: false, imageName: "casualfitcap")
-    ]
-    private let sportsItems: [Product] = [
-        Product(
-                name: "SS Size 5 Bat",
-                price: 1299,
-                rating: 4.6,
-                negotiable: true,
-                imageName: "SSbat"
-            ),
-
-            Product(
-                name: "Cosco Tennis Ball Set",
-                price: 299,
-                rating: 4.1,
-                negotiable: false,
-                imageName: "coscotennisballs"
-            ),
-
-            Product(
-                name: "BAS Size 6 Bat",
-                price: 899,
-                rating: 4.2,
-                negotiable: false,
-                imageName: "BASbat"
-            ),
-
-            Product(
-                name: "Roller Skates",
-                price: 650,
-                rating: 3.5,
-                negotiable: true,
-                imageName: "rollerskates"
-            ),
-
-            Product(
-                name: "Football Spikes",
-                price: 399,
-                rating: 3.1,
-                negotiable: true,
-                imageName: "footballspikes"
-            ),
-
-            Product(
-                name: "Cricket Kit",
-                price: 2999,
-                rating: 4.9,
-                negotiable: true,
-                imageName: "cricketkit"
-            ),
-
-            Product(
-                name: "Carrom Board",
-                price: 700,
-                rating: 4.2,
-                negotiable: false,
-                imageName: "carromboard"
-            ),
-
-            Product(
-                name: "Cricket Pads",
-                price: 599,
-                rating: 4.3,
-                negotiable: false,
-                imageName: "cricketpads"
-            ),
-
-            Product(
-                name: "Table Tennis Bat",
-                price: 375,
-                rating: 4.9,
-                negotiable: false,
-                imageName: "tabletennis"
-            ),
-
-            Product(
-                name: "Badminton Racket",
-                price: 550,
-                rating: 3.8,
-                negotiable: true,
-                imageName: "badmintonracket"
-            )
-        ]
-    private let gadgetsItems: [Product] = [
-        
-        Product(
-            name: "pTron Headphones",
-            price: 1000,
-            rating: 4.2,
-            negotiable: true,
-            imageName: "ptronheadphones"
-        ),
-
-        Product(
-            name: "Boult ProBass Headphones",
-            price: 1100,
-            rating: 3.9,
-            negotiable: false,
-            imageName: "boultprobassheadphones"
-        ),
-
-        Product(
-            name: "pTron Headphones",
-            price: 1000,
-            rating: 4.2,
-            negotiable: false,
-            imageName: "ptronheadphones"
-        ),
-
-        Product(
-            name: "JBL T450BT",
-            price: 1500,
-            rating: 4.9,
-            negotiable: true,
-            imageName: "jblheadphones"
-        ),
-
-        Product(
-            name: "boAt Rockerz 450",
-            price: 1200,
-            rating: 3.1,
-            negotiable: false,
-            imageName: "boatrockerzheadphones"
-        ),
-
-        Product(
-            name: "Noise Two Wireless",
-            price: 1800,
-            rating: 2.9,
-            negotiable: true,
-            imageName: "noisetwowireless"
-        ),
-
-        Product(
-            name: "Intex Headphones",
-            price: 1300,
-            rating: 2.1,
-            negotiable: false,
-            imageName: "intexheadphones"
-        ),
-
-        Product(
-            name: "Leaf Bass Wireless",
-            price: 1400,
-            rating: 4.6,
-            negotiable: true,
-            imageName: "leafbasswireless"
-        )
-    ]
+    var items: [ProductUIModel] = []
 
 
     // MARK: - UI
@@ -236,6 +56,10 @@ class CategoryPageViewController: UIViewController, UITabBarDelegate {
     override func viewDidLoad() {
         super.viewDidLoad()
 
+        guard !items.isEmpty else {
+                print("⚠️ CategoryPageViewController loaded with empty items")
+                return
+            }
         // Full teal background (same as Landing)
         view.backgroundColor = UIColor(red: 0.239, green: 0.486, blue: 0.596, alpha: 1)
 
@@ -580,27 +404,8 @@ class CategoryPageViewController: UIViewController, UITabBarDelegate {
 
     @objc private func categoryTapped(_ sender: UIButton) {
         let index = sender.tag
-
-        // Mapping same as in LandingPage
-        let mapping: [(title: String, items: [Product])] = [
-            ("Hostel Essentials", hostelEssentialsItems),
-            ("Furniture", furnitureItems),
-            ("Fashion", fashionItems),
-            ("Sports", sportsItems),
-            ("Gadgets", gadgetsItems)
-        ]
-
-        guard index < mapping.count else { return }
-
-        let selectedCategory = mapping[index]
-        
-        // OPEN NEW CATEGORY PAGE
-        let vc = CategoryPageViewController()
-        vc.items = selectedCategory.items
-        vc.categoryIndex = index
-        vc.title = selectedCategory.title
-
-        navigationController?.pushViewController(vc, animated: false)
+        categoryIndex = index
+        highlightSelectedCategory()
     }
 
 }
@@ -657,6 +462,19 @@ extension CategoryPageViewController: UICollectionViewDataSource, UICollectionVi
         navigationItem.rightBarButtonItem?.customView?.widthAnchor.constraint(equalToConstant: 44).isActive = true
         navigationItem.rightBarButtonItem?.customView?.heightAnchor.constraint(equalToConstant: 44).isActive = true
     }
+    func collectionView(_ collectionView: UICollectionView, didSelectItemAt indexPath: IndexPath) {
+
+        let selected = items[indexPath.item]
+
+        let vc = ItemDetailsViewController(
+            nibName: "ItemDetailsViewController",
+            bundle: nil
+        )
+        vc.product = selected
+
+        navigationController?.pushViewController(vc, animated: true)
+    }
+
 }
 extension UIViewController {
     func makeEllipsisButton(target: Any?, action: Selector) -> UIBarButtonItem {

@@ -109,7 +109,7 @@ final class ProductCell: UICollectionViewCell {
     }
 
 
-    func configure(with product: Product) {
+    func configure(with product: ProductUIModel) {
         productImage.image = UIImage(named: product.imageName)
         nameLabel.text = product.name
         let negotiableText = product.negotiable ? "Negotiable" : "Non - Negotiable"

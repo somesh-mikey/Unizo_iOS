@@ -10,8 +10,8 @@ import UIKit
 class SearchResultsViewController: UIViewController, UICollectionViewDataSource, UICollectionViewDelegateFlowLayout {
 
     // MARK: - Data
-    var allProducts: [Product] = []
-    var filteredProducts: [Product] = []
+    var allProducts: [ProductUIModel] = []
+    var filteredProducts: [ProductUIModel] = []
     var keyword: String = ""
 
     // MARK: - UI
@@ -29,7 +29,7 @@ class SearchResultsViewController: UIViewController, UICollectionViewDataSource,
     private let emptyStateLabel = UILabel()
 
     // MARK: - Init
-    init(keyword: String, allProducts: [Product]) {
+    init(keyword: String, allProducts: [ProductUIModel]) {
         self.keyword = keyword
         self.allProducts = allProducts
 
@@ -241,9 +241,9 @@ extension SearchResultsViewController: UISearchBarDelegate {
 
         // 1️⃣ CATEGORY SHORTCUTS
         if lower == "sports" || lower == "sport" {
-            filteredProducts = allProducts.filter { name in
-                let n = name.name.lowercased()
-                return n.contains("bat") || n.contains("ball") || n.contains("racket") || n.contains("skate") || n.contains("football") || n.contains("cricket") || n.contains("carrom")
+            filteredProducts = allProducts.filter { product in
+                let n = product.name.lowercased()
+                return n.contains("bat") || n.contains("ball")
             }
             updateUI()
             return
@@ -301,5 +301,17 @@ extension SearchResultsViewController {
     func collectionView(_ collectionView: UICollectionView, layout collectionViewLayout: UICollectionViewLayout, sizeForItemAt indexPath: IndexPath) -> CGSize {
         let width = (collectionView.bounds.width - 30) / 2
         return CGSize(width: width, height: 260)
+    }
+    func collectionView(_ collectionView: UICollectionView, didSelectItemAt indexPath: IndexPath) {
+
+        let selected = filteredProducts[indexPath.item]
+
+        let vc = ItemDetailsViewController(
+            nibName: "ItemDetailsViewController",
+            bundle: nil
+        )
+        vc.product = selected
+
+        navigationController?.pushViewController(vc, animated: true)
     }
 }

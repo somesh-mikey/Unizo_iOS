@@ -15,7 +15,7 @@ class WishlistViewController: UIViewController {
     private var collectionView: UICollectionView!
 
     // MARK: - Data
-    var wishlistItems: [Product] = []   // Inject from previous screen
+    var wishlistItems: [ProductUIModel] = []
 
     override func viewDidLoad() {
         super.viewDidLoad()
@@ -28,29 +28,50 @@ class WishlistViewController: UIViewController {
     
     // MARK: Dummy Data
     private func loadDummyWishlist() {
-           wishlistItems = [
-            Product(name: "Soundforce Headphones", price: 1200, rating: 3.6, negotiable: false, imageName: "soundforceheadphones"),
-
-            Product(name: "Casual Fit Cap", price: 300, rating: 4.0, negotiable: true, imageName: "casualfitcap"),
-
-            Product(name: "Tennis Rackets", price: 2300, rating: 3.9, negotiable: true, imageName: "tennisrackets"),
-
-            Product(name: "Computer chair", price: 3500, rating: 3.1, negotiable: false, imageName: "computerchair"),
-
-            Product(name: "Hostel Table Lamp", price: 500, rating: 4.2, negotiable: true, imageName: "lamp"),
-
-            Product(name: "Prestige Electric Kettle", price: 649, rating: 4.9, negotiable: false, imageName: "electrickettle"),
-
-            Product(name: "beyerdynamic DT 700", price: 9000, rating: 3.1, negotiable: false, imageName: "beyerdynamic"),
-
-            Product(name: "Skates", price: 799, rating: 4.2, negotiable: true, imageName: "skates"),
-
-            Product(name: "Pink bicycle", price: 2000, rating: 4.9, negotiable: false, imageName: "PinkBicycle"),
-
-            Product(name: "Carrom board", price: 600, rating: 3.8, negotiable: true, imageName: "carromboard")
+        wishlistItems = [
+            ProductUIModel(
+                id: UUID(),
+                name: "Soundforce Headphones",
+                price: 1200,
+                rating: 3.6,
+                negotiable: false,
+                imageName: "soundforceheadphones"
+            ),
+            ProductUIModel(
+                id: UUID(),
+                name: "Casual Fit Cap",
+                price: 300,
+                rating: 4.0,
+                negotiable: true,
+                imageName: "casualfitcap"
+            ),
+            ProductUIModel(
+                id: UUID(),
+                name: "Tennis Rackets",
+                price: 2300,
+                rating: 3.9,
+                negotiable: true,
+                imageName: "tennisrackets"
+            ),
+            ProductUIModel(
+                id: UUID(),
+                name: "Computer Chair",
+                price: 3500,
+                rating: 3.1,
+                negotiable: false,
+                imageName: "computerchair"
+            ),
+            ProductUIModel(
+                id: UUID(),
+                name: "Hostel Table Lamp",
+                price: 500,
+                rating: 4.2,
+                negotiable: true,
+                imageName: "lamp"
+            )
         ]
+    }
 
-       }
 
     // MARK: - Navigation Bar Setup
     private func setupNavigationBar() {
@@ -83,9 +104,6 @@ class WishlistViewController: UIViewController {
         ])
     }
 
-    @objc private func backTapped() {
-        navigationController?.popViewController(animated: true)
-    }
 
     // MARK: - Collection View Setup
     private func setupCollectionView() {

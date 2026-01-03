@@ -12,7 +12,7 @@ import UIKit
 class ItemDetailsViewController: UIViewController {
 
     // MARK: - Incoming Product
-    var product: Product?
+    var product: ProductUIModel!
 
     // MARK: - Outlets from XIB (kept so Interface Builder connections remain)
     @IBOutlet weak var productImageView: UIImageView!
@@ -142,28 +142,14 @@ class ItemDetailsViewController: UIViewController {
     override func viewWillAppear(_ animated: Bool) {
         super.viewWillAppear(animated)
         tabBarController?.tabBar.isHidden = true
+        navigationController?.setNavigationBarHidden(false, animated: false)
     }
 
     override func viewWillDisappear(_ animated: Bool) {
         super.viewWillDisappear(animated)
         tabBarController?.tabBar.isHidden = false
-
-        // Restore floating tab bar height & position
-        if let mainTab = tabBarController as? MainTabBarController {
-        }
     }
 
-//    override func viewWillAppear(_ animated: Bool) {
-//        super.viewWillAppear(animated)
-//        // hide tab bar while this screen is visible
-//        tabBarController?.tabBar.isHidden = true
-//        navigationController?.setNavigationBarHidden(false, animated: false)
-//    }
-//
-//    override func viewWillDisappear(_ animated: Bool) {
-//        super.viewWillDisappear(animated)
-//        tabBarController?.tabBar.isHidden = false
-//    }
 
     // MARK: - Populate
     private func populateData() {
