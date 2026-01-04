@@ -245,10 +245,10 @@ extension ContactUsViewController: UIPickerViewDelegate, UIPickerViewDataSource 
 }
 
 // MARK: - Padding
-private extension UITextField {
-    func setLeftPadding(_ amount: CGFloat) {
-        let v = UIView(frame: CGRect(x: 0, y: 0, width: amount, height: 1))
-        leftView = v
-        leftViewMode = .always
-    }
-}
+//private extension UITextField {
+//    func setLeftPadding(_ amount: CGFloat) {
+//        let v = UIView(frame: CGRect(x: 0, y: 0, width: amount, height: 1))
+//        leftView = v
+//        leftViewMode = .always
+//    }
+//}
