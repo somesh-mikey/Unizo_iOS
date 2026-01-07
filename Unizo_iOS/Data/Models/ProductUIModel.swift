@@ -7,13 +7,20 @@
 
 import Foundation
 
-struct ProductUIModel {
+struct ProductUIModel: Codable {
     let id: UUID
     let name: String
+    let description: String?
     let price: Double
     let rating: Double
     let negotiable: Bool
     let imageName: String?
+    let category: String?
+    let colour: String?
+    let size: String?
+    let condition: String?
 }
+
+
 
 

@@ -1,18 +1,15 @@
-//
-//  SearchResultsViewController.swift
-//  Unizo_iOS
-//
-//  Created by Somesh on 19/11/25.
-//
-
 import UIKit
 
-class SearchResultsViewController: UIViewController, UICollectionViewDataSource, UICollectionViewDelegateFlowLayout {
+final class SearchResultsViewController: UIViewController {
 
     // MARK: - Data
-    var allProducts: [ProductUIModel] = []
-    var filteredProducts: [ProductUIModel] = []
-    var keyword: String = ""
+    private let productRepository = ProductRepository(supabase: supabase)
+    private var results: [ProductUIModel] = []
+    private let keyword: String
+
+    // Debounce
+    private var searchTask: Task<Void, Never>?
+    private let debounceDelay: UInt64 = 300_000_000 // 300ms
 
     // MARK: - UI
     private let navBar = UIView()
@@ -29,79 +26,84 @@ class SearchResultsViewController: UIViewController, UICollectionViewDataSource,
     private let emptyStateLabel = UILabel()
 
     // MARK: - Init
-    init(keyword: String, allProducts: [ProductUIModel]) {
+    init(keyword: String) {
         self.keyword = keyword
-        self.allProducts = allProducts
 
         let layout = UICollectionViewFlowLayout()
+        layout.scrollDirection = .vertical
         self.collectionView = UICollectionView(frame: .zero, collectionViewLayout: layout)
 
         super.init(nibName: nil, bundle: nil)
     }
-    required init?(coder: NSCoder) { fatalError() }
+
+    required init?(coder: NSCoder) {
+        fatalError("init(coder:) has not been implemented")
+    }
 
     // MARK: - Lifecycle
     override func viewDidLoad() {
         super.viewDidLoad()
 
-        view.backgroundColor = UIColor(red: 0.239, green: 0.486, blue: 0.596, alpha: 1)
+        view.backgroundColor = UIColor(
+            red: 0.239,
+            green: 0.486,
+            blue: 0.596,
+            alpha: 1
+        )
 
         setupNavBar()
         setupScrollView()
         setupCollectionView()
         setupEmptyState()
 
-        filterProducts(text: keyword)
-    }
-    override func viewWillAppear(_ animated: Bool) {
-        super.viewWillAppear(animated)
-        tabBarController?.tabBar.isHidden = true
+        searchBar.text = keyword
+        performSearchDebounced(keyword)
     }
 
     override func viewWillDisappear(_ animated: Bool) {
         super.viewWillDisappear(animated)
-        tabBarController?.tabBar.isHidden = false
+        searchTask?.cancel()
+    }
 
-        // If you use a floating/custom tab bar controller
-        if let tab = tabBarController as? MainTabBarController {
+    // MARK: - Search (Debounced)
+    private func performSearchDebounced(_ text: String) {
+        searchTask?.cancel()
+
+        searchTask = Task { [weak self] in
+            try? await Task.sleep(nanoseconds: debounceDelay)
+            guard !Task.isCancelled else { return }
+            await self?.performSearch(text)
         }
     }
 
-    // MARK: - Filtering Logic
-    private func filterProducts(text: String) {
-        let searchText = text.lowercased().trimmingCharacters(in: .whitespaces)
+    @MainActor
+    private func performSearch(_ text: String) async {
+        let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
 
-        if searchText.isEmpty {
-            filteredProducts = allProducts
-        } else {
-            filteredProducts = allProducts.filter {
-                $0.name.lowercased().contains(searchText)
-            }
-        }
-
-        updateUI()
-    }
-
-    private func updateUI() {
-        collectionView.reloadData()
-        collectionView.layoutIfNeeded()
-
-        // Expand collectionView height inside scroll view
-        let height = collectionView.collectionViewLayout.collectionViewContentSize.height
-        collectionViewHeightConstraint?.isActive = false
-        collectionViewHeightConstraint = collectionView.heightAnchor.constraint(equalToConstant: height)
-        collectionViewHeightConstraint?.isActive = true
-
-        if filteredProducts.isEmpty {
+        guard !trimmed.isEmpty else {
+            results = []
+            collectionView.reloadData()
             emptyStateLabel.isHidden = false
-            collectionView.isHidden = true
-        } else {
-            emptyStateLabel.isHidden = true
-            collectionView.isHidden = false
+            updateCollectionHeight()
+            return
+        }
+
+        do {
+            let dtos = try await productRepository.searchProducts(keyword: trimmed)
+            results = dtos.map(ProductMapper.toUIModel)
+
+            collectionView.reloadData()
+            collectionView.layoutIfNeeded()
+            updateCollectionHeight()
+            emptyStateLabel.isHidden = !results.isEmpty
+
+            print("🔍 Search results:", results.count)
+        } catch {
+            print("❌ Search failed:", error)
         }
     }
 
-    // MARK: - NavBar UI
+    // MARK: - NavBar
     private func setupNavBar() {
         view.addSubview(navBar)
         navBar.translatesAutoresizingMaskIntoConstraints = false
@@ -114,7 +116,6 @@ class SearchResultsViewController: UIViewController, UICollectionViewDataSource,
             navBar.heightAnchor.constraint(equalToConstant: 60)
         ])
 
-        // Back Button
         backButton.setImage(UIImage(systemName: "chevron.left"), for: .normal)
         backButton.tintColor = .white
         backButton.addTarget(self, action: #selector(goBack), for: .touchUpInside)
@@ -128,14 +129,11 @@ class SearchResultsViewController: UIViewController, UICollectionViewDataSource,
             backButton.heightAnchor.constraint(equalToConstant: 28)
         ])
 
-        // Search Bar
-        searchBar.translatesAutoresizingMaskIntoConstraints = false
         searchBar.searchBarStyle = .minimal
         searchBar.placeholder = "Search"
-        searchBar.text = keyword
-        searchBar.delegate = self   // 🔥 Live Search
-
+        searchBar.delegate = self
         navBar.addSubview(searchBar)
+        searchBar.translatesAutoresizingMaskIntoConstraints = false
 
         NSLayoutConstraint.activate([
             searchBar.leadingAnchor.constraint(equalTo: backButton.trailingAnchor, constant: 10),
@@ -144,11 +142,9 @@ class SearchResultsViewController: UIViewController, UICollectionViewDataSource,
             searchBar.heightAnchor.constraint(equalToConstant: 44)
         ])
 
-        // Clear (X) Button
         clearButton.setImage(UIImage(systemName: "xmark.circle.fill"), for: .normal)
         clearButton.tintColor = .white
         clearButton.addTarget(self, action: #selector(clearSearch), for: .touchUpInside)
-
         navBar.addSubview(clearButton)
         clearButton.translatesAutoresizingMaskIntoConstraints = false
 
@@ -160,14 +156,16 @@ class SearchResultsViewController: UIViewController, UICollectionViewDataSource,
         ])
     }
 
-    @objc private func goBack() { navigationController?.popViewController(animated: true) }
+    @objc private func goBack() {
+        navigationController?.popViewController(animated: true)
+    }
 
     @objc private func clearSearch() {
         searchBar.text = ""
-        filterProducts(text: "")
+        performSearchDebounced("")
     }
 
-    // MARK: - ScrollView + Content
+    // MARK: - ScrollView
     private func setupScrollView() {
         view.addSubview(scrollView)
         scrollView.translatesAutoresizingMaskIntoConstraints = false
@@ -198,12 +196,15 @@ class SearchResultsViewController: UIViewController, UICollectionViewDataSource,
         contentView.addSubview(collectionView)
         collectionView.translatesAutoresizingMaskIntoConstraints = false
 
-        collectionView.register(ProductCell.self,
-                                forCellWithReuseIdentifier: ProductCell.reuseIdentifier)
+        collectionView.register(
+            ProductCell.self,
+            forCellWithReuseIdentifier: ProductCell.reuseIdentifier
+        )
 
         collectionView.backgroundColor = .white
         collectionView.dataSource = self
         collectionView.delegate = self
+        collectionView.isScrollEnabled = false
 
         NSLayoutConstraint.activate([
             collectionView.topAnchor.constraint(equalTo: contentView.topAnchor, constant: 20),
@@ -212,11 +213,17 @@ class SearchResultsViewController: UIViewController, UICollectionViewDataSource,
             collectionView.bottomAnchor.constraint(equalTo: contentView.bottomAnchor)
         ])
 
-        collectionViewHeightConstraint = collectionView.heightAnchor.constraint(equalToConstant: 0)
+        collectionViewHeightConstraint =
+            collectionView.heightAnchor.constraint(equalToConstant: 0)
         collectionViewHeightConstraint?.isActive = true
     }
 
-    // MARK: - Empty State UI
+    private func updateCollectionHeight() {
+        collectionViewHeightConstraint?.constant =
+            collectionView.collectionViewLayout.collectionViewContentSize.height
+    }
+
+    // MARK: - Empty State
     private func setupEmptyState() {
         emptyStateLabel.text = "No results found"
         emptyStateLabel.font = UIFont.boldSystemFont(ofSize: 20)
@@ -234,51 +241,10 @@ class SearchResultsViewController: UIViewController, UICollectionViewDataSource,
     }
 }
 
-// MARK: - Live Search
+// MARK: - UISearchBarDelegate
 extension SearchResultsViewController: UISearchBarDelegate {
     func searchBar(_ searchBar: UISearchBar, textDidChange searchText: String) {
-        let lower = searchText.lowercased()
-
-        // 1️⃣ CATEGORY SHORTCUTS
-        if lower == "sports" || lower == "sport" {
-            filteredProducts = allProducts.filter { product in
-                let n = product.name.lowercased()
-                return n.contains("bat") || n.contains("ball")
-            }
-            updateUI()
-            return
-        }
-
-        if lower == "fashion" || lower == "apparel" {
-            filteredProducts = allProducts.filter { $0.name.lowercased().contains("jeans") || $0.name.lowercased().contains("shirt") }
-            updateUI()
-            return
-        }
-
-        if lower == "cap" {
-            filteredProducts = allProducts.filter { $0.name.lowercased().contains("cap") }
-            updateUI()
-            return
-        }
-
-        if lower == "gadgets" || lower == "gadget" || lower == "headphones" {
-            filteredProducts = allProducts.filter { name in
-                let n = name.name.lowercased()
-                return n.contains("headphone") || n.contains("wireless") || n.contains("jbl") || n.contains("noise") || n.contains("boat")
-            }
-            updateUI()
-            return
-        }
-
-        // 2️⃣ NORMAL TEXT SEARCH
-        if lower.trimmingCharacters(in: .whitespaces).isEmpty {
-            filteredProducts = []
-            updateUI()
-            return
-        }
-
-        filteredProducts = allProducts.filter { $0.name.lowercased().contains(lower) }
-        updateUI()
+        performSearchDebounced(searchText)
     }
 
     func searchBarSearchButtonClicked(_ searchBar: UISearchBar) {
@@ -286,25 +252,38 @@ extension SearchResultsViewController: UISearchBarDelegate {
     }
 }
 
-// MARK: - CollectionView DataSource & DelegateFlowLayout
-extension SearchResultsViewController {
-    func collectionView(_ collectionView: UICollectionView, numberOfItemsInSection section: Int) -> Int {
-        return filteredProducts.count
+// MARK: - CollectionView
+extension SearchResultsViewController: UICollectionViewDataSource, UICollectionViewDelegateFlowLayout {
+
+    func collectionView(_ collectionView: UICollectionView,
+                        numberOfItemsInSection section: Int) -> Int {
+        results.count
     }
 
-    func collectionView(_ collectionView: UICollectionView, cellForItemAt indexPath: IndexPath) -> UICollectionViewCell {
-        let cell = collectionView.dequeueReusableCell(withReuseIdentifier: ProductCell.reuseIdentifier, for: indexPath) as! ProductCell
-        cell.configure(with: filteredProducts[indexPath.item])
+    func collectionView(_ collectionView: UICollectionView,
+                        cellForItemAt indexPath: IndexPath) -> UICollectionViewCell {
+
+        let cell = collectionView.dequeueReusableCell(
+            withReuseIdentifier: ProductCell.reuseIdentifier,
+            for: indexPath
+        ) as! ProductCell
+
+        cell.configure(with: results[indexPath.item])
         return cell
     }
 
-    func collectionView(_ collectionView: UICollectionView, layout collectionViewLayout: UICollectionViewLayout, sizeForItemAt indexPath: IndexPath) -> CGSize {
+    func collectionView(_ collectionView: UICollectionView,
+                        layout collectionViewLayout: UICollectionViewLayout,
+                        sizeForItemAt indexPath: IndexPath) -> CGSize {
+
         let width = (collectionView.bounds.width - 30) / 2
         return CGSize(width: width, height: 260)
     }
-    func collectionView(_ collectionView: UICollectionView, didSelectItemAt indexPath: IndexPath) {
 
-        let selected = filteredProducts[indexPath.item]
+    func collectionView(_ collectionView: UICollectionView,
+                        didSelectItemAt indexPath: IndexPath) {
+
+        let selected = results[indexPath.item]
 
         let vc = ItemDetailsViewController(
             nibName: "ItemDetailsViewController",

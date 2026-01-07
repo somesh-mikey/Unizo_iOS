@@ -26,9 +26,13 @@ class WelcomeViewController: UIViewController {
     // MARK: - Lifecycle
     override func viewDidLoad() {
         super.viewDidLoad()
-        setupUI()
-        setupConstraints()
-    }
+
+          // 🔥 DEBUG: Generate & log local user session ID
+          print("SESSION USER ID:", Session.userId.uuidString)
+
+          setupUI()
+          setupConstraints()
+      }
 
     // MARK: - UI Setup
     private func setupUI() {
@@ -258,5 +262,5 @@ class WelcomeViewController: UIViewController {
 
         present(signUpVC, animated: true)
     }
-    
 }
+

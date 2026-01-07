@@ -30,6 +30,8 @@ class ItemDetailsViewController: UIViewController {
     // MARK: - Programmatic UI (Figma-like sections)
     private let scrollView = UIScrollView()
     private let contentView = UIView()
+    private let wishlistRepo = WishlistRepository(supabase: supabase)
+    private var isWishlisted = false
 
     private let descriptionHeaderLabel: UILabel = {
         let l = UILabel()
@@ -155,41 +157,63 @@ class ItemDetailsViewController: UIViewController {
     private func populateData() {
         guard let p = product else { return }
 
+        // Title
         title = p.name
         titleLabel.text = p.name
-        priceLabel.text = "₹\(p.price)"
+
+        // Price
+        priceLabel.text = "₹\(Int(p.price))"
+        priceLabel.textColor = p.negotiable
+            ? UIColor(red: 0/255, green: 142/255, blue: 153/255, alpha: 1)
+            : .label
+
+        // Rating
         ratingLabel.text = "⭐️ \(String(format: "%.1f", p.rating))"
-        productImageView.image = UIImage(named: p.imageName)
-        categoryLabel.text = "General"
+
+        // Image
+        if let image = p.imageName {
+            if image.hasPrefix("http") {
+                productImageView.loadImage(
+                    from: image,
+                    placeholder: UIImage(named: "placeholder")
+                )
+            } else {
+                productImageView.image = UIImage(named: image)
+            }
+        } else {
+            productImageView.image = UIImage(named: "placeholder")
+        }
+
+        // Category
+        categoryLabel.text = p.category?.capitalized ?? "Uncategorized"
 
         // Description
-        descriptionBodyLabel.text = """
-        Stay cool, focused, and stylish with the Under Armour Performance Cap — built for athletes who demand comfort and performance in every move. Designed with UA’s signature HeatGear® fabric, this cap wicks away sweat to keep you dry and light, whether you're training, running, or just on the go.
-        """
+        descriptionBodyLabel.text =
+            p.description?.isEmpty == false
+            ? p.description
+            : "No description available."
 
-        // Features + Specifications (kept together per your instruction)
-        featuresBodyLabel.text = """
-        • Lightweight & Breathable
-        • HeatGear® Technology wicks sweat and moisture
-        • Stretch Fit Comfort with elastic band
-        • Durable polyester & elastane build
-        • Under Armour logo embroidery
+        // Attributes
+        colourValueLabel.text = p.colour ?? "—"
+        sizeValueLabel.text = p.size ?? "—"
+        conditionValueLabel.text = p.condition ?? "—"
 
-        • Material: 84% Polyester, 16% Elastane
-        • Fit: Stretch-fit / Adjustable
-        • Care: Hand wash cold, line dry
-        • Ideal for: Sports, Training, Running, Everyday Wear
-        """
+        // Wishlist state
+        Task {
+            do {
+                let wishlistProducts = try await wishlistRepo.fetchWishlist(
+                    userId: Session.userId
+                )
 
-        // Colour/size/condition values - you can replace with real data later
-        colourValueLabel.text = "White"
-        sizeValueLabel.text = "Large"
-        conditionValueLabel.text = "New"
+                isWishlisted = wishlistProducts.contains { $0.id == product.id }
 
-        sellerNameLabel.text = "Paul McKinney"
-
-        // price color for negotiable items
-        priceLabel.textColor = p.negotiable ? UIColor(red: 0/255, green: 142/255, blue: 153/255, alpha: 1) : .label
+                await MainActor.run {
+                    updateHeartIcon()
+                }
+            } catch {
+                print("❌ Failed to load wishlist state")
+            }
+        }
     }
 
     // MARK: - Setup IB Outlet styling (small)
@@ -406,40 +430,86 @@ class ItemDetailsViewController: UIViewController {
         cartButton.tintColor = .black
         navigationItem.rightBarButtonItems = [cartButton, heartButton]
     }
+    private func updateHeartIcon() {
+        let imageName = isWishlisted ? "heart.fill" : "heart"
+
+        UIView.transition(
+            with: navigationController!.navigationBar,
+            duration: 0.2,
+            options: .transitionCrossDissolve,
+            animations: {
+                self.navigationItem.rightBarButtonItems?.last?.image =
+                    UIImage(systemName: imageName)
+
+                self.navigationItem.rightBarButtonItems?.last?.tintColor =
+                    self.isWishlisted ? .systemRed : .black
+            }
+        )
+    }
+
 
     // MARK: - Actions
     @objc private func addToCartTapped() {
+        guard let product else { return }
+
+        CartManager.shared.add(product: product)
+
+        // Native iOS-style confirmation
         let alert = UIAlertController(
             title: "Added to Cart",
-            message: "Your item has been added to the cart successfully.",
+            message: "\(product.name) has been added to your cart.",
             preferredStyle: .alert
         )
 
-        alert.addAction(UIAlertAction(title: "OK", style: .default, handler: nil))
+        alert.addAction(UIAlertAction(title: "OK", style: .default))
+        alert.addAction(
+            UIAlertAction(
+                title: "View Cart",
+                style: .default,
+                handler: { _ in
+                    let vc = CartViewController()
+                    self.navigationController?.pushViewController(vc, animated: true)
+                }
+            )
+        )
 
         present(alert, animated: true)
     }
-    @objc private func buyNowTapped() {
-        let vc = AddressViewController()
 
-        // Prefer push if inside navigation controller
-        if let nav = navigationController {
-            nav.pushViewController(vc, animated: true)
-        } else {
-            vc.modalPresentationStyle = .fullScreen
-            present(vc, animated: true)
-        }
+    @objc private func buyNowTapped() {
+        guard let product else { return }
+
+        CartManager.shared.clear()
+        CartManager.shared.add(product: product)
+
+        let vc = AddressViewController()
+        navigationController?.pushViewController(vc, animated: true)
     }
     @objc private func heartTapped() {
-        let vc = WishlistViewController()
+        guard let product else { return }
 
-        if let nav = navigationController {
-            nav.pushViewController(vc, animated: true)
-        } else {
-            vc.modalPresentationStyle = .fullScreen
-            present(vc, animated: true)
+        Task {
+            do {
+                if isWishlisted {
+                    try await wishlistRepo.remove(
+                        productId: product.id,
+                        userId: Session.userId
+                    )
+                } else {
+                    try await wishlistRepo.add(
+                        productId: product.id,
+                        userId: Session.userId
+                    )
+                }
+
+                isWishlisted.toggle()
+                updateHeartIcon() // ❤️ turns red
+            } catch {
+                print("❌ Wishlist error:", error)
+            }
         }
     }
+
     @objc private func cartTapped() {
         let vc = CartViewController()
 
@@ -451,3 +521,5 @@ class ItemDetailsViewController: UIViewController {
         }
     }
 }
+
+

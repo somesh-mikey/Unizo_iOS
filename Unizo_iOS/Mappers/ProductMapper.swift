@@ -8,16 +8,31 @@
 import Foundation
 
 struct ProductMapper {
-    static func map(_ dto: ProductDTO) -> ProductUIModel {
-        ProductUIModel(
+
+    static func toUIModel(_ dto: ProductDTO) -> ProductUIModel {
+
+        let imageURL = dto.imageUrl.map {
+            SupabaseStorageService.shared.publicImageURL(path: $0)
+        }
+
+        return ProductUIModel(
             id: dto.id,
             name: dto.title,
+            description: dto.description,
             price: dto.price,
-            rating: 4.5, // temp / computed later
-            negotiable: dto.isNegotiable,
-            imageName: dto.images.first ?? "placeholder"
+            rating: dto.rating ?? 0.0,
+            negotiable: dto.isNegotiable ?? false,   // ✅ FIX
+            imageName: imageURL,
+            category: dto.category,
+            colour: dto.colour,
+            size: dto.size,                          // ✅ NOW EXISTS
+            condition: dto.condition                 // ✅ NOW EXISTS
         )
     }
 }
+
+
+
+
 
 

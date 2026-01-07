@@ -10,66 +10,26 @@ import UIKit
 class WishlistViewController: UIViewController {
 
     // MARK: - UI
+    var items: [ProductUIModel] = []
     private let backButton = UIButton(type: .system)
     private let titleLabel = UILabel()
     private var collectionView: UICollectionView!
 
     // MARK: - Data
-    var wishlistItems: [ProductUIModel] = []
+    private var wishlistItems: [ProductUIModel] = []
+    private let wishlistRepository = WishlistRepository(supabase: supabase)
 
     override func viewDidLoad() {
         super.viewDidLoad()
         view.backgroundColor = .systemGroupedBackground
-        loadDummyWishlist()
+
         setupNavigationBar()
         setupCollectionView()
         backButton.addTarget(self, action: #selector(backPressed), for: .touchUpInside)
-    }
-    
-    // MARK: Dummy Data
-    private func loadDummyWishlist() {
-        wishlistItems = [
-            ProductUIModel(
-                id: UUID(),
-                name: "Soundforce Headphones",
-                price: 1200,
-                rating: 3.6,
-                negotiable: false,
-                imageName: "soundforceheadphones"
-            ),
-            ProductUIModel(
-                id: UUID(),
-                name: "Casual Fit Cap",
-                price: 300,
-                rating: 4.0,
-                negotiable: true,
-                imageName: "casualfitcap"
-            ),
-            ProductUIModel(
-                id: UUID(),
-                name: "Tennis Rackets",
-                price: 2300,
-                rating: 3.9,
-                negotiable: true,
-                imageName: "tennisrackets"
-            ),
-            ProductUIModel(
-                id: UUID(),
-                name: "Computer Chair",
-                price: 3500,
-                rating: 3.1,
-                negotiable: false,
-                imageName: "computerchair"
-            ),
-            ProductUIModel(
-                id: UUID(),
-                name: "Hostel Table Lamp",
-                price: 500,
-                rating: 4.2,
-                negotiable: true,
-                imageName: "lamp"
-            )
-        ]
+
+        Task {
+            await loadWishlist()
+        }
     }
 
 
@@ -193,10 +153,31 @@ extension WishlistViewController: UICollectionViewDataSource, UICollectionViewDe
         landingVC.modalPresentationStyle = .fullScreen
         present(landingVC, animated: true)
     }
+    @MainActor
+    private func loadWishlist() async {
+        do {
+            let dtos = try await wishlistRepository.fetchWishlist(
+                userId: Session.userId
+            )
+
+            self.wishlistItems = dtos.map(ProductMapper.toUIModel)
+            self.collectionView.reloadData()
+
+            print("❤️ Wishlist loaded:", wishlistItems.count)
+
+        } catch {
+            print("❌ Failed to load wishlist:", error)
+        }
+    }
+
     override func viewWillAppear(_ animated: Bool) {
         super.viewWillAppear(animated)
         navigationController?.setNavigationBarHidden(true, animated: false)
         tabBarController?.tabBar.isHidden = true
+
+        Task {
+            await loadWishlist()
+        }
     }
 
     override func viewWillDisappear(_ animated: Bool) {

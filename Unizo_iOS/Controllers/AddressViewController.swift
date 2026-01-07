@@ -15,6 +15,7 @@ enum AddressFlowSource {
 class AddressViewController: UIViewController {
     
     var flowSource: AddressFlowSource = .fromCart
+    var isBuyNowFlow: Bool = false
 
     // MARK: - Colors
     private let bgColor     = UIColor(red: 0.96, green: 0.97, blue: 1.0, alpha: 1.0)

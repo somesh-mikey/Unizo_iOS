@@ -6,6 +6,12 @@
 //
 
 import UIKit
+import Supabase
+
+let supabase = SupabaseClient(
+    supabaseURL: URL(string: "https://tcaqxwxlrfoxmthigjgd.supabase.co")!,
+    supabaseKey: "sb_publishable_17MrI1DzB2mXj9mbzERurw_kXDz0tZi"
+)
 
 @main
 class AppDelegate: UIResponder, UIApplicationDelegate {

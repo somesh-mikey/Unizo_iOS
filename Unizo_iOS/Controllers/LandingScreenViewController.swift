@@ -13,6 +13,15 @@ class LandingScreenViewController: UIViewController {
     // MARK: UI
     @IBOutlet weak var trendingCategoriesbg: UIView!
     private var collectionView: UICollectionView!
+    private var hasMorePages = true
+    private let refreshControl = UIRefreshControl()
+    private let loader = UIActivityIndicatorView(style: .large)
+    private let productRepository = ProductRepository(supabase: supabase)
+
+    private var allProducts: [ProductUIModel] = []
+    private var popularProducts: [ProductUIModel] = []
+    private var negotiableProducts: [ProductUIModel] = []
+
     private let topContainer = UIView()
     private let navBarView = UIView()
     private let homeLabel = UILabel()
@@ -37,9 +46,11 @@ class LandingScreenViewController: UIViewController {
     private let banners = ["banner1", "banner2", "banner3"]
     private var timer: Timer?
     private var currentBannerIndex = 0
-    private var allProducts: [ProductUIModel] = []
-    private var popularProducts: [ProductUIModel] = []
-    private var negotiableProducts: [ProductUIModel] = []
+    private var currentPage = 0
+    private var isLoadingMore = false
+
+
+
 
 
 //    private let products: [Product] = [
@@ -243,9 +254,13 @@ class LandingScreenViewController: UIViewController {
         setupCarousel()
         setupCollectionView()
         startAutoScroll()
-        collectionView.reloadData()
+        loader.center = view.center
+        view.addSubview(loader)
+        loader.startAnimating()
         updateCollectionHeight()
-
+        Task {
+            await loadProducts()
+        }
 
         navigationController?.setNavigationBarHidden(true, animated: false)
         searchBar.delegate = self
@@ -536,7 +551,88 @@ class LandingScreenViewController: UIViewController {
             collectionView.trailingAnchor.constraint(equalTo: contentView.trailingAnchor, constant: -10),
             collectionView.bottomAnchor.constraint(equalTo: contentView.bottomAnchor, constant: -20)
         ])
+        refreshControl.addTarget(
+            self,
+            action: #selector(handleRefresh),
+            for: .valueChanged
+        )
+
+        mainScrollView.refreshControl = refreshControl
     }
+    
+    @MainActor
+    private func loadProducts() async {
+        currentPage = 0
+        hasMorePages = true
+        isLoadingMore = false
+        do {
+            async let allDTOs = productRepository.fetchAllProducts(page: 1)
+            async let popularDTOs = productRepository.fetchPopularProducts()
+            async let negotiableDTOs = productRepository.fetchNegotiableProducts()
+
+            let (all, popular, negotiable) = try await (allDTOs, popularDTOs, negotiableDTOs)
+
+            self.allProducts = all.map(ProductMapper.toUIModel)
+            self.popularProducts = popular.map(ProductMapper.toUIModel)
+            self.negotiableProducts = negotiable.map(ProductMapper.toUIModel)
+
+            self.displayedProducts = self.allProducts
+
+            self.loader.stopAnimating()
+            self.loader.removeFromSuperview()
+
+            // 🔥 CRITICAL FIX
+            self.collectionView.reloadData()
+            self.collectionView.layoutIfNeeded()
+            self.updateCollectionHeight()
+            refreshControl.endRefreshing()
+
+            print("✅ Products loaded:", displayedProducts.count)
+
+        } catch {
+            print("❌ Failed to load products:", error)
+        }
+    }
+    @MainActor
+    private func loadNextPage() {
+        isLoadingMore = true
+        currentPage += 1
+
+        Task {
+            do {
+                let nextDTOs = try await productRepository.fetchAllProducts(page: currentPage)
+
+                // If no data returned → stop pagination
+                guard !nextDTOs.isEmpty else {
+                    hasMorePages = false
+                    isLoadingMore = false
+                    return
+                }
+
+                let newProducts = nextDTOs.map(ProductMapper.toUIModel)
+
+                allProducts.append(contentsOf: newProducts)
+
+                // Only append if "All" segment is active
+                if segmentedControl.selectedSegmentIndex == 0 {
+                    displayedProducts = allProducts
+                    collectionView.reloadData()
+                    collectionView.layoutIfNeeded()
+                    updateCollectionHeight()
+                }
+
+                isLoadingMore = false
+
+                print("📦 Loaded page \(currentPage), total:", allProducts.count)
+
+            } catch {
+                isLoadingMore = false
+                print("❌ Pagination failed:", error)
+            }
+        }
+    }
+
+
     @objc private func segmentChanged() {
         switch segmentedControl.selectedSegmentIndex {
         case 0:
@@ -557,6 +653,7 @@ class LandingScreenViewController: UIViewController {
                 self.collectionView.reloadData()
             },
             completion: { _ in
+                self.collectionView.layoutIfNeeded() // 🔥 ADD THIS
                 self.updateCollectionHeight()
             }
         )
@@ -585,12 +682,82 @@ class LandingScreenViewController: UIViewController {
     }
 
     @objc private func categoryTapped(_ sender: UIButton) {
-        openCategoryPage(title: "Category", items: [], categoryIndex: sender.tag)
+
+        let categories = [
+            "Hostel Essentials",
+            "Furniture",
+            "Fashion",
+            "Sports",
+            "Gadgets"
+        ]
+
+        let selectedCategory = categories[sender.tag]
+
+        Task {
+            do {
+                let dtos = try await productRepository
+                    .fetchProductsByCategory(selectedCategory)
+
+                let products = dtos.map(ProductMapper.toUIModel)
+
+                openCategoryPage(
+                    title: selectedCategory,
+                    items: products,
+                    categoryIndex: sender.tag
+                )
+
+            } catch {
+                print("❌ Category fetch failed:", error)
+            }
+        }
     }
+    @MainActor
+    private func refreshProducts() async {
+        guard !isLoadingMore else {
+            refreshControl.endRefreshing()
+            return
+        }   
+        // Reset pagination state
+        currentPage = 0
+        hasMorePages = true
+        isLoadingMore = false
 
+        do {
+            async let allDTOs = productRepository.fetchAllProducts(page: 1)
+            async let popularDTOs = productRepository.fetchPopularProducts()
+            async let negotiableDTOs = productRepository.fetchNegotiableProducts()
 
+            let (all, popular, negotiable) = try await (allDTOs, popularDTOs, negotiableDTOs)
 
+            self.allProducts = all.map(ProductMapper.toUIModel)
+            self.popularProducts = popular.map(ProductMapper.toUIModel)
+            self.negotiableProducts = negotiable.map(ProductMapper.toUIModel)
 
+            // Respect current segment
+            switch segmentedControl.selectedSegmentIndex {
+            case 0:
+                displayedProducts = allProducts
+            case 1:
+                displayedProducts = popularProducts
+            case 2:
+                displayedProducts = negotiableProducts
+            default:
+                break
+            }
+
+            collectionView.reloadData()
+            collectionView.layoutIfNeeded()
+            updateCollectionHeight()
+
+            refreshControl.endRefreshing()
+
+            print("🔄 Pull-to-refresh complete")
+
+        } catch {
+            refreshControl.endRefreshing()
+            print("❌ Refresh failed:", error)
+        }
+    }
     // MARK: Toolbar Menu Action
     @objc private func menuButtonTapped() {
         let alert = UIAlertController(title: nil, message: nil, preferredStyle: .actionSheet)
@@ -729,25 +896,48 @@ class LandingScreenViewController: UIViewController {
 
     private func updateCollectionHeight() {
         collectionView.layoutIfNeeded()
-        let contentHeight = collectionView.collectionViewLayout.collectionViewContentSize.height
-        for c in collectionView.constraints where (c.firstAttribute == .height) {
-            collectionView.removeConstraint(c)
-        }
-        collectionView.heightAnchor.constraint(equalToConstant: contentHeight).isActive = true
+
+        let height = collectionView.collectionViewLayout.collectionViewContentSize.height
+
+        collectionView.constraints
+            .filter { $0.firstAttribute == .height }
+            .forEach { collectionView.removeConstraint($0) }
+
+        collectionView.heightAnchor
+            .constraint(equalToConstant: height)
+            .isActive = true
     }
 }
 
 // MARK: - ScrollView delegate
 extension LandingScreenViewController: UIScrollViewDelegate {
+
     func scrollViewDidScroll(_ scrollView: UIScrollView) {
+
+        // Carousel paging (keep as-is)
         if scrollView == carouselScrollView {
-            let pageWidth = view.bounds.width - 40 + 20   // card width + spacing
+            let pageWidth = view.bounds.width - 40 + 20
             let pageIndex = round(scrollView.contentOffset.x / pageWidth)
             pageControl.currentPage = Int(pageIndex)
+            return
+        }
+
+        // 🔥 PAGINATION TRIGGER (main scroll view)
+        guard scrollView == mainScrollView,
+              hasMorePages,
+              !isLoadingMore else { return }
+
+        let offsetY = scrollView.contentOffset.y
+        let contentHeight = scrollView.contentSize.height
+        let frameHeight = scrollView.frame.size.height
+
+        // Trigger when user scrolls near bottom
+        if offsetY > contentHeight - frameHeight * 1.4 {
+            loadNextPage()
         }
     }
-
 }
+
 
 // MARK: - CollectionView delegate
 extension LandingScreenViewController: UICollectionViewDataSource, UICollectionViewDelegateFlowLayout {
@@ -813,12 +1003,12 @@ extension LandingScreenViewController: UISearchBarDelegate {
     func searchBarTextDidBeginEditing(_ searchBar: UISearchBar) {
 
         let vc = SearchResultsViewController(
-            keyword: searchBar.text ?? "",
-            allProducts: displayedProducts
+            keyword: searchBar.text ?? ""
         )
 
         navigationController?.pushViewController(vc, animated: true)
     }
+
     @objc private func openEventsPage() {
         let vc = BrowseEventsViewController()
 
@@ -831,5 +1021,39 @@ extension LandingScreenViewController: UISearchBarDelegate {
         vc.modalTransitionStyle = .coverVertical
         present(vc, animated: true)
     }
+    @objc private func handleRefresh() {
+        Task {
+            await refreshProducts()
+        }
+    }
 }
+final class ImageLoader {
+    static let shared = ImageLoader()
+    private let cache = NSCache<NSString, UIImage>()
+
+    func load(
+        _ urlString: String,
+        into imageView: UIImageView,
+        placeholder: UIImage? = nil
+    ) {
+        imageView.image = placeholder
+
+        if let cached = cache.object(forKey: urlString as NSString) {
+            imageView.image = cached
+            return
+        }
+
+        guard let url = URL(string: urlString) else { return }
+
+        URLSession.shared.dataTask(with: url) { data, _, _ in
+            guard let data, let image = UIImage(data: data) else { return }
+            self.cache.setObject(image, forKey: urlString as NSString)
+
+            DispatchQueue.main.async {
+                imageView.image = image
+            }
+        }.resume()
+    }
+}
+
 
