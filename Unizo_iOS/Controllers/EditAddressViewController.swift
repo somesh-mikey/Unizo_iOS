@@ -7,250 +7,170 @@
 
 import UIKit
 
-class EditAddressViewController: UIViewController {
+final class EditAddressViewController: UIViewController {
 
-    // MARK: - Nav Bar Elements
-    private let navBar = UIView()
-    private let backButton = UIButton()
-    private let heartButton = UIButton()
-    private let titleLabel = UILabel()
+    private let repository = AddressRepository()
+    private var address: AddressDTO
+    var onSave: (() -> Void)?
 
-    // MARK: - Scroll + Content
-    private let scrollView = UIScrollView()
-    private let contentView = UIView()
+    // MARK: - Fields
+    private let nameField = UITextField()
+    private let phoneField = UITextField()
+    private let line1Field = UITextField()
+    private let cityField = UITextField()
+    private let stateField = UITextField()
+    private let pincodeField = UITextField()
+    private let defaultSwitch = UISwitch()
 
-    // MARK: - Section
-    private let sectionLabel = UILabel()
-    private let whiteContainer = UIView()
-
-    // MARK: - Address Rows
-    private func makeRow(title: String, value: String) -> UIView {
-        let row = UIView()
-        row.translatesAutoresizingMaskIntoConstraints = false
-
-        let titleLabel = UILabel()
-        titleLabel.text = title
-        titleLabel.font = UIFont.systemFont(ofSize: 15, weight: .regular)
-        titleLabel.translatesAutoresizingMaskIntoConstraints = false
-
-        let valueLabel = UILabel()
-        valueLabel.text = value
-        valueLabel.font = UIFont.systemFont(ofSize: 15, weight: .regular)
-        valueLabel.textColor = UIColor.gray
-        valueLabel.translatesAutoresizingMaskIntoConstraints = false
-
-        let arrow = UIImageView(image: UIImage(systemName: "chevron.right"))
-        arrow.tintColor = .gray
-        arrow.translatesAutoresizingMaskIntoConstraints = false
-
-        row.addSubview(titleLabel)
-        row.addSubview(valueLabel)
-        row.addSubview(arrow)
-
-        NSLayoutConstraint.activate([
-            titleLabel.leadingAnchor.constraint(equalTo: row.leadingAnchor),
-            titleLabel.centerYAnchor.constraint(equalTo: row.centerYAnchor),
-
-            arrow.trailingAnchor.constraint(equalTo: row.trailingAnchor),
-            arrow.centerYAnchor.constraint(equalTo: row.centerYAnchor),
-            arrow.widthAnchor.constraint(equalToConstant: 15),
-
-            valueLabel.trailingAnchor.constraint(equalTo: arrow.leadingAnchor, constant: -8),
-            valueLabel.centerYAnchor.constraint(equalTo: row.centerYAnchor)
-        ])
-
-        row.heightAnchor.constraint(equalToConstant: 48).isActive = true
-        return row
+    // MARK: - Init
+    init(address: AddressDTO) {
+        self.address = address
+        super.init(nibName: nil, bundle: nil)
     }
 
-    // MARK: - Save Button
-    private let saveButton = UIButton()
+    required init?(coder: NSCoder) {
+        fatalError("init(coder:) has not been implemented")
+    }
 
+    // MARK: - Lifecycle
     override func viewDidLoad() {
         super.viewDidLoad()
         view.backgroundColor = UIColor(red: 0.96, green: 0.97, blue: 1, alpha: 1)
 
         setupNavBar()
-        setupScroll()
-        setupSection()
-        setupWhiteContainer()
-        setupRows()
-        setupSaveButton()
-    }
-    override func viewWillAppear(_ animated: Bool) {
-        super.viewWillAppear(animated)
-        tabBarController?.tabBar.isHidden = true
+        setupForm()
+        populateFields()
     }
 
-    override func viewWillDisappear(_ animated: Bool) {
-        super.viewWillDisappear(animated)
-        tabBarController?.tabBar.isHidden = false
-
-        // Restore floating tab bar height & position
-        if let mainTab = tabBarController as? MainTabBarController {
-        }
-    }
-
-    // MARK: - Custom Nav Bar
+    // MARK: - UI
     private func setupNavBar() {
-        navBar.translatesAutoresizingMaskIntoConstraints = false
-        navBar.backgroundColor = .clear
-        view.addSubview(navBar)
+        title = "Edit Address"
+        navigationItem.leftBarButtonItem = UIBarButtonItem(
+            image: UIImage(systemName: "chevron.left"),
+            style: .plain,
+            target: self,
+            action: #selector(goBack)
+        )
 
-        NSLayoutConstraint.activate([
-            navBar.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor),
-            navBar.leadingAnchor.constraint(equalTo: view.leadingAnchor),
-            navBar.trailingAnchor.constraint(equalTo: view.trailingAnchor),
-            navBar.heightAnchor.constraint(equalToConstant: 50)
-        ])
-
-        backButton.setImage(UIImage(systemName: "chevron.left"), for: .normal)
-        backButton.tintColor = .black
-        backButton.translatesAutoresizingMaskIntoConstraints = false
-        backButton.addTarget(self, action: #selector(goBack), for: .touchUpInside)
-        navBar.addSubview(backButton)
-
-        heartButton.setImage(UIImage(systemName: "heart"), for: .normal)
-        heartButton.tintColor = .black
-        heartButton.translatesAutoresizingMaskIntoConstraints = false
-        navBar.addSubview(heartButton)
-
-        titleLabel.text = "Edit Address"
-        titleLabel.font = UIFont.systemFont(ofSize: 18, weight: .semibold)
-        titleLabel.translatesAutoresizingMaskIntoConstraints = false
-        navBar.addSubview(titleLabel)
-
-        NSLayoutConstraint.activate([
-            backButton.leadingAnchor.constraint(equalTo: navBar.leadingAnchor, constant: 20),
-            backButton.centerYAnchor.constraint(equalTo: navBar.centerYAnchor),
-
-            heartButton.trailingAnchor.constraint(equalTo: navBar.trailingAnchor, constant: -20),
-            heartButton.centerYAnchor.constraint(equalTo: navBar.centerYAnchor),
-
-            titleLabel.centerXAnchor.constraint(equalTo: navBar.centerXAnchor),
-            titleLabel.centerYAnchor.constraint(equalTo: navBar.centerYAnchor)
-        ])
+        navigationItem.rightBarButtonItem = UIBarButtonItem(
+            title: "Save",
+            style: .done,
+            target: self,
+            action: #selector(savePressed)
+        )
     }
 
+    private func setupForm() {
+        let stack = UIStackView(arrangedSubviews: [
+            field("Name", nameField),
+            field("Phone", phoneField),
+            field("Address Line", line1Field),
+            field("City", cityField),
+            field("State", stateField),
+            field("Pincode", pincodeField),
+            defaultRow()
+        ])
+
+        stack.axis = .vertical
+        stack.spacing = 14
+        stack.translatesAutoresizingMaskIntoConstraints = false
+
+        view.addSubview(stack)
+
+        NSLayoutConstraint.activate([
+            stack.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor, constant: 20),
+            stack.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 20),
+            stack.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -20)
+        ])
+
+        phoneField.keyboardType = .phonePad
+        pincodeField.keyboardType = .numberPad
+    }
+
+    private func field(_ title: String, _ field: UITextField) -> UIView {
+        let label = UILabel()
+        label.text = title
+        label.font = .systemFont(ofSize: 14, weight: .medium)
+
+        field.borderStyle = .roundedRect
+        field.heightAnchor.constraint(equalToConstant: 44).isActive = true
+
+        let stack = UIStackView(arrangedSubviews: [label, field])
+        stack.axis = .vertical
+        stack.spacing = 6
+
+        return stack
+    }
+
+    private func defaultRow() -> UIView {
+        let label = UILabel()
+        label.text = "Set as default address"
+        label.font = .systemFont(ofSize: 14, weight: .medium)
+
+        let row = UIStackView(arrangedSubviews: [label, defaultSwitch])
+        row.axis = .horizontal
+        row.distribution = .equalSpacing
+        return row
+    }
+
+    // MARK: - Data
+    private func populateFields() {
+        nameField.text = address.name
+        phoneField.text = address.phone
+        line1Field.text = address.line1
+        cityField.text = address.city
+        stateField.text = address.state
+        pincodeField.text = address.postal_code
+        defaultSwitch.isOn = address.is_default
+    }
+
+    // MARK: - Actions
     @objc private func goBack() {
         navigationController?.popViewController(animated: true)
     }
 
-    // MARK: - Scroll Setup
-    private func setupScroll() {
-        scrollView.translatesAutoresizingMaskIntoConstraints = false
-        contentView.translatesAutoresizingMaskIntoConstraints = false
+    @objc private func savePressed() {
+        guard validate() else { return }
 
-        view.addSubview(scrollView)
-        scrollView.addSubview(contentView)
+        address.name = nameField.text!
+        address.phone = phoneField.text!
+        address.line1 = line1Field.text!
+        address.city = cityField.text!
+        address.state = stateField.text!
+        address.postal_code = pincodeField.text!
+        address.is_default = defaultSwitch.isOn
 
-        NSLayoutConstraint.activate([
-            scrollView.topAnchor.constraint(equalTo: navBar.bottomAnchor, constant: 5),
-            scrollView.leadingAnchor.constraint(equalTo: view.leadingAnchor),
-            scrollView.trailingAnchor.constraint(equalTo: view.trailingAnchor),
-            scrollView.bottomAnchor.constraint(equalTo: view.bottomAnchor),
-
-            contentView.topAnchor.constraint(equalTo: scrollView.topAnchor),
-            contentView.leadingAnchor.constraint(equalTo: scrollView.leadingAnchor),
-            contentView.trailingAnchor.constraint(equalTo: scrollView.trailingAnchor),
-            contentView.bottomAnchor.constraint(equalTo: scrollView.bottomAnchor),
-            contentView.widthAnchor.constraint(equalTo: scrollView.widthAnchor)
-        ])
-    }
-
-    // MARK: - Section Label
-    private func setupSection() {
-        sectionLabel.text = "Current Address"
-        sectionLabel.font = UIFont.systemFont(ofSize: 16, weight: .semibold)
-        sectionLabel.translatesAutoresizingMaskIntoConstraints = false
-
-        contentView.addSubview(sectionLabel)
-
-        NSLayoutConstraint.activate([
-            sectionLabel.topAnchor.constraint(equalTo: contentView.topAnchor, constant: 10),
-            sectionLabel.leadingAnchor.constraint(equalTo: contentView.leadingAnchor, constant: 20)
-        ])
-    }
-
-    // MARK: - White Container
-    private func setupWhiteContainer() {
-        whiteContainer.backgroundColor = .white
-        whiteContainer.layer.cornerRadius = 20
-        whiteContainer.translatesAutoresizingMaskIntoConstraints = false
-
-        contentView.addSubview(whiteContainer)
-
-        NSLayoutConstraint.activate([
-            whiteContainer.topAnchor.constraint(equalTo: sectionLabel.bottomAnchor, constant: 10),
-            whiteContainer.leadingAnchor.constraint(equalTo: contentView.leadingAnchor, constant: 15),
-            whiteContainer.trailingAnchor.constraint(equalTo: contentView.trailingAnchor, constant: -15)
-        ])
-    }
-
-    // MARK: - Rows
-    private func setupRows() {
-        let rows = [
-            makeRow(title: "Name", value: "Jonathan"),
-            makeRow(title: "Phone Number", value: "+91 90078 91599"),
-            makeRow(title: "Address Line 1", value: "4517 Washington Ave"),
-            makeRow(title: "Address Line 2 (Optional)", value: ""),
-            makeRow(title: "City", value: "Manchester"),
-            makeRow(title: "State", value: "Kentucky"),
-            makeRow(title: "Pincode", value: "39495")
-        ]
-
-        let stack = UIStackView(arrangedSubviews: rows)
-        stack.axis = .vertical
-        stack.spacing = 1
-        stack.translatesAutoresizingMaskIntoConstraints = false
-
-        whiteContainer.addSubview(stack)
-
-        NSLayoutConstraint.activate([
-            stack.topAnchor.constraint(equalTo: whiteContainer.topAnchor, constant: 10),
-            stack.leadingAnchor.constraint(equalTo: whiteContainer.leadingAnchor, constant: 15),
-            stack.trailingAnchor.constraint(equalTo: whiteContainer.trailingAnchor, constant: -15),
-            stack.bottomAnchor.constraint(equalTo: whiteContainer.bottomAnchor, constant: -10)
-        ])
-
-        for row in rows {
-            let divider = UIView()
-            divider.backgroundColor = UIColor.lightGray.withAlphaComponent(0.4)
-            divider.translatesAutoresizingMaskIntoConstraints = false
-            row.addSubview(divider)
-
-            NSLayoutConstraint.activate([
-                divider.leadingAnchor.constraint(equalTo: row.leadingAnchor),
-                divider.trailingAnchor.constraint(equalTo: row.trailingAnchor),
-                divider.bottomAnchor.constraint(equalTo: row.bottomAnchor),
-                divider.heightAnchor.constraint(equalToConstant: 1)
-            ])
+        Task {
+            do {
+                try await repository.updateAddress(address)
+                await MainActor.run {
+                    onSave?()
+                    navigationController?.popViewController(animated: true)
+                }
+            } catch {
+                showError("Failed to save address")
+            }
         }
     }
 
-    // MARK: - Save Button
-    private func setupSaveButton() {
-        saveButton.setTitle("Save", for: .normal)
-        saveButton.backgroundColor = UIColor(red: 0.02, green: 0.34, blue: 0.46, alpha: 1)
-        saveButton.layer.cornerRadius = 25
-        saveButton.translatesAutoresizingMaskIntoConstraints = false
-        saveButton.addTarget(self, action: #selector(savePressed), for: .touchUpInside)
+    // MARK: - Validation
+    private func validate() -> Bool {
+        if phoneField.text?.count != 10 {
+            showError("Phone number must be 10 digits")
+            return false
+        }
 
-        contentView.addSubview(saveButton)
+        if pincodeField.text?.count != 6 {
+            showError("Pincode must be 6 digits")
+            return false
+        }
 
-        NSLayoutConstraint.activate([
-            saveButton.topAnchor.constraint(equalTo: whiteContainer.bottomAnchor, constant: 60),
-            saveButton.leadingAnchor.constraint(equalTo: contentView.leadingAnchor, constant: 40),
-            saveButton.trailingAnchor.constraint(equalTo: contentView.trailingAnchor, constant: -40),
-            saveButton.heightAnchor.constraint(equalToConstant: 55),
-            saveButton.bottomAnchor.constraint(equalTo: contentView.bottomAnchor, constant: -40)
-        ])
+        return true
     }
 
-    // MARK: - Save Action
-    @objc private func savePressed() {
-        let alert = UIAlertController(title: "Success", message: "Address Updated!", preferredStyle: .alert)
-        alert.addAction(UIAlertAction(title: "OK", style: .default))
+    private func showError(_ msg: String) {
+        let alert = UIAlertController(title: "Error", message: msg, preferredStyle: .alert)
+        alert.addAction(.init(title: "OK", style: .default))
         present(alert, animated: true)
     }
 }

@@ -157,6 +157,17 @@ final class ProductRepository {
             from: response.data
         )
     }
+    // MARK: - Banners
+    func fetchBanners() async throws -> [BannerDTO] {
+        let response = try await supabase
+            .from("banners")
+            .select("id, image_url, position")
+            .eq("is_active", value: true)
+            .order("position", ascending: true)
+            .execute()
+
+        return try JSONDecoder().decode([BannerDTO].self, from: response.data)
+    }
 
     // MARK: - Search Products
     func searchProducts(keyword: String) async throws -> [ProductDTO] {

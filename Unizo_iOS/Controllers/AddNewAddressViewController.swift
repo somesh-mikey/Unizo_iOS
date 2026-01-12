@@ -7,17 +7,9 @@
 
 import UIKit
 
-struct UserAddress {
-    var name: String
-    var phone: String
-    var address1: String
-    var address2: String
-    var city: String
-    var state: String
-    var pincode: String
-}
-
 class AddNewAddressViewController: UIViewController {
+    private let addressRepository = AddressRepository(client: supabase)
+    var onSave: (() -> Void)?
 
     // MARK: - UI
     private let scrollView = UIScrollView()
@@ -41,8 +33,6 @@ class AddNewAddressViewController: UIViewController {
     private let pincodeField = UITextField()
 
     private let saveButton = UIButton(type: .system)
-
-    var savedAddress: UserAddress?
 
     override func viewDidLoad() {
         super.viewDidLoad()
@@ -69,6 +59,27 @@ class AddNewAddressViewController: UIViewController {
         // Restore floating position & height
         if let mainTab = tabBarController as? MainTabBarController {
         }
+    }
+    private func validate() -> Bool {
+        if nameField.text?.isEmpty == true {
+            showError("Name is required")
+            return false
+        }
+        if phoneField.text?.count != 10 {
+            showError("Phone must be 10 digits")
+            return false
+        }
+        if pincodeField.text?.count != 6 {
+            showError("Pincode must be 6 digits")
+            return false
+        }
+        return true
+    }
+
+    private func showError(_ message: String) {
+        let alert = UIAlertController(title: "Error", message: message, preferredStyle: .alert)
+        alert.addAction(UIAlertAction(title: "OK", style: .default))
+        present(alert, animated: true)
     }
 
 
@@ -249,19 +260,34 @@ class AddNewAddressViewController: UIViewController {
 
     // MARK: Save Handler
     @objc private func saveAddress() {
-        savedAddress = UserAddress(
-            name: nameField.text ?? "",
-            phone: phoneField.text ?? "",
-            address1: address1Field.text ?? "",
-            address2: address2Field.text ?? "",
-            city: cityField.text ?? "",
-            state: stateField.text ?? "",
-            pincode: pincodeField.text ?? ""
+        guard validate() else { return }
+
+        let newAddress = AddressDTO(
+            id: UUID(),
+            user_id: AppConstants.TEMP_USER_ID,
+            name: nameField.text!,
+            phone: phoneField.text!,
+            line1: address1Field.text!,
+            city: cityField.text!,
+            state: stateField.text!,
+            postal_code: pincodeField.text!,
+            is_default: false
         )
 
-        let alert = UIAlertController(title: "Success", message: "Address Saved Successfully!", preferredStyle: .alert)
-        alert.addAction(UIAlertAction(title: "OK", style: .default))
-        present(alert, animated: true)
+        Task {
+            do {
+                try await addressRepository.createAddress(newAddress)
+
+                await MainActor.run {
+                    self.onSave?()
+                    self.navigationController?.popViewController(animated: true)
+                }
+            } catch {
+                await MainActor.run {
+                    self.showError("Failed to save address")
+                }
+            }
+        }
     }
 }
 

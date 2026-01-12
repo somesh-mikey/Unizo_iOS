@@ -259,38 +259,79 @@ final class CartViewController: UIViewController {
         loadSuggestions(category: cartItems.first?.product.category)
     }
 
-    // MARK: - Cart Item Card
+    // MARK: - Cart Item Card (Final Mockup Style)
     private func makeCartItemCard(for item: CartItem) -> UIView {
+
         let card = UIView()
         card.backgroundColor = .white
         card.layer.cornerRadius = 14
 
-        let category = UILabel()
-        category.text = item.product.category ?? "General"
-        category.font = .systemFont(ofSize: 12)
-        category.textColor = .gray
+        // Image
+        let imageView = UIImageView()
+        imageView.layer.cornerRadius = 10
+        imageView.clipsToBounds = true
+        imageView.contentMode = .scaleAspectFill
+        imageView.backgroundColor = UIColor(white: 0.94, alpha: 1)
 
-        let title = UILabel()
-        title.text = item.product.name
-        title.font = .systemFont(ofSize: 15, weight: .semibold)
+        if let img = item.product.imageName {
+            img.hasPrefix("http")
+                ? imageView.loadImage(from: img)
+                : (imageView.image = UIImage(named: img))
+        }
 
-        let price = UILabel()
-        price.text = "₹\(Int(item.product.price))"
-        price.font = .systemFont(ofSize: 16, weight: .semibold)
+        // Category
+        let categoryLabel = UILabel()
+        categoryLabel.text = item.product.category ?? "General"
+        categoryLabel.font = .systemFont(ofSize: 12)
+        categoryLabel.textColor = .gray
 
-        let stack = UIStackView(arrangedSubviews: [category, title, price])
-        stack.axis = .vertical
-        stack.spacing = 6
+        // Title
+        let titleLabel = UILabel()
+        titleLabel.text = item.product.name
+        titleLabel.font = .systemFont(ofSize: 15, weight: .semibold)
+        titleLabel.numberOfLines = 2
 
-        card.addSubview(stack)
-        stack.translatesAutoresizingMaskIntoConstraints = false
+        // Sold By
+        let soldByLabel = UILabel()
+        soldByLabel.text = "Sold by the Seller"
+        soldByLabel.font = .systemFont(ofSize: 12)
+        soldByLabel.textColor = UIColor.systemBlue
+
+        // Text Stack
+        let textStack = UIStackView(arrangedSubviews: [
+            categoryLabel,
+            titleLabel,
+            soldByLabel
+        ])
+        textStack.axis = .vertical
+        textStack.spacing = 4
+
+        // Price (VERTICALLY CENTERED)
+        let priceLabel = UILabel()
+        priceLabel.text = "₹\(Int(item.product.price))"
+        priceLabel.font = .systemFont(ofSize: 16, weight: .semibold)
+        priceLabel.textAlignment = .right
+
+        // Add Subviews
+        [imageView, textStack, priceLabel].forEach {
+            card.addSubview($0)
+            $0.translatesAutoresizingMaskIntoConstraints = false
+        }
 
         NSLayoutConstraint.activate([
-            stack.leadingAnchor.constraint(equalTo: card.leadingAnchor, constant: 16),
-            stack.trailingAnchor.constraint(equalTo: card.trailingAnchor, constant: -16),
-            stack.topAnchor.constraint(equalTo: card.topAnchor, constant: 16),
-            stack.bottomAnchor.constraint(equalTo: card.bottomAnchor, constant: -16),
-            card.heightAnchor.constraint(equalToConstant: 120)
+            card.heightAnchor.constraint(equalToConstant: 120),
+
+            imageView.leadingAnchor.constraint(equalTo: card.leadingAnchor, constant: 12),
+            imageView.centerYAnchor.constraint(equalTo: card.centerYAnchor),
+            imageView.widthAnchor.constraint(equalToConstant: 60),
+            imageView.heightAnchor.constraint(equalToConstant: 60),
+
+            priceLabel.trailingAnchor.constraint(equalTo: card.trailingAnchor, constant: -16),
+            priceLabel.centerYAnchor.constraint(equalTo: card.centerYAnchor),
+
+            textStack.leadingAnchor.constraint(equalTo: imageView.trailingAnchor, constant: 12),
+            textStack.trailingAnchor.constraint(equalTo: priceLabel.leadingAnchor, constant: -12),
+            textStack.centerYAnchor.constraint(equalTo: card.centerYAnchor)
         ])
 
         return card

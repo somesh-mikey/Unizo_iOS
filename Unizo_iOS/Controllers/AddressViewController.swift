@@ -16,6 +16,8 @@ class AddressViewController: UIViewController {
     
     var flowSource: AddressFlowSource = .fromCart
     var isBuyNowFlow: Bool = false
+    private let addressRepository = AddressRepository(client: supabase)
+    private var addresses: [AddressDTO] = []
 
     // MARK: - Colors
     private let bgColor     = UIColor(red: 0.96, green: 0.97, blue: 1.0, alpha: 1.0)
@@ -54,10 +56,12 @@ class AddressViewController: UIViewController {
         setupNavBar()
         setupStepIndicator()
         setupScrollAndContent()
-        setupAddressCards()
         setupAddNewAddressButton()
         setupContinueButton()
-        updateSelectionUI()
+
+        Task {
+            await loadAddresses()
+        }
     }
     override func viewWillAppear(_ animated: Bool) {
         super.viewWillAppear(animated)
@@ -262,33 +266,8 @@ class AddressViewController: UIViewController {
         NSLayoutConstraint.activate([
             addressesStack.topAnchor.constraint(equalTo: contentView.topAnchor, constant: 8),
             addressesStack.leadingAnchor.constraint(equalTo: contentView.leadingAnchor, constant: 20),
-            addressesStack.trailingAnchor.constraint(equalTo: contentView.trailingAnchor, constant: -20)
+            addressesStack.trailingAnchor.constraint(equalTo: contentView.trailingAnchor, constant: -20),
         ])
-    }
-
-    // MARK: - ADDRESS CARDS
-    private func setupAddressCards() {
-        let addresses: [(String, String)] = [
-            ("Jonathan   (+91) 90078 91599",
-             "4517 Washington Ave,\nManchester, Kentucky 39495"),
-            ("Bryan   (+91) 80045 67543",
-             "3891 Colonial Dr,\nSavannah, Georgia 31401"),
-            ("Jane   (+91) 70023 56190",
-             "1901 Thornridge Cir,\nShiloh, Hawaii 81063")
-        ]
-
-        for (index, info) in addresses.enumerated() {
-            let card = makeAddressCard(
-                index: index,
-                nameLine: info.0,
-                addressText: info.1
-            )
-            addressesStack.addArrangedSubview(card)
-            addressCards.append(card)
-        }
-
-        // so scroll content has some bottom padding (before Add New Address)
-        addressesStack.setContentHuggingPriority(.required, for: .vertical)
     }
 
     private func makeAddressCard(index: Int, nameLine: String, addressText: String) -> UIView {
@@ -302,16 +281,16 @@ class AddressViewController: UIViewController {
         card.translatesAutoresizingMaskIntoConstraints = false
         card.tag = index
 
-        let tap = UITapGestureRecognizer(target: self, action: #selector(cardTapped(_:)))
-        card.addGestureRecognizer(tap)
-        card.isUserInteractionEnabled = true
+        // Card tap (selection)
+        let cardTap = UITapGestureRecognizer(target: self, action: #selector(cardTapped(_:)))
+        cardTap.delegate = self
+        card.addGestureRecognizer(cardTap)
 
-        // Radio circle
+        // Radio
         let radio = UIView()
         radio.layer.cornerRadius = 7
         radio.layer.borderWidth = 2
         radio.layer.borderColor = accentTeal.cgColor
-        radio.backgroundColor = .clear
         radio.translatesAutoresizingMaskIntoConstraints = false
         card.addSubview(radio)
 
@@ -324,49 +303,60 @@ class AddressViewController: UIViewController {
 
         radioViews.append(radio)
 
-        // Name line
+        // Labels
         let nameLabel = UILabel()
         nameLabel.text = nameLine
-        nameLabel.font = UIFont.systemFont(ofSize: 14, weight: .semibold)
-        nameLabel.textColor = .black
-        nameLabel.numberOfLines = 1
-        nameLabel.translatesAutoresizingMaskIntoConstraints = false
-        card.addSubview(nameLabel)
+        nameLabel.font = .systemFont(ofSize: 14, weight: .semibold)
 
-        // Address text
         let addressLabel = UILabel()
         addressLabel.text = addressText
-        addressLabel.font = UIFont.systemFont(ofSize: 12)
+        addressLabel.font = .systemFont(ofSize: 12)
         addressLabel.textColor = .darkGray
         addressLabel.numberOfLines = 2
-        addressLabel.translatesAutoresizingMaskIntoConstraints = false
-        card.addSubview(addressLabel)
+
+        [nameLabel, addressLabel].forEach {
+            $0.translatesAutoresizingMaskIntoConstraints = false
+            card.addSubview($0)
+        }
 
         NSLayoutConstraint.activate([
             nameLabel.leadingAnchor.constraint(equalTo: radio.trailingAnchor, constant: 10),
-            nameLabel.trailingAnchor.constraint(equalTo: card.trailingAnchor, constant: -16),
             nameLabel.topAnchor.constraint(equalTo: card.topAnchor, constant: 14),
+            nameLabel.trailingAnchor.constraint(equalTo: card.trailingAnchor, constant: -70),
 
             addressLabel.leadingAnchor.constraint(equalTo: nameLabel.leadingAnchor),
-            addressLabel.trailingAnchor.constraint(equalTo: card.trailingAnchor, constant: -16),
             addressLabel.topAnchor.constraint(equalTo: nameLabel.bottomAnchor, constant: 4),
+            addressLabel.trailingAnchor.constraint(equalTo: nameLabel.trailingAnchor),
             addressLabel.bottomAnchor.constraint(equalTo: card.bottomAnchor, constant: -14)
         ])
 
-
-        // EDIT (pencil) icon
+        // EDIT icon
         let editIcon = UIImageView(image: UIImage(systemName: "pencil"))
         editIcon.tintColor = .gray
+        editIcon.tag = index
+        editIcon.isUserInteractionEnabled = true
         editIcon.translatesAutoresizingMaskIntoConstraints = false
         card.addSubview(editIcon)
 
-        // BIN (trash) icon
+        let editTap = UITapGestureRecognizer(target: self, action: #selector(editTapped(_:)))
+        editIcon.addGestureRecognizer(editTap)
+
+        // DELETE icon
         let deleteIcon = UIImageView(image: UIImage(systemName: "trash"))
         deleteIcon.tintColor = .gray
+        deleteIcon.tag = index
+        deleteIcon.isUserInteractionEnabled = true
         deleteIcon.translatesAutoresizingMaskIntoConstraints = false
         card.addSubview(deleteIcon)
 
-        // Constraints for icons
+        let deleteTap = UITapGestureRecognizer(target: self, action: #selector(deleteTapped(_:)))
+        deleteIcon.addGestureRecognizer(deleteTap)
+
+        // 👇 THIS IS THE CRITICAL FIX
+        card.bringSubviewToFront(editIcon)
+        card.bringSubviewToFront(deleteIcon)
+
+
         NSLayoutConstraint.activate([
             editIcon.topAnchor.constraint(equalTo: card.topAnchor, constant: 14),
             editIcon.trailingAnchor.constraint(equalTo: card.trailingAnchor, constant: -45),
@@ -379,7 +369,6 @@ class AddressViewController: UIViewController {
             deleteIcon.heightAnchor.constraint(equalToConstant: 18)
         ])
 
-
         return card
     }
 
@@ -388,6 +377,53 @@ class AddressViewController: UIViewController {
         selectedIndex = card.tag
         updateSelectionUI()
     }
+    @objc private func editTapped(_ gesture: UITapGestureRecognizer) {
+        guard
+            let icon = gesture.view,
+            icon.tag < addresses.count
+        else { return }
+
+        let address = addresses[icon.tag]
+
+        let editVC = EditAddressViewController(address: address)
+        editVC.onSave = { [weak self] in
+            Task { await self?.loadAddresses() }
+        }
+
+        navigationController?.pushViewController(editVC, animated: true)
+    }
+
+    @objc private func deleteTapped(_ gesture: UITapGestureRecognizer) {
+        guard
+            let icon = gesture.view,
+            icon.tag < addresses.count
+        else { return }
+
+        let address = addresses[icon.tag]
+
+        let alert = UIAlertController(
+            title: "Delete Address?",
+            message: "This action cannot be undone.",
+            preferredStyle: .alert
+        )
+
+        alert.addAction(UIAlertAction(title: "Cancel", style: .cancel))
+
+        alert.addAction(UIAlertAction(title: "Delete", style: .destructive) { _ in
+            Task {
+                do {
+                    try await self.addressRepository.deleteAddress(id: address.id)
+                    print("🗑️ Address deleted:", address.id)
+                    await self.loadAddresses()
+                } catch {
+                    print("❌ Failed to delete address:", error)
+                }
+            }
+        })
+
+        present(alert, animated: true)
+    }
+
 
     private func updateSelectionUI() {
         for (idx, radio) in radioViews.enumerated() {
@@ -470,6 +506,55 @@ class AddressViewController: UIViewController {
             continueButton.heightAnchor.constraint(equalToConstant: 54)
         ])
     }
+    @MainActor
+    private func loadAddresses() async {
+        do {
+            let fetched = try await addressRepository.fetchAddresses()
+            print("📦 Addresses fetched:", fetched.count)
+            self.addresses = fetched
+            renderAddressCards()
+        } catch {
+            print("❌ Failed to load addresses:", error)
+        }
+        if selectedIndex >= addresses.count {
+            selectedIndex = max(0, addresses.count - 1)
+        }
+    }
+    @MainActor
+    private func renderAddressCards() {
+        // Clear old cards
+        addressesStack.arrangedSubviews.forEach {
+            addressesStack.removeArrangedSubview($0)
+            $0.removeFromSuperview()
+        }
+
+        addressCards.removeAll()
+        radioViews.removeAll()
+
+        for (index, address) in addresses.enumerated() {
+            let nameLine = "\(address.name)   \(address.phone)"
+            let addressText = """
+            \(address.line1)
+            \(address.city), \(address.state) \(address.postal_code)
+            """
+
+            let card = makeAddressCard(
+                index: index,
+                nameLine: nameLine,
+                addressText: addressText
+            )
+
+            addressesStack.addArrangedSubview(card)
+            addressCards.append(card)
+
+            if address.is_default {
+                selectedIndex = index
+            }
+        }
+
+        updateSelectionUI()
+    }
+
 
     @objc func continueTapped() {
 
@@ -496,3 +581,16 @@ class AddressViewController: UIViewController {
         }
     }
 }
+extension AddressViewController: UIGestureRecognizerDelegate {
+    func gestureRecognizer(
+        _ gestureRecognizer: UIGestureRecognizer,
+        shouldReceive touch: UITouch
+    ) -> Bool {
+        // If tap is on edit or delete icon → ignore card tap
+        if touch.view is UIImageView {
+            return false
+        }
+        return true
+    }
+}
+

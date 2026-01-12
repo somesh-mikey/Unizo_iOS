@@ -43,11 +43,13 @@ class LandingScreenViewController: UIViewController {
     private let segmentedControl = UISegmentedControl(items: ["All", "Most Popular", "Negotiable"])
 
     // MARK: Data
-    private let banners = ["banner1", "banner2", "banner3"]
+    private var banners: [BannerUIModel] = []
     private var timer: Timer?
     private var currentBannerIndex = 0
     private var currentPage = 0
     private var isLoadingMore = false
+    private var didSetupCarousel = false
+
 
 
 
@@ -244,6 +246,16 @@ class LandingScreenViewController: UIViewController {
 //            imageName: "leafbasswireless"
 //        )
 //    ]
+    
+    override func viewDidLayoutSubviews() {
+        super.viewDidLayoutSubviews()
+
+        guard !didSetupCarousel, !banners.isEmpty else { return }
+
+        didSetupCarousel = true
+        setupCarousel()
+        startAutoScroll()
+    }
 
 
     // MARK: Lifecycle
@@ -253,13 +265,15 @@ class LandingScreenViewController: UIViewController {
         setupViews()
         setupCarousel()
         setupCollectionView()
-        startAutoScroll()
         loader.center = view.center
         view.addSubview(loader)
         loader.startAnimating()
         updateCollectionHeight()
         Task {
             await loadProducts()
+        }
+        Task {
+            await loadBanners()
         }
 
         navigationController?.setNavigationBarHidden(true, animated: false)
@@ -270,15 +284,6 @@ class LandingScreenViewController: UIViewController {
         super.viewWillAppear(animated)
         (tabBarController as? MainTabBarController)?.showFloatingTabBar()
     }
-
-    override func viewDidLayoutSubviews() {
-        super.viewDidLayoutSubviews()
-        updateCollectionHeight()
-
-        // Restore floating tab bar AFTER all auto layout passes
-
-    }
-
 
 
 
@@ -594,6 +599,27 @@ class LandingScreenViewController: UIViewController {
         }
     }
     @MainActor
+    private func loadBanners() async {
+        do {
+            let dtos = try await productRepository.fetchBanners()
+            print("🟢 Banner DTOs:", dtos)
+
+            self.banners = dtos.map {
+                BannerUIModel(imageURL: $0.image_url)
+            }
+
+            print("🟢 Banner URLs:", banners.map { $0.imageURL })
+
+            guard !banners.isEmpty else {
+                print("❌ No banners returned from DB")
+                return
+            }
+
+        } catch {
+            print("❌ Failed to load banners:", error)
+        }
+    }
+    @MainActor
     private func loadNextPage() {
         isLoadingMore = true
         currentPage += 1
@@ -811,22 +837,13 @@ class LandingScreenViewController: UIViewController {
     // MARK: Carousel content
     private func setupCarousel() {
 
-        carouselScrollView.isPagingEnabled = true
-        carouselScrollView.showsHorizontalScrollIndicator = false
-        carouselScrollView.delegate = self
+        carouselScrollView.subviews.forEach { $0.removeFromSuperview() }
 
-        let banners: [UIImage] = [
-            UIImage(named: "banner1")!,
-            UIImage(named: "banner2")!,
-            UIImage(named: "banner3")!
-        ]
-
-        let cardWidth = view.bounds.width - 40     // same as before (20 left + right)
+        let cardWidth = view.bounds.width - 40
         let cardHeight: CGFloat = 140
 
-        for (index, img) in banners.enumerated() {
+        for (index, banner) in banners.enumerated() {
 
-            // Wrapper for rounded corners & shadow
             let wrapper = UIView()
             wrapper.frame = CGRect(
                 x: CGFloat(index) * (cardWidth + 20),
@@ -834,23 +851,24 @@ class LandingScreenViewController: UIViewController {
                 width: cardWidth,
                 height: cardHeight
             )
-            wrapper.isUserInteractionEnabled = true
-            wrapper.addGestureRecognizer(UITapGestureRecognizer(target: self, action: #selector(openEventsPage)))
 
-            wrapper.backgroundColor = .clear
             wrapper.layer.shadowColor = UIColor.black.cgColor
             wrapper.layer.shadowOpacity = 0.12
             wrapper.layer.shadowRadius = 6
             wrapper.layer.shadowOffset = CGSize(width: 0, height: 3)
 
-            // Image inside wrapper
-            let iv = UIImageView(image: img)
-            iv.clipsToBounds = true
-            iv.layer.cornerRadius = 16
-            iv.contentMode = .scaleAspectFill
-            iv.frame = wrapper.bounds
+            let imageView = UIImageView()
+            imageView.clipsToBounds = true
+            imageView.layer.cornerRadius = 16
+            imageView.contentMode = .scaleAspectFill
+            imageView.frame = wrapper.bounds
 
-            wrapper.addSubview(iv)
+            ImageLoader.shared.load(
+                banner.imageURL,
+                into: imageView
+            )
+
+            wrapper.addSubview(imageView)
             carouselScrollView.addSubview(wrapper)
         }
 
@@ -859,28 +877,32 @@ class LandingScreenViewController: UIViewController {
             height: cardHeight
         )
 
-        // PageControl setup
         pageControl.numberOfPages = banners.count
         pageControl.currentPage = 0
-        pageControl.pageIndicatorTintColor = UIColor.lightGray.withAlphaComponent(0.4)
-        pageControl.currentPageIndicatorTintColor = UIColor.darkGray
-
-        // Bring page control to front
-        contentView.bringSubviewToFront(pageControl)
     }
 
 
     private func startAutoScroll() {
+        timer?.invalidate()
+
+        guard banners.count > 1 else { return }
+
         timer = Timer.scheduledTimer(withTimeInterval: 3.0, repeats: true) { [weak self] _ in
             guard let self = self else { return }
 
-            self.currentBannerIndex = (self.currentBannerIndex + 1) % self.banners.count
-            let width = self.carouselScrollView.frameLayoutGuide.layoutFrame.width
-            let offset = CGFloat(self.currentBannerIndex) * width
+            self.currentBannerIndex =
+                (self.currentBannerIndex + 1) % self.banners.count
 
-            self.carouselScrollView.setContentOffset(CGPoint(x: offset, y: 0), animated: true)
+            let pageWidth = self.carouselScrollView.frame.width + 20
+            let offsetX = CGFloat(self.currentBannerIndex) * pageWidth
+
+            self.carouselScrollView.setContentOffset(
+                CGPoint(x: offsetX, y: 0),
+                animated: true
+            )
         }
     }
+
 
     // MARK: Collection setup
     private func setupCollectionView() {
