@@ -6,6 +6,10 @@
 	objectVersion = 77;
 	objects = {
 
+/* Begin PBXBuildFile section */
+		19123BDF2F164C50003C7D39 /* Supabase in Frameworks */ = {isa = PBXBuildFile; productRef = 19123BDE2F164C50003C7D39 /* Supabase */; };
+/* End PBXBuildFile section */
+
 /* Begin PBXContainerItemProxy section */
 		5701C3272EC30E93000DB010 /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
@@ -65,6 +69,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				19123BDF2F164C50003C7D39 /* Supabase in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -125,6 +130,7 @@
 			);
 			name = Unizo_iOS;
 			packageProductDependencies = (
+				19123BDE2F164C50003C7D39 /* Supabase */,
 			);
 			productName = Unizo_iOS;
 			productReference = 5701C3102EC30E92000DB010 /* Unizo_iOS.app */;
@@ -208,6 +214,9 @@
 			);
 			mainGroup = 5701C3072EC30E92000DB010;
 			minimizedProjectReferenceProxies = 1;
+			packageReferences = (
+				19123BDD2F164C50003C7D39 /* XCRemoteSwiftPackageReference "supabase-swift" */,
+			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = 5701C3112EC30E92000DB010 /* Products */;
 			projectDirPath = "";
@@ -589,6 +598,25 @@
 			defaultConfigurationName = Release;
 		};
 /* End XCConfigurationList section */
+
+/* Begin XCRemoteSwiftPackageReference section */
+		19123BDD2F164C50003C7D39 /* XCRemoteSwiftPackageReference "supabase-swift" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/supabase/supabase-swift";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 2.5.1;
+			};
+		};
+/* End XCRemoteSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		19123BDE2F164C50003C7D39 /* Supabase */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 19123BDD2F164C50003C7D39 /* XCRemoteSwiftPackageReference "supabase-swift" */;
+			productName = Supabase;
+		};
+/* End XCSwiftPackageProductDependency section */
 	};
 	rootObject = 5701C3082EC30E92000DB010 /* Project object */;
 }
