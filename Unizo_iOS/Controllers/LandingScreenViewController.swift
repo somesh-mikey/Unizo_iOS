@@ -181,7 +181,7 @@ class LandingScreenViewController: UIViewController {
 //    )
 //]
 //    private let gadgetsItems: [Product] = [
-//        
+//
 //        Product(
 //            name: "pTron Headphones",
 //            price: 1000,
@@ -742,7 +742,7 @@ class LandingScreenViewController: UIViewController {
         guard !isLoadingMore else {
             refreshControl.endRefreshing()
             return
-        }   
+        }
         // Reset pagination state
         currentPage = 0
         hasMorePages = true
@@ -1077,5 +1077,3 @@ final class ImageLoader {
         }.resume()
     }
 }
-
-

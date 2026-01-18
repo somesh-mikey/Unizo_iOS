@@ -171,7 +171,7 @@ class ItemDetailsViewController: UIViewController {
         ratingLabel.text = "⭐️ \(String(format: "%.1f", p.rating))"
 
         // Image
-        if let image = p.imageName {
+        if let image = p.imageURL {
             if image.hasPrefix("http") {
                 productImageView.loadImage(
                     from: image,
