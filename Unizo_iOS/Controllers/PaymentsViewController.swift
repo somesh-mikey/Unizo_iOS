@@ -24,6 +24,7 @@ class PaymentsViewController: UIViewController {
         super.viewWillAppear(animated)
 
         navigationController?.setNavigationBarHidden(true, animated: false)
+        self.tabBarController?.tabBar.isHidden = true
 
         // Correct floating tab bar hiding
         (tabBarController as? MainTabBarController)?.hideFloatingTabBar()
@@ -33,6 +34,7 @@ class PaymentsViewController: UIViewController {
         super.viewWillDisappear(animated)
 
         navigationController?.setNavigationBarHidden(false, animated: false)
+        self.tabBarController?.tabBar.isHidden = false
 
         // Correct floating tab bar restoring
         (tabBarController as? MainTabBarController)?.showFloatingTabBar()

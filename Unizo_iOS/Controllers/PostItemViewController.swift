@@ -302,6 +302,8 @@ final class PostItemViewController: UIViewController,
         finalUploadButton.setTitleColor(.white, for: .normal)
         finalUploadButton.layer.cornerRadius = 22
         finalUploadButton.translatesAutoresizingMaskIntoConstraints = false
+        
+        finalUploadButton.addTarget(self, action: #selector(uploadProductTapped), for: .touchUpInside)
 
         contentView.addSubview(finalUploadButton)
 
@@ -377,3 +379,29 @@ extension PostItemViewController: UITextFieldDelegate {
         pickerView.reloadAllComponents()
     }
 }
+    @objc private func uploadProductTapped() {
+        // Optionally: validate fields & prepare product info here before navigating
+
+        let postedVC = ProductPostedViewController()
+
+        // Prefer pushing onto navigation stack (keeps back behaviour)
+        if let nav = navigationController {
+            nav.pushViewController(postedVC, animated: true)
+            return
+        }
+
+        // Fallback — present modally if there's no navigation controller
+        postedVC.modalPresentationStyle = .fullScreen
+        present(postedVC, animated: true)
+    }
+}
+
+// Helper for padding
+//extension UITextField {
+//    func setLeftPaddingPoints(_ amount: CGFloat) {
+//        let padding = UIView(frame: CGRect(x: 0, y: 0, width: amount, height: frame.height))
+//        leftView = padding
+//        leftViewMode = .always
+//    }
+//}
+    

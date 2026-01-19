@@ -12,9 +12,8 @@ class SceneDelegate: UIResponder, UIWindowSceneDelegate {
 
         let window = UIWindow(windowScene: windowScene)
 
-        // Start your app here — change WelcomeViewController() if needed
-        let rootVC = WelcomeViewController()
-        window.rootViewController = UINavigationController(rootViewController: rootVC)
+        let splashVC = SplashViewController()
+        window.rootViewController = splashVC   // no navigation controller here
 
         self.window = window
         window.makeKeyAndVisible()

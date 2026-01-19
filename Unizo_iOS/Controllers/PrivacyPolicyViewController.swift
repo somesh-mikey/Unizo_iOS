@@ -20,6 +20,7 @@ class PrivacyPolicyViewController: UIViewController {
     override func viewWillAppear(_ animated: Bool) {
         super.viewWillAppear(animated)
         tabBarController?.tabBar.isHidden = true
+        self.tabBarController?.tabBar.isHidden = true
     }
 
     override func viewWillDisappear(_ animated: Bool) {
@@ -29,6 +30,7 @@ class PrivacyPolicyViewController: UIViewController {
         // Required to restore floating pill shape when returning
         if let mainTab = tabBarController as? MainTabBarController {
         }
+        self.tabBarController?.tabBar.isHidden = false
     }
 
 

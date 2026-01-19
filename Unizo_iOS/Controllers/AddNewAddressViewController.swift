@@ -48,6 +48,7 @@ class AddNewAddressViewController: UIViewController {
     override func viewWillAppear(_ animated: Bool) {
         super.viewWillAppear(animated)
         tabBarController?.tabBar.isHidden = true
+        self.tabBarController?.tabBar.isHidden = true
     }
 
     override func viewWillDisappear(_ animated: Bool) {
@@ -85,16 +86,16 @@ class AddNewAddressViewController: UIViewController {
 
     // MARK: NAVBAR (exact Figma)
     private func setupNavBar() {
+
         navBar.translatesAutoresizingMaskIntoConstraints = false
         view.addSubview(navBar)
 
         NSLayoutConstraint.activate([
-            navBar.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor, constant: -55),
+            navBar.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor),
             navBar.leadingAnchor.constraint(equalTo: view.leadingAnchor),
             navBar.trailingAnchor.constraint(equalTo: view.trailingAnchor),
-            navBar.heightAnchor.constraint(equalToConstant: 100) // Reduced height like iOS navbar
+            navBar.heightAnchor.constraint(equalToConstant: 80)
         ])
-
 
         // Back Button
         backButton.setImage(UIImage(systemName: "chevron.left"), for: .normal)
@@ -117,18 +118,28 @@ class AddNewAddressViewController: UIViewController {
 
         NSLayoutConstraint.activate([
             backButton.leadingAnchor.constraint(equalTo: navBar.leadingAnchor, constant: 20),
-            backButton.centerYAnchor.constraint(equalTo: navBar.centerYAnchor, constant: 2),
+            backButton.centerYAnchor.constraint(equalTo: navBar.centerYAnchor),
 
             heartButton.trailingAnchor.constraint(equalTo: navBar.trailingAnchor, constant: -20),
-            heartButton.centerYAnchor.constraint(equalTo: navBar.centerYAnchor, constant: 2),
+            heartButton.centerYAnchor.constraint(equalTo: navBar.centerYAnchor),
 
             titleLabel.centerXAnchor.constraint(equalTo: navBar.centerXAnchor),
-            titleLabel.centerYAnchor.constraint(equalTo: navBar.centerYAnchor, constant: 2)
+            titleLabel.centerYAnchor.constraint(equalTo: navBar.centerYAnchor)
         ])
     }
 
     @objc private func goBack() {
-        navigationController?.popViewController(animated: true)
+        if let nav = navigationController {
+            for vc in nav.viewControllers {
+                if vc is AddressViewController {
+                    nav.popToViewController(vc, animated: true)
+                    return
+                }
+            }
+            nav.popViewController(animated: true)  // fallback
+        } else {
+            dismiss(animated: true)
+        }
     }
 
     // MARK: Scroll View
@@ -140,7 +151,7 @@ class AddNewAddressViewController: UIViewController {
         scrollView.addSubview(contentView)
 
         NSLayoutConstraint.activate([
-            scrollView.topAnchor.constraint(equalTo: navBar.bottomAnchor, constant: 10),
+            scrollView.topAnchor.constraint(equalTo: navBar.bottomAnchor),  // ← pulled UP
             scrollView.leadingAnchor.constraint(equalTo: view.leadingAnchor),
             scrollView.trailingAnchor.constraint(equalTo: view.trailingAnchor),
             scrollView.bottomAnchor.constraint(equalTo: view.bottomAnchor),
@@ -180,8 +191,9 @@ class AddNewAddressViewController: UIViewController {
         ])
     }
 
-    // MARK: TEXT FIELDS EXACT LIKE FIGMA
+    // MARK: TEXT FIELDS
     private func setupFields() {
+
         let fields = [
             (nameField, "Name"),
             (phoneField, "Phone Number"),
@@ -195,11 +207,11 @@ class AddNewAddressViewController: UIViewController {
         var last: UIView? = nil
 
         for (field, placeholder) in fields {
+
             field.translatesAutoresizingMaskIntoConstraints = false
             field.placeholder = placeholder
             field.backgroundColor = .white
             field.font = UIFont.systemFont(ofSize: 15)
-//            field.setLeftPaddingPoints(10)
 
             whiteContainer.addSubview(field)
 
@@ -212,7 +224,6 @@ class AddNewAddressViewController: UIViewController {
             if let lastField = last {
                 field.topAnchor.constraint(equalTo: lastField.bottomAnchor, constant: 0.3).isActive = true
 
-                // Divider line
                 let divider = UIView()
                 divider.backgroundColor = UIColor.lightGray.withAlphaComponent(0.3)
                 divider.translatesAutoresizingMaskIntoConstraints = false
@@ -232,7 +243,6 @@ class AddNewAddressViewController: UIViewController {
             last = field
         }
 
-        // Constrain container bottom
         if let lastField = last {
             lastField.bottomAnchor.constraint(equalTo: whiteContainer.bottomAnchor, constant: -15).isActive = true
         }
@@ -240,6 +250,7 @@ class AddNewAddressViewController: UIViewController {
 
     // MARK: Save Button
     private func setupSaveButton() {
+
         saveButton.setTitle("Save", for: .normal)
         saveButton.backgroundColor = UIColor(red: 0.02, green: 0.34, blue: 0.46, alpha: 1)
         saveButton.layer.cornerRadius = 25
@@ -290,36 +301,3 @@ class AddNewAddressViewController: UIViewController {
         }
     }
 }
-
-
-
-
-
-//// ----------------------------------------------------------------------
-//// MARK: - UITextField Padding Extension
-//// ----------------------------------------------------------------------
-//extension UITextField {
-//    func setLeftPaddingPoints(_ amount: CGFloat) {
-//        let paddingView = UIView(frame: CGRect(x: 0, y: 0, width: amount, height: self.frame.height))
-//        self.leftView = paddingView
-//        self.leftViewMode = .always
-//    }
-//}
-
-//// Padding helper
-//extension UITextField {
-//    func setLeftPaddingPoints(_ amount: CGFloat) {
-//        let paddingView = UIView(frame: CGRect(x: 0, y: 0, width: amount, height: self.frame.height))
-//        leftView = paddingView
-//        leftViewMode = .always
-//    }
-//}
-
-//// Padding helper
-//extension UITextField {
-//    func setLeftPaddingPoints(_ amount: CGFloat) {
-//        let paddingView = UIView(frame: CGRect(x: 0, y: 0, width: amount, height: self.frame.height))
-//        self.leftView = paddingView
-//        self.leftViewMode = .always
-//    }
-//}

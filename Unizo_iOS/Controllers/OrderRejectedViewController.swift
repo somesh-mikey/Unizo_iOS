@@ -14,21 +14,29 @@ class OrderRejectedViewController: UIViewController {
     private let darkTeal = UIColor(red: 0.07, green: 0.33, blue: 0.42, alpha: 1.0)
     private let borderTeal = UIColor(red: 0.00, green: 0.62, blue: 0.71, alpha: 1.0)
 
+    // MARK: - Buttons
+    private let viewListingsButton = UIButton(type: .system)   // <<— IMPORTANT FIX
+
     override func viewDidLoad() {
         super.viewDidLoad()
 
         view.backgroundColor = bgColor
         setupUI()
+
+        // Attach action
+        viewListingsButton.addTarget(self, action: #selector(goToListings), for: .touchUpInside)
     }
     
     override func viewWillAppear(_ animated: Bool) {
         super.viewWillAppear(animated)
         navigationController?.setNavigationBarHidden(true, animated: false)
+        self.tabBarController?.tabBar.isHidden = true
     }
 
     override func viewWillDisappear(_ animated: Bool) {
         super.viewWillDisappear(animated)
         navigationController?.setNavigationBarHidden(false, animated: false)
+        self.tabBarController?.tabBar.isHidden = false
     }
 
     private func setupUI() {
@@ -68,7 +76,7 @@ class OrderRejectedViewController: UIViewController {
         // RED ICON CIRCLE
         // ----------------------------------------------------
         let iconCircle = UIView()
-        iconCircle.backgroundColor = UIColor(red: 0.95, green: 0.41, blue: 0.39, alpha: 1.0) // Red circle
+        iconCircle.backgroundColor = UIColor(red: 0.95, green: 0.41, blue: 0.39, alpha: 1.0)
         iconCircle.layer.cornerRadius = 60
         iconCircle.translatesAutoresizingMaskIntoConstraints = false
 
@@ -99,8 +107,6 @@ class OrderRejectedViewController: UIViewController {
         titleLabel.font = UIFont.systemFont(ofSize: 20, weight: .semibold)
         titleLabel.textAlignment = .center
         titleLabel.translatesAutoresizingMaskIntoConstraints = false
-        
-
         view.addSubview(titleLabel)
 
         NSLayoutConstraint.activate([
@@ -118,7 +124,6 @@ class OrderRejectedViewController: UIViewController {
         subtitleLabel.numberOfLines = 0
         subtitleLabel.textAlignment = .center
         subtitleLabel.translatesAutoresizingMaskIntoConstraints = false
-
         view.addSubview(subtitleLabel)
 
         NSLayoutConstraint.activate([
@@ -127,7 +132,7 @@ class OrderRejectedViewController: UIViewController {
         ])
 
         // ----------------------------------------------------
-        // DISABLED PRIMARY BUTTON
+        // DISABLED ORDER DETAIL BUTTON
         // ----------------------------------------------------
         let disabledButton = UIButton(type: .system)
         disabledButton.setTitle("View Order Detail", for: .normal)
@@ -147,28 +152,62 @@ class OrderRejectedViewController: UIViewController {
         ])
 
         // ----------------------------------------------------
-        // SECONDARY BUTTON (OUTLINED)
+        // ACTIVE — VIEW LISTINGS BUTTON
         // ----------------------------------------------------
-        let secondaryButton = UIButton(type: .system)
-        secondaryButton.setTitle("View Listings", for: .normal)
-        secondaryButton.setTitleColor(borderTeal, for: .normal)
-        secondaryButton.layer.borderColor = borderTeal.cgColor
-        secondaryButton.layer.borderWidth = 2
-        secondaryButton.layer.cornerRadius = 25
-        secondaryButton.translatesAutoresizingMaskIntoConstraints = false
+        viewListingsButton.setTitle("View Listings", for: .normal)
+        viewListingsButton.setTitleColor(borderTeal, for: .normal)
+        viewListingsButton.layer.borderColor = borderTeal.cgColor
+        viewListingsButton.layer.borderWidth = 2
+        viewListingsButton.layer.cornerRadius = 25
+        viewListingsButton.translatesAutoresizingMaskIntoConstraints = false
 
-        view.addSubview(secondaryButton)
+        view.addSubview(viewListingsButton)
 
         NSLayoutConstraint.activate([
-            secondaryButton.topAnchor.constraint(equalTo: disabledButton.bottomAnchor, constant: 20),
-            secondaryButton.leadingAnchor.constraint(equalTo: disabledButton.leadingAnchor),
-            secondaryButton.trailingAnchor.constraint(equalTo: disabledButton.trailingAnchor),
-            secondaryButton.heightAnchor.constraint(equalToConstant: 50)
+            viewListingsButton.topAnchor.constraint(equalTo: disabledButton.bottomAnchor, constant: 20),
+            viewListingsButton.leadingAnchor.constraint(equalTo: disabledButton.leadingAnchor),
+            viewListingsButton.trailingAnchor.constraint(equalTo: disabledButton.trailingAnchor),
+            viewListingsButton.heightAnchor.constraint(equalToConstant: 50)
         ])
     }
 
     // MARK: - Actions
     @objc private func backPressed() {
         navigationController?.popViewController(animated: true)
+    }
+
+    @objc private func goToListings() {
+        // find the tabBarController
+        guard let tabBar = self.tabBarController else {
+            // fallback: present modally if no tab bar
+            let vc = ListingsViewController()
+            vc.modalPresentationStyle = .fullScreen
+            present(vc, animated: true)
+            return
+        }
+
+        // find index of the view controller that hosts ListingsViewController
+        // this works if your tabs are UINavigationControllers whose root is ListingsViewController
+        if let idx = tabBar.viewControllers?.firstIndex(where: { vc in
+            if let nav = vc as? UINavigationController {
+                return nav.viewControllers.first is ListingsViewController
+            } else {
+                return vc is ListingsViewController
+            }
+        }) {
+            // Switch to the listings tab
+            tabBar.selectedIndex = idx
+
+            // Ensure the listings nav is at its root
+            if let nav = tabBar.viewControllers?[idx] as? UINavigationController {
+                nav.popToRootViewController(animated: false)
+            }
+            return
+        }
+
+        // If we couldn't find it, fallback to a modal present
+        let vc = ListingsViewController()
+        vc.modalPresentationStyle = .fullScreen
+        present(vc, animated: true)
     }
 }

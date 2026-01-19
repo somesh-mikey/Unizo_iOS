@@ -86,6 +86,7 @@ class MyOrdersViewController: UIViewController {
         
         // Hide the floating tab bar
         tabBarController?.tabBar.isHidden = true
+        self.tabBarController?.tabBar.isHidden = true
     }
 
     override func viewWillDisappear(_ animated: Bool) {
@@ -97,6 +98,9 @@ class MyOrdersViewController: UIViewController {
         // Restore floating pill shape + position
         if let mainTab = tabBarController as? MainTabBarController {
         }
+        navigationController?.setNavigationBarHidden(false, animated: false)
+        self.tabBarController?.tabBar.isHidden = false
+
     }
 
 
@@ -179,7 +183,7 @@ class MyOrdersViewController: UIViewController {
                 statusColor: .systemGreen,
                 items: [
                     OrderItem(
-                        imageName: "cap",
+                        imageName: "Cap",
                         title: "Under Armour Cap",
                         detail: "Color: Black • One Size",
                         price: "₹500"
@@ -333,7 +337,7 @@ class MyOrdersViewController: UIViewController {
                 statusColor: .systemGreen,
                 items: [
                     OrderItem(
-                        imageName: "pinkbicycle",
+                        imageName: "PinkBicycle",
                         title: "Pink Bicycle",
                         detail: "Kids • 16 inch",
                         price: "₹8900"

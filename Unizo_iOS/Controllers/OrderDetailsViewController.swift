@@ -42,6 +42,7 @@ class OrderDetailsViewController: UIViewController {
     private let itemImageView = UIImageView()
     private let itemCategoryLabel = UILabel()
     private let itemTitleLabel = UILabel()
+    private let priceLabel = UILabel()
 
     // MARK: - Delivery Info
     private let deliveryTitle = UILabel()
@@ -72,6 +73,7 @@ class OrderDetailsViewController: UIViewController {
         setupBottomButtons()
     }
 
+    // MARK: - Hide Nav + Tab Bar
     override func viewWillAppear(_ animated: Bool) {
         super.viewWillAppear(animated)
         navigationController?.setNavigationBarHidden(true, animated: false)
@@ -81,9 +83,11 @@ class OrderDetailsViewController: UIViewController {
     override func viewWillDisappear(_ animated: Bool) {
         super.viewWillDisappear(animated)
         tabBarController?.tabBar.isHidden = false      // SHOW tab bar properly
+        navigationController?.setNavigationBarHidden(false, animated: false)
+        tabBarController?.tabBar.isHidden = false
     }
 
-    // MARK: - Top Bar
+    // MARK: - Top Bar UI
     private func setupTopBar() {
         topBar.translatesAutoresizingMaskIntoConstraints = false
         view.addSubview(topBar)
@@ -168,8 +172,8 @@ class OrderDetailsViewController: UIViewController {
         statusCircle.addSubview(statusCheck)
 
         statusTitleLabel.text = "Order Confirmed"
-        statusTitleLabel.font = UIFont.systemFont(ofSize: 16, weight: .semibold)
         statusTitleLabel.textColor = .white
+        statusTitleLabel.font = .systemFont(ofSize: 16, weight: .semibold)
         statusTitleLabel.translatesAutoresizingMaskIntoConstraints = false
 
         statusTimeLabel.text = "Today, 2:30 PM"
@@ -178,13 +182,13 @@ class OrderDetailsViewController: UIViewController {
         statusTimeLabel.translatesAutoresizingMaskIntoConstraints = false
 
         orderIdLabel.text = "#ORD-2024-1156"
-        orderIdLabel.font = UIFont.systemFont(ofSize: 12, weight: .semibold)
+        orderIdLabel.font = .systemFont(ofSize: 12, weight: .semibold)
         orderIdLabel.textColor = .white
         orderIdLabel.translatesAutoresizingMaskIntoConstraints = false
 
         totalAmountLabel.text = "₹500"
-        totalAmountLabel.font = UIFont.systemFont(ofSize: 18, weight: .bold)
         totalAmountLabel.textColor = .white
+        totalAmountLabel.font = .systemFont(ofSize: 18, weight: .bold)
         totalAmountLabel.translatesAutoresizingMaskIntoConstraints = false
 
         statusCard.addSubview(statusCircle)
@@ -224,7 +228,7 @@ class OrderDetailsViewController: UIViewController {
     // MARK: - Timeline
     private func setupTimeline() {
         timelineLabel.text = "Order Timeline"
-        timelineLabel.font = UIFont.systemFont(ofSize: 18, weight: .semibold)
+        timelineLabel.font = .systemFont(ofSize: 18, weight: .semibold)
         timelineLabel.translatesAutoresizingMaskIntoConstraints = false
         contentView.addSubview(timelineLabel)
 
@@ -247,9 +251,9 @@ class OrderDetailsViewController: UIViewController {
     }
 
     private func makeTimelineRow(title: String, subtitle: String, completed: Bool) -> UIView {
-        let container = UIView()
-        container.translatesAutoresizingMaskIntoConstraints = false
-        container.heightAnchor.constraint(equalToConstant: 48).isActive = true
+        let row = UIView()
+        row.translatesAutoresizingMaskIntoConstraints = false
+        row.heightAnchor.constraint(equalToConstant: 48).isActive = true
 
         let dot = UIView()
         dot.translatesAutoresizingMaskIntoConstraints = false
@@ -264,22 +268,22 @@ class OrderDetailsViewController: UIViewController {
 
         let titleLabel = UILabel()
         titleLabel.text = title
-        titleLabel.font = UIFont.systemFont(ofSize: 15, weight: .semibold)
+        titleLabel.font = .systemFont(ofSize: 15, weight: .semibold)
         titleLabel.translatesAutoresizingMaskIntoConstraints = false
 
         let subtitleLabel = UILabel()
         subtitleLabel.text = subtitle
-        subtitleLabel.font = UIFont.systemFont(ofSize: 13)
+        subtitleLabel.font = .systemFont(ofSize: 13)
         subtitleLabel.textColor = .darkGray
         subtitleLabel.translatesAutoresizingMaskIntoConstraints = false
 
-        container.addSubview(dot)
-        container.addSubview(titleLabel)
-        container.addSubview(subtitleLabel)
+        row.addSubview(dot)
+        row.addSubview(titleLabel)
+        row.addSubview(subtitleLabel)
 
         NSLayoutConstraint.activate([
-            dot.leadingAnchor.constraint(equalTo: container.leadingAnchor),
-            dot.centerYAnchor.constraint(equalTo: container.centerYAnchor),
+            dot.leadingAnchor.constraint(equalTo: row.leadingAnchor),
+            dot.centerYAnchor.constraint(equalTo: row.centerYAnchor),
             dot.widthAnchor.constraint(equalToConstant: 28),
             dot.heightAnchor.constraint(equalToConstant: 28),
 
@@ -287,19 +291,19 @@ class OrderDetailsViewController: UIViewController {
             check.centerYAnchor.constraint(equalTo: dot.centerYAnchor),
 
             titleLabel.leadingAnchor.constraint(equalTo: dot.trailingAnchor, constant: 12),
-            titleLabel.topAnchor.constraint(equalTo: container.topAnchor, constant: 6),
+            titleLabel.topAnchor.constraint(equalTo: row.topAnchor, constant: 6),
 
             subtitleLabel.leadingAnchor.constraint(equalTo: titleLabel.leadingAnchor),
             subtitleLabel.topAnchor.constraint(equalTo: titleLabel.bottomAnchor, constant: 2)
         ])
 
-        return container
+        return row
     }
 
     // MARK: - Item Card
     private func setupItemCard() {
         orderItemsTitle.text = "Order Items"
-        orderItemsTitle.font = UIFont.systemFont(ofSize: 18, weight: .semibold)
+        orderItemsTitle.font = .systemFont(ofSize: 18, weight: .semibold)
         orderItemsTitle.translatesAutoresizingMaskIntoConstraints = false
         contentView.addSubview(orderItemsTitle)
 
@@ -311,25 +315,24 @@ class OrderDetailsViewController: UIViewController {
         itemCard.translatesAutoresizingMaskIntoConstraints = false
         itemCard.backgroundColor = .white
         itemCard.layer.cornerRadius = 12
-        itemCard.layer.shadowColor = UIColor.black.cgColor
         itemCard.layer.shadowOpacity = 0.05
         itemCard.layer.shadowRadius = 6
         itemCard.layer.shadowOffset = CGSize(width: 0, height: 2)
         contentView.addSubview(itemCard)
 
-        itemImageView.image = UIImage(named: "cap")
+        itemImageView.image = UIImage(named: "Cap")
         itemImageView.contentMode = .scaleAspectFill
-        itemImageView.clipsToBounds = true
         itemImageView.layer.cornerRadius = 8
+        itemImageView.clipsToBounds = true
         itemImageView.translatesAutoresizingMaskIntoConstraints = false
 
         itemCategoryLabel.text = "Fashion"
-        itemCategoryLabel.font = UIFont.systemFont(ofSize: 12)
+        itemCategoryLabel.font = .systemFont(ofSize: 12)
         itemCategoryLabel.textColor = .gray
         itemCategoryLabel.translatesAutoresizingMaskIntoConstraints = false
 
         itemTitleLabel.text = "Under Armour Cap"
-        itemTitleLabel.font = UIFont.systemFont(ofSize: 15, weight: .semibold)
+        itemTitleLabel.font = .systemFont(ofSize: 15, weight: .semibold)
         itemTitleLabel.translatesAutoresizingMaskIntoConstraints = false
 
         let labelColour = smallTeal(text: "Colour")
@@ -351,26 +354,38 @@ class OrderDetailsViewController: UIViewController {
             row.alignment = .center
             row.distribution = .equalSpacing
             return row
+        let priceValue = UILabel()
+        priceValue.text = "₹500"
+        priceValue.font = .systemFont(ofSize: 15, weight: .semibold)
+
+        let colourLabel = smallTeal(text: "Colour")
+        let sizeLabel = smallTeal(text: "Size")
+        let qtyLabel = smallTeal(text: "Quantity")
+
+        let colourValue = smallValue(text: "White")
+        let sizeValue = smallValue(text: "Large")
+        let qtyValue = smallValue(text: "1")
+
+        func row(_ left: UIView, _ right: UIView) -> UIStackView {
+            let r = UIStackView(arrangedSubviews: [left, right])
+            r.axis = .horizontal
+            r.distribution = .equalSpacing
+            return r
         }
 
-        let row1 = makeRow(left: itemTitleLabel, right: valuePrice)
-        let row2 = makeRow(left: labelColour, right: valueColour)
-        let row3 = makeRow(left: labelSize, right: valueSize)
-        let row4 = makeRow(left: labelQty, right: valueQty)
-
-        let rowsStack = UIStackView(arrangedSubviews: [
+        let rows = UIStackView(arrangedSubviews: [
             itemCategoryLabel,
-            row1,
-            row2,
-            row3,
-            row4
+            row(itemTitleLabel, priceValue),
+            row(colourLabel, colourValue),
+            row(sizeLabel, sizeValue),
+            row(qtyLabel, qtyValue)
         ])
-        rowsStack.axis = .vertical
-        rowsStack.spacing = 6
-        rowsStack.translatesAutoresizingMaskIntoConstraints = false
+        rows.axis = .vertical
+        rows.spacing = 6
+        rows.translatesAutoresizingMaskIntoConstraints = false
 
         itemCard.addSubview(itemImageView)
-        itemCard.addSubview(rowsStack)
+        itemCard.addSubview(rows)
 
         NSLayoutConstraint.activate([
             itemCard.topAnchor.constraint(equalTo: orderItemsTitle.bottomAnchor, constant: 12),
@@ -382,10 +397,10 @@ class OrderDetailsViewController: UIViewController {
             itemImageView.widthAnchor.constraint(equalToConstant: 70),
             itemImageView.heightAnchor.constraint(equalToConstant: 70),
 
-            rowsStack.leadingAnchor.constraint(equalTo: itemImageView.trailingAnchor, constant: 12),
-            rowsStack.trailingAnchor.constraint(equalTo: itemCard.trailingAnchor, constant: -12),
-            rowsStack.topAnchor.constraint(equalTo: itemCard.topAnchor, constant: 12),
-            rowsStack.bottomAnchor.constraint(equalTo: itemCard.bottomAnchor, constant: -12)
+            rows.leadingAnchor.constraint(equalTo: itemImageView.trailingAnchor, constant: 12),
+            rows.trailingAnchor.constraint(equalTo: itemCard.trailingAnchor, constant: -12),
+            rows.topAnchor.constraint(equalTo: itemCard.topAnchor, constant: 12),
+            rows.bottomAnchor.constraint(equalTo: itemCard.bottomAnchor, constant: -12)
         ])
     }
 
@@ -395,12 +410,17 @@ class OrderDetailsViewController: UIViewController {
         label.font = UIFont.systemFont(ofSize: 13, weight: .semibold)
         label.textColor = accentTeal
         return label
+        let l = UILabel()
+        l.text = text
+        l.font = .systemFont(ofSize: 13, weight: .semibold)
+        l.textColor = accentTeal
+        return l
     }
 
     private func smallValue(text: String) -> UILabel {
         let l = UILabel()
         l.text = text
-        l.font = UIFont.systemFont(ofSize: 13)
+        l.font = .systemFont(ofSize: 13)
         l.textColor = .darkGray
         return l
     }
@@ -408,19 +428,19 @@ class OrderDetailsViewController: UIViewController {
     // MARK: - Delivery Info
     private func setupDeliveryInfo() {
         deliveryTitle.text = "Delivery Information"
-        deliveryTitle.font = UIFont.systemFont(ofSize: 18, weight: .semibold)
+        deliveryTitle.font = .systemFont(ofSize: 18, weight: .semibold)
         deliveryTitle.translatesAutoresizingMaskIntoConstraints = false
         contentView.addSubview(deliveryTitle)
 
-        deliveryNameLabel.text = "Jonathan  (+91) 90078 91599"
-        deliveryNameLabel.font = UIFont.systemFont(ofSize: 16, weight: .semibold)
+        deliveryNameLabel.text = "Jonathan (+91) 90078 91599"
+        deliveryNameLabel.font = .systemFont(ofSize: 16, weight: .semibold)
         deliveryNameLabel.textColor = .darkGray
         deliveryNameLabel.translatesAutoresizingMaskIntoConstraints = false
 
         deliveryAddressLabel.text = "4517 Washington Ave,\nManchester, Kentucky 39495"
-        deliveryAddressLabel.font = UIFont.systemFont(ofSize: 13)
-        deliveryAddressLabel.textColor = lightGrayText
+        deliveryAddressLabel.font = .systemFont(ofSize: 13)
         deliveryAddressLabel.numberOfLines = 0
+        deliveryAddressLabel.textColor = lightGrayText
         deliveryAddressLabel.translatesAutoresizingMaskIntoConstraints = false
 
         contentView.addSubview(deliveryNameLabel)
@@ -442,7 +462,7 @@ class OrderDetailsViewController: UIViewController {
     // MARK: - Order Summary
     private func setupOrderSummary() {
         orderSummaryTitle.text = "Order Summary"
-        orderSummaryTitle.font = UIFont.systemFont(ofSize: 18, weight: .semibold)
+        orderSummaryTitle.font = .systemFont(ofSize: 18, weight: .semibold)
         orderSummaryTitle.translatesAutoresizingMaskIntoConstraints = false
         contentView.addSubview(orderSummaryTitle)
 
@@ -454,7 +474,6 @@ class OrderDetailsViewController: UIViewController {
         summaryCard.translatesAutoresizingMaskIntoConstraints = false
         summaryCard.backgroundColor = .white
         summaryCard.layer.cornerRadius = 12
-        summaryCard.layer.shadowColor = UIColor.black.cgColor
         summaryCard.layer.shadowOpacity = 0.03
         summaryCard.layer.shadowRadius = 6
         summaryCard.layer.shadowOffset = CGSize(width: 0, height: 2)
@@ -476,6 +495,15 @@ class OrderDetailsViewController: UIViewController {
         negotiValue.text = "₹0"
         negotiValue.font = UIFont.systemFont(ofSize: 14, weight: .semibold)
         negotiValue.textColor = UIColor(red: 0.86, green: 0.33, blue: 0.33, alpha: 1.0)
+        subValue.font = .boldSystemFont(ofSize: 14)
+
+        let discLabel = UILabel()
+        discLabel.text = "Negotiation Discount"
+
+        let discValue = UILabel()
+        discValue.text = "₹0"
+        discValue.textColor = UIColor(red: 0.86, green: 0.33, blue: 0.33, alpha: 1.0)
+        discValue.font = .boldSystemFont(ofSize: 14)
 
         let divider = UIView()
         divider.backgroundColor = UIColor(white: 0.92, alpha: 1.0)
@@ -484,15 +512,19 @@ class OrderDetailsViewController: UIViewController {
         let totalLabel = UILabel()
         totalLabel.text = "Total"
         totalLabel.font = UIFont.systemFont(ofSize: 16, weight: .semibold)
+        totalLabel.font = .systemFont(ofSize: 16, weight: .semibold)
 
         let totalValue = UILabel()
         totalValue.text = "₹500"
         totalValue.font = UIFont.systemFont(ofSize: 16, weight: .bold)
+        totalValue.font = .systemFont(ofSize: 16, weight: .bold)
 
         [subLabel, subValue, negotiLabel, negotiValue, divider, totalLabel, totalValue].forEach {
             $0.translatesAutoresizingMaskIntoConstraints = false
             summaryCard.addSubview($0)
         }
+        [subLabel, subValue, discLabel, discValue, divider, totalLabel, totalValue]
+            .forEach { $0.translatesAutoresizingMaskIntoConstraints = false; summaryCard.addSubview($0) }
 
         NSLayoutConstraint.activate([
             summaryCard.topAnchor.constraint(equalTo: orderSummaryTitle.bottomAnchor, constant: 12),
@@ -506,13 +538,13 @@ class OrderDetailsViewController: UIViewController {
             subValue.centerYAnchor.constraint(equalTo: subLabel.centerYAnchor),
             subValue.trailingAnchor.constraint(equalTo: summaryCard.trailingAnchor, constant: -16),
 
-            negotiLabel.topAnchor.constraint(equalTo: subLabel.bottomAnchor, constant: 14),
-            negotiLabel.leadingAnchor.constraint(equalTo: subLabel.leadingAnchor),
+            discLabel.topAnchor.constraint(equalTo: subLabel.bottomAnchor, constant: 14),
+            discLabel.leadingAnchor.constraint(equalTo: subLabel.leadingAnchor),
 
-            negotiValue.centerYAnchor.constraint(equalTo: negotiLabel.centerYAnchor),
-            negotiValue.trailingAnchor.constraint(equalTo: subValue.trailingAnchor),
+            discValue.centerYAnchor.constraint(equalTo: discLabel.centerYAnchor),
+            discValue.trailingAnchor.constraint(equalTo: subValue.trailingAnchor),
 
-            divider.topAnchor.constraint(equalTo: negotiLabel.bottomAnchor, constant: 16),
+            divider.topAnchor.constraint(equalTo: discLabel.bottomAnchor, constant: 16),
             divider.leadingAnchor.constraint(equalTo: summaryCard.leadingAnchor, constant: 12),
             divider.trailingAnchor.constraint(equalTo: summaryCard.trailingAnchor, constant: -12),
             divider.heightAnchor.constraint(equalToConstant: 1),
@@ -539,6 +571,8 @@ class OrderDetailsViewController: UIViewController {
         rateButton.layer.borderWidth = 2
         rateButton.layer.borderColor = darkTeal.cgColor
         rateButton.titleLabel?.font = UIFont.systemFont(ofSize: 16, weight: .semibold)
+        rateButton.titleLabel?.font = .systemFont(ofSize: 16, weight: .semibold)
+        rateButton.addTarget(self, action: #selector(rateTapped), for: .touchUpInside)
 
         helpButton.setTitle("Get Help", for: .normal)
         helpButton.setTitleColor(darkTeal, for: .normal)
@@ -546,6 +580,8 @@ class OrderDetailsViewController: UIViewController {
         helpButton.layer.borderWidth = 2
         helpButton.layer.borderColor = darkTeal.cgColor
         helpButton.titleLabel?.font = UIFont.systemFont(ofSize: 16, weight: .semibold)
+        helpButton.titleLabel?.font = .systemFont(ofSize: 16, weight: .semibold)
+        helpButton.addTarget(self, action: #selector(helpTapped), for: .touchUpInside)
 
         bottomButtonsContainer.addArrangedSubview(rateButton)
         bottomButtonsContainer.addArrangedSubview(helpButton)
@@ -569,7 +605,26 @@ class OrderDetailsViewController: UIViewController {
         print("Help tapped")
     }
 
+    // FINAL → ALWAYS GO TO HOME TAB
     @objc private func backPressed() {
         navigationController?.popViewController(animated: true)
+
+        // Normal case → replace root
+        if let scene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
+           let window = scene.windows.first {
+
+            let tab = MainTabBarController()
+            tab.selectedIndex = 0
+
+            window.rootViewController = tab
+            window.makeKeyAndVisible()
+            return
+        }
+
+        // Fallback
+        let tab = MainTabBarController()
+        tab.selectedIndex = 0
+        tab.modalPresentationStyle = .fullScreen
+        present(tab, animated: true)
     }
 }

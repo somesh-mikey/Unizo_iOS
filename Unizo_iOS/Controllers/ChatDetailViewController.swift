@@ -145,7 +145,9 @@ class ChatDetailViewController: UIViewController, UITableViewDataSource, UITable
 
     override func viewWillDisappear(_ animated: Bool) {
         super.viewWillDisappear(animated)
+        navigationController?.setNavigationBarHidden(false, animated: false)
         self.tabBarController?.tabBar.isHidden = false
+
     }
 
 
@@ -345,6 +347,7 @@ final class ChatBubbleCell: UITableViewCell {
             ])
         }
     }
+    
 }
 
 
