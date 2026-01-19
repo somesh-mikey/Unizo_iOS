@@ -117,11 +117,13 @@ class BrowseEventsViewController: UIViewController {
     override func viewWillAppear(_ animated: Bool) {
         super.viewWillAppear(animated)
         (tabBarController as? MainTabBarController)?.hideFloatingTabBar()
+        self.tabBarController?.tabBar.isHidden = true
     }
 
     override func viewWillDisappear(_ animated: Bool) {
         super.viewWillDisappear(animated)
         (tabBarController as? MainTabBarController)?.showFloatingTabBar()
+        self.tabBarController?.tabBar.isHidden = false
     }
 
 

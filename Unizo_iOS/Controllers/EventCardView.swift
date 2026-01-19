@@ -56,8 +56,17 @@ final class EventCardView: UIView {
     private let bookButton: UIButton = {
         let btn = UIButton(type: .system)
         btn.setTitle("Book Now", for: .normal)
+
         btn.titleLabel?.font = UIFont.systemFont(ofSize: 16, weight: .medium)
-        btn.backgroundColor = UIColor.systemBlue
+
+        // 🔵 UPDATED BUTTON COLOR (04445F)
+        btn.backgroundColor = UIColor(
+            red: 4/255,
+            green: 68/255,
+            blue: 95/255,
+            alpha: 1
+        )
+
         btn.setTitleColor(.white, for: .normal)
         btn.layer.cornerRadius = 8
         btn.translatesAutoresizingMaskIntoConstraints = false

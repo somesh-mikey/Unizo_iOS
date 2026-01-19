@@ -259,7 +259,7 @@ final class SellerDashboardViewController: UIViewController {
             title: "Under Armour Cap",
             statusText: "Pending",
             priceText: "₹500",
-            imageName: "cap"
+            imageName: "Cap"
         ),
 
         Order(
@@ -345,6 +345,7 @@ final class SellerDashboardViewController: UIViewController {
         super.viewWillAppear(animated)
 
         navigationController?.setNavigationBarHidden(true, animated: false)
+        self.tabBarController?.tabBar.isHidden = true
 
         // Correct way to hide the floating tab bar
         (tabBarController as? MainTabBarController)?.hideFloatingTabBar()
@@ -354,6 +355,7 @@ final class SellerDashboardViewController: UIViewController {
         super.viewWillDisappear(animated)
 
         navigationController?.setNavigationBarHidden(false, animated: false)
+        self.tabBarController?.tabBar.isHidden = false
 
         // Correct way to restore it
         (tabBarController as? MainTabBarController)?.showFloatingTabBar()

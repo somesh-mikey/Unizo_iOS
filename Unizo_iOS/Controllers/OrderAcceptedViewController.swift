@@ -22,7 +22,7 @@ class OrderAcceptedViewController: UIViewController {
     private let viewOrderButton = UIButton(type: .system)
     private let viewListingsButton = UIButton(type: .system)
 
-    private let primaryTeal = UIColor(red: 0.02, green: 0.34, blue: 0.46, alpha: 1.0) // Dark Teal
+    private let primaryTeal = UIColor(red: 0.02, green: 0.34, blue: 0.46, alpha: 1.0)
     private let borderTeal = UIColor(red: 0.00, green: 0.62, blue: 0.71, alpha: 1.0)
 
     override func viewDidLoad() {
@@ -35,15 +35,22 @@ class OrderAcceptedViewController: UIViewController {
         setupIllustration()
         setupLabels()
         setupButtons()
+
+        // 👉 Add button targets
+        viewOrderButton.addTarget(self, action: #selector(openOrderDetails), for: .touchUpInside)
+        viewListingsButton.addTarget(self, action: #selector(goToListings), for: .touchUpInside)
     }
-    
+
+    // MARK: - Hide Tab Bar
     override func viewWillAppear(_ animated: Bool) {
         super.viewWillAppear(animated)
+        navigationController?.setNavigationBarHidden(true, animated: false)
         tabBarController?.tabBar.isHidden = true
     }
 
     override func viewWillDisappear(_ animated: Bool) {
         super.viewWillDisappear(animated)
+        navigationController?.setNavigationBarHidden(false, animated: false)
         tabBarController?.tabBar.isHidden = false
 
         // Restore floating tab bar frame
@@ -51,7 +58,7 @@ class OrderAcceptedViewController: UIViewController {
         }
     }
 
-    // MARK: - SCROLL VIEW
+    // MARK: - Scroll View
     private func setupScroll() {
         scrollView.translatesAutoresizingMaskIntoConstraints = false
         scrollView.showsVerticalScrollIndicator = false
@@ -74,7 +81,7 @@ class OrderAcceptedViewController: UIViewController {
         ])
     }
 
-    // MARK: - BACK BUTTON
+    // MARK: - Back Button
     private func setupBackButton() {
         backButton.translatesAutoresizingMaskIntoConstraints = false
         backButton.setImage(UIImage(systemName: "chevron.left"), for: .normal)
@@ -101,7 +108,7 @@ class OrderAcceptedViewController: UIViewController {
         navigationController?.popViewController(animated: true)
     }
 
-    // MARK: - ILLUSTRATION
+    // MARK: - Illustration
     private func setupIllustration() {
         iconCircle.translatesAutoresizingMaskIntoConstraints = false
         iconCircle.backgroundColor = UIColor(red: 0.87, green: 0.94, blue: 0.98, alpha: 1.0)
@@ -128,7 +135,7 @@ class OrderAcceptedViewController: UIViewController {
         ])
     }
 
-    // MARK: - LABELS
+    // MARK: - Labels
     private func setupLabels() {
         titleLabel.translatesAutoresizingMaskIntoConstraints = false
         titleLabel.text = "Order Accepted!"
@@ -154,10 +161,9 @@ class OrderAcceptedViewController: UIViewController {
         ])
     }
 
-    // MARK: - BUTTONS
+    // MARK: - Buttons
     private func setupButtons() {
 
-        // Primary button
         viewOrderButton.translatesAutoresizingMaskIntoConstraints = false
         viewOrderButton.setTitle("View Order Detail", for: .normal)
         viewOrderButton.backgroundColor = primaryTeal
@@ -165,14 +171,12 @@ class OrderAcceptedViewController: UIViewController {
         viewOrderButton.layer.cornerRadius = 26
         viewOrderButton.titleLabel?.font = UIFont.systemFont(ofSize: 16, weight: .semibold)
 
-        // Secondary button
         viewListingsButton.translatesAutoresizingMaskIntoConstraints = false
         viewListingsButton.setTitle("View Listings", for: .normal)
         viewListingsButton.setTitleColor(primaryTeal, for: .normal)
-        viewListingsButton.layer.cornerRadius = 26
         viewListingsButton.layer.borderWidth = 2
         viewListingsButton.layer.borderColor = primaryTeal.cgColor
-        viewListingsButton.backgroundColor = .clear
+        viewListingsButton.layer.cornerRadius = 26
         viewListingsButton.titleLabel?.font = UIFont.systemFont(ofSize: 16, weight: .semibold)
 
         contentView.addSubview(viewOrderButton)
@@ -190,5 +194,30 @@ class OrderAcceptedViewController: UIViewController {
             viewListingsButton.heightAnchor.constraint(equalToConstant: 52),
             viewListingsButton.bottomAnchor.constraint(equalTo: contentView.bottomAnchor, constant: -80)
         ])
+    }
+
+    // MARK: - Navigation Actions
+    @objc private func openOrderDetails() {
+        let vc = OrderDetailsViewController()
+
+        if let nav = navigationController {
+            nav.pushViewController(vc, animated: true)
+            return
+        }
+
+        vc.modalPresentationStyle = .fullScreen
+        present(vc, animated: true)
+    }
+
+    @objc private func goToListings() {
+        let vc = ListingsViewController()
+
+        if let nav = navigationController {
+            nav.pushViewController(vc, animated: true)
+            return
+        }
+
+        vc.modalPresentationStyle = .fullScreen
+        present(vc, animated: true)
     }
 }

@@ -24,6 +24,7 @@ class TermsAndConditionsViewController: UIViewController {
     override func viewWillAppear(_ animated: Bool) {
         super.viewWillAppear(animated)
         tabBarController?.tabBar.isHidden = true
+        self.tabBarController?.tabBar.isHidden = true
     }
 
     override func viewWillDisappear(_ animated: Bool) {
@@ -33,6 +34,7 @@ class TermsAndConditionsViewController: UIViewController {
         // If using a custom floating tab bar in MainTabBarController
         if let tab = tabBarController as? MainTabBarController {
         }
+        self.tabBarController?.tabBar.isHidden = false
     }
 
     private func setupTextView() {

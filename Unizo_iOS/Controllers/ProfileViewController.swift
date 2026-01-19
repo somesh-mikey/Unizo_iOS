@@ -100,6 +100,7 @@ final class ProfileViewController: UIViewController {
     override func viewWillAppear(_ animated: Bool) {
         super.viewWillAppear(animated)
         tabBarController?.tabBar.isHidden = true
+        self.tabBarController?.tabBar.isHidden = true
     }
 
     override func viewWillDisappear(_ animated: Bool) {
@@ -109,6 +110,7 @@ final class ProfileViewController: UIViewController {
         // Restore floating tab bar style if custom class
         if let tab = tabBarController as? MainTabBarController {
         }
+        self.tabBarController?.tabBar.isHidden = false
     }
 
     override func viewDidLayoutSubviews() {
