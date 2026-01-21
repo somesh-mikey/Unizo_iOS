@@ -217,10 +217,6 @@ class ConfirmOrderSellerViewController: UIViewController {
         self.tabBarController?.tabBar.isHidden = true
     }
     override func viewWillDisappear(_ animated: Bool) {
-        super.viewWillDisappear(animated)
-        self.tabBarController?.tabBar.isHidden = false
-    }
-    override func viewWillDisappear(_ animated: Bool) {
             super.viewWillDisappear(animated)
             tabBarController?.tabBar.isHidden = false
             if let mainTab = tabBarController as? MainTabBarController {

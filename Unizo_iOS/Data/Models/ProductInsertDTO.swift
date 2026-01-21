@@ -1,29 +1,21 @@
-//
-//  ProductInsertDTO.swift
 //  Unizo_iOS
 //
 //  Created by Soham Bhattacharya on 21/01/26.
 //
 
-import UIKit
+import Foundation
 
-class ProductInsertDTO: UIViewController {
-
-    override func viewDidLoad() {
-        super.viewDidLoad()
-
-        // Do any additional setup after loading the view.
-    }
-    
-
-    /*
-    // MARK: - Navigation
-
-    // In a storyboard-based application, you will often want to do a little preparation before navigation
-    override func prepare(for segue: UIStoryboardSegue, sender: Any?) {
-        // Get the new view controller using segue.destination.
-        // Pass the selected object to the new view controller.
-    }
-    */
-
+struct ProductInsertDTO: Encodable {
+    let title: String
+    let description: String
+    let price: Int
+    let image_url: String
+    let is_negotiable: Bool
+    let views_count: Int
+    let is_active: Bool
+    let rating: Int
+    let colour: String
+    let category: String
+    let size: String
+    let condition: String
 }
