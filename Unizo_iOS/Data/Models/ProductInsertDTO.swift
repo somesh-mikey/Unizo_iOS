@@ -1,11 +1,14 @@
+//
+//  ProductInsertDTO.swift
 //  Unizo_iOS
 //
-//  Created by Soham Bhattacharya on 21/01/26.
+//  Created by Nishtha on 13/01/26.
 //
 
 import Foundation
 
 struct ProductInsertDTO: Encodable {
+    let seller_id: String
     let title: String
     let description: String
     let price: Int

@@ -4,8 +4,12 @@
 //
 
 import UIKit
+import Supabase
 
 final class LoginModalViewController: UIViewController {
+
+    // MARK: - Supabase
+    private let supabase = SupabaseManager.shared.client
 
     // MARK: - Containers (Card + Groups)
     private let cardView: UIView = {
@@ -251,27 +255,69 @@ final class LoginModalViewController: UIViewController {
 
     @objc private func loginTapped() {
 
-        // 1. Dismiss modal FIRST
-        dismiss(animated: true) {
-
-            // 2. After dismissing, replace window root with MainTabBarController
-            guard let scene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
-                  let window = scene.windows.first else { return }
-
-            // ✔ Main App Shell
-            let tab = MainTabBarController()
-            tab.selectedIndex = 0   // ✔ Landing Screen tab
-
-            window.rootViewController = tab
-            window.makeKeyAndVisible()
-
-            // ✔ Smooth transition
-            UIView.transition(with: window,
-                              duration: 0.25,
-                              options: .transitionCrossDissolve,
-                              animations: nil,
-                              completion: nil)
+        // Get login credentials - use email field for authentication
+        guard let emailRaw = collegeEmailField.text, !emailRaw.isEmpty,
+              let passwordRaw = passwordField.text, !passwordRaw.isEmpty else {
+            showAlert(message: "Please enter email and password")
+            return
         }
+
+        // Trim whitespace from email and password
+        let email = emailRaw.trimmingCharacters(in: .whitespacesAndNewlines)
+        let password = passwordRaw.trimmingCharacters(in: .whitespacesAndNewlines)
+
+        // Show loading state
+        loginButton.isEnabled = false
+        loginButton.setTitle("Logging in...", for: .normal)
+
+        // Authenticate with Supabase
+        Task {
+            do {
+                print("🔐 Attempting login with email: \(email)")
+                print("🔐 Password length: \(password.count) characters")
+
+                try await supabase.auth.signIn(
+                    email: email,
+                    password: password
+                )
+
+                print("✅ Login successful")
+
+                // Navigate to main app
+                await MainActor.run {
+                    dismiss(animated: true) {
+                        guard let scene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
+                              let window = scene.windows.first else { return }
+
+                        let tab = MainTabBarController()
+                        tab.selectedIndex = 0
+
+                        window.rootViewController = tab
+                        window.makeKeyAndVisible()
+
+                        UIView.transition(with: window,
+                                          duration: 0.25,
+                                          options: .transitionCrossDissolve,
+                                          animations: nil,
+                                          completion: nil)
+                    }
+                }
+
+            } catch {
+                print("❌ Login failed:", error)
+                await MainActor.run {
+                    loginButton.isEnabled = true
+                    loginButton.setTitle("Login", for: .normal)
+                    showAlert(message: "Login failed: \(error.localizedDescription)")
+                }
+            }
+        }
+    }
+
+    private func showAlert(message: String) {
+        let alert = UIAlertController(title: "Error", message: message, preferredStyle: .alert)
+        alert.addAction(UIAlertAction(title: "OK", style: .default))
+        present(alert, animated: true)
     }
 
     @objc private func forgotPasswordTapped() {
