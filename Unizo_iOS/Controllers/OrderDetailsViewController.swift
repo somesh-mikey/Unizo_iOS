@@ -335,28 +335,11 @@ class OrderDetailsViewController: UIViewController {
         itemTitleLabel.font = .systemFont(ofSize: 15, weight: .semibold)
         itemTitleLabel.translatesAutoresizingMaskIntoConstraints = false
 
-        let labelColour = smallTeal(text: "Colour")
-        let labelSize = smallTeal(text: "Size")
-        let labelQty = smallTeal(text: "Quantity")
-
-        let valueColour = smallValue(text: "White")
-        let valueSize = smallValue(text: "Large")
-        let valueQty = smallValue(text: "1")
-
-        let valuePrice = UILabel()
-        valuePrice.text = "₹500"
-        valuePrice.font = UIFont.systemFont(ofSize: 15, weight: .semibold)
-        valuePrice.textColor = .black
-
-        func makeRow(left: UIView, right: UIView) -> UIStackView {
-            let row = UIStackView(arrangedSubviews: [left, right])
-            row.axis = .horizontal
-            row.alignment = .center
-            row.distribution = .equalSpacing
-            return row
+        // Right-side labels
         let priceValue = UILabel()
         priceValue.text = "₹500"
         priceValue.font = .systemFont(ofSize: 15, weight: .semibold)
+        priceValue.textColor = .black
 
         let colourLabel = smallTeal(text: "Colour")
         let sizeLabel = smallTeal(text: "Size")
@@ -369,6 +352,7 @@ class OrderDetailsViewController: UIViewController {
         func row(_ left: UIView, _ right: UIView) -> UIStackView {
             let r = UIStackView(arrangedSubviews: [left, right])
             r.axis = .horizontal
+            r.alignment = .center
             r.distribution = .equalSpacing
             return r
         }
@@ -405,11 +389,6 @@ class OrderDetailsViewController: UIViewController {
     }
 
     private func smallTeal(text: String) -> UILabel {
-        let label = UILabel()
-        label.text = text
-        label.font = UIFont.systemFont(ofSize: 13, weight: .semibold)
-        label.textColor = accentTeal
-        return label
         let l = UILabel()
         l.text = text
         l.font = .systemFont(ofSize: 13, weight: .semibold)
@@ -495,15 +474,6 @@ class OrderDetailsViewController: UIViewController {
         negotiValue.text = "₹0"
         negotiValue.font = UIFont.systemFont(ofSize: 14, weight: .semibold)
         negotiValue.textColor = UIColor(red: 0.86, green: 0.33, blue: 0.33, alpha: 1.0)
-        subValue.font = .boldSystemFont(ofSize: 14)
-
-        let discLabel = UILabel()
-        discLabel.text = "Negotiation Discount"
-
-        let discValue = UILabel()
-        discValue.text = "₹0"
-        discValue.textColor = UIColor(red: 0.86, green: 0.33, blue: 0.33, alpha: 1.0)
-        discValue.font = .boldSystemFont(ofSize: 14)
 
         let divider = UIView()
         divider.backgroundColor = UIColor(white: 0.92, alpha: 1.0)
@@ -512,19 +482,15 @@ class OrderDetailsViewController: UIViewController {
         let totalLabel = UILabel()
         totalLabel.text = "Total"
         totalLabel.font = UIFont.systemFont(ofSize: 16, weight: .semibold)
-        totalLabel.font = .systemFont(ofSize: 16, weight: .semibold)
 
         let totalValue = UILabel()
         totalValue.text = "₹500"
         totalValue.font = UIFont.systemFont(ofSize: 16, weight: .bold)
-        totalValue.font = .systemFont(ofSize: 16, weight: .bold)
 
         [subLabel, subValue, negotiLabel, negotiValue, divider, totalLabel, totalValue].forEach {
             $0.translatesAutoresizingMaskIntoConstraints = false
             summaryCard.addSubview($0)
         }
-        [subLabel, subValue, discLabel, discValue, divider, totalLabel, totalValue]
-            .forEach { $0.translatesAutoresizingMaskIntoConstraints = false; summaryCard.addSubview($0) }
 
         NSLayoutConstraint.activate([
             summaryCard.topAnchor.constraint(equalTo: orderSummaryTitle.bottomAnchor, constant: 12),
@@ -538,13 +504,13 @@ class OrderDetailsViewController: UIViewController {
             subValue.centerYAnchor.constraint(equalTo: subLabel.centerYAnchor),
             subValue.trailingAnchor.constraint(equalTo: summaryCard.trailingAnchor, constant: -16),
 
-            discLabel.topAnchor.constraint(equalTo: subLabel.bottomAnchor, constant: 14),
-            discLabel.leadingAnchor.constraint(equalTo: subLabel.leadingAnchor),
+            negotiLabel.topAnchor.constraint(equalTo: subLabel.bottomAnchor, constant: 14),
+            negotiLabel.leadingAnchor.constraint(equalTo: subLabel.leadingAnchor),
 
-            discValue.centerYAnchor.constraint(equalTo: discLabel.centerYAnchor),
-            discValue.trailingAnchor.constraint(equalTo: subValue.trailingAnchor),
+            negotiValue.centerYAnchor.constraint(equalTo: negotiLabel.centerYAnchor),
+            negotiValue.trailingAnchor.constraint(equalTo: subValue.trailingAnchor),
 
-            divider.topAnchor.constraint(equalTo: discLabel.bottomAnchor, constant: 16),
+            divider.topAnchor.constraint(equalTo: negotiLabel.bottomAnchor, constant: 16),
             divider.leadingAnchor.constraint(equalTo: summaryCard.leadingAnchor, constant: 12),
             divider.trailingAnchor.constraint(equalTo: summaryCard.trailingAnchor, constant: -12),
             divider.heightAnchor.constraint(equalToConstant: 1),
@@ -571,7 +537,6 @@ class OrderDetailsViewController: UIViewController {
         rateButton.layer.borderWidth = 2
         rateButton.layer.borderColor = darkTeal.cgColor
         rateButton.titleLabel?.font = UIFont.systemFont(ofSize: 16, weight: .semibold)
-        rateButton.titleLabel?.font = .systemFont(ofSize: 16, weight: .semibold)
         rateButton.addTarget(self, action: #selector(rateTapped), for: .touchUpInside)
 
         helpButton.setTitle("Get Help", for: .normal)
@@ -580,7 +545,6 @@ class OrderDetailsViewController: UIViewController {
         helpButton.layer.borderWidth = 2
         helpButton.layer.borderColor = darkTeal.cgColor
         helpButton.titleLabel?.font = UIFont.systemFont(ofSize: 16, weight: .semibold)
-        helpButton.titleLabel?.font = .systemFont(ofSize: 16, weight: .semibold)
         helpButton.addTarget(self, action: #selector(helpTapped), for: .touchUpInside)
 
         bottomButtonsContainer.addArrangedSubview(rateButton)

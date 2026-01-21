@@ -175,14 +175,12 @@ class ItemDetailsViewController: UIViewController {
         ratingText.append(NSAttributedString(string: "  \(String(format: "%.1f", p.rating))"))
 
         ratingLabel.attributedText = ratingText
-        productImageView.image = UIImage(named: p.imageName)
+        productImageView.image = UIImage(named: p.imageURL ?? "")
         categoryLabel.text = "General"
 
         // Description
         descriptionBodyLabel.text =
-            p.description?.isEmpty == false
-            ? p.description
-            : "No description available."
+            ((p.description?.isEmpty == false) ? p.description : "No description available.")
 
         // Attributes
         colourValueLabel.text = p.colour ?? "—"
@@ -422,10 +420,12 @@ class ItemDetailsViewController: UIViewController {
         navigationItem.rightBarButtonItems = [cartButton, heartButton]
     }
     private func updateHeartIcon() {
+        guard let navBar = navigationController?.navigationBar else { return }
+
         let imageName = isWishlisted ? "heart.fill" : "heart"
 
         UIView.transition(
-            with: navigationController!.navigationBar,
+            with: navBar,
             duration: 0.2,
             options: .transitionCrossDissolve,
             animations: {
@@ -512,5 +512,4 @@ class ItemDetailsViewController: UIViewController {
         }
     }
 }
-
 

@@ -273,7 +273,7 @@ final class CartViewController: UIViewController {
         imageView.contentMode = .scaleAspectFill
         imageView.backgroundColor = UIColor(white: 0.94, alpha: 1)
 
-        if let img = item.product.imageName {
+        if let img = item.product.imageURL {
             img.hasPrefix("http")
                 ? imageView.loadImage(from: img)
                 : (imageView.image = UIImage(named: img))

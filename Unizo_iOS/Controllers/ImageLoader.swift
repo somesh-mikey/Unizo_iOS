@@ -1,29 +1,56 @@
+////
+////  ImageLoader.swift
+////  Unizo_iOS
+////
+////  Created by Nishtha on 18/01/26.
+////
 //
-//  ImageLoader.swift
-//  Unizo_iOS
+//import UIKit
 //
-//  Created by Soham Bhattacharya on 21/01/26.
+//final class ImageLoader {
 //
-
-import UIKit
-
-class ImageLoader: UIViewController {
-
-    override func viewDidLoad() {
-        super.viewDidLoad()
-
-        // Do any additional setup after loading the view.
-    }
-    
-
-    /*
-    // MARK: - Navigation
-
-    // In a storyboard-based application, you will often want to do a little preparation before navigation
-    override func prepare(for segue: UIStoryboardSegue, sender: Any?) {
-        // Get the new view controller using segue.destination.
-        // Pass the selected object to the new view controller.
-    }
-    */
-
-}
+//    static let shared = ImageLoader()
+//
+//    private let cache = NSCache<NSString, UIImage>()
+//
+//    private init() {}
+//
+//    func load(
+//        _ urlString: String?,
+//        into imageView: UIImageView,
+//        placeholder: UIImage? = UIImage(named: "placeholder")
+//    ) {
+//        imageView.image = placeholder
+//
+//        guard
+//            let urlString = urlString,
+//            let url = URL(string: urlString)
+//        else {
+//            return
+//        }
+//
+//        // ✅ Cached image
+//        if let cachedImage = cache.object(forKey: urlString as NSString) {
+//            imageView.image = cachedImage
+//            return
+//        }
+//
+//        // ✅ Download image
+//        URLSession.shared.dataTask(with: url) { [weak self] data, _, error in
+//            guard
+//                let self = self,
+//                let data = data,
+//                let image = UIImage(data: data),
+//                error == nil
+//            else {
+//                return
+//            }
+//
+//            self.cache.setObject(image, forKey: urlString as NSString)
+//
+//            DispatchQueue.main.async {
+//                imageView.image = image
+//            }
+//        }.resume()
+//    }
+//}

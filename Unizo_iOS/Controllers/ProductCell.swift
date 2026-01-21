@@ -135,7 +135,11 @@ final class ProductCell: UICollectionViewCell {
 
         ])
     }
-    
+    override func prepareForReuse() {
+        super.prepareForReuse()
+        productImage.image = UIImage(named: "placeholder")
+    }
+
     
     func configure(with product: ProductUIModel) {
         nameLabel.text = product.name
@@ -150,18 +154,29 @@ final class ProductCell: UICollectionViewCell {
             ? UIColor.systemGreen
             : UIColor.systemRed
 
-        guard let imageName = product.imageName else {
-            productImage.image = UIImage(named: "placeholder")
-            return
-        }
+//        guard let imageName = product.imageName else {
+//            productImage.image = UIImage(named: "placeholder")
+//            return
+//        }
+        // 🔥 RESET IMAGE FOR REUSE
+                productImage.image = UIImage(named: "placeholder")
 
-        if imageName.hasPrefix("http") {
-            productImage.loadImage(
-                from: imageName,
-                placeholder: UIImage(named: "placeholder")
-            )
-        } else {
-            productImage.image = UIImage(named: imageName)
-        }
+                // 🔥 LOAD FROM URL (SAME AS BANNERS)
+                ImageLoader.shared.load(
+                    product.imageURL ?? "",
+                    into: productImage,
+                    placeholder: UIImage(named: "placeholder")
+                    
+                )
+                print("🖼 Loading product image:", product.imageURL ?? "nil")
+
+//        if imageName.hasPrefix("http") {
+//            productImage.loadImage(
+//                from: imageName,
+//                placeholder: UIImage(named: "placeholder")
+//            )
+//        } else {
+//            productImage.image = UIImage(named: imageName)
+//        }
     }
 }

@@ -2,28 +2,21 @@
 //  SupabaseManager.swift
 //  Unizo_iOS
 //
-//  Created by Soham Bhattacharya on 21/01/26.
+//  Created by Nishtha on 13/01/26.
 //
 
-import UIKit
+import Foundation
+import Supabase
 
-class SupabaseManager: UIViewController {
+final class SupabaseManager {
+    static let shared = SupabaseManager()
 
-    override func viewDidLoad() {
-        super.viewDidLoad()
+    let client: SupabaseClient
 
-        // Do any additional setup after loading the view.
+    private init() {
+        client = SupabaseClient(
+            supabaseURL: URL(string: "https://tcaqxwxlrfoxmthigjgd.supabase.co")!,
+            supabaseKey: "sb_publishable_17MrI1DzB2mXj9mbzERurw_kXDz0tZi"
+        )
     }
-    
-
-    /*
-    // MARK: - Navigation
-
-    // In a storyboard-based application, you will often want to do a little preparation before navigation
-    override func prepare(for segue: UIStoryboardSegue, sender: Any?) {
-        // Get the new view controller using segue.destination.
-        // Pass the selected object to the new view controller.
-    }
-    */
-
 }

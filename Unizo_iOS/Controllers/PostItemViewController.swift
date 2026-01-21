@@ -203,7 +203,7 @@ final class PostItemViewController: UIViewController,
             let field = UITextField()
             field.placeholder = title
             field.font = .systemFont(ofSize: 15)
-            field.setLeftPaddingPoints(18)
+            field.setLeftPaddingPoints_Local(18)
             field.translatesAutoresizingMaskIntoConstraints = false
             
             // Picker fields
@@ -351,6 +351,19 @@ final class PostItemViewController: UIViewController,
 
     @objc private func setNegotiable() { isNegotiable = true }
     @objc private func setNonNegotiable() { isNegotiable = false }
+
+    @objc private func uploadProductTapped() {
+        // Optionally: validate fields & prepare product info here before navigating
+        let postedVC = ProductPostedViewController()
+        // Prefer pushing onto navigation stack (keeps back behaviour)
+        if let nav = navigationController {
+            nav.pushViewController(postedVC, animated: true)
+            return
+        }
+        // Fallback — present modally if there's no navigation controller
+        postedVC.modalPresentationStyle = .fullScreen
+        present(postedVC, animated: true)
+    }
 }
 
 // MARK: - Picker Delegates
@@ -379,29 +392,12 @@ extension PostItemViewController: UITextFieldDelegate {
         pickerView.reloadAllComponents()
     }
 }
-    @objc private func uploadProductTapped() {
-        // Optionally: validate fields & prepare product info here before navigating
-
-        let postedVC = ProductPostedViewController()
-
-        // Prefer pushing onto navigation stack (keeps back behaviour)
-        if let nav = navigationController {
-            nav.pushViewController(postedVC, animated: true)
-            return
-        }
-
-        // Fallback — present modally if there's no navigation controller
-        postedVC.modalPresentationStyle = .fullScreen
-        present(postedVC, animated: true)
-    }
-}
 
 // Helper for padding
-//extension UITextField {
-//    func setLeftPaddingPoints(_ amount: CGFloat) {
-//        let padding = UIView(frame: CGRect(x: 0, y: 0, width: amount, height: frame.height))
-//        leftView = padding
-//        leftViewMode = .always
-//    }
-//}
-    
+extension UITextField {
+    func setLeftPaddingPoints_Local(_ amount: CGFloat) {
+        let padding = UIView(frame: CGRect(x: 0, y: 0, width: amount, height: frame.height))
+        leftView = padding
+        leftViewMode = .always
+    }
+}
