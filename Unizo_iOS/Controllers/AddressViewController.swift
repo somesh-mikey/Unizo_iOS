@@ -483,6 +483,10 @@ class AddressViewController: UIViewController {
     // UPDATED: navigate to AddNewAddressViewController (push or modal)
     @objc private func addAddressTapped() {
         let newVC = AddNewAddressViewController()
+        newVC.onSave = { [weak self] in
+            Task { await self?.loadAddresses() }
+        }
+
         if let nav = navigationController {
             nav.pushViewController(newVC, animated: true)
         } else {
@@ -573,9 +577,14 @@ class AddressViewController: UIViewController {
             }
 
         case .fromCart:
-            // Move to Confirm Order screen
+            // Move to Confirm Order screen with selected address
             let vc = ConfirmOrderViewController()
             vc.modalPresentationStyle = .fullScreen
+
+            // Pass selected address
+            if selectedIndex < addresses.count {
+                vc.selectedAddress = addresses[selectedIndex]
+            }
 
             if let nav = navigationController {
                 nav.pushViewController(vc, animated: true)

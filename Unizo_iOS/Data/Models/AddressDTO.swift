@@ -16,6 +16,7 @@ struct AddressDTO: Codable {
     var city: String
     var state: String
     var postal_code: String
+    var country: String
     var is_default: Bool
 }
 
