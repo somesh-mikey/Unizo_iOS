@@ -7,7 +7,12 @@
 
 import UIKit
 
-class ConfirmOrderViewController: UIViewController,UITextViewDelegate {
+class ConfirmOrderViewController: UIViewController, UITextViewDelegate {
+
+    // MARK: - Data
+    var selectedAddress: AddressDTO?
+    private var cartItems: [CartItem] { CartManager.shared.items }
+    private var totalAmount: Double { CartManager.shared.totalAmount }
 
     // MARK: - Outlets from XIB
     @IBOutlet weak var topBarContainer: UIView!
@@ -28,9 +33,13 @@ class ConfirmOrderViewController: UIViewController,UITextViewDelegate {
 
     // MARK: - Address card elements
     private let addressCard = UIView()
+    private let addressTitleLabel = UILabel()
+    private let addressSubtitleLabel = UILabel()
 
     // MARK: - Item detail card elements
-    private let itemCard = UIView()
+    private let itemsScrollView = UIScrollView()
+    private let itemsStackView = UIStackView()
+    private let subtotalAmountLabel = UILabel()
 
     // MARK: - Payment method elements
     private let paymentTitleLabel = UILabel()
@@ -45,10 +54,8 @@ class ConfirmOrderViewController: UIViewController,UITextViewDelegate {
     private let bgColor = UIColor(red: 0.96, green: 0.97, blue: 1.0, alpha: 1.0)
     private let primaryTeal = UIColor(red: 0.02, green: 0.34, blue: 0.46, alpha: 1.0)
     private let accentTeal = UIColor(red: 0.0, green: 0.62, blue: 0.71, alpha: 1.0)
-    
-    private var isAddressSelected = true
 
-    
+    private var isAddressSelected = true
     private var addressSelected = true
 
     @objc private func toggleAddressSelection() {
@@ -133,11 +140,10 @@ class ConfirmOrderViewController: UIViewController,UITextViewDelegate {
             addressContainer.trailingAnchor.constraint(equalTo: view.trailingAnchor),
             addressContainer.heightAnchor.constraint(equalToConstant: 110),
 
-            // Item detail container
+            // Item detail container - dynamic height based on number of items
             itemDetailContainer.topAnchor.constraint(equalTo: addressContainer.bottomAnchor, constant: 8),
             itemDetailContainer.leadingAnchor.constraint(equalTo: view.leadingAnchor),
             itemDetailContainer.trailingAnchor.constraint(equalTo: view.trailingAnchor),
-            itemDetailContainer.heightAnchor.constraint(equalToConstant: 220),
 
             // Payment method container
             paymentMethodContainer.topAnchor.constraint(equalTo: itemDetailContainer.bottomAnchor, constant: 8),
@@ -298,36 +304,25 @@ class ConfirmOrderViewController: UIViewController,UITextViewDelegate {
         addressContainer.backgroundColor = bgColor
         addressCard.layer.borderWidth = 2
         addressCard.layer.borderColor = accentTeal.cgColor
-        
+
         let bullet = UIButton(type: .custom)
         bullet.translatesAutoresizingMaskIntoConstraints = false
         bullet.layer.cornerRadius = 7
         bullet.layer.borderWidth = 2
         bullet.layer.borderColor = accentTeal.cgColor
-        //bullet.addTarget(self, action: #selector(toggleAddressSelection), for: .touchUpInside)
-
         bullet.widthAnchor.constraint(equalToConstant: 14).isActive = true
         bullet.heightAnchor.constraint(equalToConstant: 14).isActive = true
-
-        // Make card tappable
-        //addressCard.addGestureRecognizer(UITapGestureRecognizer(target: self, action: #selector(toggleAddressSelection)))
-
-        // After placing bullet
-        //updateAddressRadio()
-        
         bullet.backgroundColor = accentTeal  // Always selected
 
-        let titleLabel = UILabel()
-        titleLabel.text = "Jonathan  (+91) 90078 91599"
-        titleLabel.font = UIFont.systemFont(ofSize: 14, weight: .semibold)
+        // Use actual address data
+        let address = selectedAddress
+        addressTitleLabel.text = "\(address?.name ?? "No Name")  \(address?.phone ?? "")"
+        addressTitleLabel.font = UIFont.systemFont(ofSize: 14, weight: .semibold)
 
-        let subtitleLabel = UILabel()
-        subtitleLabel.text = "4517 Washington Ave,\nManchester, Kentucky 39495"
-        subtitleLabel.font = UIFont.systemFont(ofSize: 12)
-        subtitleLabel.textColor = .darkGray
-        subtitleLabel.numberOfLines = 2
-
-        
+        addressSubtitleLabel.text = "\(address?.line1 ?? ""),\n\(address?.city ?? ""), \(address?.state ?? "") \(address?.postal_code ?? "")"
+        addressSubtitleLabel.font = UIFont.systemFont(ofSize: 12)
+        addressSubtitleLabel.textColor = .darkGray
+        addressSubtitleLabel.numberOfLines = 2
 
         let chevron = UIImageView(image: UIImage(systemName: "chevron.right"))
         chevron.tintColor = .lightGray
@@ -343,7 +338,7 @@ class ConfirmOrderViewController: UIViewController,UITextViewDelegate {
 
         addressContainer.addSubview(addressCard)
 
-        [bullet, titleLabel, subtitleLabel, chevron].forEach {
+        [bullet, addressTitleLabel, addressSubtitleLabel, chevron].forEach {
             $0.translatesAutoresizingMaskIntoConstraints = false
             addressCard.addSubview($0)
         }
@@ -359,14 +354,14 @@ class ConfirmOrderViewController: UIViewController,UITextViewDelegate {
             bullet.widthAnchor.constraint(equalToConstant: 12),
             bullet.heightAnchor.constraint(equalToConstant: 12),
 
-            titleLabel.leadingAnchor.constraint(equalTo: bullet.trailingAnchor, constant: 10),
-            titleLabel.trailingAnchor.constraint(lessThanOrEqualTo: chevron.leadingAnchor, constant: -8),
-            titleLabel.topAnchor.constraint(equalTo: addressCard.topAnchor, constant: 14),
+            addressTitleLabel.leadingAnchor.constraint(equalTo: bullet.trailingAnchor, constant: 10),
+            addressTitleLabel.trailingAnchor.constraint(lessThanOrEqualTo: chevron.leadingAnchor, constant: -8),
+            addressTitleLabel.topAnchor.constraint(equalTo: addressCard.topAnchor, constant: 14),
 
-            subtitleLabel.leadingAnchor.constraint(equalTo: titleLabel.leadingAnchor),
-            subtitleLabel.trailingAnchor.constraint(lessThanOrEqualTo: chevron.leadingAnchor, constant: -8),
-            subtitleLabel.topAnchor.constraint(equalTo: titleLabel.bottomAnchor, constant: 4),
-            subtitleLabel.bottomAnchor.constraint(equalTo: addressCard.bottomAnchor, constant: -14),
+            addressSubtitleLabel.leadingAnchor.constraint(equalTo: addressTitleLabel.leadingAnchor),
+            addressSubtitleLabel.trailingAnchor.constraint(lessThanOrEqualTo: chevron.leadingAnchor, constant: -8),
+            addressSubtitleLabel.topAnchor.constraint(equalTo: addressTitleLabel.bottomAnchor, constant: 4),
+            addressSubtitleLabel.bottomAnchor.constraint(equalTo: addressCard.bottomAnchor, constant: -14),
 
             chevron.centerYAnchor.constraint(equalTo: addressCard.centerYAnchor),
             chevron.trailingAnchor.constraint(equalTo: addressCard.trailingAnchor, constant: -16),
@@ -385,15 +380,16 @@ class ConfirmOrderViewController: UIViewController,UITextViewDelegate {
         sectionTitle.translatesAutoresizingMaskIntoConstraints = false
         itemDetailContainer.addSubview(sectionTitle)
 
-        // Main Card
-        itemCard.translatesAutoresizingMaskIntoConstraints = false
-        itemCard.backgroundColor = .white
-        itemCard.layer.cornerRadius = 16
-        itemCard.layer.shadowColor = UIColor.black.cgColor
-        itemCard.layer.shadowOpacity = 0.06
-        itemCard.layer.shadowRadius = 6
-        itemCard.layer.shadowOffset = CGSize(width: 0, height: 2)
-        itemDetailContainer.addSubview(itemCard)
+        // Setup scroll view for items
+        itemsScrollView.translatesAutoresizingMaskIntoConstraints = false
+        itemsScrollView.showsVerticalScrollIndicator = false
+        itemDetailContainer.addSubview(itemsScrollView)
+
+        // Setup stack view for item cards
+        itemsStackView.axis = .vertical
+        itemsStackView.spacing = 10
+        itemsStackView.translatesAutoresizingMaskIntoConstraints = false
+        itemsScrollView.addSubview(itemsStackView)
 
         // Subtotal bar
         let subtotalBar = UIView()
@@ -407,59 +403,99 @@ class ConfirmOrderViewController: UIViewController,UITextViewDelegate {
         subtotalLabel.font = UIFont.systemFont(ofSize: 13)
         subtotalLabel.textColor = .darkGray
 
-        let subtotalAmount = UILabel()
-        subtotalAmount.text = "₹500"
-        subtotalAmount.font = UIFont.systemFont(ofSize: 13, weight: .semibold)
-        subtotalAmount.textColor = .black
-        subtotalAmount.textAlignment = .right
+        // Use actual cart total
+        subtotalAmountLabel.text = "₹\(Int(totalAmount))"
+        subtotalAmountLabel.font = UIFont.systemFont(ofSize: 13, weight: .semibold)
+        subtotalAmountLabel.textColor = .black
+        subtotalAmountLabel.textAlignment = .right
 
-        [subtotalLabel, subtotalAmount].forEach {
+        [subtotalLabel, subtotalAmountLabel].forEach {
             $0.translatesAutoresizingMaskIntoConstraints = false
             subtotalBar.addSubview($0)
         }
+
+        // Calculate height based on number of items (max 2 visible, rest scrollable)
+        let itemCardHeight: CGFloat = 120
+        let spacing: CGFloat = 10
+        let maxVisibleItems = min(cartItems.count, 2)
+        let scrollViewHeight = CGFloat(maxVisibleItems) * itemCardHeight + CGFloat(max(0, maxVisibleItems - 1)) * spacing
 
         NSLayoutConstraint.activate([
             sectionTitle.topAnchor.constraint(equalTo: itemDetailContainer.topAnchor),
             sectionTitle.leadingAnchor.constraint(equalTo: itemDetailContainer.leadingAnchor, constant: 20),
 
-            itemCard.topAnchor.constraint(equalTo: sectionTitle.bottomAnchor, constant: 8),
-            itemCard.leadingAnchor.constraint(equalTo: itemDetailContainer.leadingAnchor, constant: 20),
-            itemCard.trailingAnchor.constraint(equalTo: itemDetailContainer.trailingAnchor, constant: -20),
-            itemCard.heightAnchor.constraint(equalToConstant: 140),
+            itemsScrollView.topAnchor.constraint(equalTo: sectionTitle.bottomAnchor, constant: 8),
+            itemsScrollView.leadingAnchor.constraint(equalTo: itemDetailContainer.leadingAnchor, constant: 20),
+            itemsScrollView.trailingAnchor.constraint(equalTo: itemDetailContainer.trailingAnchor, constant: -20),
+            itemsScrollView.heightAnchor.constraint(equalToConstant: scrollViewHeight),
 
-            subtotalBar.topAnchor.constraint(equalTo: itemCard.bottomAnchor, constant: 10),
+            itemsStackView.topAnchor.constraint(equalTo: itemsScrollView.topAnchor),
+            itemsStackView.leadingAnchor.constraint(equalTo: itemsScrollView.leadingAnchor),
+            itemsStackView.trailingAnchor.constraint(equalTo: itemsScrollView.trailingAnchor),
+            itemsStackView.bottomAnchor.constraint(equalTo: itemsScrollView.bottomAnchor),
+            itemsStackView.widthAnchor.constraint(equalTo: itemsScrollView.widthAnchor),
+
+            subtotalBar.topAnchor.constraint(equalTo: itemsScrollView.bottomAnchor, constant: 10),
             subtotalBar.leadingAnchor.constraint(equalTo: itemDetailContainer.leadingAnchor, constant: 20),
             subtotalBar.trailingAnchor.constraint(equalTo: itemDetailContainer.trailingAnchor, constant: -20),
             subtotalBar.heightAnchor.constraint(equalToConstant: 32),
-            subtotalBar.bottomAnchor.constraint(lessThanOrEqualTo: itemDetailContainer.bottomAnchor, constant: -4),
+            subtotalBar.bottomAnchor.constraint(equalTo: itemDetailContainer.bottomAnchor, constant: -4),
 
             subtotalLabel.centerYAnchor.constraint(equalTo: subtotalBar.centerYAnchor),
             subtotalLabel.leadingAnchor.constraint(equalTo: subtotalBar.leadingAnchor, constant: 12),
 
-            subtotalAmount.centerYAnchor.constraint(equalTo: subtotalBar.centerYAnchor),
-            subtotalAmount.trailingAnchor.constraint(equalTo: subtotalBar.trailingAnchor, constant: -12)
+            subtotalAmountLabel.centerYAnchor.constraint(equalTo: subtotalBar.centerYAnchor),
+            subtotalAmountLabel.trailingAnchor.constraint(equalTo: subtotalBar.trailingAnchor, constant: -12)
         ])
 
-        // Inside card
+        // Create a card for each cart item
+        for cartItem in cartItems {
+            let itemCard = createItemCard(for: cartItem)
+            itemsStackView.addArrangedSubview(itemCard)
+        }
+    }
+
+    // MARK: - Create Item Card
+    private func createItemCard(for cartItem: CartItem) -> UIView {
+        let product = cartItem.product
+
+        let itemCard = UIView()
+        itemCard.translatesAutoresizingMaskIntoConstraints = false
+        itemCard.backgroundColor = .white
+        itemCard.layer.cornerRadius = 16
+        itemCard.layer.shadowColor = UIColor.black.cgColor
+        itemCard.layer.shadowOpacity = 0.06
+        itemCard.layer.shadowRadius = 6
+        itemCard.layer.shadowOffset = CGSize(width: 0, height: 2)
+
+        // Product image
         let productImage = UIImageView()
-        productImage.image = UIImage(named: "Cap")
+        productImage.contentMode = .scaleAspectFill
         productImage.layer.cornerRadius = 8
         productImage.clipsToBounds = true
         productImage.translatesAutoresizingMaskIntoConstraints = false
 
+        if let imageURL = product.imageURL, !imageURL.isEmpty {
+            if imageURL.hasPrefix("http") {
+                productImage.loadImage(from: imageURL)
+            } else {
+                productImage.image = UIImage(named: imageURL)
+            }
+        }
+
         let categoryLabel = UILabel()
-        categoryLabel.text = "Fashion"
+        categoryLabel.text = product.category
         categoryLabel.font = UIFont.systemFont(ofSize: 11)
         categoryLabel.textColor = .gray
         categoryLabel.translatesAutoresizingMaskIntoConstraints = false
 
         let itemTitleLabel = UILabel()
-        itemTitleLabel.text = "Under Armour Cap"
+        itemTitleLabel.text = product.name
         itemTitleLabel.font = UIFont.systemFont(ofSize: 13, weight: .semibold)
         itemTitleLabel.translatesAutoresizingMaskIntoConstraints = false
 
         let priceLabel = UILabel()
-        priceLabel.text = "₹500"
+        priceLabel.text = "₹\(Int(product.price))"
         priceLabel.font = UIFont.systemFont(ofSize: 13, weight: .semibold)
         priceLabel.textAlignment = .right
         priceLabel.translatesAutoresizingMaskIntoConstraints = false
@@ -469,7 +505,7 @@ class ConfirmOrderViewController: UIViewController,UITextViewDelegate {
             let l = UILabel()
             l.text = text
             l.font = UIFont.systemFont(ofSize: 11)
-            l.textColor = accentTeal   // ⭐ teal text
+            l.textColor = accentTeal
             l.translatesAutoresizingMaskIntoConstraints = false
             return l
         }
@@ -488,9 +524,9 @@ class ConfirmOrderViewController: UIViewController,UITextViewDelegate {
             return l
         }
 
-        let colourValue = value("White")
-        let sizeValue = value("Large")
-        let qtyValue = value("1")
+        let colourValue = value(product.colour ?? "—")
+        let sizeValue = value(product.size ?? "—")
+        let qtyValue = value("\(cartItem.quantity)")
 
         [productImage, categoryLabel, itemTitleLabel, priceLabel,
          colourLabel, sizeLabel, qtyLabel,
@@ -499,30 +535,31 @@ class ConfirmOrderViewController: UIViewController,UITextViewDelegate {
         }
 
         NSLayoutConstraint.activate([
+            itemCard.heightAnchor.constraint(equalToConstant: 120),
 
             productImage.leadingAnchor.constraint(equalTo: itemCard.leadingAnchor, constant: 12),
-            productImage.centerYAnchor.constraint(equalTo: itemCard.centerYAnchor, constant: -8),
-            productImage.widthAnchor.constraint(equalToConstant: 70),
-            productImage.heightAnchor.constraint(equalToConstant: 70),
+            productImage.centerYAnchor.constraint(equalTo: itemCard.centerYAnchor),
+            productImage.widthAnchor.constraint(equalToConstant: 60),
+            productImage.heightAnchor.constraint(equalToConstant: 60),
 
             categoryLabel.leadingAnchor.constraint(equalTo: productImage.trailingAnchor, constant: 12),
-            categoryLabel.topAnchor.constraint(equalTo: itemCard.topAnchor, constant: 14),
+            categoryLabel.topAnchor.constraint(equalTo: itemCard.topAnchor, constant: 12),
 
             itemTitleLabel.leadingAnchor.constraint(equalTo: categoryLabel.leadingAnchor),
             itemTitleLabel.topAnchor.constraint(equalTo: categoryLabel.bottomAnchor, constant: 2),
 
             priceLabel.trailingAnchor.constraint(equalTo: itemCard.trailingAnchor, constant: -12),
-            priceLabel.topAnchor.constraint(equalTo: itemCard.topAnchor, constant: 18),
+            priceLabel.topAnchor.constraint(equalTo: itemCard.topAnchor, constant: 14),
 
             // LEFT COLUMN
             colourLabel.leadingAnchor.constraint(equalTo: categoryLabel.leadingAnchor),
-            colourLabel.topAnchor.constraint(equalTo: itemTitleLabel.bottomAnchor, constant: 8),
+            colourLabel.topAnchor.constraint(equalTo: itemTitleLabel.bottomAnchor, constant: 6),
 
             sizeLabel.leadingAnchor.constraint(equalTo: categoryLabel.leadingAnchor),
-            sizeLabel.topAnchor.constraint(equalTo: colourLabel.bottomAnchor, constant: 4),
+            sizeLabel.topAnchor.constraint(equalTo: colourLabel.bottomAnchor, constant: 3),
 
             qtyLabel.leadingAnchor.constraint(equalTo: categoryLabel.leadingAnchor),
-            qtyLabel.topAnchor.constraint(equalTo: sizeLabel.bottomAnchor, constant: 4),
+            qtyLabel.topAnchor.constraint(equalTo: sizeLabel.bottomAnchor, constant: 3),
 
             // RIGHT COLUMN under price
             colourValue.leadingAnchor.constraint(equalTo: priceLabel.leadingAnchor),
@@ -534,6 +571,8 @@ class ConfirmOrderViewController: UIViewController,UITextViewDelegate {
             qtyValue.leadingAnchor.constraint(equalTo: priceLabel.leadingAnchor),
             qtyValue.topAnchor.constraint(equalTo: qtyLabel.topAnchor)
         ])
+
+        return itemCard
     }
 
     // MARK: - Payment Method Section

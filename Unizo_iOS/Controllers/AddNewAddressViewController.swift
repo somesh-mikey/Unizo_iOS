@@ -15,11 +15,6 @@ class AddNewAddressViewController: UIViewController {
     private let scrollView = UIScrollView()
     private let contentView = UIView()
 
-    private let navBar = UIView()
-    private let backButton = UIButton(type: .system)
-    private let heartButton = UIButton(type: .system)
-    private let titleLabel = UILabel()
-
     private let sectionLabel = UILabel()
     private let whiteContainer = UIView()
 
@@ -45,32 +40,41 @@ class AddNewAddressViewController: UIViewController {
         setupFields()
         setupSaveButton()
     }
+
     override func viewWillAppear(_ animated: Bool) {
         super.viewWillAppear(animated)
         tabBarController?.tabBar.isHidden = true
-        self.tabBarController?.tabBar.isHidden = true
     }
 
     override func viewWillDisappear(_ animated: Bool) {
         super.viewWillDisappear(animated)
-
-        // Un-hide the tab bar when leaving
         tabBarController?.tabBar.isHidden = false
-
-        // Restore floating position & height
-        if let mainTab = tabBarController as? MainTabBarController {
-        }
     }
     private func validate() -> Bool {
-        if nameField.text?.isEmpty == true {
+        guard let name = nameField.text?.trimmingCharacters(in: .whitespaces), !name.isEmpty else {
             showError("Name is required")
             return false
         }
-        if phoneField.text?.count != 10 {
-            showError("Phone must be 10 digits")
+        // Extract only digits from phone number (ignores +91, spaces, etc.)
+        let phoneDigits = phoneField.text?.filter { $0.isNumber } ?? ""
+        if phoneDigits.count < 10 {
+            showError("Phone must have at least 10 digits")
             return false
         }
-        if pincodeField.text?.count != 6 {
+        guard let address1 = address1Field.text?.trimmingCharacters(in: .whitespaces), !address1.isEmpty else {
+            showError("Address Line 1 is required")
+            return false
+        }
+        guard let city = cityField.text?.trimmingCharacters(in: .whitespaces), !city.isEmpty else {
+            showError("City is required")
+            return false
+        }
+        guard let state = stateField.text?.trimmingCharacters(in: .whitespaces), !state.isEmpty else {
+            showError("State is required")
+            return false
+        }
+        let pincodeDigits = pincodeField.text?.filter { $0.isNumber } ?? ""
+        if pincodeDigits.count != 6 {
             showError("Pincode must be 6 digits")
             return false
         }
@@ -84,62 +88,30 @@ class AddNewAddressViewController: UIViewController {
     }
 
 
-    // MARK: NAVBAR (exact Figma)
+    // MARK: - Navigation Bar
     private func setupNavBar() {
+        title = "Add New Address"
 
-        navBar.translatesAutoresizingMaskIntoConstraints = false
-        view.addSubview(navBar)
+        navigationItem.leftBarButtonItem = UIBarButtonItem(
+            image: UIImage(systemName: "chevron.left"),
+            style: .plain,
+            target: self,
+            action: #selector(goBack)
+        )
+        navigationItem.leftBarButtonItem?.tintColor = .black
 
-        NSLayoutConstraint.activate([
-            navBar.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor),
-            navBar.leadingAnchor.constraint(equalTo: view.leadingAnchor),
-            navBar.trailingAnchor.constraint(equalTo: view.trailingAnchor),
-            navBar.heightAnchor.constraint(equalToConstant: 80)
-        ])
-
-        // Back Button
-        backButton.setImage(UIImage(systemName: "chevron.left"), for: .normal)
-        backButton.tintColor = .black
-        backButton.translatesAutoresizingMaskIntoConstraints = false
-        backButton.addTarget(self, action: #selector(goBack), for: .touchUpInside)
-        navBar.addSubview(backButton)
-
-        // Heart Button
-        heartButton.setImage(UIImage(systemName: "heart"), for: .normal)
+        let heartButton = UIBarButtonItem(
+            image: UIImage(systemName: "heart"),
+            style: .plain,
+            target: nil,
+            action: nil
+        )
         heartButton.tintColor = .black
-        heartButton.translatesAutoresizingMaskIntoConstraints = false
-        navBar.addSubview(heartButton)
-
-        // Title
-        titleLabel.text = "Add New Address"
-        titleLabel.font = UIFont.systemFont(ofSize: 18, weight: .semibold)
-        titleLabel.translatesAutoresizingMaskIntoConstraints = false
-        navBar.addSubview(titleLabel)
-
-        NSLayoutConstraint.activate([
-            backButton.leadingAnchor.constraint(equalTo: navBar.leadingAnchor, constant: 20),
-            backButton.centerYAnchor.constraint(equalTo: navBar.centerYAnchor),
-
-            heartButton.trailingAnchor.constraint(equalTo: navBar.trailingAnchor, constant: -20),
-            heartButton.centerYAnchor.constraint(equalTo: navBar.centerYAnchor),
-
-            titleLabel.centerXAnchor.constraint(equalTo: navBar.centerXAnchor),
-            titleLabel.centerYAnchor.constraint(equalTo: navBar.centerYAnchor)
-        ])
+        navigationItem.rightBarButtonItem = heartButton
     }
 
     @objc private func goBack() {
-        if let nav = navigationController {
-            for vc in nav.viewControllers {
-                if vc is AddressViewController {
-                    nav.popToViewController(vc, animated: true)
-                    return
-                }
-            }
-            nav.popViewController(animated: true)  // fallback
-        } else {
-            dismiss(animated: true)
-        }
+        navigationController?.popViewController(animated: true)
     }
 
     // MARK: Scroll View
@@ -151,7 +123,7 @@ class AddNewAddressViewController: UIViewController {
         scrollView.addSubview(contentView)
 
         NSLayoutConstraint.activate([
-            scrollView.topAnchor.constraint(equalTo: navBar.bottomAnchor),  // ← pulled UP
+            scrollView.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor),
             scrollView.leadingAnchor.constraint(equalTo: view.leadingAnchor),
             scrollView.trailingAnchor.constraint(equalTo: view.trailingAnchor),
             scrollView.bottomAnchor.constraint(equalTo: view.bottomAnchor),
@@ -276,12 +248,13 @@ class AddNewAddressViewController: UIViewController {
         let newAddress = AddressDTO(
             id: UUID(),
             user_id: AppConstants.TEMP_USER_ID,
-            name: nameField.text!,
-            phone: phoneField.text!,
-            line1: address1Field.text!,
-            city: cityField.text!,
-            state: stateField.text!,
-            postal_code: pincodeField.text!,
+            name: nameField.text?.trimmingCharacters(in: .whitespaces) ?? "",
+            phone: phoneField.text?.trimmingCharacters(in: .whitespaces) ?? "",
+            line1: address1Field.text?.trimmingCharacters(in: .whitespaces) ?? "",
+            city: cityField.text?.trimmingCharacters(in: .whitespaces) ?? "",
+            state: stateField.text?.trimmingCharacters(in: .whitespaces) ?? "",
+            postal_code: pincodeField.text?.trimmingCharacters(in: .whitespaces) ?? "",
+            country: "India",
             is_default: false
         )
 
@@ -294,8 +267,9 @@ class AddNewAddressViewController: UIViewController {
                     self.navigationController?.popViewController(animated: true)
                 }
             } catch {
+                print("❌ Failed to save address:", error)
                 await MainActor.run {
-                    self.showError("Failed to save address")
+                    self.showError("Failed to save address: \(error.localizedDescription)")
                 }
             }
         }
