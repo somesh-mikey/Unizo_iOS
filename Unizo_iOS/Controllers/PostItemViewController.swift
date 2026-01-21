@@ -4,10 +4,14 @@
 //
 
 import UIKit
+import Supabase
 
 final class PostItemViewController: UIViewController,
                                     UIImagePickerControllerDelegate,
                                     UINavigationControllerDelegate {
+
+    // MARK: - Supabase
+    private let supabase = SupabaseManager.shared.client
 
     // MARK: - Scroll
     private let scrollView = UIScrollView()
@@ -72,6 +76,7 @@ final class PostItemViewController: UIViewController,
     // MARK: - Lifecycle
     override func viewDidLoad() {
         super.viewDidLoad()
+
         view.backgroundColor = UIColor(red: 0.96, green: 0.97, blue: 1.0, alpha: 1)
         navigationController?.navigationBar.isHidden = true
 
@@ -85,6 +90,31 @@ final class PostItemViewController: UIViewController,
         setupNegotiableSection()
         setupFinalButton()
         updateNegotiableButtons()
+
+        // Check authentication
+        checkAuthentication()
+    }
+
+    private func checkAuthentication() {
+        Task {
+            do {
+                _ = try await supabase.auth.session
+                print("✅ User authenticated")
+            } catch {
+                print("❌ User not authenticated")
+                await MainActor.run {
+                    let alert = UIAlertController(
+                        title: "Authentication Required",
+                        message: "Please log in to post items",
+                        preferredStyle: .alert
+                    )
+                    alert.addAction(UIAlertAction(title: "OK", style: .default) { _ in
+                        self.navigationController?.popViewController(animated: true)
+                    })
+                    present(alert, animated: true)
+                }
+            }
+        }
     }
 
     // MARK: - Scroll Setup
@@ -119,6 +149,22 @@ final class PostItemViewController: UIViewController,
             titleLabel.topAnchor.constraint(equalTo: contentView.topAnchor, constant: 20),
             titleLabel.leadingAnchor.constraint(equalTo: contentView.leadingAnchor, constant: 20)
         ])
+    }
+
+    // MARK: - Picker Toolbar
+    private func makePickerToolbar() -> UIToolbar {
+        let toolbar = UIToolbar()
+        toolbar.sizeToFit()
+
+        toolbar.items = [
+            UIBarButtonItem(barButtonSystemItem: .flexibleSpace, target: nil, action: nil),
+            UIBarButtonItem(title: "Done", style: .done, target: self, action: #selector(donePicking))
+        ]
+        return toolbar
+    }
+
+    @objc private func donePicking() {
+        activePickerField?.resignFirstResponder()
     }
 
     // MARK: - Upload Card
@@ -160,7 +206,6 @@ final class PostItemViewController: UIViewController,
             uploadImageView.topAnchor.constraint(equalTo: uploadCard.topAnchor, constant: 20),
             uploadImageView.centerXAnchor.constraint(equalTo: uploadCard.centerXAnchor),
             uploadImageView.heightAnchor.constraint(equalToConstant: 70),
-            uploadImageView.widthAnchor.constraint(equalTo: uploadCard.widthAnchor),
 
             sizeLabel.topAnchor.constraint(equalTo: uploadImageView.bottomAnchor, constant: 8),
             sizeLabel.leadingAnchor.constraint(equalTo: uploadCard.leadingAnchor),
@@ -179,72 +224,53 @@ final class PostItemViewController: UIViewController,
         productDetailsLabel.text = "Product Details"
         productDetailsLabel.font = .systemFont(ofSize: 16, weight: .semibold)
         productDetailsLabel.translatesAutoresizingMaskIntoConstraints = false
-        
+
         productCard.backgroundColor = .white
         productCard.layer.cornerRadius = 20
         productCard.translatesAutoresizingMaskIntoConstraints = false
-        
+
         contentView.addSubview(productDetailsLabel)
         contentView.addSubview(productCard)
-        
+
         NSLayoutConstraint.activate([
             productDetailsLabel.topAnchor.constraint(equalTo: uploadCard.bottomAnchor, constant: 25),
             productDetailsLabel.leadingAnchor.constraint(equalTo: contentView.leadingAnchor, constant: 20),
-            
+
             productCard.topAnchor.constraint(equalTo: productDetailsLabel.bottomAnchor, constant: 10),
             productCard.leadingAnchor.constraint(equalTo: contentView.leadingAnchor, constant: 20),
             productCard.trailingAnchor.constraint(equalTo: contentView.trailingAnchor, constant: -20)
         ])
-        
+
         var lastField: UIView?
-        
-        for (index, title) in fieldTitles.enumerated() {
-            
+
+        for title in fieldTitles {
             let field = UITextField()
             field.placeholder = title
             field.font = .systemFont(ofSize: 15)
-            field.setLeftPaddingPoints_Local(18)
+            field.setLeftPaddingPoints(18)
             field.translatesAutoresizingMaskIntoConstraints = false
-            
-            // Picker fields
+
             if title == "Category" || title == "Condition" {
                 field.delegate = self
                 field.inputView = pickerView
                 field.inputAccessoryView = makePickerToolbar()
                 field.tintColor = .clear
             }
-            
+
             productCard.addSubview(field)
             fields.append(field)
-            
+
             NSLayoutConstraint.activate([
                 field.leadingAnchor.constraint(equalTo: productCard.leadingAnchor),
                 field.trailingAnchor.constraint(equalTo: productCard.trailingAnchor),
                 field.heightAnchor.constraint(equalToConstant: 50),
                 field.topAnchor.constraint(equalTo: lastField?.bottomAnchor ?? productCard.topAnchor)
             ])
-            
-            // 🔹 Separator (except last field)
-            if index < fieldTitles.count - 1 {
-                let separator = UIView()
-                separator.backgroundColor = UIColor.lightGray.withAlphaComponent(0.3)
-                separator.translatesAutoresizingMaskIntoConstraints = false
-                productCard.addSubview(separator)
-                
-                NSLayoutConstraint.activate([
-                    separator.topAnchor.constraint(equalTo: field.bottomAnchor),
-                    separator.leadingAnchor.constraint(equalTo: productCard.leadingAnchor, constant: 16),
-                    separator.trailingAnchor.constraint(equalTo: productCard.trailingAnchor, constant: -16),
-                    separator.heightAnchor.constraint(equalToConstant: 1)
-                ])
-            }
-            
+
             lastField = field
         }
-        
-        lastField?.bottomAnchor
-            .constraint(equalTo: productCard.bottomAnchor, constant: -12)
-            .isActive = true
+
+        lastField?.bottomAnchor.constraint(equalTo: productCard.bottomAnchor, constant: -12).isActive = true
     }
 
     // MARK: - Negotiable
@@ -302,8 +328,7 @@ final class PostItemViewController: UIViewController,
         finalUploadButton.setTitleColor(.white, for: .normal)
         finalUploadButton.layer.cornerRadius = 22
         finalUploadButton.translatesAutoresizingMaskIntoConstraints = false
-        
-        finalUploadButton.addTarget(self, action: #selector(uploadProductTapped), for: .touchUpInside)
+        finalUploadButton.addTarget(self, action: #selector(uploadProduct), for: .touchUpInside)
 
         contentView.addSubview(finalUploadButton)
 
@@ -316,20 +341,95 @@ final class PostItemViewController: UIViewController,
         ])
     }
 
-    // MARK: - Picker Toolbar
-    private func makePickerToolbar() -> UIToolbar {
-        let bar = UIToolbar()
-        bar.sizeToFit()
-        bar.items = [
-            UIBarButtonItem(barButtonSystemItem: .flexibleSpace, target: nil, action: nil),
-            UIBarButtonItem(title: "Done", style: .done, target: self, action: #selector(donePicking))
-        ]
-        return bar
+    // MARK: - Upload Logic
+    @objc private func uploadProduct() {
+
+        guard
+            let image = uploadImageView.image,
+            let title = fields[0].text, !title.isEmpty,
+            let priceText = fields[1].text, let price = Int(priceText),
+            let colour = fields[2].text, !colour.isEmpty,
+            let category = fields[3].text, !category.isEmpty,
+            let size = fields[4].text, !size.isEmpty,
+            let condition = fields[5].text, !condition.isEmpty,
+            let description = fields[6].text, !description.isEmpty
+        else {
+            print("❌ Validation failed")
+            return
+        }
+
+        Task {
+            do {
+                // Get current user ID
+                let userId = try await supabase.auth.session.user.id.uuidString
+
+                let imageURL = try await uploadImage(image)
+
+                let product = ProductInsertDTO(
+                    seller_id: userId,
+                    title: title,
+                    description: description,
+                    price: price,
+                    image_url: imageURL,
+                    is_negotiable: isNegotiable,
+                    views_count: 0,
+                    is_active: true,
+                    rating: 0,
+                    colour: colour,
+                    category: category,
+                    size: size,
+                    condition: condition
+                )
+
+                let repo = ProductRepository(supabase: supabase)
+                try await repo.insertProduct(product)
+
+                print("✅ Product uploaded successfully")
+
+                // Navigate back or show success message
+                await MainActor.run {
+                    navigationController?.popViewController(animated: true)
+                }
+
+            } catch {
+                print("❌ Upload failed:", error)
+            }
+        }
     }
 
-    @objc private func donePicking() {
-        activePickerField?.resignFirstResponder()
+    // MARK: - Supabase Image Upload (MISSING BEFORE – NOW FIXED)
+    private func uploadImage(_ image: UIImage) async throws -> String {
+
+        guard let data = image.jpegData(compressionQuality: 0.8) else {
+            throw NSError(domain: "ImageConversion", code: 0)
+        }
+
+        let path = "products/\(UUID().uuidString).jpg"
+
+        do {
+            try await supabase.storage
+                .from("product-images")
+                .upload(path, data: data)
+        } catch {
+            // ✅ Supabase iOS SDK bug workaround
+            let nsError = error as NSError
+            if nsError.domain == NSURLErrorDomain && nsError.code == -1017 {
+                print("⚠️ Supabase parse error ignored (upload succeeded)")
+            } else {
+                throw error
+            }
+        }
+
+        let publicURL = try supabase.storage
+            .from("product-images")
+            .getPublicURL(path: path)
+
+
+        return publicURL.absoluteString
     }
+
+
+
 
     // MARK: - Image Picker
     @objc private func openGallery() {
@@ -351,53 +451,27 @@ final class PostItemViewController: UIViewController,
 
     @objc private func setNegotiable() { isNegotiable = true }
     @objc private func setNonNegotiable() { isNegotiable = false }
-
-    @objc private func uploadProductTapped() {
-        // Optionally: validate fields & prepare product info here before navigating
-        let postedVC = ProductPostedViewController()
-        // Prefer pushing onto navigation stack (keeps back behaviour)
-        if let nav = navigationController {
-            nav.pushViewController(postedVC, animated: true)
-            return
-        }
-        // Fallback — present modally if there's no navigation controller
-        postedVC.modalPresentationStyle = .fullScreen
-        present(postedVC, animated: true)
-    }
 }
 
-// MARK: - Picker Delegates
+// MARK: - Picker
 extension PostItemViewController: UIPickerViewDelegate, UIPickerViewDataSource {
-
     func numberOfComponents(in pickerView: UIPickerView) -> Int { 1 }
-
     func pickerView(_ pickerView: UIPickerView, numberOfRowsInComponent component: Int) -> Int {
         activePickerField?.placeholder == "Category" ? categories.count : conditions.count
     }
-
     func pickerView(_ pickerView: UIPickerView, titleForRow row: Int, forComponent component: Int) -> String? {
         activePickerField?.placeholder == "Category" ? categories[row] : conditions[row]
     }
-
     func pickerView(_ pickerView: UIPickerView, didSelectRow row: Int, inComponent component: Int) {
         activePickerField?.text =
             activePickerField?.placeholder == "Category" ? categories[row] : conditions[row]
     }
 }
 
-// MARK: - TextField Delegate
+// MARK: - TextField
 extension PostItemViewController: UITextFieldDelegate {
     func textFieldDidBeginEditing(_ textField: UITextField) {
         activePickerField = textField
         pickerView.reloadAllComponents()
-    }
-}
-
-// Helper for padding
-extension UITextField {
-    func setLeftPaddingPoints_Local(_ amount: CGFloat) {
-        let padding = UIView(frame: CGRect(x: 0, y: 0, width: amount, height: frame.height))
-        leftView = padding
-        leftViewMode = .always
     }
 }

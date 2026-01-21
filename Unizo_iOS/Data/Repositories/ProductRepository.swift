@@ -207,4 +207,11 @@ final class ProductRepository {
             from: response.data
         )
     }
+    
+    func insertProduct(_ product: ProductInsertDTO) async throws {
+            try await supabase
+                .from("products")
+                .insert(product)
+                .execute()
+        }
 }

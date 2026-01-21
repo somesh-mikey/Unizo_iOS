@@ -6,8 +6,12 @@
 //
 
 import UIKit
+import Supabase
 
 final class SignUpViewController: UIViewController {
+
+    // MARK: - Supabase
+    private let supabase = SupabaseManager.shared.client
 
     // MARK: - UI
 
@@ -197,12 +201,90 @@ final class SignUpViewController: UIViewController {
     // MARK: - Sign Up
 
     @objc private func didTapSignUp() {
-        let vc = AccountCreatedViewController(
-            nibName: "AccountCreatedViewController",
-            bundle: nil
-        )
-        vc.modalPresentationStyle = .fullScreen
-        present(vc, animated: true)
+
+        // Validate fields
+        guard let firstNameRaw = firstNameTF.text, !firstNameRaw.isEmpty,
+              let lastNameRaw = lastNameTF.text, !lastNameRaw.isEmpty,
+              let emailRaw = emailTF.text, !emailRaw.isEmpty,
+              let phoneRaw = phoneTF.text, !phoneRaw.isEmpty,
+              let passwordRaw = createPasswordTF.text, !passwordRaw.isEmpty,
+              let confirmPasswordRaw = confirmPasswordTF.text, !confirmPasswordRaw.isEmpty else {
+            showAlert(message: "Please fill in all fields")
+            return
+        }
+
+        // Trim whitespace
+        let firstName = firstNameRaw.trimmingCharacters(in: .whitespacesAndNewlines)
+        let lastName = lastNameRaw.trimmingCharacters(in: .whitespacesAndNewlines)
+        let email = emailRaw.trimmingCharacters(in: .whitespacesAndNewlines)
+        let phone = phoneRaw.trimmingCharacters(in: .whitespacesAndNewlines)
+        let password = passwordRaw.trimmingCharacters(in: .whitespacesAndNewlines)
+        let confirmPassword = confirmPasswordRaw.trimmingCharacters(in: .whitespacesAndNewlines)
+
+        // Validate password match
+        guard password == confirmPassword else {
+            showAlert(message: "Passwords do not match")
+            return
+        }
+
+        // Show loading state
+        signUpButton.isEnabled = false
+        signUpButton.setTitle("Creating account...", for: .normal)
+
+        // Sign up with Supabase
+        Task {
+            do {
+                // Create auth user
+                let response = try await supabase.auth.signUp(
+                    email: email,
+                    password: password
+                )
+
+                print("✅ Sign up successful - User ID: \(response.user.id.uuidString)")
+
+                // Optional: Store additional user profile data in users table
+                // Uncomment this if you have a users table that needs population
+                /*
+                let userId = response.user.id.uuidString
+                try await supabase
+                    .from("users")
+                    .insert([
+                        "id": userId,
+                        "first_name": firstName,
+                        "last_name": lastName,
+                        "phone": phone,
+                        "email": email,
+                        "role": "buyer" // or "seller" based on your needs
+                    ])
+                    .execute()
+                print("✅ User profile created")
+                */
+
+                // Show success screen
+                await MainActor.run {
+                    let vc = AccountCreatedViewController(
+                        nibName: "AccountCreatedViewController",
+                        bundle: nil
+                    )
+                    vc.modalPresentationStyle = .fullScreen
+                    present(vc, animated: true)
+                }
+
+            } catch {
+                print("❌ Sign up failed:", error)
+                await MainActor.run {
+                    signUpButton.isEnabled = true
+                    signUpButton.setTitle("Sign Up", for: .normal)
+                    showAlert(message: "Sign up failed: \(error.localizedDescription)")
+                }
+            }
+        }
+    }
+
+    private func showAlert(message: String) {
+        let alert = UIAlertController(title: "Error", message: message, preferredStyle: .alert)
+        alert.addAction(UIAlertAction(title: "OK", style: .default))
+        present(alert, animated: true)
     }
 
     // MARK: - Terms / Privacy Setup  (Fix 1, 3, 5)
