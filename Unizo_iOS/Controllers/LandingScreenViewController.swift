@@ -632,6 +632,13 @@ class LandingScreenViewController: UIViewController {
                 return
             }
 
+            // Setup carousel after banners are loaded
+            if !didSetupCarousel {
+                didSetupCarousel = true
+                setupCarousel()
+                startAutoScroll()
+            }
+
         } catch {
             print("❌ Failed to load banners:", error)
         }

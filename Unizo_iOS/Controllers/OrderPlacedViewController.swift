@@ -2,6 +2,16 @@ import UIKit
 
 class OrderPlacedViewController: UIViewController {
 
+    // MARK: - Order Data (passed from ConfirmOrderViewController)
+    var orderId: UUID?
+    var orderAddress: AddressDTO?
+    var orderedCategories: [String] = []
+    var orderTotal: Double = 0
+
+    // MARK: - Suggested Products
+    private var suggestedProducts: [ProductUIModel] = []
+    private let productRepository = ProductRepository(supabase: supabase)
+
     // MARK: - Outlets from XIB
     @IBOutlet weak var topBarContainer: UIView!
     @IBOutlet weak var iconContainer: UIView!
@@ -10,6 +20,10 @@ class OrderPlacedViewController: UIViewController {
     @IBOutlet weak var suggestedTitleContainer: UIView!
     @IBOutlet weak var productsContainer: UIView!
 
+    // MARK: - Buttons (for wiring actions)
+    private var myOrderDetailButton: UIButton!
+    private var continueShoppingButton: UIButton!
+
     // MARK: Colors
     private let bgColor      = UIColor(red: 0.96, green: 0.97, blue: 1.00, alpha: 1)
     private let primaryTeal  = UIColor(red: 0.02, green: 0.34, blue: 0.46, alpha: 1)
@@ -17,6 +31,9 @@ class OrderPlacedViewController: UIViewController {
     // ScrollView
     private let scrollView = UIScrollView()
     private let contentView = UIView()
+
+    // Products Stack (for dynamic updates)
+    private var productsStackView: UIStackView!
 
     override func viewDidLoad() {
         super.viewDidLoad()
@@ -33,6 +50,9 @@ class OrderPlacedViewController: UIViewController {
         setupButtons()
         setupSuggestedTitle()
         setupProductsSection()
+
+        // Fetch suggested products based on ordered categories
+        fetchSuggestedProducts()
     }
 
     // ===========================================================
@@ -48,6 +68,7 @@ class OrderPlacedViewController: UIViewController {
             productsContainer
         ].forEach { $0?.backgroundColor = .clear }
     }
+
     override func viewWillAppear(_ animated: Bool) {
         super.viewWillAppear(animated)
         tabBarController?.tabBar.isHidden = true
@@ -56,12 +77,73 @@ class OrderPlacedViewController: UIViewController {
     override func viewWillDisappear(_ animated: Bool) {
         super.viewWillDisappear(animated)
         tabBarController?.tabBar.isHidden = false
+    }
 
-        // Restore floating pill tab bar height + position
-        if let mainTab = tabBarController as? MainTabBarController {
+    // ===========================================================
+    // FETCH SUGGESTED PRODUCTS
+    // ===========================================================
+    private func fetchSuggestedProducts() {
+        Task {
+            do {
+                var allProducts: [ProductDTO] = []
+
+                // Fetch products from each ordered category
+                let uniqueCategories = Array(Set(orderedCategories))
+                for category in uniqueCategories {
+                    let products = try await productRepository.fetchProductsByCategory(category)
+                    allProducts.append(contentsOf: products)
+                }
+
+                // If no products found from categories, fetch popular products
+                if allProducts.isEmpty {
+                    allProducts = try await productRepository.fetchPopularProducts()
+                }
+
+                // Map to UI models and take first 4
+                let suggestions = allProducts
+                    .prefix(4)
+                    .map { ProductMapper.toUIModel($0) }
+
+                await MainActor.run {
+                    self.suggestedProducts = Array(suggestions)
+                    self.updateProductsUI()
+                }
+            } catch {
+                print("❌ Failed to fetch suggested products:", error)
+                // Keep the default hardcoded products if fetch fails
+            }
         }
     }
 
+    private func updateProductsUI() {
+        // Clear existing products
+        productsStackView.arrangedSubviews.forEach { $0.removeFromSuperview() }
+
+        // Create rows of 2 products each
+        let rows = stride(from: 0, to: suggestedProducts.count, by: 2).map { index in
+            Array(suggestedProducts[index..<min(index + 2, suggestedProducts.count)])
+        }
+
+        for row in rows {
+            let rowStack = UIStackView()
+            rowStack.axis = .horizontal
+            rowStack.distribution = .fillEqually
+            rowStack.spacing = 16
+
+            for product in row {
+                let card = makeProductCard(for: product)
+                rowStack.addArrangedSubview(card)
+            }
+
+            // If odd number, add empty view for balance
+            if row.count == 1 {
+                let emptyView = UIView()
+                rowStack.addArrangedSubview(emptyView)
+            }
+
+            productsStackView.addArrangedSubview(rowStack)
+        }
+    }
 
     // ===========================================================
     // SCROLL VIEW SETUP
@@ -153,6 +235,7 @@ class OrderPlacedViewController: UIViewController {
         backBtn.setImage(UIImage(systemName: "chevron.left"), for: .normal)
         backBtn.tintColor = .black
         backBtn.translatesAutoresizingMaskIntoConstraints = false
+        backBtn.addTarget(self, action: #selector(backButtonTapped), for: .touchUpInside)
 
         circle.addSubview(backBtn)
         topBarContainer.addSubview(circle)
@@ -232,34 +315,36 @@ class OrderPlacedViewController: UIViewController {
     // BUTTONS
     // ===========================================================
     private func setupButtons() {
-        let primary = UIButton(type: .system)
-        primary.backgroundColor = primaryTeal
-        primary.layer.cornerRadius = 25
-        primary.setTitle("My Order Detail", for: .normal)
-        primary.setTitleColor(.white, for: .normal)
-        primary.translatesAutoresizingMaskIntoConstraints = false
+        myOrderDetailButton = UIButton(type: .system)
+        myOrderDetailButton.backgroundColor = primaryTeal
+        myOrderDetailButton.layer.cornerRadius = 25
+        myOrderDetailButton.setTitle("My Order Detail", for: .normal)
+        myOrderDetailButton.setTitleColor(.white, for: .normal)
+        myOrderDetailButton.translatesAutoresizingMaskIntoConstraints = false
+        myOrderDetailButton.addTarget(self, action: #selector(myOrderDetailTapped), for: .touchUpInside)
 
-        let secondary = UIButton(type: .system)
-        secondary.setTitle("Continue Shopping", for: .normal)
-        secondary.setTitleColor(primaryTeal, for: .normal)
-        secondary.layer.borderWidth = 2
-        secondary.layer.cornerRadius = 25
-        secondary.layer.borderColor = primaryTeal.cgColor
-        secondary.translatesAutoresizingMaskIntoConstraints = false
+        continueShoppingButton = UIButton(type: .system)
+        continueShoppingButton.setTitle("Continue Shopping", for: .normal)
+        continueShoppingButton.setTitleColor(primaryTeal, for: .normal)
+        continueShoppingButton.layer.borderWidth = 2
+        continueShoppingButton.layer.cornerRadius = 25
+        continueShoppingButton.layer.borderColor = primaryTeal.cgColor
+        continueShoppingButton.translatesAutoresizingMaskIntoConstraints = false
+        continueShoppingButton.addTarget(self, action: #selector(continueShoppingTapped), for: .touchUpInside)
 
-        buttonContainer.addSubview(primary)
-        buttonContainer.addSubview(secondary)
+        buttonContainer.addSubview(myOrderDetailButton)
+        buttonContainer.addSubview(continueShoppingButton)
 
         NSLayoutConstraint.activate([
-            primary.leadingAnchor.constraint(equalTo: buttonContainer.leadingAnchor, constant: 30),
-            primary.trailingAnchor.constraint(equalTo: buttonContainer.trailingAnchor, constant: -30),
-            primary.topAnchor.constraint(equalTo: buttonContainer.topAnchor),
-            primary.heightAnchor.constraint(equalToConstant: 52),
+            myOrderDetailButton.leadingAnchor.constraint(equalTo: buttonContainer.leadingAnchor, constant: 30),
+            myOrderDetailButton.trailingAnchor.constraint(equalTo: buttonContainer.trailingAnchor, constant: -30),
+            myOrderDetailButton.topAnchor.constraint(equalTo: buttonContainer.topAnchor),
+            myOrderDetailButton.heightAnchor.constraint(equalToConstant: 52),
 
-            secondary.leadingAnchor.constraint(equalTo: primary.leadingAnchor),
-            secondary.trailingAnchor.constraint(equalTo: primary.trailingAnchor),
-            secondary.topAnchor.constraint(equalTo: primary.bottomAnchor, constant: 14),
-            secondary.heightAnchor.constraint(equalToConstant: 52)
+            continueShoppingButton.leadingAnchor.constraint(equalTo: myOrderDetailButton.leadingAnchor),
+            continueShoppingButton.trailingAnchor.constraint(equalTo: myOrderDetailButton.trailingAnchor),
+            continueShoppingButton.topAnchor.constraint(equalTo: myOrderDetailButton.bottomAnchor, constant: 14),
+            continueShoppingButton.heightAnchor.constraint(equalToConstant: 52)
         ])
     }
 
@@ -281,49 +366,114 @@ class OrderPlacedViewController: UIViewController {
     }
 
     // ===========================================================
-    // PRODUCTS GRID — NOW ALL 4 CARDS HAVE LABELS
+    // PRODUCTS GRID
     // ===========================================================
     private func setupProductsSection() {
+        productsStackView = UIStackView()
+        productsStackView.axis = .vertical
+        productsStackView.spacing = 22
+        productsStackView.translatesAutoresizingMaskIntoConstraints = false
 
-        let container = UIStackView()
-        container.axis = .vertical
-        container.spacing = 22
-        container.translatesAutoresizingMaskIntoConstraints = false
-
-        productsContainer.addSubview(container)
+        productsContainer.addSubview(productsStackView)
 
         NSLayoutConstraint.activate([
-            container.topAnchor.constraint(equalTo: productsContainer.topAnchor),
-            container.leadingAnchor.constraint(equalTo: productsContainer.leadingAnchor, constant: 20),
-            container.trailingAnchor.constraint(equalTo: productsContainer.trailingAnchor, constant: -20),
-            container.bottomAnchor.constraint(equalTo: productsContainer.bottomAnchor)
+            productsStackView.topAnchor.constraint(equalTo: productsContainer.topAnchor),
+            productsStackView.leadingAnchor.constraint(equalTo: productsContainer.leadingAnchor, constant: 20),
+            productsStackView.trailingAnchor.constraint(equalTo: productsContainer.trailingAnchor, constant: -20),
+            productsStackView.bottomAnchor.constraint(equalTo: productsContainer.bottomAnchor)
         ])
 
-        // ROW 1
+        // Add default placeholder cards (will be replaced when products are fetched)
         let row1 = UIStackView()
         row1.axis = .horizontal
         row1.distribution = .fillEqually
         row1.spacing = 16
-
         row1.addArrangedSubview(makeFullProductCard("Kettle", "Prestige Electric Kettle", "4.9", "Non - Negotiable", "₹649"))
         row1.addArrangedSubview(makeFullProductCard("Lamp", "Table Lamp", "4.2", "Negotiable", "₹500"))
+        productsStackView.addArrangedSubview(row1)
 
-        container.addArrangedSubview(row1)
-
-        // ROW 2 (NOW FULL DETAILS ADDED)
         let row2 = UIStackView()
         row2.axis = .horizontal
         row2.distribution = .fillEqually
         row2.spacing = 16
-
         row2.addArrangedSubview(makeFullProductCard("NoiseHeadphone", "pTron Headphones", "4.2", "Negotiable", "₹1,000"))
         row2.addArrangedSubview(makeFullProductCard("Rackets", "Tennis Rackets", "3.9", "Negotiable", "₹2,300"))
-
-        container.addArrangedSubview(row2)
+        productsStackView.addArrangedSubview(row2)
     }
 
     // ===========================================================
-    // PRODUCT CARD WITH LABELS (USED FOR ALL 4 NOW)
+    // PRODUCT CARD FOR REAL DATA
+    // ===========================================================
+    private func makeProductCard(for product: ProductUIModel) -> UIView {
+        let card = UIView()
+        card.backgroundColor = .white
+        card.layer.cornerRadius = 16
+        card.layer.shadowOpacity = 0.12
+        card.layer.shadowRadius = 4
+        card.layer.shadowOffset = CGSize(width: 0, height: 2)
+        card.translatesAutoresizingMaskIntoConstraints = false
+
+        let img = UIImageView()
+        img.contentMode = .scaleAspectFill
+        img.clipsToBounds = true
+        img.layer.cornerRadius = 12
+        img.translatesAutoresizingMaskIntoConstraints = false
+
+        // Load image from URL
+        if let imageURL = product.imageURL, !imageURL.isEmpty {
+            if imageURL.hasPrefix("http") {
+                img.loadImage(from: imageURL)
+            } else {
+                img.image = UIImage(named: imageURL)
+            }
+        }
+
+        let name = UILabel()
+        name.text = product.name
+        name.font = UIFont.systemFont(ofSize: 13, weight: .semibold)
+        name.numberOfLines = 2
+        name.translatesAutoresizingMaskIntoConstraints = false
+
+        let negotiableText = product.negotiable ? "Negotiable" : "Non - Negotiable"
+        let details = UILabel()
+        details.text = "★ \(String(format: "%.1f", product.rating))  |  \(negotiableText)"
+        details.font = UIFont.systemFont(ofSize: 11)
+        details.textColor = UIColor(red: 0, green: 0.55, blue: 0.75, alpha: 1)
+        details.translatesAutoresizingMaskIntoConstraints = false
+
+        let priceLabel = UILabel()
+        priceLabel.text = "₹\(Int(product.price))"
+        priceLabel.font = UIFont.boldSystemFont(ofSize: 14)
+        priceLabel.translatesAutoresizingMaskIntoConstraints = false
+
+        card.addSubview(img)
+        card.addSubview(name)
+        card.addSubview(details)
+        card.addSubview(priceLabel)
+
+        NSLayoutConstraint.activate([
+            img.topAnchor.constraint(equalTo: card.topAnchor, constant: 10),
+            img.centerXAnchor.constraint(equalTo: card.centerXAnchor),
+            img.widthAnchor.constraint(equalToConstant: 92),
+            img.heightAnchor.constraint(equalToConstant: 119),
+
+            name.topAnchor.constraint(equalTo: img.bottomAnchor, constant: 8),
+            name.leadingAnchor.constraint(equalTo: card.leadingAnchor, constant: 10),
+            name.trailingAnchor.constraint(equalTo: card.trailingAnchor, constant: -10),
+
+            details.topAnchor.constraint(equalTo: name.bottomAnchor, constant: 4),
+            details.leadingAnchor.constraint(equalTo: name.leadingAnchor),
+
+            priceLabel.topAnchor.constraint(equalTo: details.bottomAnchor, constant: 6),
+            priceLabel.leadingAnchor.constraint(equalTo: name.leadingAnchor),
+            priceLabel.bottomAnchor.constraint(equalTo: card.bottomAnchor, constant: -12)
+        ])
+
+        return card
+    }
+
+    // ===========================================================
+    // PRODUCT CARD WITH LABELS (PLACEHOLDER/FALLBACK)
     // ===========================================================
     private func makeFullProductCard(
         _ imageName: String,
@@ -389,5 +539,33 @@ class OrderPlacedViewController: UIViewController {
         ])
 
         return card
+    }
+
+    // ===========================================================
+    // BUTTON ACTIONS
+    // ===========================================================
+    @objc private func myOrderDetailTapped() {
+        let vc = OrderDetailsViewController()
+        vc.orderId = orderId
+        vc.orderAddress = orderAddress
+        vc.orderTotal = orderTotal
+        vc.modalPresentationStyle = .fullScreen
+        present(vc, animated: true)
+    }
+
+    @objc private func continueShoppingTapped() {
+        // Navigate to landing screen (MainTabBarController)
+        if let scene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
+           let window = scene.windows.first {
+            let tab = MainTabBarController()
+            tab.selectedIndex = 0 // Home tab
+            window.rootViewController = tab
+            window.makeKeyAndVisible()
+        }
+    }
+
+    @objc private func backButtonTapped() {
+        // Same as continue shopping - go back to home
+        continueShoppingTapped()
     }
 }

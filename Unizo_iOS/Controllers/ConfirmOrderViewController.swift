@@ -14,6 +14,12 @@ class ConfirmOrderViewController: UIViewController, UITextViewDelegate {
     private var cartItems: [CartItem] { CartManager.shared.items }
     private var totalAmount: Double { CartManager.shared.totalAmount }
 
+    // MARK: - Repositories
+    private let orderRepository = OrderRepository()
+
+    // MARK: - Payment Selection
+    private var selectedPaymentMethod: String = "Cash"
+
     // MARK: - Outlets from XIB
     @IBOutlet weak var topBarContainer: UIView!
     @IBOutlet weak var stepIndicatorContainer: UIView!
@@ -374,15 +380,23 @@ class ConfirmOrderViewController: UIViewController, UITextViewDelegate {
     private func setupItemDetailSection() {
         itemDetailContainer.backgroundColor = bgColor
 
+        // Get cart items directly from CartManager
+        let items = CartManager.shared.items
+        print("🛒 ConfirmOrder - Cart items count: \(items.count)")
+        for (index, item) in items.enumerated() {
+            print("  Item \(index + 1): \(item.product.name) - ₹\(item.product.price) x \(item.quantity)")
+        }
+
         let sectionTitle = UILabel()
-        sectionTitle.text = "Item Detail"
+        sectionTitle.text = "Item Detail (\(items.count) items)"
         sectionTitle.font = UIFont.systemFont(ofSize: 15, weight: .semibold)
         sectionTitle.translatesAutoresizingMaskIntoConstraints = false
         itemDetailContainer.addSubview(sectionTitle)
 
         // Setup scroll view for items
         itemsScrollView.translatesAutoresizingMaskIntoConstraints = false
-        itemsScrollView.showsVerticalScrollIndicator = false
+        itemsScrollView.showsVerticalScrollIndicator = true
+        itemsScrollView.alwaysBounceVertical = true
         itemDetailContainer.addSubview(itemsScrollView)
 
         // Setup stack view for item cards
@@ -414,10 +428,11 @@ class ConfirmOrderViewController: UIViewController, UITextViewDelegate {
             subtotalBar.addSubview($0)
         }
 
-        // Calculate height based on number of items (max 2 visible, rest scrollable)
+        // Calculate height based on number of items (show max 2 items, scroll for more)
         let itemCardHeight: CGFloat = 120
         let spacing: CGFloat = 10
-        let maxVisibleItems = min(cartItems.count, 2)
+        let itemCount = max(items.count, 1) // At least 1 to avoid zero height
+        let maxVisibleItems = min(itemCount, 2)
         let scrollViewHeight = CGFloat(maxVisibleItems) * itemCardHeight + CGFloat(max(0, maxVisibleItems - 1)) * spacing
 
         NSLayoutConstraint.activate([
@@ -449,8 +464,8 @@ class ConfirmOrderViewController: UIViewController, UITextViewDelegate {
         ])
 
         // Create a card for each cart item
-        for cartItem in cartItems {
-            let itemCard = createItemCard(for: cartItem)
+        for item in items {
+            let itemCard = createItemCard(for: item)
             itemsStackView.addArrangedSubview(itemCard)
         }
     }
@@ -716,10 +731,12 @@ class ConfirmOrderViewController: UIViewController, UITextViewDelegate {
     
     // MARK: - PAYMENT TOGGLE
     @objc private func selectCash() {
+        selectedPaymentMethod = "Cash"
         updatePaymentSelection(cashSelected: true)
     }
 
     @objc private func selectUPI() {
+        selectedPaymentMethod = "UPI"
         updatePaymentSelection(cashSelected: false)
     }
 
@@ -769,12 +786,73 @@ class ConfirmOrderViewController: UIViewController, UITextViewDelegate {
     }
     
     @objc private func placeOrderTapped() {
-        let vc = OrderPlacedViewController()
+        guard let address = selectedAddress else {
+            showAlert(title: "Error", message: "Please select a delivery address")
+            return
+        }
 
-        vc.modalPresentationStyle = .fullScreen
-        vc.modalTransitionStyle = .coverVertical
+        let items = CartManager.shared.items
+        guard !items.isEmpty else {
+            showAlert(title: "Error", message: "Your cart is empty")
+            return
+        }
 
-        present(vc, animated: true)
+        // Get instructions text (ignore placeholder)
+        var instructions: String? = nil
+        if instructionsTextView.text != "Add a message..." && !instructionsTextView.text.isEmpty {
+            instructions = instructionsTextView.text
+        }
+
+        // Disable button to prevent double-tap
+        placeOrderButton.isEnabled = false
+
+        // Save total before clearing cart (since totalAmount is computed from cart)
+        let savedTotal = totalAmount
+
+        Task {
+            do {
+                // Create order in Supabase
+                let orderId = try await orderRepository.createOrder(
+                    addressId: address.id,
+                    items: items,
+                    totalAmount: savedTotal,
+                    paymentMethod: selectedPaymentMethod,
+                    instructions: instructions
+                )
+
+                // Get categories from ordered items for suggestions
+                let orderedCategories = items.compactMap { $0.product.category }
+
+                // Clear the cart after successful order
+                CartManager.shared.clear()
+
+                await MainActor.run {
+                    // Navigate to OrderPlacedViewController with order data
+                    let vc = OrderPlacedViewController()
+                    vc.orderId = orderId
+                    vc.orderAddress = address
+                    vc.orderedCategories = orderedCategories
+                    vc.orderTotal = savedTotal
+
+                    vc.modalPresentationStyle = .fullScreen
+                    vc.modalTransitionStyle = .coverVertical
+
+                    self.present(vc, animated: true)
+                }
+            } catch {
+                print("❌ Failed to create order:", error)
+                await MainActor.run {
+                    self.placeOrderButton.isEnabled = true
+                    self.showAlert(title: "Error", message: "Failed to place order: \(error.localizedDescription)")
+                }
+            }
+        }
+    }
+
+    private func showAlert(title: String, message: String) {
+        let alert = UIAlertController(title: title, message: message, preferredStyle: .alert)
+        alert.addAction(UIAlertAction(title: "OK", style: .default))
+        present(alert, animated: true)
     }
     
     @objc private func goBack() {
