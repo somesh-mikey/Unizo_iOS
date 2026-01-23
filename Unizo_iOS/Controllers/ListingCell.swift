@@ -123,10 +123,38 @@ final class ListingCell: UICollectionViewCell {
     }
 
     func configure(with item: ListingsViewController.Listing) {
-        productImageView.image = item.image
         categoryLabel.text = item.category
         nameLabel.text = item.name
         statusLabel.text = item.status
         priceLabel.text = item.price
+
+        // Load image from URL if available, otherwise use provided image
+        if let imageURLString = item.imageURL, let url = URL(string: imageURLString) {
+            loadImage(from: url)
+        } else {
+            productImageView.image = item.image ?? UIImage(systemName: "photo")
+        }
+    }
+
+    private func loadImage(from url: URL) {
+        // Set placeholder
+        productImageView.image = UIImage(systemName: "photo")
+
+        // Load image asynchronously
+        Task {
+            do {
+                let (data, _) = try await URLSession.shared.data(from: url)
+                if let image = UIImage(data: data) {
+                    await MainActor.run {
+                        self.productImageView.image = image
+                    }
+                }
+            } catch {
+                print("❌ Failed to load image from \(url): \(error)")
+                await MainActor.run {
+                    self.productImageView.image = UIImage(systemName: "photo.fill")
+                }
+            }
+        }
     }
 }

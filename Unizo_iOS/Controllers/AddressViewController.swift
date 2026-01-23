@@ -126,21 +126,30 @@ class AddressViewController: UIViewController {
         ])
     }
 
-    // UPDATED: Back navigation -> pop to CartViewController if present, else pop/dismiss
+    // UPDATED: Back navigation based on flow source
     @objc private func backTapped() {
-        // If part of a navigation controller, try to pop to CartViewController if it exists
-        if let nav = navigationController {
-            if let cartVC = nav.viewControllers.first(where: { $0 is CartViewController }) {
-                nav.popToViewController(cartVC, animated: true)
+        // If fromCart flow and presented modally (Cart presents AddressVC in a new nav controller)
+        if flowSource == .fromCart {
+            // Dismiss the entire modal navigation stack to return to Cart
+            if let presenting = presentingViewController {
+                presenting.dismiss(animated: true)
                 return
             }
-            // fallback: normal pop
-            nav.popViewController(animated: true)
-            return
+            // If pushed onto Cart's nav stack, pop back
+            if let nav = navigationController {
+                if let cartVC = nav.viewControllers.first(where: { $0 is CartViewController }) {
+                    nav.popToViewController(cartVC, animated: true)
+                    return
+                }
+            }
         }
 
-        // If presented modally, dismiss
-        dismiss(animated: true)
+        // Default: try to pop, otherwise dismiss
+        if let nav = navigationController {
+            nav.popViewController(animated: true)
+        } else {
+            dismiss(animated: true)
+        }
     }
 
     // MARK: - STEP INDICATOR
@@ -483,6 +492,10 @@ class AddressViewController: UIViewController {
     // UPDATED: navigate to AddNewAddressViewController (push or modal)
     @objc private func addAddressTapped() {
         let newVC = AddNewAddressViewController()
+        newVC.onSave = { [weak self] in
+            Task { await self?.loadAddresses() }
+        }
+
         if let nav = navigationController {
             nav.pushViewController(newVC, animated: true)
         } else {
@@ -573,9 +586,14 @@ class AddressViewController: UIViewController {
             }
 
         case .fromCart:
-            // Move to Confirm Order screen
+            // Move to Confirm Order screen with selected address
             let vc = ConfirmOrderViewController()
             vc.modalPresentationStyle = .fullScreen
+
+            // Pass selected address
+            if selectedIndex < addresses.count {
+                vc.selectedAddress = addresses[selectedIndex]
+            }
 
             if let nav = navigationController {
                 nav.pushViewController(vc, animated: true)
@@ -597,4 +615,3 @@ extension AddressViewController: UIGestureRecognizerDelegate {
         return true
     }
 }
-

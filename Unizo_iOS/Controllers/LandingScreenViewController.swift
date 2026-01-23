@@ -282,6 +282,7 @@ class LandingScreenViewController: UIViewController {
     }
     override func viewWillAppear(_ animated: Bool) {
         super.viewWillAppear(animated)
+        navigationController?.setNavigationBarHidden(true, animated: animated)
         (tabBarController as? MainTabBarController)?.showFloatingTabBar()
     }
 
@@ -417,7 +418,7 @@ class LandingScreenViewController: UIViewController {
         
         // --- Category Stack ---
         categoryStackView.axis = .horizontal
-        categoryStackView.alignment = .center
+        categoryStackView.alignment = .top
         categoryStackView.distribution = .fillEqually
         categoryStackView.spacing = 5
         trendingCategoriesbg.addSubview(categoryStackView)
@@ -485,7 +486,7 @@ class LandingScreenViewController: UIViewController {
             mainScrollView.topAnchor.constraint(equalTo: trendingCategoriesbg.bottomAnchor),
             mainScrollView.leadingAnchor.constraint(equalTo: view.leadingAnchor),
             mainScrollView.trailingAnchor.constraint(equalTo: view.trailingAnchor),
-            mainScrollView.bottomAnchor.constraint(equalTo: view.safeAreaLayoutGuide.bottomAnchor)
+            mainScrollView.bottomAnchor.constraint(equalTo: view.bottomAnchor)
         ])
         
         mainScrollView.addSubview(contentView)
@@ -631,6 +632,12 @@ class LandingScreenViewController: UIViewController {
                 print("❌ No banners returned from DB")
                 return
             }
+            // Setup carousel after banners are loaded
+                        if !didSetupCarousel {
+                            didSetupCarousel = true
+                            setupCarousel()
+                            startAutoScroll()
+                        }
 
         } catch {
             print("❌ Failed to load banners:", error)

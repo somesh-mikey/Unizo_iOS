@@ -13,6 +13,8 @@ final class CartViewController: UIViewController {
     // MARK: - Dependencies
     private let productRepository = ProductRepository(supabase: supabase)
     private var suggestionsHeightConstraint: NSLayoutConstraint!
+    private var suggestionsTopToCartConstraint: NSLayoutConstraint!
+    private var suggestionsTopToEmptyStateConstraint: NSLayoutConstraint!
 
     // MARK: - Data
     private var cartItems: [CartItem] {
@@ -26,13 +28,36 @@ final class CartViewController: UIViewController {
     private let contentView = UIView()
 
     // MARK: - Empty State
+    private let emptyStateContainer: UIView = {
+        let v = UIView()
+        v.isHidden = true
+        return v
+    }()
+
+    private let emptyCartImageView: UIImageView = {
+        let iv = UIImageView()
+        iv.image = UIImage(systemName: "cart")
+        iv.tintColor = UIColor(red: 0.75, green: 0.75, blue: 0.78, alpha: 1)
+        iv.contentMode = .scaleAspectFit
+        return iv
+    }()
+
     private let emptyStateLabel: UILabel = {
         let l = UILabel()
         l.text = "Your cart is empty"
         l.font = .systemFont(ofSize: 20, weight: .semibold)
+        l.textColor = .darkGray
+        l.textAlignment = .center
+        return l
+    }()
+
+    private let emptyStateSubtitle: UILabel = {
+        let l = UILabel()
+        l.text = "Looks like you haven't added\nanything to your cart yet"
+        l.font = .systemFont(ofSize: 14)
         l.textColor = .gray
         l.textAlignment = .center
-        l.isHidden = true
+        l.numberOfLines = 2
         return l
     }()
 
@@ -147,12 +172,30 @@ final class CartViewController: UIViewController {
 
     // MARK: - Empty State
     private func setupEmptyState() {
-        contentView.addSubview(emptyStateLabel)
-        emptyStateLabel.translatesAutoresizingMaskIntoConstraints = false
+        contentView.addSubview(emptyStateContainer)
+        emptyStateContainer.translatesAutoresizingMaskIntoConstraints = false
+
+        [emptyCartImageView, emptyStateLabel, emptyStateSubtitle].forEach {
+            emptyStateContainer.addSubview($0)
+            $0.translatesAutoresizingMaskIntoConstraints = false
+        }
 
         NSLayoutConstraint.activate([
-            emptyStateLabel.centerXAnchor.constraint(equalTo: contentView.centerXAnchor),
-            emptyStateLabel.topAnchor.constraint(equalTo: contentView.topAnchor, constant: 120)
+            emptyStateContainer.topAnchor.constraint(equalTo: contentView.topAnchor, constant: 60),
+            emptyStateContainer.leadingAnchor.constraint(equalTo: contentView.leadingAnchor, constant: 20),
+            emptyStateContainer.trailingAnchor.constraint(equalTo: contentView.trailingAnchor, constant: -20),
+
+            emptyCartImageView.topAnchor.constraint(equalTo: emptyStateContainer.topAnchor),
+            emptyCartImageView.centerXAnchor.constraint(equalTo: emptyStateContainer.centerXAnchor),
+            emptyCartImageView.widthAnchor.constraint(equalToConstant: 80),
+            emptyCartImageView.heightAnchor.constraint(equalToConstant: 80),
+
+            emptyStateLabel.topAnchor.constraint(equalTo: emptyCartImageView.bottomAnchor, constant: 20),
+            emptyStateLabel.centerXAnchor.constraint(equalTo: emptyStateContainer.centerXAnchor),
+
+            emptyStateSubtitle.topAnchor.constraint(equalTo: emptyStateLabel.bottomAnchor, constant: 8),
+            emptyStateSubtitle.centerXAnchor.constraint(equalTo: emptyStateContainer.centerXAnchor),
+            emptyStateSubtitle.bottomAnchor.constraint(equalTo: emptyStateContainer.bottomAnchor)
         ])
     }
 
@@ -183,8 +226,15 @@ final class CartViewController: UIViewController {
         suggestionsHeightConstraint =
             suggestionsCollectionView.heightAnchor.constraint(equalToConstant: 0)
 
+        // Create two top constraints - one for when cart has items, one for empty state
+        suggestionsTopToCartConstraint = suggestionsTitle.topAnchor.constraint(equalTo: cartItemsStack.bottomAnchor, constant: 30)
+        suggestionsTopToEmptyStateConstraint = suggestionsTitle.topAnchor.constraint(equalTo: emptyStateContainer.bottomAnchor, constant: 40)
+
+        // Initially activate cart constraint (will be updated in refreshCartUI)
+        suggestionsTopToCartConstraint.isActive = true
+        suggestionsTopToEmptyStateConstraint.isActive = false
+
         NSLayoutConstraint.activate([
-            suggestionsTitle.topAnchor.constraint(equalTo: cartItemsStack.bottomAnchor, constant: 30),
             suggestionsTitle.leadingAnchor.constraint(equalTo: contentView.leadingAnchor, constant: 20),
 
             suggestionsCollectionView.topAnchor.constraint(equalTo: suggestionsTitle.bottomAnchor, constant: 16),
@@ -194,6 +244,11 @@ final class CartViewController: UIViewController {
 
             suggestionsHeightConstraint
         ])
+    }
+
+    private func updateSuggestionsTopConstraint(forEmptyCart isEmpty: Bool) {
+        suggestionsTopToCartConstraint.isActive = !isEmpty
+        suggestionsTopToEmptyStateConstraint.isActive = isEmpty
     }
 
     // MARK: - Bottom Bar
@@ -239,15 +294,21 @@ final class CartViewController: UIViewController {
 
         cartItemsStack.arrangedSubviews.forEach { $0.removeFromSuperview() }
 
-        if cartItems.isEmpty {
-            emptyStateLabel.isHidden = false
-            bottomBar.isHidden = true
+        let isEmpty = cartItems.isEmpty
+
+        // Toggle visibility based on cart state
+        emptyStateContainer.isHidden = !isEmpty
+        itemsTitle.isHidden = isEmpty
+        cartItemsStack.isHidden = isEmpty
+        bottomBar.isHidden = isEmpty
+
+        // Update suggestions constraint based on cart state
+        updateSuggestionsTopConstraint(forEmptyCart: isEmpty)
+
+        if isEmpty {
             loadSuggestions(category: nil)
             return
         }
-
-        emptyStateLabel.isHidden = true
-        bottomBar.isHidden = false
 
         for item in cartItems {
             cartItemsStack.addArrangedSubview(makeCartItemCard(for: item))
@@ -366,8 +427,10 @@ final class CartViewController: UIViewController {
     @objc private func checkoutTapped() {
         let vc = AddressViewController()
         vc.flowSource = .fromCart
-        vc.modalPresentationStyle = .fullScreen
-        present(vc, animated: true)
+
+        let nav = UINavigationController(rootViewController: vc)
+        nav.modalPresentationStyle = .fullScreen
+        present(nav, animated: true)
     }
 }
 
@@ -394,5 +457,15 @@ extension CartViewController: UICollectionViewDataSource, UICollectionViewDelega
                         sizeForItemAt indexPath: IndexPath) -> CGSize {
         let width = (collectionView.bounds.width - 12) / 2
         return CGSize(width: width, height: 280)
+    }
+
+    func collectionView(_ collectionView: UICollectionView, didSelectItemAt indexPath: IndexPath) {
+        let selected = suggestedProducts[indexPath.item]
+        let vc = ItemDetailsViewController(
+            nibName: "ItemDetailsViewController",
+            bundle: nil
+        )
+        vc.product = selected
+        navigationController?.pushViewController(vc, animated: true)
     }
 }

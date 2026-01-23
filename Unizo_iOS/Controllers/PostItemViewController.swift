@@ -177,6 +177,7 @@ final class PostItemViewController: UIViewController,
 
         uploadImageView.tintColor = .gray
         uploadImageView.contentMode = .scaleAspectFit
+        uploadImageView.clipsToBounds = true
 
         sizeLabel.text = "Maximum size: 2 MB"
         sizeLabel.font = .systemFont(ofSize: 12)
@@ -205,6 +206,7 @@ final class PostItemViewController: UIViewController,
 
             uploadImageView.topAnchor.constraint(equalTo: uploadCard.topAnchor, constant: 20),
             uploadImageView.centerXAnchor.constraint(equalTo: uploadCard.centerXAnchor),
+            uploadImageView.widthAnchor.constraint(equalToConstant: 70),
             uploadImageView.heightAnchor.constraint(equalToConstant: 70),
 
             sizeLabel.topAnchor.constraint(equalTo: uploadImageView.bottomAnchor, constant: 8),
@@ -386,9 +388,10 @@ final class PostItemViewController: UIViewController,
 
                 print("✅ Product uploaded successfully")
 
-                // Navigate back or show success message
+                // Navigate to Product Posted success screen
                 await MainActor.run {
-                    navigationController?.popViewController(animated: true)
+                    let productPostedVC = ProductPostedViewController()
+                    navigationController?.pushViewController(productPostedVC, animated: true)
                 }
 
             } catch {
@@ -444,7 +447,7 @@ final class PostItemViewController: UIViewController,
                                didFinishPickingMediaWithInfo info: [UIImagePickerController.InfoKey : Any]) {
         if let img = info[.editedImage] as? UIImage ?? info[.originalImage] as? UIImage {
             uploadImageView.image = img
-            uploadImageView.contentMode = .scaleAspectFill
+            uploadImageView.contentMode = .scaleAspectFit
         }
         dismiss(animated: true)
     }

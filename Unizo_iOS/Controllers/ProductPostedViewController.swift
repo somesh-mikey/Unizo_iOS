@@ -134,12 +134,22 @@ class ProductPostedViewController: UIViewController {
         self.tabBarController?.tabBar.isHidden = false
     }
     @objc private func openListings() {
+        // Navigate back to the root navigation controller and switch to Listings tab
+        if let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
+           let window = windowScene.windows.first,
+           let tabBarController = window.rootViewController as? MainTabBarController {
 
-        let tabBar = MainTabBarController()
-        tabBar.selectedIndex = 3   // 0=Home, 1=Chat, 2=Post, 3=Listings, 4=Account
+            // Switch to Listings tab (index 3)
+            tabBarController.selectedIndex = 3
 
-        tabBar.modalPresentationStyle = .fullScreen
-        present(tabBar, animated: true)
+            // Pop to root of current navigation stack
+            if let navController = navigationController {
+                navController.popToRootViewController(animated: false)
+            }
+
+            // Dismiss this view controller
+            dismiss(animated: true, completion: nil)
+        }
     }
 }
 

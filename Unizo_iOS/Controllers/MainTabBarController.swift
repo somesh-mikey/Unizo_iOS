@@ -5,13 +5,23 @@
 
 import UIKit
 
-class MainTabBarController: UITabBarController {
+class MainTabBarController: UITabBarController, UITabBarControllerDelegate {
 
     override func viewDidLoad() {
             super.viewDidLoad()
+            delegate = self
             setupTabs()
             styleTabBar()
         }
+
+    // Always pop Home tab to root when selecting it
+    func tabBarController(_ tabBarController: UITabBarController, shouldSelect viewController: UIViewController) -> Bool {
+        if let nav = viewController as? UINavigationController,
+           nav.viewControllers.first is LandingScreenViewController {
+            nav.popToRootViewController(animated: false)
+        }
+        return true
+    }
 
         override func viewDidAppear(_ animated: Bool) {
             super.viewDidAppear(animated)

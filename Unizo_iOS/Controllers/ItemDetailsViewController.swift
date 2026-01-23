@@ -175,8 +175,18 @@ class ItemDetailsViewController: UIViewController {
         ratingText.append(NSAttributedString(string: "  \(String(format: "%.1f", p.rating))"))
 
         ratingLabel.attributedText = ratingText
-        productImageView.image = UIImage(named: p.imageURL ?? "")
-        categoryLabel.text = "General"
+//        productImageView.image = UIImage(named: p.imageURL ?? "")
+//        categoryLabel.text = "General"
+        // Load product image from URL or local asset
+                if let imageURL = p.imageURL, !imageURL.isEmpty {
+                    if imageURL.hasPrefix("http") {
+                        productImageView.loadImage(from: imageURL)
+                    } else {
+                        productImageView.image = UIImage(named: imageURL)
+                    }
+                }
+
+                categoryLabel.text = p.category ?? "General"
 
         // Description
         descriptionBodyLabel.text =

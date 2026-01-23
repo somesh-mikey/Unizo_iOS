@@ -6,8 +6,12 @@
 //
 
 import UIKit
+import Supabase
 
 class ListingsViewController: UIViewController {
+
+    // MARK: - Supabase
+    private let supabase = SupabaseManager.shared.client
 
     // MARK: - UI Components
     private let titleLabel: UILabel = {
@@ -34,85 +38,15 @@ class ListingsViewController: UIViewController {
     // MARK: - Listing Model
     struct Listing {
         let image: UIImage?
+        let imageURL: String?
         let category: String
         let name: String
         let status: String
         let price: String
     }
 
-    // MARK: - Dummy Data
-    private var listings: [Listing] = [
-
-        // 1 — Sports
-        Listing(image: UIImage(named: "SSbat"),
-                category: "Sports",
-                name: "SS Size 5 Bat",
-                status: "Pending",
-                price: "₹1299"),
-
-        // 2 — Sports
-        Listing(image: UIImage(named: "rollerskates"),
-                category: "Sports",
-                name: "Roller Skates",
-                status: "Sold for",
-                price: "₹650"),
-
-        // 3 — Sports
-        Listing(image: UIImage(named: "badmintonracket"),
-                category: "Sports",
-                name: "Badminton Racket",
-                status: "Sold for",
-                price: "₹550"),
-
-        // 4 — Hostel Essentials
-        Listing(image: UIImage(named: "electrickettle"),
-                category: "Hostel Essentials",
-                name: "Prestige Electric Kettle",
-                status: "Sold for",
-                price: "₹649"),
-
-        // 5 — Hostel Essentials
-        Listing(image: UIImage(named: "lamp"),
-                category: "Hostel Essentials",
-                name: "Table Lamp",
-                status: "Pending",
-                price: "₹500"),
-
-        // 6 — Hostel Essentials
-        Listing(image: UIImage(named: "cooler"),
-                category: "Hostel Essentials",
-                name: "Room Cooler",
-                status: "Pending",
-                price: "₹5499"),
-
-        // 7 — Fashion
-        Listing(image: UIImage(named: "Cap"),
-                category: "Fashion",
-                name: "Under Armour Cap",
-                status: "Sold for",
-                price: "₹500"),
-
-        // 8 — Fashion
-        Listing(image: UIImage(named: "yellowcap"),
-                category: "Fashion",
-                name: "NY Cap",
-                status: "Pending",
-                price: "₹400"),
-
-        // 9 — Gadgets
-        Listing(image: UIImage(named: "jblheadphones"),
-                category: "Gadgets",
-                name: "JBL T450BT",
-                status: "Sold for",
-                price: "₹1500"),
-
-        // 10 — Gadgets
-        Listing(image: UIImage(named: "leafbasswireless"),
-                category: "Gadgets",
-                name: "Leaf Bass Wireless",
-                status: "Pending",
-                price: "₹1400")
-    ]
+    // MARK: - Listings Data
+    private var listings: [Listing] = []
 
 
     // MARK: - Lifecycle
@@ -123,6 +57,53 @@ class ListingsViewController: UIViewController {
 
         setupUI()
         setupCollectionView()
+    }
+
+    override func viewWillAppear(_ animated: Bool) {
+        super.viewWillAppear(animated)
+        // Fetch user's listings every time view appears
+        fetchUserListings()
+    }
+
+    // MARK: - Fetch User Listings from Supabase
+    private func fetchUserListings() {
+        Task {
+            do {
+                // Get current user ID
+                let userId = try await supabase.auth.session.user.id.uuidString
+
+                // Fetch products for this seller
+                let response = try await supabase
+                    .from("products")
+                    .select("*")
+                    .eq("seller_id", value: userId)
+                    .order("created_at", ascending: false)
+                    .execute()
+
+                let products = try JSONDecoder().decode([ProductDTO].self, from: response.data)
+
+                print("✅ Fetched \(products.count) listings")
+
+                // Convert ProductDTO to Listing model
+                await MainActor.run {
+                    self.listings = products.map { product in
+                        Listing(
+                            image: nil,
+                            imageURL: product.imageUrl,
+                            category: product.category ?? "Other",
+                            name: product.title,
+                            status: "Pending",
+                            price: "₹\(Int(product.price))"
+                        )
+                    }
+                    self.collectionView.reloadData()
+                    print("✅ Updated listings UI with \(self.listings.count) items")
+                }
+
+            } catch {
+                print("❌ Failed to fetch listings:", error)
+            }
+        }
     }
 
     private func setupUI() {
