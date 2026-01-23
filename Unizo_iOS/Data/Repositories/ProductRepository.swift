@@ -43,6 +43,7 @@ final class ProductRepository {
                 image_url,
                 is_negotiable,
                 views_count,
+                quantity,
                 is_active,
                 rating,
                 colour,
@@ -80,6 +81,7 @@ final class ProductRepository {
                 image_url,
                 is_negotiable,
                 views_count,
+                quantity,
                 is_active,
                 rating,
                 colour,
@@ -111,6 +113,7 @@ final class ProductRepository {
                 image_url,
                 is_negotiable,
                 views_count,
+                quantity,
                 is_active,
                 rating,
                 colour,
@@ -141,6 +144,7 @@ final class ProductRepository {
                 image_url,
                 is_negotiable,
                 views_count,
+                quantity,
                 is_active,
                 rating,
                 colour,
@@ -187,6 +191,7 @@ final class ProductRepository {
                 image_url,
                 is_negotiable,
                 views_count,
+                quantity,
                 is_active,
                 rating,
                 colour,
@@ -214,4 +219,79 @@ final class ProductRepository {
                 .insert(product)
                 .execute()
         }
+
+    // MARK: - Increment View Count
+    /// Increments the view_count for a product when it's viewed
+    func incrementViewCount(productId: UUID) async throws {
+        // Use lowercase UUID string for Supabase compatibility
+        let productIdString = productId.uuidString.lowercased()
+
+        // First fetch current view count
+        let response = try await supabase
+            .from("products")
+            .select("views_count")
+            .eq("id", value: productIdString)
+            .single()
+            .execute()
+
+        struct ViewCountResponse: Decodable {
+            let views_count: Int?
+        }
+
+        let current = try JSONDecoder().decode(ViewCountResponse.self, from: response.data)
+        let currentCount = current.views_count ?? 0
+        let newCount = currentCount + 1
+
+        print("👁️ Product \(productIdString): current views = \(currentCount), incrementing to \(newCount)")
+
+        // Update with incremented count
+        struct ViewCountUpdate: Encodable {
+            let views_count: Int
+        }
+
+        try await supabase
+            .from("products")
+            .update(ViewCountUpdate(views_count: newCount))
+            .eq("id", value: productIdString)
+            .execute()
+
+        print("👁️ View count updated to \(newCount) for product \(productIdString)")
+    }
+
+    // MARK: - Decrement Product Quantity (after purchase)
+    /// Decrements quantity and marks product as inactive if quantity becomes 0
+    func decrementQuantity(productId: UUID, by amount: Int = 1) async throws {
+        // Use lowercase UUID string for Supabase compatibility
+        let productIdString = productId.uuidString.lowercased()
+
+        // First fetch current quantity
+        let response = try await supabase
+            .from("products")
+            .select("quantity")
+            .eq("id", value: productIdString)
+            .single()
+            .execute()
+
+        struct QuantityResponse: Decodable {
+            let quantity: Int?
+        }
+
+        let current = try JSONDecoder().decode(QuantityResponse.self, from: response.data)
+        let currentQty = current.quantity ?? 1
+        let newQty = max(0, currentQty - amount)
+
+        // Update quantity and set is_active to false if quantity is 0
+        struct QuantityUpdate: Encodable {
+            let quantity: Int
+            let is_active: Bool
+        }
+
+        try await supabase
+            .from("products")
+            .update(QuantityUpdate(quantity: newQty, is_active: newQty > 0))
+            .eq("id", value: productIdString)
+            .execute()
+
+        print("📦 Product \(productIdString) quantity updated to \(newQty), is_active: \(newQty > 0)")
+    }
 }
