@@ -11,7 +11,7 @@ final class LoginModalViewController: UIViewController {
     // MARK: - Supabase
     private let supabase = SupabaseManager.shared.client
 
-    // MARK: - Containers (Card + Groups)
+    // MARK: - Containers (Card + Group)
     private let cardView: UIView = {
         let v = UIView()
         v.backgroundColor = UIColor(red: 246/255, green: 246/255, blue: 248/255, alpha: 1)
@@ -20,14 +20,7 @@ final class LoginModalViewController: UIViewController {
         return v
     }()
 
-    private let topGroupView: UIView = {
-        let v = UIView()
-        v.backgroundColor = .white
-        v.layer.cornerRadius = 16
-        return v
-    }()
-
-    private let bottomGroupView: UIView = {
+    private let fieldsGroupView: UIView = {
         let v = UIView()
         v.backgroundColor = .white
         v.layer.cornerRadius = 16
@@ -56,9 +49,7 @@ final class LoginModalViewController: UIViewController {
         return tf
     }
 
-    private lazy var collegeRegField = styledField("College Registration Number")
     private lazy var collegeEmailField = styledField("College Email")
-    private lazy var phoneField = styledField("Your Phone Number")
 
     private lazy var passwordField: UITextField = {
         let tf = styledField("Password")
@@ -73,15 +64,6 @@ final class LoginModalViewController: UIViewController {
         return v
     }
 
-    // MARK: - OR Label
-    private let orLabel: UILabel = {
-        let lbl = UILabel()
-        lbl.text = "OR"
-        lbl.textAlignment = .center
-        lbl.font = .systemFont(ofSize: 14, weight: .medium)
-        lbl.textColor = .gray
-        return lbl
-    }()
 
     // MARK: - Forgot Password
     private let forgotPasswordButton: UIButton = {
@@ -119,8 +101,8 @@ final class LoginModalViewController: UIViewController {
 
         view.addSubview(cardView)
         [
-            titleLabel, topGroupView, orLabel,
-            bottomGroupView, forgotPasswordButton, loginButton
+            titleLabel, fieldsGroupView,
+            forgotPasswordButton, loginButton
         ].forEach { cardView.addSubview($0) }
     }
 
@@ -149,101 +131,61 @@ final class LoginModalViewController: UIViewController {
             cardView.leadingAnchor.constraint(equalTo: view.leadingAnchor),
             cardView.trailingAnchor.constraint(equalTo: view.trailingAnchor),
             cardView.bottomAnchor.constraint(equalTo: view.bottomAnchor),
-            cardView.heightAnchor.constraint(equalTo: view.heightAnchor, multiplier: 0.58)
+            cardView.heightAnchor.constraint(equalTo: view.heightAnchor, multiplier: 0.42)
         ])
 
         titleLabel.translatesAutoresizingMaskIntoConstraints = false
         NSLayoutConstraint.activate([
-            titleLabel.topAnchor.constraint(equalTo: cardView.topAnchor, constant: 20),
+            titleLabel.topAnchor.constraint(equalTo: cardView.topAnchor, constant: 28),
             titleLabel.centerXAnchor.constraint(equalTo: cardView.centerXAnchor)
         ])
 
-        // TOP GROUP (2 fields)
-        let topDivider = divider()
-        topGroupView.addSubview(collegeRegField)
-        topGroupView.addSubview(topDivider)
-        topGroupView.addSubview(collegeEmailField)
+        // FIELDS GROUP (College Email + Password)
+        let fieldsDivider = divider()
+        fieldsGroupView.addSubview(collegeEmailField)
+        fieldsGroupView.addSubview(fieldsDivider)
+        fieldsGroupView.addSubview(passwordField)
 
-        [topGroupView, collegeRegField, topDivider, collegeEmailField].forEach {
+        [fieldsGroupView, collegeEmailField, fieldsDivider, passwordField].forEach {
             $0.translatesAutoresizingMaskIntoConstraints = false
         }
 
         NSLayoutConstraint.activate([
-            topGroupView.topAnchor.constraint(equalTo: titleLabel.bottomAnchor, constant: 22),
-            topGroupView.leadingAnchor.constraint(equalTo: cardView.leadingAnchor, constant: 32),
-            topGroupView.trailingAnchor.constraint(equalTo: cardView.trailingAnchor, constant: -32),
-            topGroupView.heightAnchor.constraint(equalToConstant: 110),
+            fieldsGroupView.topAnchor.constraint(equalTo: titleLabel.bottomAnchor, constant: 26),
+            fieldsGroupView.leadingAnchor.constraint(equalTo: cardView.leadingAnchor, constant: 32),
+            fieldsGroupView.trailingAnchor.constraint(equalTo: cardView.trailingAnchor, constant: -32),
+            fieldsGroupView.heightAnchor.constraint(equalToConstant: 110),
 
-            collegeRegField.topAnchor.constraint(equalTo: topGroupView.topAnchor),
-            collegeRegField.leadingAnchor.constraint(equalTo: topGroupView.leadingAnchor),
-            collegeRegField.trailingAnchor.constraint(equalTo: topGroupView.trailingAnchor),
-            collegeRegField.heightAnchor.constraint(equalToConstant: 55),
+            collegeEmailField.topAnchor.constraint(equalTo: fieldsGroupView.topAnchor),
+            collegeEmailField.leadingAnchor.constraint(equalTo: fieldsGroupView.leadingAnchor),
+            collegeEmailField.trailingAnchor.constraint(equalTo: fieldsGroupView.trailingAnchor),
+            collegeEmailField.heightAnchor.constraint(equalToConstant: 55),
 
-            topDivider.topAnchor.constraint(equalTo: collegeRegField.bottomAnchor),
-            topDivider.leadingAnchor.constraint(equalTo: topGroupView.leadingAnchor),
-            topDivider.trailingAnchor.constraint(equalTo: topGroupView.trailingAnchor),
-            topDivider.heightAnchor.constraint(equalToConstant: 1),
+            fieldsDivider.topAnchor.constraint(equalTo: collegeEmailField.bottomAnchor),
+            fieldsDivider.leadingAnchor.constraint(equalTo: fieldsGroupView.leadingAnchor),
+            fieldsDivider.trailingAnchor.constraint(equalTo: fieldsGroupView.trailingAnchor),
+            fieldsDivider.heightAnchor.constraint(equalToConstant: 1),
 
-            collegeEmailField.topAnchor.constraint(equalTo: topDivider.bottomAnchor),
-            collegeEmailField.leadingAnchor.constraint(equalTo: topGroupView.leadingAnchor),
-            collegeEmailField.trailingAnchor.constraint(equalTo: topGroupView.trailingAnchor),
-            collegeEmailField.heightAnchor.constraint(equalToConstant: 54)
-        ])
-
-        // OR Label
-        orLabel.translatesAutoresizingMaskIntoConstraints = false
-        NSLayoutConstraint.activate([
-            orLabel.topAnchor.constraint(equalTo: topGroupView.bottomAnchor, constant: 16),
-            orLabel.centerXAnchor.constraint(equalTo: cardView.centerXAnchor)
-        ])
-
-        // BOTTOM GROUP (2 fields)
-        let bottomDivider = divider()
-        bottomGroupView.addSubview(phoneField)
-        bottomGroupView.addSubview(bottomDivider)
-        bottomGroupView.addSubview(passwordField)
-
-        [bottomGroupView, phoneField, bottomDivider, passwordField].forEach {
-            $0.translatesAutoresizingMaskIntoConstraints = false
-        }
-
-        NSLayoutConstraint.activate([
-            bottomGroupView.topAnchor.constraint(equalTo: orLabel.bottomAnchor, constant: 16),
-            bottomGroupView.leadingAnchor.constraint(equalTo: topGroupView.leadingAnchor),
-            bottomGroupView.trailingAnchor.constraint(equalTo: topGroupView.trailingAnchor),
-            bottomGroupView.heightAnchor.constraint(equalToConstant: 110),
-
-            phoneField.topAnchor.constraint(equalTo: bottomGroupView.topAnchor),
-            phoneField.leadingAnchor.constraint(equalTo: bottomGroupView.leadingAnchor),
-            phoneField.trailingAnchor.constraint(equalTo: bottomGroupView.trailingAnchor),
-            phoneField.heightAnchor.constraint(equalToConstant: 55),
-
-            bottomDivider.topAnchor.constraint(equalTo: phoneField.bottomAnchor),
-            bottomDivider.leadingAnchor.constraint(equalTo: bottomGroupView.leadingAnchor),
-            bottomDivider.trailingAnchor.constraint(equalTo: bottomGroupView.trailingAnchor),
-            bottomDivider.heightAnchor.constraint(equalToConstant: 1),
-
-            passwordField.topAnchor.constraint(equalTo: bottomDivider.bottomAnchor),
-            passwordField.leadingAnchor.constraint(equalTo: bottomGroupView.leadingAnchor),
-            passwordField.trailingAnchor.constraint(equalTo: bottomGroupView.trailingAnchor),
+            passwordField.topAnchor.constraint(equalTo: fieldsDivider.bottomAnchor),
+            passwordField.leadingAnchor.constraint(equalTo: fieldsGroupView.leadingAnchor),
+            passwordField.trailingAnchor.constraint(equalTo: fieldsGroupView.trailingAnchor),
             passwordField.heightAnchor.constraint(equalToConstant: 54)
         ])
 
         // Forgot Password
         forgotPasswordButton.translatesAutoresizingMaskIntoConstraints = false
         NSLayoutConstraint.activate([
-            forgotPasswordButton.topAnchor.constraint(equalTo: bottomGroupView.bottomAnchor, constant: 12),
+            forgotPasswordButton.topAnchor.constraint(equalTo: fieldsGroupView.bottomAnchor, constant: 14),
             forgotPasswordButton.centerXAnchor.constraint(equalTo: cardView.centerXAnchor)
         ])
 
         // Login Button
         loginButton.translatesAutoresizingMaskIntoConstraints = false
         NSLayoutConstraint.activate([
-            loginButton.topAnchor.constraint(equalTo: forgotPasswordButton.bottomAnchor, constant: 18),
-            loginButton.leadingAnchor.constraint(equalTo: bottomGroupView.leadingAnchor),
-            loginButton.trailingAnchor.constraint(equalTo: bottomGroupView.trailingAnchor),
-            loginButton.heightAnchor.constraint(equalToConstant: 48),
-            loginButton.bottomAnchor.constraint(equalTo: cardView.bottomAnchor, constant: -24)
+            loginButton.topAnchor.constraint(equalTo: forgotPasswordButton.bottomAnchor, constant: 20),
+            loginButton.leadingAnchor.constraint(equalTo: fieldsGroupView.leadingAnchor),
+            loginButton.trailingAnchor.constraint(equalTo: fieldsGroupView.trailingAnchor),
+            loginButton.heightAnchor.constraint(equalToConstant: 48)
         ])
     }
 

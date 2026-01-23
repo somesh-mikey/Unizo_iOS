@@ -7,7 +7,7 @@
 
 import UIKit
 
-class CategoryPageViewController: UIViewController, UITabBarDelegate {
+class CategoryPageViewController: UIViewController, UITabBarDelegate, UIScrollViewDelegate {
 
     // MARK: - Data
     var categoryIndex: Int = 0
@@ -29,6 +29,7 @@ class CategoryPageViewController: UIViewController, UITabBarDelegate {
 
     private let bannerImage = UIImageView()
     private let collectionView: UICollectionView
+    private var topContainerTopConstraint: NSLayoutConstraint!
 
     override func viewDidLayoutSubviews() {
         super.viewDidLayoutSubviews()
@@ -70,25 +71,9 @@ class CategoryPageViewController: UIViewController, UITabBarDelegate {
         setupCollectionView()
         loadCategoryBanner()
         collectionView.reloadData()
-        let backButton = UIBarButtonItem(
-                image: UIImage(systemName: "chevron.backward"),
-                style: .plain,
-                target: self,
-                action: #selector(backToLanding)
-            )
-            backButton.tintColor = .white
-            navigationItem.leftBarButtonItem = backButton
-        setupNavigationBarMenuButton()
 
-        if let navBar = navigationController?.navigationBar {
-            navBar.layoutMargins = .zero
-            navBar.subviews.first?.layoutMargins = .zero
-            navBar.directionalLayoutMargins = .zero
-        }
-        navigationController?.navigationBar.titleTextAttributes = [
-            .foregroundColor: UIColor.white
-        ]
-        
+        // Hide navigation bar completely (no back button, no title, no toolbar)
+        navigationController?.setNavigationBarHidden(true, animated: false)
     }
 
     // MARK: - TOP SECTION (Identical to Landing)
@@ -98,8 +83,11 @@ class CategoryPageViewController: UIViewController, UITabBarDelegate {
         view.addSubview(topContainer)
         topContainer.translatesAutoresizingMaskIntoConstraints = false
 
+        // Store reference for scroll-based collapsing
+        topContainerTopConstraint = topContainer.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor)
+
         NSLayoutConstraint.activate([
-            topContainer.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor),
+            topContainerTopConstraint,
             topContainer.leadingAnchor.constraint(equalTo: view.leadingAnchor),
             topContainer.trailingAnchor.constraint(equalTo: view.trailingAnchor),
             topContainer.heightAnchor.constraint(equalToConstant: 360)
@@ -139,42 +127,72 @@ class CategoryPageViewController: UIViewController, UITabBarDelegate {
 //                                   action: #selector(menuButtonTapped))
 //        toolbar.setItems([flex, menu], animated: false)
 
-        // Hostel Essentials LABEL
-        homeLabel.text = "Categories"
+        // Home LABEL - same styling and positioning as LandingVC
+        homeLabel.text = "Home"
         homeLabel.textColor = .white
-        homeLabel.font = UIFont.systemFont(ofSize: 36, weight: .bold)
+        homeLabel.font = UIFont.systemFont(ofSize: 35, weight: .bold)
         navBarView.addSubview(homeLabel)
         homeLabel.translatesAutoresizingMaskIntoConstraints = false
 
+        // Add toolbar for positioning reference (same as LandingVC)
+        toolbar.tintColor = .white
+        toolbar.isTranslucent = false
+        toolbar.backgroundColor = .clear
+        toolbar.setShadowImage(UIImage(), forToolbarPosition: .any)
+        toolbar.setBackgroundImage(UIImage(), forToolbarPosition: .any, barMetrics: .default)
+        navBarView.addSubview(toolbar)
+        toolbar.translatesAutoresizingMaskIntoConstraints = false
         NSLayoutConstraint.activate([
-            homeLabel.leadingAnchor.constraint(equalTo: navBarView.leadingAnchor, constant: 20),
-            homeLabel.bottomAnchor.constraint(equalTo: navBarView.bottomAnchor, constant: -10)
+            toolbar.topAnchor.constraint(equalTo: navBarView.topAnchor),
+            toolbar.leadingAnchor.constraint(equalTo: navBarView.leadingAnchor),
+            toolbar.trailingAnchor.constraint(equalTo: navBarView.trailingAnchor),
+            toolbar.heightAnchor.constraint(equalToConstant: 44)
         ])
 
-        // SEARCH BAR
-        topContainer.addSubview(searchBar)
+        // Menu button on toolbar
+        let flexSpace = UIBarButtonItem(barButtonSystemItem: .flexibleSpace, target: nil, action: nil)
+        let menuItem = UIBarButtonItem(
+            image: UIImage(systemName: "ellipsis"),
+            style: .plain,
+            target: self,
+            action: #selector(menuButtonTapped)
+        )
+        toolbar.setItems([flexSpace, menuItem], animated: false)
+
+        // Position homeLabel same as LandingVC
+        NSLayoutConstraint.activate([
+            homeLabel.leadingAnchor.constraint(equalTo: navBarView.leadingAnchor, constant: 20),
+            homeLabel.centerYAnchor.constraint(equalTo: toolbar.centerYAnchor)
+        ])
+
+        // SEARCH BAR - add to navBarView (same as LandingVC)
+        navBarView.addSubview(searchBar)
         searchBar.translatesAutoresizingMaskIntoConstraints = false
         searchBar.searchBarStyle = .minimal
         searchBar.placeholder = "Search"
 
         NSLayoutConstraint.activate([
-            searchBar.topAnchor.constraint(equalTo: navBarView.bottomAnchor, constant: 8),
-            searchBar.leadingAnchor.constraint(equalTo: topContainer.leadingAnchor, constant: 20),
-            searchBar.trailingAnchor.constraint(equalTo: topContainer.trailingAnchor, constant: -20),
+            searchBar.topAnchor.constraint(equalTo: toolbar.bottomAnchor, constant: 18),
+            searchBar.leadingAnchor.constraint(equalTo: navBarView.leadingAnchor, constant: 20),
+            searchBar.trailingAnchor.constraint(equalTo: navBarView.trailingAnchor, constant: -20),
             searchBar.heightAnchor.constraint(equalToConstant: 44)
         ])
 
-        // TRENDING BG
+        // TRENDING BG - only round top corners (same as LandingVC)
         trendingCategoriesbg.backgroundColor = UIColor(red: 0.83, green: 0.95, blue: 0.96, alpha: 1)
         trendingCategoriesbg.layer.cornerRadius = 20
+        trendingCategoriesbg.layer.maskedCorners = [
+            .layerMinXMinYCorner, // top-left
+            .layerMaxXMinYCorner  // top-right
+        ]
+        trendingCategoriesbg.clipsToBounds = true
         topContainer.addSubview(trendingCategoriesbg)
         trendingCategoriesbg.translatesAutoresizingMaskIntoConstraints = false
 
         NSLayoutConstraint.activate([
             trendingCategoriesbg.leadingAnchor.constraint(equalTo: topContainer.leadingAnchor),
             trendingCategoriesbg.trailingAnchor.constraint(equalTo: topContainer.trailingAnchor),
-            trendingCategoriesbg.topAnchor.constraint(equalTo: searchBar.bottomAnchor, constant: 10),
-            trendingCategoriesbg.bottomAnchor.constraint(equalTo: topContainer.bottomAnchor)
+            trendingCategoriesbg.topAnchor.constraint(equalTo: searchBar.bottomAnchor, constant: 22)
         ])
 
         // TRENDING LABEL
@@ -192,6 +210,7 @@ class CategoryPageViewController: UIViewController, UITabBarDelegate {
         trendingCategoriesbg.addSubview(categoryStackView)
         categoryStackView.translatesAutoresizingMaskIntoConstraints = false
         categoryStackView.axis = .horizontal
+        categoryStackView.alignment = .center
         categoryStackView.spacing = 5
         categoryStackView.distribution = .fillEqually
 
@@ -199,8 +218,13 @@ class CategoryPageViewController: UIViewController, UITabBarDelegate {
             categoryStackView.topAnchor.constraint(equalTo: trendingLabel.bottomAnchor, constant: 10),
             categoryStackView.leadingAnchor.constraint(equalTo: trendingCategoriesbg.leadingAnchor, constant: 10),
             categoryStackView.trailingAnchor.constraint(equalTo: trendingCategoriesbg.trailingAnchor, constant: -10),
-            categoryStackView.bottomAnchor.constraint(equalTo: trendingCategoriesbg.bottomAnchor, constant: -12)
+            categoryStackView.bottomAnchor.constraint(equalTo: trendingCategoriesbg.bottomAnchor, constant: -8)
         ])
+
+        // Extra bottom anchor constraint (same as LandingVC)
+        trendingCategoriesbg.bottomAnchor
+            .constraint(equalTo: categoryStackView.bottomAnchor, constant: 25)
+            .isActive = true
     }
 
     // MARK: - TRENDING BUTTONS
@@ -267,18 +291,18 @@ class CategoryPageViewController: UIViewController, UITabBarDelegate {
         contentView.backgroundColor = .white
         scrollView.delaysContentTouches = true
         scrollView.canCancelContentTouches = true
+        scrollView.delegate = self
 
         view.addSubview(scrollView)
         scrollView.translatesAutoresizingMaskIntoConstraints = false
         scrollView.isScrollEnabled = true
 
+        // Scroll starts from trendingCategoriesbg bottom
         NSLayoutConstraint.activate([
-            scrollView.topAnchor.constraint(equalTo: topContainer.bottomAnchor),
+            scrollView.topAnchor.constraint(equalTo: trendingCategoriesbg.bottomAnchor),
             scrollView.leadingAnchor.constraint(equalTo: view.leadingAnchor),
             scrollView.trailingAnchor.constraint(equalTo: view.trailingAnchor),
-
-            // SAFE: TabBar already added to hierarchy
-            scrollView.bottomAnchor.constraint(equalTo: view.safeAreaLayoutGuide.bottomAnchor)
+            scrollView.bottomAnchor.constraint(equalTo: view.bottomAnchor)
         ])
 
         scrollView.addSubview(contentView)
@@ -380,23 +404,48 @@ class CategoryPageViewController: UIViewController, UITabBarDelegate {
 //    }
     @objc private func menuButtonTapped() {
         let alert = UIAlertController(title: nil, message: nil, preferredStyle: .actionSheet)
+
+        // --- CART ---
         alert.addAction(UIAlertAction(title: "Cart", style: .default, handler: { _ in
-            // push Cart screen
+            self.navigationController?.setNavigationBarHidden(false, animated: false)
             let vc = CartViewController()
-            self.navigationController?.pushViewController(vc, animated: true)
+            if let nav = self.navigationController {
+                nav.pushViewController(vc, animated: true)
+            } else {
+                let navController = UINavigationController(rootViewController: vc)
+                navController.modalPresentationStyle = .fullScreen
+                self.present(navController, animated: true)
+            }
         }))
+
+        // --- WISHLIST ---
         alert.addAction(UIAlertAction(title: "Wishlist", style: .default, handler: { _ in
             let vc = WishlistViewController()
-            self.navigationController?.pushViewController(vc, animated: true)
+            if let nav = self.navigationController {
+                nav.pushViewController(vc, animated: true)
+            } else {
+                vc.modalPresentationStyle = .fullScreen
+                vc.modalTransitionStyle = .coverVertical
+                self.present(vc, animated: true)
+            }
         }))
+
+        // --- NOTIFICATIONS ---
         alert.addAction(UIAlertAction(title: "Notifications", style: .default, handler: { _ in
             let vc = NotificationsViewController()
-            self.navigationController?.pushViewController(vc, animated: true)
+            if let nav = self.navigationController {
+                nav.pushViewController(vc, animated: true)
+                return
+            }
+            vc.modalPresentationStyle = .fullScreen
+            vc.modalTransitionStyle = .coverVertical
+            self.present(vc, animated: true)
         }))
+
         alert.addAction(UIAlertAction(title: "Cancel", style: .cancel))
 
         if let popover = alert.popoverPresentationController {
-            popover.barButtonItem = navigationItem.rightBarButtonItem
+            popover.barButtonItem = toolbar.items?.last
         }
 
         present(alert, animated: true)
@@ -404,8 +453,62 @@ class CategoryPageViewController: UIViewController, UITabBarDelegate {
 
     @objc private func categoryTapped(_ sender: UIButton) {
         let index = sender.tag
+
+        // If same category, do nothing
+        guard index != categoryIndex else { return }
+
+        // Reset all buttons to default state
+        resetAllCategoryButtons()
+
+        // Update index and highlight selected
         categoryIndex = index
         highlightSelectedCategory()
+
+        // Fetch new products for selected category
+        let categories = [
+            "Hostel Essentials",
+            "Furniture",
+            "Fashion",
+            "Sports",
+            "Gadgets"
+        ]
+
+        let selectedCategory = categories[index]
+        let productRepository = ProductRepository(supabase: supabase)
+
+        Task {
+            do {
+                let dtos = try await productRepository.fetchProductsByCategory(selectedCategory)
+                let products = dtos.map(ProductMapper.toUIModel)
+
+                await MainActor.run {
+                    self.items = products
+                    self.loadCategoryBanner()
+                    self.collectionView.reloadData()
+                    self.collectionView.layoutIfNeeded()
+                    self.updateCollectionHeight()
+
+                    // Scroll to top
+                    self.scrollView.setContentOffset(.zero, animated: true)
+                }
+            } catch {
+                print("❌ Category fetch failed:", error)
+            }
+        }
+    }
+
+    private func resetAllCategoryButtons() {
+        for case let stack as UIStackView in categoryStackView.arrangedSubviews {
+            if let btn = stack.arrangedSubviews.first as? UIButton {
+                btn.backgroundColor = UIColor(red: 0.65, green: 0.91, blue: 0.96, alpha: 1)
+                btn.tintColor = UIColor(red: 0.03, green: 0.22, blue: 0.27, alpha: 1)
+            }
+        }
+    }
+
+    // MARK: - UIScrollViewDelegate
+    func scrollViewDidScroll(_ scrollView: UIScrollView) {
+        // No-op: header stays fixed
     }
 
 }
@@ -443,24 +546,10 @@ extension CategoryPageViewController: UICollectionViewDataSource, UICollectionVi
     }
     override func viewWillAppear(_ animated: Bool) {
         super.viewWillAppear(animated)
-        tabBarController?.tabBar.isHidden = true
-    }
-
-    override func viewWillDisappear(_ animated: Bool) {
-        super.viewWillDisappear(animated)
-        tabBarController?.tabBar.isHidden = false
-    }
-    @objc private func backToLanding() {
-        navigationController?.popToRootViewController(animated: true)
-    }
-    private func setupNavigationBarMenuButton() {
-        navigationItem.rightBarButtonItem = makeEllipsisButton(
-            target: self,
-            action: #selector(menuButtonTapped)
-        )
-        navigationItem.rightBarButtonItem?.customView?.translatesAutoresizingMaskIntoConstraints = false
-        navigationItem.rightBarButtonItem?.customView?.widthAnchor.constraint(equalToConstant: 44).isActive = true
-        navigationItem.rightBarButtonItem?.customView?.heightAnchor.constraint(equalToConstant: 44).isActive = true
+        // Hide navigation bar (no back button, no title)
+        navigationController?.setNavigationBarHidden(true, animated: animated)
+        // Show tab bar
+        (tabBarController as? MainTabBarController)?.showFloatingTabBar()
     }
     func collectionView(_ collectionView: UICollectionView, didSelectItemAt indexPath: IndexPath) {
 

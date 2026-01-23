@@ -7,6 +7,15 @@ import UIKit
 
 class OrderDetailsViewController: UIViewController {
 
+    // MARK: - Order Data (passed from OrderPlacedViewController)
+    var orderId: UUID?
+    var orderAddress: AddressDTO?
+    var orderTotal: Double = 0
+
+    // MARK: - Fetched Data
+    private var orderItems: [OrderItemDTO] = []
+    private let orderRepository = OrderRepository()
+
     // MARK: - Colors
     private let bgColor = UIColor(red: 0.96, green: 0.97, blue: 1.00, alpha: 1.0)
     private let darkTeal = UIColor(red: 0.07, green: 0.33, blue: 0.42, alpha: 1.0)
@@ -36,13 +45,9 @@ class OrderDetailsViewController: UIViewController {
     private let timelineLabel = UILabel()
     private let timelineStack = UIStackView()
 
-    // MARK: - Item Card
+    // MARK: - Items Section
     private let orderItemsTitle = UILabel()
-    private let itemCard = UIView()
-    private let itemImageView = UIImageView()
-    private let itemCategoryLabel = UILabel()
-    private let itemTitleLabel = UILabel()
-    private let priceLabel = UILabel()
+    private var itemsStackView = UIStackView()
 
     // MARK: - Delivery Info
     private let deliveryTitle = UILabel()
@@ -52,6 +57,8 @@ class OrderDetailsViewController: UIViewController {
     // MARK: - Order Summary
     private let orderSummaryTitle = UILabel()
     private let summaryCard = UIView()
+    private let summarySubtotalValue = UILabel()
+    private let summaryTotalValue = UILabel()
 
     // MARK: - Bottom Buttons
     private let bottomButtonsContainer = UIStackView()
@@ -67,24 +74,169 @@ class OrderDetailsViewController: UIViewController {
         setupScrollHierarchy()
         setupStatusCard()
         setupTimeline()
-        setupItemCard()
+        setupItemsSection()
         setupDeliveryInfo()
         setupOrderSummary()
         setupBottomButtons()
+
+        // Update UI with real data
+        updateUIWithOrderData()
+
+        // Fetch order items from database
+        fetchOrderItems()
     }
 
     // MARK: - Hide Nav + Tab Bar
     override func viewWillAppear(_ animated: Bool) {
         super.viewWillAppear(animated)
         navigationController?.setNavigationBarHidden(true, animated: false)
-        tabBarController?.tabBar.isHidden = true       // HIDE tab bar properly
+        tabBarController?.tabBar.isHidden = true
     }
 
     override func viewWillDisappear(_ animated: Bool) {
         super.viewWillDisappear(animated)
-        tabBarController?.tabBar.isHidden = false      // SHOW tab bar properly
-        navigationController?.setNavigationBarHidden(false, animated: false)
         tabBarController?.tabBar.isHidden = false
+        navigationController?.setNavigationBarHidden(false, animated: false)
+    }
+
+    // MARK: - Update UI with Order Data
+    private func updateUIWithOrderData() {
+        // Update status card with real data
+        if let id = orderId {
+            let shortId = String(id.uuidString.prefix(8)).uppercased()
+            orderIdLabel.text = "#ORD-\(shortId)"
+        }
+        totalAmountLabel.text = "₹\(Int(orderTotal))"
+
+        // Update delivery info with real address
+        if let address = orderAddress {
+            deliveryNameLabel.text = "\(address.name)  \(address.phone)"
+            deliveryAddressLabel.text = "\(address.line1),\n\(address.city), \(address.state) \(address.postal_code)"
+        }
+
+        // Format current time for status
+        let formatter = DateFormatter()
+        formatter.dateFormat = "h:mm a"
+        statusTimeLabel.text = "Today, \(formatter.string(from: Date()))"
+
+        // Update order summary with real values
+        summarySubtotalValue.text = "₹\(Int(orderTotal))"
+        summaryTotalValue.text = "₹\(Int(orderTotal))"
+    }
+
+    // MARK: - Fetch Order Items
+    private func fetchOrderItems() {
+        guard let id = orderId else { return }
+
+        Task {
+            do {
+                let items = try await orderRepository.fetchOrderItems(orderId: id)
+                await MainActor.run {
+                    self.orderItems = items
+                    self.updateItemsUI()
+                }
+            } catch {
+                print("❌ Failed to fetch order items:", error)
+            }
+        }
+    }
+
+    private func updateItemsUI() {
+        // Clear existing items
+        itemsStackView.arrangedSubviews.forEach { $0.removeFromSuperview() }
+
+        // Add item cards for each order item
+        for item in orderItems {
+            let card = makeItemCard(for: item)
+            itemsStackView.addArrangedSubview(card)
+        }
+    }
+
+    private func makeItemCard(for item: OrderItemDTO) -> UIView {
+        let card = UIView()
+        card.translatesAutoresizingMaskIntoConstraints = false
+        card.backgroundColor = .white
+        card.layer.cornerRadius = 12
+        card.layer.shadowOpacity = 0.05
+        card.layer.shadowRadius = 6
+        card.layer.shadowOffset = CGSize(width: 0, height: 2)
+
+        let imageView = UIImageView()
+        imageView.contentMode = .scaleAspectFill
+        imageView.layer.cornerRadius = 8
+        imageView.clipsToBounds = true
+        imageView.translatesAutoresizingMaskIntoConstraints = false
+
+        // Load product image
+        if let product = item.product, let imageURL = product.imageUrl, !imageURL.isEmpty {
+            if imageURL.hasPrefix("http") {
+                imageView.loadImage(from: imageURL)
+            } else {
+                imageView.image = UIImage(named: imageURL)
+            }
+        }
+
+        let categoryLabel = UILabel()
+        categoryLabel.text = item.product?.category ?? "General"
+        categoryLabel.font = .systemFont(ofSize: 12)
+        categoryLabel.textColor = .gray
+        categoryLabel.translatesAutoresizingMaskIntoConstraints = false
+
+        let titleLabel = UILabel()
+        titleLabel.text = item.product?.title ?? "Product"
+        titleLabel.font = .systemFont(ofSize: 15, weight: .semibold)
+        titleLabel.translatesAutoresizingMaskIntoConstraints = false
+
+        let priceValue = UILabel()
+        priceValue.text = "₹\(Int(item.price_at_purchase))"
+        priceValue.font = .systemFont(ofSize: 15, weight: .semibold)
+        priceValue.textColor = .black
+
+        let colourLabel = smallTeal(text: "Colour")
+        let sizeLabel = smallTeal(text: "Size")
+        let qtyLabel = smallTeal(text: "Quantity")
+
+        let colourValue = smallValue(text: item.colour ?? "—")
+        let sizeValue = smallValue(text: item.size ?? "—")
+        let qtyValue = smallValue(text: "\(item.quantity)")
+
+        func row(_ left: UIView, _ right: UIView) -> UIStackView {
+            let r = UIStackView(arrangedSubviews: [left, right])
+            r.axis = .horizontal
+            r.alignment = .center
+            r.distribution = .equalSpacing
+            return r
+        }
+
+        let rows = UIStackView(arrangedSubviews: [
+            categoryLabel,
+            row(titleLabel, priceValue),
+            row(colourLabel, colourValue),
+            row(sizeLabel, sizeValue),
+            row(qtyLabel, qtyValue)
+        ])
+        rows.axis = .vertical
+        rows.spacing = 6
+        rows.translatesAutoresizingMaskIntoConstraints = false
+
+        card.addSubview(imageView)
+        card.addSubview(rows)
+
+        NSLayoutConstraint.activate([
+            card.heightAnchor.constraint(greaterThanOrEqualToConstant: 100),
+
+            imageView.leadingAnchor.constraint(equalTo: card.leadingAnchor, constant: 12),
+            imageView.centerYAnchor.constraint(equalTo: card.centerYAnchor),
+            imageView.widthAnchor.constraint(equalToConstant: 70),
+            imageView.heightAnchor.constraint(equalToConstant: 70),
+
+            rows.leadingAnchor.constraint(equalTo: imageView.trailingAnchor, constant: 12),
+            rows.trailingAnchor.constraint(equalTo: card.trailingAnchor, constant: -12),
+            rows.topAnchor.constraint(equalTo: card.topAnchor, constant: 12),
+            rows.bottomAnchor.constraint(equalTo: card.bottomAnchor, constant: -12)
+        ])
+
+        return card
     }
 
     // MARK: - Top Bar UI
@@ -300,92 +452,57 @@ class OrderDetailsViewController: UIViewController {
         return row
     }
 
-    // MARK: - Item Card
-    private func setupItemCard() {
+    // MARK: - Items Section
+    private func setupItemsSection() {
         orderItemsTitle.text = "Order Items"
         orderItemsTitle.font = .systemFont(ofSize: 18, weight: .semibold)
         orderItemsTitle.translatesAutoresizingMaskIntoConstraints = false
         contentView.addSubview(orderItemsTitle)
 
+        itemsStackView.axis = .vertical
+        itemsStackView.spacing = 12
+        itemsStackView.translatesAutoresizingMaskIntoConstraints = false
+        contentView.addSubview(itemsStackView)
+
         NSLayoutConstraint.activate([
             orderItemsTitle.topAnchor.constraint(equalTo: timelineStack.bottomAnchor, constant: 18),
-            orderItemsTitle.leadingAnchor.constraint(equalTo: contentView.leadingAnchor, constant: 16)
+            orderItemsTitle.leadingAnchor.constraint(equalTo: contentView.leadingAnchor, constant: 16),
+
+            itemsStackView.topAnchor.constraint(equalTo: orderItemsTitle.bottomAnchor, constant: 12),
+            itemsStackView.leadingAnchor.constraint(equalTo: contentView.leadingAnchor, constant: 16),
+            itemsStackView.trailingAnchor.constraint(equalTo: contentView.trailingAnchor, constant: -16)
         ])
 
-        itemCard.translatesAutoresizingMaskIntoConstraints = false
-        itemCard.backgroundColor = .white
-        itemCard.layer.cornerRadius = 12
-        itemCard.layer.shadowOpacity = 0.05
-        itemCard.layer.shadowRadius = 6
-        itemCard.layer.shadowOffset = CGSize(width: 0, height: 2)
-        contentView.addSubview(itemCard)
+        // Add placeholder card (will be replaced when items are fetched)
+        let placeholderCard = makePlaceholderItemCard()
+        itemsStackView.addArrangedSubview(placeholderCard)
+    }
 
-        itemImageView.image = UIImage(named: "Cap")
-        itemImageView.contentMode = .scaleAspectFill
-        itemImageView.layer.cornerRadius = 8
-        itemImageView.clipsToBounds = true
-        itemImageView.translatesAutoresizingMaskIntoConstraints = false
+    private func makePlaceholderItemCard() -> UIView {
+        let card = UIView()
+        card.translatesAutoresizingMaskIntoConstraints = false
+        card.backgroundColor = .white
+        card.layer.cornerRadius = 12
+        card.layer.shadowOpacity = 0.05
+        card.layer.shadowRadius = 6
+        card.layer.shadowOffset = CGSize(width: 0, height: 2)
 
-        itemCategoryLabel.text = "Fashion"
-        itemCategoryLabel.font = .systemFont(ofSize: 12)
-        itemCategoryLabel.textColor = .gray
-        itemCategoryLabel.translatesAutoresizingMaskIntoConstraints = false
+        let loadingLabel = UILabel()
+        loadingLabel.text = "Loading order items..."
+        loadingLabel.textColor = .gray
+        loadingLabel.font = .systemFont(ofSize: 14)
+        loadingLabel.textAlignment = .center
+        loadingLabel.translatesAutoresizingMaskIntoConstraints = false
 
-        itemTitleLabel.text = "Under Armour Cap"
-        itemTitleLabel.font = .systemFont(ofSize: 15, weight: .semibold)
-        itemTitleLabel.translatesAutoresizingMaskIntoConstraints = false
-
-        // Right-side labels
-        let priceValue = UILabel()
-        priceValue.text = "₹500"
-        priceValue.font = .systemFont(ofSize: 15, weight: .semibold)
-        priceValue.textColor = .black
-
-        let colourLabel = smallTeal(text: "Colour")
-        let sizeLabel = smallTeal(text: "Size")
-        let qtyLabel = smallTeal(text: "Quantity")
-
-        let colourValue = smallValue(text: "White")
-        let sizeValue = smallValue(text: "Large")
-        let qtyValue = smallValue(text: "1")
-
-        func row(_ left: UIView, _ right: UIView) -> UIStackView {
-            let r = UIStackView(arrangedSubviews: [left, right])
-            r.axis = .horizontal
-            r.alignment = .center
-            r.distribution = .equalSpacing
-            return r
-        }
-
-        let rows = UIStackView(arrangedSubviews: [
-            itemCategoryLabel,
-            row(itemTitleLabel, priceValue),
-            row(colourLabel, colourValue),
-            row(sizeLabel, sizeValue),
-            row(qtyLabel, qtyValue)
-        ])
-        rows.axis = .vertical
-        rows.spacing = 6
-        rows.translatesAutoresizingMaskIntoConstraints = false
-
-        itemCard.addSubview(itemImageView)
-        itemCard.addSubview(rows)
+        card.addSubview(loadingLabel)
 
         NSLayoutConstraint.activate([
-            itemCard.topAnchor.constraint(equalTo: orderItemsTitle.bottomAnchor, constant: 12),
-            itemCard.leadingAnchor.constraint(equalTo: contentView.leadingAnchor, constant: 16),
-            itemCard.trailingAnchor.constraint(equalTo: contentView.trailingAnchor, constant: -16),
-
-            itemImageView.leadingAnchor.constraint(equalTo: itemCard.leadingAnchor, constant: 12),
-            itemImageView.centerYAnchor.constraint(equalTo: itemCard.centerYAnchor),
-            itemImageView.widthAnchor.constraint(equalToConstant: 70),
-            itemImageView.heightAnchor.constraint(equalToConstant: 70),
-
-            rows.leadingAnchor.constraint(equalTo: itemImageView.trailingAnchor, constant: 12),
-            rows.trailingAnchor.constraint(equalTo: itemCard.trailingAnchor, constant: -12),
-            rows.topAnchor.constraint(equalTo: itemCard.topAnchor, constant: 12),
-            rows.bottomAnchor.constraint(equalTo: itemCard.bottomAnchor, constant: -12)
+            card.heightAnchor.constraint(equalToConstant: 80),
+            loadingLabel.centerXAnchor.constraint(equalTo: card.centerXAnchor),
+            loadingLabel.centerYAnchor.constraint(equalTo: card.centerYAnchor)
         ])
+
+        return card
     }
 
     private func smallTeal(text: String) -> UILabel {
@@ -426,7 +543,7 @@ class OrderDetailsViewController: UIViewController {
         contentView.addSubview(deliveryAddressLabel)
 
         NSLayoutConstraint.activate([
-            deliveryTitle.topAnchor.constraint(equalTo: itemCard.bottomAnchor, constant: 16),
+            deliveryTitle.topAnchor.constraint(equalTo: itemsStackView.bottomAnchor, constant: 16),
             deliveryTitle.leadingAnchor.constraint(equalTo: contentView.leadingAnchor, constant: 16),
 
             deliveryNameLabel.topAnchor.constraint(equalTo: deliveryTitle.bottomAnchor, constant: 12),
@@ -462,9 +579,8 @@ class OrderDetailsViewController: UIViewController {
         subLabel.text = "Subtotal"
         subLabel.font = UIFont.systemFont(ofSize: 14)
 
-        let subValue = UILabel()
-        subValue.text = "₹500"
-        subValue.font = UIFont.systemFont(ofSize: 14, weight: .semibold)
+        summarySubtotalValue.text = "₹\(Int(orderTotal))"
+        summarySubtotalValue.font = UIFont.systemFont(ofSize: 14, weight: .semibold)
 
         let negotiLabel = UILabel()
         negotiLabel.text = "Negotiation Discount"
@@ -483,11 +599,10 @@ class OrderDetailsViewController: UIViewController {
         totalLabel.text = "Total"
         totalLabel.font = UIFont.systemFont(ofSize: 16, weight: .semibold)
 
-        let totalValue = UILabel()
-        totalValue.text = "₹500"
-        totalValue.font = UIFont.systemFont(ofSize: 16, weight: .bold)
+        summaryTotalValue.text = "₹\(Int(orderTotal))"
+        summaryTotalValue.font = UIFont.systemFont(ofSize: 16, weight: .bold)
 
-        [subLabel, subValue, negotiLabel, negotiValue, divider, totalLabel, totalValue].forEach {
+        [subLabel, summarySubtotalValue, negotiLabel, negotiValue, divider, totalLabel, summaryTotalValue].forEach {
             $0.translatesAutoresizingMaskIntoConstraints = false
             summaryCard.addSubview($0)
         }
@@ -501,14 +616,14 @@ class OrderDetailsViewController: UIViewController {
             subLabel.topAnchor.constraint(equalTo: summaryCard.topAnchor, constant: 18),
             subLabel.leadingAnchor.constraint(equalTo: summaryCard.leadingAnchor, constant: 16),
 
-            subValue.centerYAnchor.constraint(equalTo: subLabel.centerYAnchor),
-            subValue.trailingAnchor.constraint(equalTo: summaryCard.trailingAnchor, constant: -16),
+            summarySubtotalValue.centerYAnchor.constraint(equalTo: subLabel.centerYAnchor),
+            summarySubtotalValue.trailingAnchor.constraint(equalTo: summaryCard.trailingAnchor, constant: -16),
 
             negotiLabel.topAnchor.constraint(equalTo: subLabel.bottomAnchor, constant: 14),
             negotiLabel.leadingAnchor.constraint(equalTo: subLabel.leadingAnchor),
 
             negotiValue.centerYAnchor.constraint(equalTo: negotiLabel.centerYAnchor),
-            negotiValue.trailingAnchor.constraint(equalTo: subValue.trailingAnchor),
+            negotiValue.trailingAnchor.constraint(equalTo: summarySubtotalValue.trailingAnchor),
 
             divider.topAnchor.constraint(equalTo: negotiLabel.bottomAnchor, constant: 16),
             divider.leadingAnchor.constraint(equalTo: summaryCard.leadingAnchor, constant: 12),
@@ -518,8 +633,8 @@ class OrderDetailsViewController: UIViewController {
             totalLabel.topAnchor.constraint(equalTo: divider.bottomAnchor, constant: 14),
             totalLabel.leadingAnchor.constraint(equalTo: summaryCard.leadingAnchor, constant: 16),
 
-            totalValue.centerYAnchor.constraint(equalTo: totalLabel.centerYAnchor),
-            totalValue.trailingAnchor.constraint(equalTo: summaryCard.trailingAnchor, constant: -16)
+            summaryTotalValue.centerYAnchor.constraint(equalTo: totalLabel.centerYAnchor),
+            summaryTotalValue.trailingAnchor.constraint(equalTo: summaryCard.trailingAnchor, constant: -16)
         ])
     }
 

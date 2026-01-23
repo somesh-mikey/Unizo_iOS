@@ -164,12 +164,18 @@ final class EditAddressViewController: UIViewController {
 
     // MARK: - Validation
     private func validate() -> Bool {
-        if phoneField.text?.count != 10 {
-            showError("Phone number must be 10 digits")
+        //if phoneField.text?.count != 10 {
+            //showError("Phone number must be 10 digits")
+        // Extract only digits from phone number (ignores +91, spaces, etc.)
+                let phoneDigits = phoneField.text?.filter { $0.isNumber } ?? ""
+                if phoneDigits.count < 10 {
+                    showError("Phone number must have at least 10 digits")
             return false
         }
 
-        if pincodeField.text?.count != 6 {
+        //if pincodeField.text?.count != 6 {
+        let pincodeDigits = pincodeField.text?.filter { $0.isNumber } ?? ""
+                if pincodeDigits.count != 6 {
             showError("Pincode must be 6 digits")
             return false
         }

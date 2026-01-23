@@ -45,7 +45,7 @@ final class AccountViewController: UIViewController {
     // MARK: - Feature Container (UPDATED)
     private let featureContainer: UIView = {
         let v = UIView()
-        v.backgroundColor = UIColor(red: 0.88, green: 0.97, blue: 0.97, alpha: 1)
+        v.backgroundColor = UIColor(red: 0.83, green: 0.95, blue: 0.96, alpha: 1)
         v.layer.cornerRadius = 22
 
         // Subtle depth (almost flat like mockup)
@@ -61,7 +61,7 @@ final class AccountViewController: UIViewController {
         let st = UIStackView()
         st.axis = .horizontal
         st.distribution = .equalSpacing
-        st.alignment = .center
+        st.alignment = .top
         return st
     }()
 
@@ -74,14 +74,14 @@ final class AccountViewController: UIViewController {
     private let otherCard = AccountViewController.makeCard()
 
     // MARK: - Rows
-    private lazy var rowMyOrders = makeRow("My Orders", action: #selector(openOrders))
-    private lazy var rowProfile = makeRow("My Profile", action: #selector(openProfile))
-    private lazy var rowAddress = makeRow("My Address", action: #selector(openAddress))
-    private lazy var rowNotifications = makeRow("Notifications", action: #selector(openNotifications))
+    private lazy var rowMyOrders = makeRow("My Orders", icon: "shippingbox", action: #selector(openOrders))
+    private lazy var rowProfile = makeRow("My Profile", icon: "person", action: #selector(openProfile))
+    private lazy var rowAddress = makeRow("My Address", icon: "mappin.and.ellipse", action: #selector(openAddress))
+    private lazy var rowNotifications = makeRow("Notifications", icon: "bell", action: #selector(openNotifications))
 
-    private lazy var rowTerms = makeRow("Terms & Conditions", action: #selector(openTerms))
-    private lazy var rowPrivacy = makeRow("Privacy Policy", action: #selector(openPrivacy))
-    private lazy var rowSettings = makeRow("Settings", action: #selector(openSettings))
+    private lazy var rowTerms = makeRow("Terms & Conditions", icon: "doc.text", action: #selector(openTerms))
+    private lazy var rowPrivacy = makeRow("Privacy Policy", icon: "doc.text", action: #selector(openPrivacy))
+    private lazy var rowSettings = makeRow("Settings", icon: "gearshape", action: #selector(openSettings))
 
     // MARK: - Lifecycle
     override func viewDidLoad() {
@@ -130,7 +130,7 @@ final class AccountViewController: UIViewController {
         contentView.translatesAutoresizingMaskIntoConstraints = false
 
         NSLayoutConstraint.activate([
-            scrollView.topAnchor.constraint(equalTo: view.topAnchor),
+            scrollView.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor),
             scrollView.leadingAnchor.constraint(equalTo: view.leadingAnchor),
             scrollView.trailingAnchor.constraint(equalTo: view.trailingAnchor),
             scrollView.bottomAnchor.constraint(equalTo: view.bottomAnchor),
@@ -141,27 +141,27 @@ final class AccountViewController: UIViewController {
             contentView.bottomAnchor.constraint(equalTo: scrollView.bottomAnchor),
             contentView.widthAnchor.constraint(equalTo: scrollView.widthAnchor),
 
-            titleLabel.topAnchor.constraint(equalTo: contentView.safeAreaLayoutGuide.topAnchor, constant: 12),
+            titleLabel.topAnchor.constraint(equalTo: contentView.topAnchor, constant: 20),
             titleLabel.leadingAnchor.constraint(equalTo: contentView.leadingAnchor, constant: 20),
 
-            profileImageView.topAnchor.constraint(equalTo: titleLabel.bottomAnchor, constant: 20),
-            profileImageView.leadingAnchor.constraint(equalTo: contentView.leadingAnchor, constant: 20),
+            profileImageView.topAnchor.constraint(equalTo: titleLabel.bottomAnchor, constant: 16),
+            profileImageView.centerXAnchor.constraint(equalTo: contentView.centerXAnchor),
             profileImageView.widthAnchor.constraint(equalToConstant: 70),
             profileImageView.heightAnchor.constraint(equalToConstant: 70),
 
-            nameLabel.leadingAnchor.constraint(equalTo: profileImageView.trailingAnchor, constant: 12),
-            nameLabel.topAnchor.constraint(equalTo: profileImageView.topAnchor, constant: 6),
+            nameLabel.topAnchor.constraint(equalTo: profileImageView.bottomAnchor, constant: 10),
+            nameLabel.centerXAnchor.constraint(equalTo: contentView.centerXAnchor),
 
-            emailLabel.leadingAnchor.constraint(equalTo: nameLabel.leadingAnchor),
             emailLabel.topAnchor.constraint(equalTo: nameLabel.bottomAnchor, constant: 4),
+            emailLabel.centerXAnchor.constraint(equalTo: contentView.centerXAnchor),
 
-            featureContainer.topAnchor.constraint(equalTo: profileImageView.bottomAnchor, constant: 30),
+            featureContainer.topAnchor.constraint(equalTo: emailLabel.bottomAnchor, constant: 20),
             featureContainer.leadingAnchor.constraint(equalTo: contentView.leadingAnchor, constant: 20),
             featureContainer.trailingAnchor.constraint(equalTo: contentView.trailingAnchor, constant: -20),
             featureContainer.heightAnchor.constraint(equalToConstant: 120),
 
             featureStack.centerXAnchor.constraint(equalTo: featureContainer.centerXAnchor),
-            featureStack.centerYAnchor.constraint(equalTo: featureContainer.centerYAnchor),
+            featureStack.topAnchor.constraint(equalTo: featureContainer.topAnchor, constant: 16),
             featureStack.leadingAnchor.constraint(equalTo: featureContainer.leadingAnchor, constant: 24),
             featureStack.trailingAnchor.constraint(equalTo: featureContainer.trailingAnchor, constant: -24),
 
@@ -178,7 +178,7 @@ final class AccountViewController: UIViewController {
             otherCard.topAnchor.constraint(equalTo: otherLabel.bottomAnchor, constant: 12),
             otherCard.leadingAnchor.constraint(equalTo: generalCard.leadingAnchor),
             otherCard.trailingAnchor.constraint(equalTo: generalCard.trailingAnchor),
-            otherCard.bottomAnchor.constraint(equalTo: contentView.bottomAnchor, constant: -40)
+            otherCard.bottomAnchor.constraint(equalTo: contentView.bottomAnchor, constant: -120)
         ])
     }
 
@@ -202,14 +202,14 @@ final class AccountViewController: UIViewController {
     private func makeFeatureItem(_ icon: String, _ title: String, _ action: Selector) -> UIStackView {
 
         let bg = UIView()
-        bg.backgroundColor = UIColor(red: 0.56, green: 0.91, blue: 0.87, alpha: 1)
+        bg.backgroundColor = UIColor(red: 0.65, green: 0.91, blue: 0.96, alpha: 1)
         bg.layer.cornerRadius = 20
         bg.translatesAutoresizingMaskIntoConstraints = false
         bg.widthAnchor.constraint(equalToConstant: 56).isActive = true
         bg.heightAnchor.constraint(equalToConstant: 56).isActive = true
 
         let iv = UIImageView(image: UIImage(systemName: icon))
-        iv.tintColor = .black
+        iv.tintColor = UIColor(red: 0.03, green: 0.22, blue: 0.27, alpha: 1)
         iv.translatesAutoresizingMaskIntoConstraints = false
         bg.addSubview(iv)
 
@@ -236,8 +236,12 @@ final class AccountViewController: UIViewController {
         return stack
     }
 
-    private func makeRow(_ title: String, action: Selector) -> UIView {
+    private func makeRow(_ title: String, icon: String, action: Selector) -> UIView {
         let row = UIView()
+
+        let iconView = UIImageView(image: UIImage(systemName: icon))
+        iconView.tintColor = UIColor(red: 0.03, green: 0.22, blue: 0.27, alpha: 1)
+        iconView.contentMode = .scaleAspectFit
 
         let label = UILabel()
         label.text = title
@@ -246,7 +250,7 @@ final class AccountViewController: UIViewController {
         let chevron = UIImageView(image: UIImage(systemName: "chevron.right"))
         chevron.tintColor = .systemGray3
 
-        [label, chevron].forEach {
+        [iconView, label, chevron].forEach {
             $0.translatesAutoresizingMaskIntoConstraints = false
             row.addSubview($0)
         }
@@ -254,7 +258,12 @@ final class AccountViewController: UIViewController {
         NSLayoutConstraint.activate([
             row.heightAnchor.constraint(equalToConstant: 50),
 
-            label.leadingAnchor.constraint(equalTo: row.leadingAnchor, constant: 16),
+            iconView.leadingAnchor.constraint(equalTo: row.leadingAnchor, constant: 16),
+            iconView.centerYAnchor.constraint(equalTo: row.centerYAnchor),
+            iconView.widthAnchor.constraint(equalToConstant: 22),
+            iconView.heightAnchor.constraint(equalToConstant: 22),
+
+            label.leadingAnchor.constraint(equalTo: iconView.trailingAnchor, constant: 12),
             label.centerYAnchor.constraint(equalTo: row.centerYAnchor),
 
             chevron.trailingAnchor.constraint(equalTo: row.trailingAnchor, constant: -16),

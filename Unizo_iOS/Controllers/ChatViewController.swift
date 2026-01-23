@@ -182,11 +182,11 @@ final class ChatViewController: UIViewController {
 
         NSLayoutConstraint.activate([
             titleLabel.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 20),
-            titleLabel.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor, constant: 12),
+            titleLabel.topAnchor.constraint(equalTo: view.topAnchor, constant: 60),
 
             searchContainer.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 16),
             searchContainer.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -16),
-            searchContainer.topAnchor.constraint(equalTo: titleLabel.bottomAnchor, constant: 4),
+            searchContainer.topAnchor.constraint(equalTo: titleLabel.bottomAnchor, constant: 6),
             searchContainer.heightAnchor.constraint(equalToConstant: 44),
 
             searchField.leadingAnchor.constraint(equalTo: searchContainer.leadingAnchor, constant: 12),
@@ -254,5 +254,13 @@ extension ChatViewController: UITableViewDataSource, UITableViewDelegate {
         ) as! ChatCell
         cell.configure(with: filteredItems[indexPath.row])
         return cell
+    }
+
+    func tableView(_ tableView: UITableView, didSelectRowAt indexPath: IndexPath) {
+        let item = filteredItems[indexPath.row]
+        let detailVC = ChatDetailViewController()
+        detailVC.chatTitle = item.title
+        detailVC.isSeller = (item.role == .seller)
+        navigationController?.pushViewController(detailVC, animated: true)
     }
 }

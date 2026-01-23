@@ -15,6 +15,7 @@ struct AddressUpdatePayload: Encodable {
     let city: String
     let state: String
     let postal_code: String
+    let country: String
     let is_default: Bool
 }
 
@@ -65,6 +66,7 @@ final class AddressRepository {
             city: address.city,
             state: address.state,
             postal_code: address.postal_code,
+            country: address.country,
             is_default: address.is_default
         )
 

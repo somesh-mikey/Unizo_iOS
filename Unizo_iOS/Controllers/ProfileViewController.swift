@@ -79,8 +79,16 @@ final class ProfileViewController: UIViewController {
     private let zipTF = ProfileViewController.makeFormTextField(placeholder: "ZIP Code")
 
     // MARK: - Preferences
-    private let emailSwitch = UISwitch()
-    private let smsSwitch = UISwitch()
+    private let emailSwitch: UISwitch = {
+        let sw = UISwitch()
+        sw.onTintColor = UIColor(red: 0.02, green: 0.34, blue: 0.46, alpha: 1)
+        return sw
+    }()
+    private let smsSwitch: UISwitch = {
+        let sw = UISwitch()
+        sw.onTintColor = UIColor(red: 0.02, green: 0.34, blue: 0.46, alpha: 1)
+        return sw
+    }()
 
     // MARK: - Constants
     private let horizontalPadding: CGFloat = 16
