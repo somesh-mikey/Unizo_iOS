@@ -16,6 +16,7 @@ struct ProductDTO: Codable {
     let isNegotiable: Bool?
     let imageUrl: String?
     let viewsCount: Int?
+    let quantity: Int?
 
     let colour: String?
     let category: String?
@@ -31,6 +32,7 @@ struct ProductDTO: Codable {
         case imageUrl = "image_url"
         case isNegotiable = "is_negotiable"
         case viewsCount = "views_count"
+        case quantity
         case colour
         case category
         case size

@@ -11,9 +11,11 @@ import Supabase
 final class OrderRepository {
 
     private let client: SupabaseClient
+    private let productRepository: ProductRepository
 
     init(client: SupabaseClient = supabase) {
         self.client = client
+        self.productRepository = ProductRepository(supabase: client)
     }
 
     // MARK: - Create Order
@@ -42,7 +44,7 @@ final class OrderRepository {
             .insert(orderPayload)
             .execute()
 
-        // Create order items
+        // Create order items and decrement product quantities
         for item in items {
             let itemPayload = OrderItemInsertDTO(
                 id: UUID(),
@@ -58,6 +60,9 @@ final class OrderRepository {
                 .from("order_items")
                 .insert(itemPayload)
                 .execute()
+
+            // Decrement product quantity (marks as inactive if quantity becomes 0)
+            try await productRepository.decrementQuantity(productId: item.product.id, by: item.quantity)
         }
 
         return orderId
@@ -114,6 +119,7 @@ final class OrderRepository {
                         image_url,
                         is_negotiable,
                         views_count,
+                        quantity,
                         is_active,
                         rating,
                         colour,
@@ -185,6 +191,7 @@ final class OrderRepository {
                     image_url,
                     is_negotiable,
                     views_count,
+                    quantity,
                     is_active,
                     rating,
                     colour,

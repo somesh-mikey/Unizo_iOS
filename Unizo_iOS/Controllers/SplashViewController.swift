@@ -37,7 +37,7 @@ class SplashViewController: UIViewController {
 
     // MARK: - Title Setup
     private func setupTitle() {
-        titleLabel.text = "unizo."
+//        titleLabel.text = "unizo."
         titleLabel.font = UIFont.systemFont(ofSize: 28, weight: .semibold)
         titleLabel.textColor = .white
         titleLabel.textAlignment = .center

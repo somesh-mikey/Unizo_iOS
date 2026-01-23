@@ -157,7 +157,7 @@ extension WishlistViewController: UICollectionViewDataSource, UICollectionViewDe
     private func loadWishlist() async {
         do {
             let dtos = try await wishlistRepository.fetchWishlist(
-                userId: Session.userId
+                userId: AppConstants.TEMP_USER_ID
             )
 
             self.wishlistItems = dtos.map(ProductMapper.toUIModel)

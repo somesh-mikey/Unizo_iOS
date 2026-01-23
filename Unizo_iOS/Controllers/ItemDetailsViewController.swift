@@ -31,6 +31,7 @@ class ItemDetailsViewController: UIViewController {
     private let scrollView = UIScrollView()
     private let contentView = UIView()
     private let wishlistRepo = WishlistRepository(supabase: supabase)
+    private let productRepo = ProductRepository(supabase: supabase)
     private var isWishlisted = false
 
     private let descriptionHeaderLabel: UILabel = {
@@ -139,7 +140,20 @@ class ItemDetailsViewController: UIViewController {
         populateData()
         addToCartButton.addTarget(self, action: #selector(addToCartTapped), for: .touchUpInside)
         buyNowButton.addTarget(self, action: #selector(buyNowTapped), for: .touchUpInside)
-        
+
+        // Increment view count when product is viewed
+        incrementViewCount()
+    }
+
+    private func incrementViewCount() {
+        guard let p = product else { return }
+        Task {
+            do {
+                try await productRepo.incrementViewCount(productId: p.id)
+            } catch {
+                print("❌ Failed to increment view count:", error)
+            }
+        }
     }
     override func viewWillAppear(_ animated: Bool) {
         super.viewWillAppear(animated)
@@ -200,7 +214,7 @@ class ItemDetailsViewController: UIViewController {
         Task {
             do {
                 let wishlistProducts = try await wishlistRepo.fetchWishlist(
-                    userId: Session.userId
+                    userId: AppConstants.TEMP_USER_ID
                 )
 
                 isWishlisted = wishlistProducts.contains { $0.id == product.id }
@@ -493,12 +507,12 @@ class ItemDetailsViewController: UIViewController {
                 if isWishlisted {
                     try await wishlistRepo.remove(
                         productId: product.id,
-                        userId: Session.userId
+                        userId: AppConstants.TEMP_USER_ID
                     )
                 } else {
                     try await wishlistRepo.add(
                         productId: product.id,
-                        userId: Session.userId
+                        userId: AppConstants.TEMP_USER_ID
                     )
                 }
 
