@@ -354,7 +354,7 @@ final class CartViewController: UIViewController {
 
         // Sold By
         let soldByLabel = UILabel()
-        soldByLabel.text = "Sold by the Seller"
+        soldByLabel.text = "Sold by \(item.product.sellerName)"
         soldByLabel.font = .systemFont(ofSize: 12)
         soldByLabel.textColor = UIColor.systemBlue
 

@@ -242,23 +242,39 @@ final class SignUpViewController: UIViewController {
 
                 print("✅ Sign up successful - User ID: \(response.user.id.uuidString)")
 
-                // Optional: Store additional user profile data in users table
-                // Uncomment this if you have a users table that needs population
-                /*
-                let userId = response.user.id.uuidString
+                // Sign in the user to establish a session (required for RLS)
+                try await supabase.auth.signIn(email: email, password: password)
+                print("✅ User signed in after signup")
+
+                // Update user profile data in users table
+                // (The row is auto-created by database trigger with id and email)
+                let userId = response.user.id
+
+                struct UserProfileUpdate: Encodable {
+                    let first_name: String
+                    let last_name: String
+                    let phone: String
+                    let role: String
+                    let email_notifications: Bool
+                    let sms_notifications: Bool
+                }
+
+                let profileUpdate = UserProfileUpdate(
+                    first_name: firstName,
+                    last_name: lastName,
+                    phone: phone,
+                    role: "buyer",
+                    email_notifications: true,
+                    sms_notifications: false
+                )
+
                 try await supabase
                     .from("users")
-                    .insert([
-                        "id": userId,
-                        "first_name": firstName,
-                        "last_name": lastName,
-                        "phone": phone,
-                        "email": email,
-                        "role": "buyer" // or "seller" based on your needs
-                    ])
+                    .update(profileUpdate)
+                    .eq("id", value: userId.uuidString)
                     .execute()
-                print("✅ User profile created")
-                */
+
+                print("✅ User profile updated in users table")
 
                 // Show success screen
                 await MainActor.run {

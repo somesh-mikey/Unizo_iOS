@@ -98,7 +98,7 @@ class ItemDetailsViewController: UIViewController {
     }()
     private let sellerNameLabel: UILabel = {
         let l = UILabel()
-        l.text = "Paul McKinney"
+        l.text = "" // Will be populated from product data
         l.font = UIFont.systemFont(ofSize: 16)
         l.textColor = .black
         return l
@@ -196,6 +196,9 @@ class ItemDetailsViewController: UIViewController {
         colourValueLabel.text = p.colour ?? "—"
         sizeValueLabel.text = p.size ?? "—"
         conditionValueLabel.text = p.condition ?? "—"
+
+        // Seller name
+        sellerNameLabel.text = p.sellerName
 
         // Wishlist state
         Task {

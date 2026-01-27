@@ -24,19 +24,32 @@ final class AddressRepository {
 
     private let client: SupabaseClient
 
-    init(client: SupabaseClient = supabase) {
+    init(client: SupabaseClient = SupabaseManager.shared.client) {
         self.client = client
     }
 
+    // MARK: - Get Current User ID
+    private func getCurrentUserId() async throws -> UUID {
+        guard let userId = await AuthManager.shared.currentUserId else {
+            throw NSError(domain: "AddressRepository", code: 401, userInfo: [
+                NSLocalizedDescriptionKey: "User not authenticated"
+            ])
+        }
+        return userId
+    }
+
     func fetchAddresses() async throws -> [AddressDTO] {
-        try await client
+        let userId = try await getCurrentUserId()
+
+        return try await client
             .from("addresses")
             .select()
-            .eq("user_id", value: AppConstants.TEMP_USER_ID.uuidString)
+            .eq("user_id", value: userId.uuidString)
             .order("is_default", ascending: false)
             .execute()
             .value
     }
+
     func createAddress(_ address: AddressDTO) async throws {
         try await client
             .from("addresses")
@@ -45,8 +58,9 @@ final class AddressRepository {
     }
 
     func updateAddress(_ address: AddressDTO) async throws {
+        let userId = try await getCurrentUserId()
 
-        // If setting default → unset others
+        // If setting default → unset others for this user
         if address.is_default {
             struct DefaultReset: Encodable {
                 let is_default: Bool
@@ -55,6 +69,7 @@ final class AddressRepository {
             try await client
                 .from("addresses")
                 .update(DefaultReset(is_default: false))
+                .eq("user_id", value: userId.uuidString)
                 .neq("id", value: address.id.uuidString)
                 .execute()
         }
@@ -86,5 +101,3 @@ final class AddressRepository {
             .execute()
     }
 }
-
-
