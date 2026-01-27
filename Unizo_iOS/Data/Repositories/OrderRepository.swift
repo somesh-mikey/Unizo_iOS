@@ -12,8 +12,18 @@ final class OrderRepository {
 
     private let client: SupabaseClient
 
-    init(client: SupabaseClient = supabase) {
+    init(client: SupabaseClient = SupabaseManager.shared.client) {
         self.client = client
+    }
+
+    // MARK: - Get Current User ID
+    private func getCurrentUserId() async throws -> UUID {
+        guard let userId = await AuthManager.shared.currentUserId else {
+            throw NSError(domain: "OrderRepository", code: 401, userInfo: [
+                NSLocalizedDescriptionKey: "User not authenticated"
+            ])
+        }
+        return userId
     }
 
     // MARK: - Create Order
@@ -25,11 +35,12 @@ final class OrderRepository {
         instructions: String?
     ) async throws -> UUID {
         let orderId = UUID()
+        let userId = try await getCurrentUserId()
 
         // Create the order
         let orderPayload = OrderInsertDTO(
             id: orderId,
-            user_id: AppConstants.TEMP_USER_ID,
+            user_id: userId,
             address_id: addressId,
             status: OrderStatus.confirmed.rawValue,
             total_amount: totalAmount,
@@ -119,7 +130,8 @@ final class OrderRepository {
                         colour,
                         category,
                         size,
-                        condition
+                        condition,
+                        seller:users!seller_id(id, first_name, last_name)
                     )
                 ),
                 address:addresses(
@@ -145,6 +157,8 @@ final class OrderRepository {
 
     // MARK: - Fetch User Orders
     func fetchUserOrders() async throws -> [OrderDTO] {
+        let userId = try await getCurrentUserId()
+
         let response: [OrderDTO] = try await client
             .from("orders")
             .select("""
@@ -157,7 +171,7 @@ final class OrderRepository {
                 instructions,
                 created_at
             """)
-            .eq("user_id", value: AppConstants.TEMP_USER_ID.uuidString)
+            .eq("user_id", value: userId.uuidString)
             .order("created_at", ascending: false)
             .execute()
             .value
@@ -190,7 +204,8 @@ final class OrderRepository {
                     colour,
                     category,
                     size,
-                    condition
+                    condition,
+                    seller:users!seller_id(id, first_name, last_name)
                 )
             """)
             .eq("order_id", value: orderId.uuidString)

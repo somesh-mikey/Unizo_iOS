@@ -99,6 +99,38 @@ final class EventCardView: UIView {
         setupConstraints()
     }
 
+    // Convenience initializer for URL-based images
+    init(
+        imageURL: String?,
+        title: String,
+        venue: String,
+        time: String,
+        date: String,
+        price: String,
+        buttonTitle: String
+    ) {
+        super.init(frame: .zero)
+        translatesAutoresizingMaskIntoConstraints = false
+
+        titleLabel.text = title
+        venueLabel.text = "\(venue) • \(time)"
+        dateLabel.text = date
+        priceLabel.text = price
+        bookButton.setTitle(buttonTitle, for: .normal)
+
+        setupUI()
+        setupConstraints()
+
+        // Load image from URL
+        if let urlString = imageURL, !urlString.isEmpty {
+            eventImageView.loadImage(from: urlString)
+        } else {
+            eventImageView.image = UIImage(systemName: "calendar")
+            eventImageView.tintColor = .systemGray3
+            eventImageView.contentMode = .scaleAspectFit
+        }
+    }
+
     required init?(coder: NSCoder) {
         fatalError("init(coder:) has not been implemented")
     }

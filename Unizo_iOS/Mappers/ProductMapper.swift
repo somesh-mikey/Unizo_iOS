@@ -18,11 +18,12 @@ struct ProductMapper {
             price: dto.price,
             rating: dto.rating ?? 0.0,
             negotiable: dto.isNegotiable ?? false,
-            imageURL: dto.imageUrl,   // ✅ USE AS-IS
+            imageURL: dto.imageUrl,
             category: dto.category,
             colour: dto.colour,
             size: dto.size,
-            condition: dto.condition
+            condition: dto.condition,
+            sellerName: dto.sellerDisplayName
         )
     }
 }

@@ -100,8 +100,8 @@ class AddressViewController: UIViewController {
         heartButton.tintColor = .black
         heartButton.translatesAutoresizingMaskIntoConstraints = false
 
-        // Title
-        titleLabel.text = "Select Address"
+        // Title - different based on flow
+        titleLabel.text = (flowSource == .fromAccount) ? "My Addresses" : "Select Address"
         titleLabel.font = UIFont.systemFont(ofSize: 18, weight: .semibold)
         titleLabel.textColor = .black
         titleLabel.translatesAutoresizingMaskIntoConstraints = false
@@ -157,6 +157,9 @@ class AddressViewController: UIViewController {
         stepContainer.translatesAutoresizingMaskIntoConstraints = false
         stepContainer.backgroundColor = bgColor
         view.addSubview(stepContainer)
+
+        // Hide stepper when accessed from Account (not checkout flow)
+        stepContainer.isHidden = (flowSource == .fromAccount)
 
         NSLayoutConstraint.activate([
             stepContainer.topAnchor.constraint(equalTo: navBar.bottomAnchor),
@@ -258,8 +261,13 @@ class AddressViewController: UIViewController {
         contentView.translatesAutoresizingMaskIntoConstraints = false
         scrollView.addSubview(contentView)
 
+        // Anchor scroll view to navBar when stepper is hidden, otherwise to stepContainer
+        let scrollTopAnchor = (flowSource == .fromAccount)
+            ? navBar.bottomAnchor
+            : stepContainer.bottomAnchor
+
         NSLayoutConstraint.activate([
-            scrollView.topAnchor.constraint(equalTo: stepContainer.bottomAnchor, constant: 8),
+            scrollView.topAnchor.constraint(equalTo: scrollTopAnchor, constant: 8),
             scrollView.leadingAnchor.constraint(equalTo: view.leadingAnchor),
             scrollView.trailingAnchor.constraint(equalTo: view.trailingAnchor),
             scrollView.bottomAnchor.constraint(equalTo: view.safeAreaLayoutGuide.bottomAnchor, constant: -90), // leave space for Continue button

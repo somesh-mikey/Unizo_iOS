@@ -7,6 +7,13 @@
 
 import Foundation
 
+// Nested seller info from users table
+struct ProductSellerDTO: Codable {
+    let id: UUID
+    let first_name: String?
+    let last_name: String?
+}
+
 struct ProductDTO: Codable {
     let id: UUID
     let title: String
@@ -22,6 +29,9 @@ struct ProductDTO: Codable {
     let size: String?
     let condition: String?
 
+    // Seller info (joined from users table)
+    let seller: ProductSellerDTO?
+
     enum CodingKeys: String, CodingKey {
         case id
         case title
@@ -35,5 +45,15 @@ struct ProductDTO: Codable {
         case category
         case size
         case condition
+        case seller
+    }
+
+    // Computed property for seller display name
+    var sellerDisplayName: String {
+        guard let seller = seller else { return "Unknown Seller" }
+        let firstName = seller.first_name ?? ""
+        let lastName = seller.last_name ?? ""
+        let fullName = "\(firstName) \(lastName)".trimmingCharacters(in: .whitespaces)
+        return fullName.isEmpty ? "Unknown Seller" : fullName
     }
 }

@@ -2,6 +2,11 @@ import UIKit
 
 final class ProfileViewController: UIViewController {
 
+    // MARK: - Data
+    private let userRepository = UserRepository()
+    private let addressRepository = AddressRepository()
+    private var currentUser: UserDTO?
+
     // MARK: - ScrollView & Content
     private let scrollView: UIScrollView = {
         let v = UIScrollView()
@@ -19,7 +24,8 @@ final class ProfileViewController: UIViewController {
     // MARK: - Profile Image + Camera Button
     private let profileImageView: UIImageView = {
         let iv = UIImageView()
-        iv.image = UIImage(named: "nishtha")
+        iv.image = UIImage(systemName: "person.circle.fill")
+        iv.tintColor = UIColor.systemGray3
         iv.contentMode = .scaleAspectFill
         iv.clipsToBounds = true
         iv.translatesAutoresizingMaskIntoConstraints = false
@@ -65,18 +71,18 @@ final class ProfileViewController: UIViewController {
     private let preferencesContainer = ProfileViewController.makeSectionContainer()
 
     // MARK: - Personal Info Fields
-    private let firstNameTF = ProfileViewController.makeFormTextField(placeholder: "First Name")
-    private let lastNameTF = ProfileViewController.makeFormTextField(placeholder: "Last Name")
-    private let emailTF = ProfileViewController.makeFormTextField(placeholder: "Email")
-    private let phoneTF = ProfileViewController.makeFormTextField(placeholder: "Phone")
-    private let dobTF = ProfileViewController.makeFormTextField(placeholder: "Date of Birth")
-    private let genderTF = ProfileViewController.makeFormTextField(placeholder: "Gender")
+    private let firstNameTF = ProfileViewController.makeFormTextField(placeholder: "First Name", isEditable: true)
+    private let lastNameTF = ProfileViewController.makeFormTextField(placeholder: "Last Name", isEditable: true)
+    private let emailTF = ProfileViewController.makeFormTextField(placeholder: "Email", isEditable: false) // Email tied to auth, not editable
+    private let phoneTF = ProfileViewController.makeFormTextField(placeholder: "Phone", isEditable: true)
+    private let dobTF = ProfileViewController.makeFormTextField(placeholder: "Date of Birth", isEditable: true)
+    private let genderTF = ProfileViewController.makeFormTextField(placeholder: "Gender", isEditable: true)
 
     // MARK: - Address Fields
-    private let addressTF = ProfileViewController.makeFormTextField(placeholder: "Address")
-    private let cityTF = ProfileViewController.makeFormTextField(placeholder: "City")
-    private let stateTF = ProfileViewController.makeFormTextField(placeholder: "State")
-    private let zipTF = ProfileViewController.makeFormTextField(placeholder: "ZIP Code")
+    private let addressTF = ProfileViewController.makeFormTextField(placeholder: "Address", isEditable: false)
+    private let cityTF = ProfileViewController.makeFormTextField(placeholder: "City", isEditable: false)
+    private let stateTF = ProfileViewController.makeFormTextField(placeholder: "State", isEditable: false)
+    private let zipTF = ProfileViewController.makeFormTextField(placeholder: "ZIP Code", isEditable: false)
 
     // MARK: - Preferences
     private let emailSwitch: UISwitch = {
@@ -90,6 +96,18 @@ final class ProfileViewController: UIViewController {
         return sw
     }()
 
+    // MARK: - Save Button
+    private let saveButton: UIButton = {
+        let btn = UIButton(type: .system)
+        btn.setTitle("Save Changes", for: .normal)
+        btn.backgroundColor = UIColor(red: 0/255, green: 76/255, blue: 97/255, alpha: 1)
+        btn.setTitleColor(.white, for: .normal)
+        btn.layer.cornerRadius = 12
+        btn.titleLabel?.font = UIFont.systemFont(ofSize: 16, weight: .semibold)
+        btn.translatesAutoresizingMaskIntoConstraints = false
+        return btn
+    }()
+
     // MARK: - Constants
     private let horizontalPadding: CGFloat = 16
 
@@ -101,9 +119,9 @@ final class ProfileViewController: UIViewController {
 
         setupHierarchy()
         setupConstraints()
-        setupDataPlaceholder()
         configureInteractions()
         setupDOBPicker()
+        loadUserData()
     }
     override func viewWillAppear(_ animated: Bool) {
         super.viewWillAppear(animated)
@@ -142,6 +160,7 @@ final class ProfileViewController: UIViewController {
 
         contentView.addSubview(preferencesTitle)
         contentView.addSubview(preferencesContainer)
+        contentView.addSubview(saveButton)
 
         // MARK: Personal Stack
         let personalStack = makeFormStack(rows: [
@@ -246,8 +265,16 @@ final class ProfileViewController: UIViewController {
 
             preferencesContainer.topAnchor.constraint(equalTo: preferencesTitle.bottomAnchor, constant: 10),
             preferencesContainer.leadingAnchor.constraint(equalTo: contentView.leadingAnchor, constant: horizontalPadding),
-            preferencesContainer.trailingAnchor.constraint(equalTo: contentView.trailingAnchor, constant: -horizontalPadding),
-            preferencesContainer.bottomAnchor.constraint(equalTo: contentView.bottomAnchor, constant: -28)
+            preferencesContainer.trailingAnchor.constraint(equalTo: contentView.trailingAnchor, constant: -horizontalPadding)
+        ])
+
+        // Save Button constraints
+        NSLayoutConstraint.activate([
+            saveButton.topAnchor.constraint(equalTo: preferencesContainer.bottomAnchor, constant: 32),
+            saveButton.leadingAnchor.constraint(equalTo: contentView.leadingAnchor, constant: horizontalPadding),
+            saveButton.trailingAnchor.constraint(equalTo: contentView.trailingAnchor, constant: -horizontalPadding),
+            saveButton.heightAnchor.constraint(equalToConstant: 50),
+            saveButton.bottomAnchor.constraint(equalTo: contentView.bottomAnchor, constant: -28)
         ])
 
         if let preferencesStack = preferencesContainer.subviews.first as? UIStackView {
@@ -260,29 +287,171 @@ final class ProfileViewController: UIViewController {
         }
     }
 
-    // MARK: - Data Placeholder
-    private func setupDataPlaceholder() {
-        firstNameTF.text = "Nishtha"
-        lastNameTF.text = "Goyal"
-        emailTF.text = "ng7389@srmist.edu.in"
-        phoneTF.text = "+91 75877 87910"
-        dobTF.text = "June 2024"
-        genderTF.text = "Female"
-        addressTF.text = "123 Main Street"
-        cityTF.text = "New York"
-        stateTF.text = "NY"
-        zipTF.text = "10001"
-        emailSwitch.isOn = true
-        smsSwitch.isOn = false
+    // MARK: - Load User Data
+    private func loadUserData() {
+        Task {
+            do {
+                // Fetch user profile
+                let user = try await userRepository.fetchCurrentUser()
+                // Fetch default address
+                let addresses = try await addressRepository.fetchAddresses()
+                let defaultAddress = addresses.first(where: { $0.is_default }) ?? addresses.first
+
+                await MainActor.run {
+                    self.currentUser = user
+                    self.populateUserData(user, address: defaultAddress)
+                }
+            } catch {
+                print("Failed to load user data:", error)
+            }
+        }
+    }
+
+    private func populateUserData(_ user: UserDTO?, address: AddressDTO?) {
+        guard let user = user else { return }
+
+        // Personal info
+        firstNameTF.text = user.first_name ?? ""
+        lastNameTF.text = user.last_name ?? ""
+        emailTF.text = user.email ?? ""
+        phoneTF.text = user.phone ?? ""
+        dobTF.text = user.date_of_birth ?? ""
+        genderTF.text = user.gender ?? ""
+
+        // Address info (from default address)
+        if let address = address {
+            addressTF.text = address.line1
+            cityTF.text = address.city
+            stateTF.text = address.state
+            zipTF.text = address.postal_code
+        } else {
+            addressTF.text = ""
+            cityTF.text = ""
+            stateTF.text = ""
+            zipTF.text = ""
+        }
+
+        // Notification preferences
+        emailSwitch.isOn = user.email_notifications ?? false
+        smsSwitch.isOn = user.sms_notifications ?? false
+
+        // Profile image
+        if let imageUrlString = user.profile_image_url,
+           let imageUrl = URL(string: imageUrlString) {
+            loadProfileImage(from: imageUrl)
+        }
+    }
+
+    private func loadProfileImage(from url: URL) {
+        Task {
+            do {
+                let (data, _) = try await URLSession.shared.data(from: url)
+                if let image = UIImage(data: data) {
+                    await MainActor.run {
+                        self.profileImageView.image = image
+                        self.profileImageView.tintColor = nil
+                    }
+                }
+            } catch {
+                print("Failed to load profile image:", error)
+            }
+        }
     }
 
     // MARK: - Interactions
     private func configureInteractions() {
         cameraButton.addTarget(self, action: #selector(cameraTapped), for: .touchUpInside)
+        saveButton.addTarget(self, action: #selector(saveProfileTapped), for: .touchUpInside)
+
+        // Notification toggle handlers
+        emailSwitch.addTarget(self, action: #selector(emailSwitchChanged), for: .valueChanged)
+        smsSwitch.addTarget(self, action: #selector(smsSwitchChanged), for: .valueChanged)
 
         let tap = UITapGestureRecognizer(target: self, action: #selector(dismissKeyboard))
         tap.cancelsTouchesInView = false
         contentView.addGestureRecognizer(tap)
+    }
+
+    @objc private func emailSwitchChanged() {
+        saveNotificationPreferences()
+    }
+
+    @objc private func smsSwitchChanged() {
+        saveNotificationPreferences()
+    }
+
+    private func saveNotificationPreferences() {
+        Task {
+            do {
+                try await userRepository.updatePreferences(
+                    emailNotifications: emailSwitch.isOn,
+                    smsNotifications: smsSwitch.isOn
+                )
+                print("Notification preferences saved")
+            } catch {
+                print("Failed to save notification preferences:", error)
+                // Revert the switch on error
+                await MainActor.run {
+                    if let user = currentUser {
+                        emailSwitch.isOn = user.email_notifications ?? false
+                        smsSwitch.isOn = user.sms_notifications ?? false
+                    }
+                }
+            }
+        }
+    }
+
+    @objc private func saveProfileTapped() {
+        // Dismiss keyboard
+        view.endEditing(true)
+
+        // Show loading state
+        saveButton.isEnabled = false
+        saveButton.setTitle("Saving...", for: .normal)
+
+        let profileUpdate = UserProfileUpdate(
+            first_name: firstNameTF.text?.trimmingCharacters(in: .whitespacesAndNewlines),
+            last_name: lastNameTF.text?.trimmingCharacters(in: .whitespacesAndNewlines),
+            phone: phoneTF.text?.trimmingCharacters(in: .whitespacesAndNewlines),
+            date_of_birth: dobTF.text?.trimmingCharacters(in: .whitespacesAndNewlines),
+            gender: genderTF.text?.trimmingCharacters(in: .whitespacesAndNewlines),
+            profile_image_url: currentUser?.profile_image_url
+        )
+
+        Task {
+            do {
+                try await userRepository.updateProfile(profileUpdate)
+
+                await MainActor.run {
+                    // Update local currentUser
+                    currentUser?.first_name = profileUpdate.first_name
+                    currentUser?.last_name = profileUpdate.last_name
+                    currentUser?.phone = profileUpdate.phone
+                    currentUser?.date_of_birth = profileUpdate.date_of_birth
+                    currentUser?.gender = profileUpdate.gender
+
+                    // Reset button state
+                    saveButton.isEnabled = true
+                    saveButton.setTitle("Save Changes", for: .normal)
+
+                    // Show success alert
+                    showAlert(title: "Success", message: "Profile updated successfully")
+                }
+            } catch {
+                print("Failed to save profile:", error)
+                await MainActor.run {
+                    saveButton.isEnabled = true
+                    saveButton.setTitle("Save Changes", for: .normal)
+                    showAlert(title: "Error", message: "Failed to save profile: \(error.localizedDescription)")
+                }
+            }
+        }
+    }
+
+    private func showAlert(title: String, message: String) {
+        let alert = UIAlertController(title: title, message: message, preferredStyle: .alert)
+        alert.addAction(UIAlertAction(title: "OK", style: .default))
+        present(alert, animated: true)
     }
 
     @objc private func cameraTapped() {
@@ -361,12 +530,16 @@ private extension ProfileViewController {
         return view
     }
 
-    static func makeFormTextField(placeholder: String) -> UITextField {
+    static func makeFormTextField(placeholder: String, isEditable: Bool = true) -> UITextField {
         let tf = UITextField()
         tf.placeholder = placeholder
         tf.textAlignment = .right
         tf.font = .systemFont(ofSize: 15)
         tf.translatesAutoresizingMaskIntoConstraints = false
+        tf.isUserInteractionEnabled = isEditable
+        if !isEditable {
+            tf.textColor = .label
+        }
         return tf
     }
 

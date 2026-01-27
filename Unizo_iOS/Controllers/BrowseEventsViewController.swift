@@ -9,67 +9,11 @@ import UIKit
 
 class BrowseEventsViewController: UIViewController {
 
-    // MARK: - Event Model
+    // MARK: - Dependencies
+    private let eventRepository = EventRepository()
 
-    struct EventModel {
-        let imageName: String
-        let title: String
-        let venue: String
-        let time: String
-        let date: String
-        let price: String
-        let buttonTitle: String
-    }
-
-    // MARK: - Events List
-
-    private let events: [EventModel] = [
-        EventModel(
-            imageName: "banner1",
-            title: "Unity 2024",
-            venue: "Main Auditorium",
-            time: "7:00 PM",
-            date: "Dec 15",
-            price: "₹500",
-            buttonTitle: "Book Now"
-        ),
-        EventModel(
-            imageName: "banner2",
-            title: "Sports Showdown",
-            venue: "Dental College Ground",
-            time: "7:00 PM",
-            date: "Dec 23",
-            price: "Free",
-            buttonTitle: "Book Now"
-        ),
-        EventModel(
-            imageName: "sportshowdown",
-            title: "Basketball Championship",
-            venue: "Sports Complex",
-            time: "6:00 PM",
-            date: "Dec 18",
-            price: "₹200",
-            buttonTitle: "Book Now"
-        ),
-        EventModel(
-            imageName: "techinnovation",
-            title: "Tech Innovation Summit",
-            venue: "Conference Hall 2",
-            time: "9:00 AM",
-            date: "Dec 20",
-            price: "Free",
-            buttonTitle: "Register"
-        ),
-        EventModel(
-            imageName: "banner3",
-            title: "Innovate & Code",
-            venue: "Mini Hall 1",
-            time: "8:00 AM",
-            date: "Dec 18",
-            price: "₹100",
-            buttonTitle: "Book Now"
-        )
-    ]
+    // MARK: - Data
+    private var events: [EventDTO] = []
 
 
     // MARK: - UI Components
@@ -111,7 +55,7 @@ class BrowseEventsViewController: UIViewController {
         super.viewDidLoad()
         setupNavBar()
         setupLayout()
-        loadEventCards()
+        fetchEvents()
     }
     
     override func viewWillAppear(_ animated: Bool) {
@@ -169,22 +113,57 @@ class BrowseEventsViewController: UIViewController {
     }
 
 
+    // MARK: - Fetch Events from Backend
+
+    private func fetchEvents() {
+        Task {
+            do {
+                let fetchedEvents = try await eventRepository.fetchFeaturedEvents()
+                await MainActor.run {
+                    self.events = fetchedEvents
+                    self.loadEventCards()
+                }
+            } catch {
+                print("❌ Failed to fetch events:", error)
+                // Show empty state or error message
+                await MainActor.run {
+                    self.showEmptyState()
+                }
+            }
+        }
+    }
+
     // MARK: - Load Event Card Views
 
     private func loadEventCards() {
-        for event in events {
+        // Clear existing cards (except section title)
+        contentStack.arrangedSubviews.dropFirst().forEach { $0.removeFromSuperview() }
 
+        for event in events {
             let card = EventCardView(
-                image: UIImage(named: event.imageName),
+                imageURL: event.image_url,
                 title: event.title,
                 venue: event.venue,
-                time: event.time,
-                date: event.date,
-                price: event.price,
-                buttonTitle: event.buttonTitle
+                time: event.event_time,
+                date: event.formattedDate,
+                price: event.priceDisplay,
+                buttonTitle: event.is_free ? "Register" : "Book Now"
             )
 
             contentStack.addArrangedSubview(card)
         }
+    }
+
+    // MARK: - Empty State
+
+    private func showEmptyState() {
+        let emptyLabel = UILabel()
+        emptyLabel.text = "No events available at the moment"
+        emptyLabel.textColor = .secondaryLabel
+        emptyLabel.textAlignment = .center
+        emptyLabel.font = .systemFont(ofSize: 16)
+        emptyLabel.translatesAutoresizingMaskIntoConstraints = false
+
+        contentStack.addArrangedSubview(emptyLabel)
     }
 }

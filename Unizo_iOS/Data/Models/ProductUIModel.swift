@@ -19,6 +19,7 @@ struct ProductUIModel {
     let colour: String?
     let size: String?
     let condition: String?
+    let sellerName: String
 }
 
 

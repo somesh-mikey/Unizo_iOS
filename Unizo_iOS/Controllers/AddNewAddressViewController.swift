@@ -245,21 +245,29 @@ class AddNewAddressViewController: UIViewController {
     @objc private func saveAddress() {
         guard validate() else { return }
 
-        let newAddress = AddressDTO(
-            id: UUID(),
-            user_id: AppConstants.TEMP_USER_ID,
-            name: nameField.text?.trimmingCharacters(in: .whitespaces) ?? "",
-            phone: phoneField.text?.trimmingCharacters(in: .whitespaces) ?? "",
-            line1: address1Field.text?.trimmingCharacters(in: .whitespaces) ?? "",
-            city: cityField.text?.trimmingCharacters(in: .whitespaces) ?? "",
-            state: stateField.text?.trimmingCharacters(in: .whitespaces) ?? "",
-            postal_code: pincodeField.text?.trimmingCharacters(in: .whitespaces) ?? "",
-            country: "India",
-            is_default: false
-        )
-
         Task {
             do {
+                // Get current user ID
+                guard let userId = await AuthManager.shared.currentUserId else {
+                    await MainActor.run {
+                        self.showError("You must be logged in to add an address")
+                    }
+                    return
+                }
+
+                let newAddress = AddressDTO(
+                    id: UUID(),
+                    user_id: userId,
+                    name: nameField.text?.trimmingCharacters(in: .whitespaces) ?? "",
+                    phone: phoneField.text?.trimmingCharacters(in: .whitespaces) ?? "",
+                    line1: address1Field.text?.trimmingCharacters(in: .whitespaces) ?? "",
+                    city: cityField.text?.trimmingCharacters(in: .whitespaces) ?? "",
+                    state: stateField.text?.trimmingCharacters(in: .whitespaces) ?? "",
+                    postal_code: pincodeField.text?.trimmingCharacters(in: .whitespaces) ?? "",
+                    country: "India",
+                    is_default: false
+                )
+
                 try await addressRepository.createAddress(newAddress)
 
                 await MainActor.run {

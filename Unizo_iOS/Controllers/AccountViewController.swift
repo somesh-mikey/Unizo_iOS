@@ -7,6 +7,10 @@ import UIKit
 
 final class AccountViewController: UIViewController {
 
+    // MARK: - Data
+    private let userRepository = UserRepository()
+    private var currentUser: UserDTO?
+
     // MARK: - Scroll
     private let scrollView = UIScrollView()
     private let contentView = UIView()
@@ -20,23 +24,27 @@ final class AccountViewController: UIViewController {
     }()
 
     private let profileImageView: UIImageView = {
-        let iv = UIImageView(image: UIImage(named: "nishtha"))
+        let iv = UIImageView()
         iv.layer.cornerRadius = 35
         iv.clipsToBounds = true
         iv.contentMode = .scaleAspectFill
+        iv.backgroundColor = UIColor.systemGray5
+        // Default placeholder icon
+        iv.image = UIImage(systemName: "person.circle.fill")
+        iv.tintColor = UIColor.systemGray3
         return iv
     }()
 
     private let nameLabel: UILabel = {
         let l = UILabel()
-        l.text = "Nishtha"
+        l.text = "Loading..."
         l.font = .systemFont(ofSize: 22, weight: .semibold)
         return l
     }()
 
     private let emailLabel: UILabel = {
         let l = UILabel()
-        l.text = "ng7389@srmist.edu.in"
+        l.text = ""
         l.font = .systemFont(ofSize: 14)
         l.textColor = .secondaryLabel
         return l
@@ -89,6 +97,65 @@ final class AccountViewController: UIViewController {
         view.backgroundColor = .systemGray6
         setupUI()
         setupConstraints()
+        loadUserData()
+    }
+
+    override func viewWillAppear(_ animated: Bool) {
+        super.viewWillAppear(animated)
+        // Reload user data in case profile was updated
+        loadUserData()
+    }
+
+    // MARK: - Load User Data
+    private func loadUserData() {
+        Task {
+            do {
+                let user = try await userRepository.fetchCurrentUser()
+                await MainActor.run {
+                    self.currentUser = user
+                    self.updateUIWithUserData(user)
+                }
+            } catch {
+                print("Failed to load user data:", error)
+            }
+        }
+    }
+
+    private func updateUIWithUserData(_ user: UserDTO?) {
+        guard let user = user else {
+            nameLabel.text = "Guest"
+            emailLabel.text = "Not signed in"
+            return
+        }
+
+        nameLabel.text = user.displayName
+        emailLabel.text = user.email ?? ""
+
+        // Load profile image if available
+        if let imageUrlString = user.profile_image_url,
+           let imageUrl = URL(string: imageUrlString) {
+            loadProfileImage(from: imageUrl)
+        } else {
+            // Keep default placeholder
+            profileImageView.image = UIImage(systemName: "person.circle.fill")
+            profileImageView.tintColor = UIColor.systemGray3
+        }
+    }
+
+    private func loadProfileImage(from url: URL) {
+        Task {
+            do {
+                let (data, _) = try await URLSession.shared.data(from: url)
+                if let image = UIImage(data: data) {
+                    await MainActor.run {
+                        self.profileImageView.image = image
+                        self.profileImageView.tintColor = nil
+                    }
+                }
+            } catch {
+                print("Failed to load profile image:", error)
+            }
+        }
     }
 
     // MARK: - Setup UI
