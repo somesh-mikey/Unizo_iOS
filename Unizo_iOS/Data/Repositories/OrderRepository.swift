@@ -215,6 +215,54 @@ final class OrderRepository {
         return response
     }
 
+    // MARK: - Fetch User Orders With Items
+    func fetchUserOrdersWithItems() async throws -> [OrderDTO] {
+        let userId = try await getCurrentUserId()
+
+        let response: [OrderDTO] = try await client
+            .from("orders")
+            .select("""
+                id,
+                user_id,
+                address_id,
+                status,
+                total_amount,
+                payment_method,
+                instructions,
+                created_at,
+                items:order_items(
+                    id,
+                    order_id,
+                    product_id,
+                    quantity,
+                    price_at_purchase,
+                    colour,
+                    size,
+                    product:products(
+                        id,
+                        title,
+                        description,
+                        price,
+                        image_url,
+                        is_negotiable,
+                        views_count,
+                        is_active,
+                        rating,
+                        colour,
+                        category,
+                        size,
+                        condition
+                    )
+                )
+            """)
+            .eq("user_id", value: userId.uuidString)
+            .order("created_at", ascending: false)
+            .execute()
+            .value
+
+        return response
+    }
+
     // MARK: - Update Order Status
     func updateOrderStatus(orderId: UUID, status: OrderStatus) async throws {
         struct StatusUpdate: Encodable {

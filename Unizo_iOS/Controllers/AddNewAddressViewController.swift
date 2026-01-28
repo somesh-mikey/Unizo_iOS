@@ -28,6 +28,8 @@ class AddNewAddressViewController: UIViewController {
     private let pincodeField = UITextField()
 
     private let saveButton = UIButton(type: .system)
+    private let loadingIndicator = UIActivityIndicatorView(style: .medium)
+    private var isSaving = false
 
     override func viewDidLoad() {
         super.viewDidLoad()
@@ -230,27 +232,80 @@ class AddNewAddressViewController: UIViewController {
         saveButton.translatesAutoresizingMaskIntoConstraints = false
         saveButton.addTarget(self, action: #selector(saveAddress), for: .touchUpInside)
 
+        // Setup loading indicator
+        loadingIndicator.color = .white
+        loadingIndicator.hidesWhenStopped = true
+        loadingIndicator.translatesAutoresizingMaskIntoConstraints = false
+
         contentView.addSubview(saveButton)
+        saveButton.addSubview(loadingIndicator)
 
         NSLayoutConstraint.activate([
             saveButton.topAnchor.constraint(equalTo: whiteContainer.bottomAnchor, constant: 40),
             saveButton.leadingAnchor.constraint(equalTo: contentView.leadingAnchor, constant: 40),
             saveButton.trailingAnchor.constraint(equalTo: contentView.trailingAnchor, constant: -40),
             saveButton.heightAnchor.constraint(equalToConstant: 55),
-            saveButton.bottomAnchor.constraint(equalTo: contentView.bottomAnchor, constant: -40)
+            saveButton.bottomAnchor.constraint(equalTo: contentView.bottomAnchor, constant: -40),
+
+            // Center loading indicator in button
+            loadingIndicator.centerXAnchor.constraint(equalTo: saveButton.centerXAnchor),
+            loadingIndicator.centerYAnchor.constraint(equalTo: saveButton.centerYAnchor)
         ])
+    }
+
+    private func setLoading(_ loading: Bool) {
+        isSaving = loading
+        saveButton.isEnabled = !loading
+
+        if loading {
+            saveButton.setTitle("", for: .normal)
+            loadingIndicator.startAnimating()
+        } else {
+            saveButton.setTitle("Save", for: .normal)
+            loadingIndicator.stopAnimating()
+        }
     }
 
     // MARK: Save Handler
     @objc private func saveAddress() {
+        guard !isSaving else { return }
         guard validate() else { return }
+
+        setLoading(true)
 
         Task {
             do {
                 // Get current user ID
                 guard let userId = await AuthManager.shared.currentUserId else {
                     await MainActor.run {
+                        self.setLoading(false)
                         self.showError("You must be logged in to add an address")
+                    }
+                    return
+                }
+
+                let name = nameField.text?.trimmingCharacters(in: .whitespaces) ?? ""
+                let phone = phoneField.text?.trimmingCharacters(in: .whitespaces) ?? ""
+                let line1 = address1Field.text?.trimmingCharacters(in: .whitespaces) ?? ""
+                let city = cityField.text?.trimmingCharacters(in: .whitespaces) ?? ""
+                let state = stateField.text?.trimmingCharacters(in: .whitespaces) ?? ""
+                let postalCode = pincodeField.text?.trimmingCharacters(in: .whitespaces) ?? ""
+
+                // Check for duplicate address
+                let existingAddresses = try await addressRepository.fetchAddresses()
+                let isDuplicate = existingAddresses.contains { existing in
+                    existing.name.lowercased() == name.lowercased() &&
+                    existing.phone == phone &&
+                    existing.line1.lowercased() == line1.lowercased() &&
+                    existing.city.lowercased() == city.lowercased() &&
+                    existing.state.lowercased() == state.lowercased() &&
+                    existing.postal_code == postalCode
+                }
+
+                if isDuplicate {
+                    await MainActor.run {
+                        self.setLoading(false)
+                        self.showAlert(title: "Duplicate Address", message: "Hotspot already added")
                     }
                     return
                 }
@@ -258,12 +313,12 @@ class AddNewAddressViewController: UIViewController {
                 let newAddress = AddressDTO(
                     id: UUID(),
                     user_id: userId,
-                    name: nameField.text?.trimmingCharacters(in: .whitespaces) ?? "",
-                    phone: phoneField.text?.trimmingCharacters(in: .whitespaces) ?? "",
-                    line1: address1Field.text?.trimmingCharacters(in: .whitespaces) ?? "",
-                    city: cityField.text?.trimmingCharacters(in: .whitespaces) ?? "",
-                    state: stateField.text?.trimmingCharacters(in: .whitespaces) ?? "",
-                    postal_code: pincodeField.text?.trimmingCharacters(in: .whitespaces) ?? "",
+                    name: name,
+                    phone: phone,
+                    line1: line1,
+                    city: city,
+                    state: state,
+                    postal_code: postalCode,
                     country: "India",
                     is_default: false
                 )
@@ -271,15 +326,23 @@ class AddNewAddressViewController: UIViewController {
                 try await addressRepository.createAddress(newAddress)
 
                 await MainActor.run {
+                    self.setLoading(false)
                     self.onSave?()
                     self.navigationController?.popViewController(animated: true)
                 }
             } catch {
                 print("❌ Failed to save address:", error)
                 await MainActor.run {
+                    self.setLoading(false)
                     self.showError("Failed to save address: \(error.localizedDescription)")
                 }
             }
         }
+    }
+
+    private func showAlert(title: String, message: String) {
+        let alert = UIAlertController(title: title, message: message, preferredStyle: .alert)
+        alert.addAction(UIAlertAction(title: "OK", style: .default))
+        present(alert, animated: true)
     }
 }

@@ -34,7 +34,7 @@ class OrderCardView: UIView {
         fatalError()
     }
 
-    // MARK: - Configure
+    // MARK: - Configure (Legacy - for sample data)
     func configure(order: MyOrdersViewController.Order) {
         orderLabel.text = "Order #\(order.orderID)"
         dateLabel.text = "Placed on \(order.date)"
@@ -61,6 +61,104 @@ class OrderCardView: UIView {
             moreItemsLabel.isHidden = false
         } else {
             moreItemsLabel.isHidden = true
+        }
+    }
+
+    // MARK: - Configure (Real data from OrderDTO)
+    func configure(with order: OrderDTO) {
+        // Format order ID (show last 8 characters of UUID)
+        let shortId = String(order.id.uuidString.suffix(8)).uppercased()
+        orderLabel.text = "Order #\(shortId)"
+
+        // Format date
+        dateLabel.text = "Placed on \(formatDate(order.created_at))"
+
+        // Status with color
+        let status = OrderStatus(rawValue: order.status) ?? .pending
+        statusLabel.text = status.rawValue.capitalized
+        let statusColor = colorForStatus(status)
+        statusLabel.textColor = statusColor
+        statusLabel.backgroundColor = statusColor.withAlphaComponent(0.15)
+
+        // First item display
+        if let firstItem = order.items?.first {
+            productTitle.text = firstItem.product?.title ?? "Product"
+
+            // Build detail string
+            var details: [String] = []
+            if let colour = firstItem.colour, !colour.isEmpty {
+                details.append("Color: \(colour)")
+            }
+            if let size = firstItem.size, !size.isEmpty {
+                details.append(size)
+            }
+            productDetail.text = details.isEmpty ? "Qty: \(firstItem.quantity)" : details.joined(separator: " • ")
+
+            productPrice.text = "₹\(Int(firstItem.price_at_purchase))"
+
+            // Load image from URL
+            if let imageUrl = firstItem.product?.imageUrl, !imageUrl.isEmpty {
+                productImage.loadImage(from: imageUrl)
+            } else {
+                productImage.image = UIImage(systemName: "photo")
+                productImage.tintColor = .systemGray3
+            }
+        } else {
+            productTitle.text = "No items"
+            productDetail.text = ""
+            productPrice.text = ""
+            productImage.image = UIImage(systemName: "photo")
+            productImage.tintColor = .systemGray3
+        }
+
+        // Total amount
+        totalLabel.text = "Total: ₹\(Int(order.total_amount))"
+
+        // More items label
+        let itemCount = order.items?.count ?? 0
+        if itemCount > 1 {
+            let extra = itemCount - 1
+            moreItemsLabel.text = "+\(extra) more item\(extra > 1 ? "s" : "") →"
+            moreItemsLabel.isHidden = false
+        } else {
+            moreItemsLabel.isHidden = true
+        }
+    }
+
+    // MARK: - Helpers
+    private func formatDate(_ dateString: String) -> String {
+        let inputFormatter = ISO8601DateFormatter()
+        inputFormatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+
+        if let date = inputFormatter.date(from: dateString) {
+            let outputFormatter = DateFormatter()
+            outputFormatter.dateFormat = "MMM d, yyyy"
+            return outputFormatter.string(from: date)
+        }
+
+        // Fallback: try without fractional seconds
+        inputFormatter.formatOptions = [.withInternetDateTime]
+        if let date = inputFormatter.date(from: dateString) {
+            let outputFormatter = DateFormatter()
+            outputFormatter.dateFormat = "MMM d, yyyy"
+            return outputFormatter.string(from: date)
+        }
+
+        return dateString
+    }
+
+    private func colorForStatus(_ status: OrderStatus) -> UIColor {
+        switch status {
+        case .pending:
+            return .systemOrange
+        case .confirmed:
+            return .systemBlue
+        case .shipped:
+            return .systemBlue
+        case .delivered:
+            return .systemGreen
+        case .cancelled:
+            return .systemRed
         }
     }
 

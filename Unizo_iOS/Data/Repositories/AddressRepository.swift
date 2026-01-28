@@ -51,9 +51,25 @@ final class AddressRepository {
     }
 
     func createAddress(_ address: AddressDTO) async throws {
+        let userId = try await getCurrentUserId()
+
+        // Check if user has any existing addresses
+        let existingAddresses: [AddressDTO] = try await client
+            .from("addresses")
+            .select()
+            .eq("user_id", value: userId.uuidString)
+            .execute()
+            .value
+
+        // If this is the first address, make it default
+        var addressToInsert = address
+        if existingAddresses.isEmpty {
+            addressToInsert.is_default = true
+        }
+
         try await client
             .from("addresses")
-            .insert(address)
+            .insert(addressToInsert)
             .execute()
     }
 
@@ -94,10 +110,66 @@ final class AddressRepository {
 
 
     func deleteAddress(id: UUID) async throws {
+        let userId = try await getCurrentUserId()
+
+        // Fetch all addresses for this user
+        let allAddresses: [AddressDTO] = try await client
+            .from("addresses")
+            .select()
+            .eq("user_id", value: userId.uuidString)
+            .execute()
+            .value
+
+        // Prevent deletion if this is the only address
+        guard allAddresses.count > 1 else {
+            throw AddressError.cannotDeleteLastAddress
+        }
+
+        // Find the address to delete
+        guard let addressToDelete = allAddresses.first(where: { $0.id == id }) else {
+            throw AddressError.addressNotFound
+        }
+
+        // Prevent deletion of default address
+        if addressToDelete.is_default {
+            throw AddressError.cannotDeleteDefaultAddress
+        }
+
         try await client
             .from("addresses")
             .delete()
             .eq("id", value: id.uuidString)
             .execute()
+    }
+
+    // MARK: - Check if address can be deleted
+    func canDeleteAddress(_ address: AddressDTO, totalAddressCount: Int) -> Bool {
+        // Cannot delete if it's the only address
+        if totalAddressCount <= 1 {
+            return false
+        }
+        // Cannot delete if it's the default address
+        if address.is_default {
+            return false
+        }
+        return true
+    }
+}
+
+// MARK: - Address Errors
+enum AddressError: LocalizedError {
+    case cannotDeleteLastAddress
+    case cannotDeleteDefaultAddress
+    case addressNotFound
+
+    var errorDescription: String? {
+        switch self {
+        case .cannotDeleteLastAddress:
+            return "You must have at least one address. This is your only address and cannot be deleted."
+        case .cannotDeleteDefaultAddress:
+            return "The default address cannot be deleted. Please set another address as default first."
+        case .addressNotFound:
+            return "Address not found."
+        }
     }
 }
