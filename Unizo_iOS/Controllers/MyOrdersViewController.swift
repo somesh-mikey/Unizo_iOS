@@ -8,7 +8,7 @@
 import UIKit
 
 class MyOrdersViewController: UIViewController {
-    
+
     struct OrderItem {
         let imageName: String
         let title: String
@@ -23,6 +23,11 @@ class MyOrdersViewController: UIViewController {
         let statusColor: UIColor
         let items: [OrderItem]
     }
+
+    // MARK: - Data
+    private let orderRepository = OrderRepository()
+    private var allOrders: [OrderDTO] = []
+    private var isLoading = false
 
     // MARK: - UI Components (private lets)
 
@@ -71,14 +76,32 @@ class MyOrdersViewController: UIViewController {
     private let scrollView = UIScrollView()
     private let contentStack = UIStackView()
 
+    private let loadingIndicator: UIActivityIndicatorView = {
+        let indicator = UIActivityIndicatorView(style: .large)
+        indicator.hidesWhenStopped = true
+        indicator.translatesAutoresizingMaskIntoConstraints = false
+        return indicator
+    }()
+
+    private let emptyStateLabel: UILabel = {
+        let lbl = UILabel()
+        lbl.text = "No orders yet"
+        lbl.font = .systemFont(ofSize: 16)
+        lbl.textColor = .secondaryLabel
+        lbl.textAlignment = .center
+        lbl.isHidden = true
+        lbl.translatesAutoresizingMaskIntoConstraints = false
+        return lbl
+    }()
+
     // MARK: - View Lifecycle
     override func viewDidLoad() {
         super.viewDidLoad()
         view.backgroundColor = UIColor.systemGray6
-        
+
         setupUI()
         setupConstraints()
-        loadOrders(filter: "All")
+        fetchOrders()
         navigationController?.setNavigationBarHidden(true, animated: false)
     }
     override func viewWillAppear(_ animated: Bool) {
@@ -116,6 +139,8 @@ class MyOrdersViewController: UIViewController {
         view.addSubview(segmentedControl)
         view.addSubview(scrollView)
         scrollView.addSubview(contentStack)
+        view.addSubview(loadingIndicator)
+        view.addSubview(emptyStateLabel)
 
         segmentedControl.addTarget(self, action: #selector(onSegmentChanged), for: .valueChanged)
 
@@ -162,259 +187,92 @@ class MyOrdersViewController: UIViewController {
             contentStack.bottomAnchor.constraint(equalTo: scrollView.bottomAnchor),
 
             // Very important for vertical scrolling
-            contentStack.widthAnchor.constraint(equalTo: scrollView.widthAnchor)
+            contentStack.widthAnchor.constraint(equalTo: scrollView.widthAnchor),
+
+            // Loading indicator
+            loadingIndicator.centerXAnchor.constraint(equalTo: view.centerXAnchor),
+            loadingIndicator.centerYAnchor.constraint(equalTo: view.centerYAnchor),
+
+            // Empty state label
+            emptyStateLabel.centerXAnchor.constraint(equalTo: view.centerXAnchor),
+            emptyStateLabel.centerYAnchor.constraint(equalTo: view.centerYAnchor)
         ])
     }
 
-    // MARK: - Load Cards
-    private func loadOrders(filter: String) {
+    // MARK: - Fetch Orders from Backend
+    private func fetchOrders() {
+        guard !isLoading else { return }
+        isLoading = true
 
-        // remove old cards
+        loadingIndicator.startAnimating()
+        emptyStateLabel.isHidden = true
         contentStack.arrangedSubviews.forEach { $0.removeFromSuperview() }
 
-        // Demo data
-        let sampleOrders: [Order] = [
+        Task {
+            do {
+                let orders = try await orderRepository.fetchUserOrdersWithItems()
+                await MainActor.run {
+                    self.allOrders = orders
+                    self.isLoading = false
+                    self.loadingIndicator.stopAnimating()
+                    self.displayOrders(filter: "All")
+                }
+            } catch {
+                await MainActor.run {
+                    self.isLoading = false
+                    self.loadingIndicator.stopAnimating()
+                    self.emptyStateLabel.text = "Failed to load orders"
+                    self.emptyStateLabel.isHidden = false
+                    print("❌ Error fetching orders: \(error)")
+                }
+            }
+        }
+    }
 
-            // ORDER 1 — 1 product
-            Order(
-                orderID: "10001",
-                date: "Oct 18, 2024",
-                status: "Delivered",
-                statusColor: .systemGreen,
-                items: [
-                    OrderItem(
-                        imageName: "Cap",
-                        title: "Under Armour Cap",
-                        detail: "Color: Black • One Size",
-                        price: "₹500"
-                    )
-                ]
-            ),
+    // MARK: - Display Orders with Filter
+    private func displayOrders(filter: String) {
+        // Remove old cards
+        contentStack.arrangedSubviews.forEach { $0.removeFromSuperview() }
 
-            // ORDER 2 — 2 products
-            Order(
-                orderID: "10002",
-                date: "Oct 17, 2024",
-                status: "Shipped",
-                statusColor: .systemBlue,
-                items: [
-                    OrderItem(
-                        imageName: "electrickettle",
-                        title: "Prestige Electric Kettle",
-                        detail: "Steel • 1.5L",
-                        price: "₹649"
-                    ),
-                    OrderItem(
-                        imageName: "lamp",
-                        title: "Table Lamp",
-                        detail: "Color: White • LED",
-                        price: "₹500"
-                    )
-                ]
-            ),
-
-            // ORDER 3 — 3 products
-            Order(
-                orderID: "10003",
-                date: "Oct 16, 2024",
-                status: "Processing",
-                statusColor: .systemOrange,
-                items: [
-                    OrderItem(
-                        imageName: "ergonomicmeshchair",
-                        title: "Ergonomic Mesh Office Chair",
-                        detail: "Color: Black",
-                        price: "₹1299"
-                    ),
-                    OrderItem(
-                        imageName: "studytable",
-                        title: "Study Table",
-                        detail: "Compact • Wooden",
-                        price: "₹699"
-                    ),
-                    OrderItem(
-                        imageName: "helmet",
-                        title: "Helmet",
-                        detail: "ISI Certified",
-                        price: "₹579"
-                    )
-                ]
-            ),
-
-            // ORDER 4 — 2 products
-            Order(
-                orderID: "10004",
-                date: "Oct 15, 2024",
-                status: "Delivered",
-                statusColor: .systemGreen,
-                items: [
-                    OrderItem(
-                        imageName: "SSbat",
-                        title: "SS Size 5 Bat",
-                        detail: "Willow: Grade-1",
-                        price: "₹1299"
-                    ),
-                    OrderItem(
-                        imageName: "tabletennis",
-                        title: "Table Tennis Bat",
-                        detail: "Standard Size",
-                        price: "₹999"
-                    )
-                ]
-            ),
-
-            // ORDER 5 — 1 product
-            Order(
-                orderID: "10005",
-                date: "Oct 14, 2024",
-                status: "Delivered",
-                statusColor: .systemGreen,
-                items: [
-                    OrderItem(
-                        imageName: "NYcap",
-                        title: "NY Cap",
-                        detail: "Navy Blue • One Size",
-                        price: "₹499"
-                    )
-                ]
-            ),
-
-            // ORDER 6 — 3 products
-            Order(
-                orderID: "10006",
-                date: "Oct 13, 2024",
-                status: "Shipped",
-                statusColor: .systemBlue,
-                items: [
-                    OrderItem(
-                        imageName: "ptronheadphones",
-                        title: "pTron Headphones",
-                        detail: "Wireless • Black",
-                        price: "₹1000"
-                    ),
-                    OrderItem(
-                        imageName: "boultprobassheadphones",
-                        title: "Boult ProBass",
-                        detail: "Bass Boosted",
-                        price: "₹1100"
-                    ),
-                    OrderItem(
-                        imageName: "leafbasswireless",
-                        title: "Leaf Bass Wireless",
-                        detail: "20hr Playback",
-                        price: "₹1400"
-                    )
-                ]
-            ),
-
-            // ORDER 7 — 2 products
-            Order(
-                orderID: "10007",
-                date: "Oct 12, 2024",
-                status: "Processing",
-                statusColor: .systemOrange,
-                items: [
-                    OrderItem(
-                        imageName: "studytable",
-                        title: "Study Table",
-                        detail: "Brown • Compact",
-                        price: "₹699"
-                    ),
-                    OrderItem(
-                        imageName: "paddedofficechair",
-                        title: "Padded Chair",
-                        detail: "Cushioned • Grey",
-                        price: "₹899"
-                    )
-                ]
-            ),
-
-            // ORDER 8 — 1 product
-            Order(
-                orderID: "10008",
-                date: "Oct 11, 2024",
-                status: "Delivered",
-                statusColor: .systemGreen,
-                items: [
-                    OrderItem(
-                        imageName: "PinkBicycle",
-                        title: "Pink Bicycle",
-                        detail: "Kids • 16 inch",
-                        price: "₹8900"
-                    )
-                ]
-            ),
-
-            // ORDER 9 — 2 products
-            Order(
-                orderID: "10009",
-                date: "Oct 10, 2024",
-                status: "Shipped",
-                statusColor: .systemBlue,
-                items: [
-                    OrderItem(
-                        imageName: "rollerskates",
-                        title: "Roller Skates",
-                        detail: "Adjustable • Pink",
-                        price: "₹650"
-                    ),
-                    OrderItem(
-                        imageName: "footballspikes",
-                        title: "Football Spikes",
-                        detail: "Size 8 • Rubber Studs",
-                        price: "₹399"
-                    )
-                ]
-            ),
-
-            // ORDER 10 — 3 products
-            Order(
-                orderID: "10010",
-                date: "Oct 09, 2024",
-                status: "Delivered",
-                statusColor: .systemGreen,
-                items: [
-                    OrderItem(
-                        imageName: "badmintonracket",
-                        title: "Badminton Racket",
-                        detail: "Carbon Fiber",
-                        price: "₹550"
-                    ),
-                    OrderItem(
-                        imageName: "carromboard",
-                        title: "Carrom Board",
-                        detail: "Wooden • Full Size",
-                        price: "₹700"
-                    ),
-                    OrderItem(
-                        imageName: "cricketpads",
-                        title: "Cricket Pads",
-                        detail: "Senior Size",
-                        price: "₹599"
-                    )
-                ]
-            )
-        ]
-
-
-
-        for order in sampleOrders {
-
-            if filter != "All" && order.status != filter { continue }
-
-            let card = OrderCardView()
-            card.configure(order: order)
-
-            contentStack.addArrangedSubview(card)
+        // Filter orders based on selected segment
+        let filteredOrders: [OrderDTO]
+        switch filter {
+        case "Processing":
+            // Processing includes: pending, confirmed, shipped
+            filteredOrders = allOrders.filter { order in
+                let status = OrderStatus(rawValue: order.status)
+                return status == .pending || status == .confirmed || status == .shipped
+            }
+        case "Delivered":
+            filteredOrders = allOrders.filter { order in
+                OrderStatus(rawValue: order.status) == .delivered
+            }
+        default: // "All"
+            filteredOrders = allOrders
         }
 
+        // Show empty state if no orders
+        if filteredOrders.isEmpty {
+            emptyStateLabel.text = filter == "All" ? "No orders yet" : "No \(filter.lowercased()) orders"
+            emptyStateLabel.isHidden = false
+            return
+        }
+
+        emptyStateLabel.isHidden = true
+
+        // Create cards for each order
+        for order in filteredOrders {
+            let card = OrderCardView()
+            card.configure(with: order)
+            contentStack.addArrangedSubview(card)
+        }
     }
 
     // MARK: - Actions
 
     @objc private func onSegmentChanged() {
         let selected = segmentedControl.titleForSegment(at: segmentedControl.selectedSegmentIndex) ?? "All"
-        loadOrders(filter: selected)
+        displayOrders(filter: selected)
     }
 
     @objc private func backTapped() {

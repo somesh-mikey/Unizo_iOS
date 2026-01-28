@@ -43,6 +43,18 @@ class AddressViewController: UIViewController {
     private let addNewAddressButton = UIButton(type: .system)
     private let continueButton = UIButton(type: .system)
 
+    // Empty state
+    private let emptyStateLabel: UILabel = {
+        let lbl = UILabel()
+        lbl.text = "No hotspots added"
+        lbl.font = .systemFont(ofSize: 16)
+        lbl.textColor = .secondaryLabel
+        lbl.textAlignment = .center
+        lbl.isHidden = true
+        lbl.translatesAutoresizingMaskIntoConstraints = false
+        return lbl
+    }()
+
     // Radio selection
     private var addressCards: [UIView] = []
     private var radioViews: [UIView] = []
@@ -283,15 +295,22 @@ class AddressViewController: UIViewController {
         addressesStack.spacing = 12
         addressesStack.translatesAutoresizingMaskIntoConstraints = false
         contentView.addSubview(addressesStack)
+        view.addSubview(emptyStateLabel)
 
         NSLayoutConstraint.activate([
             addressesStack.topAnchor.constraint(equalTo: contentView.topAnchor, constant: 8),
             addressesStack.leadingAnchor.constraint(equalTo: contentView.leadingAnchor, constant: 20),
             addressesStack.trailingAnchor.constraint(equalTo: contentView.trailingAnchor, constant: -20),
+
+            // Empty state label - centered in the screen
+            emptyStateLabel.centerXAnchor.constraint(equalTo: view.centerXAnchor),
+            emptyStateLabel.centerYAnchor.constraint(equalTo: view.centerYAnchor, constant: -50),
+            emptyStateLabel.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 20),
+            emptyStateLabel.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -20)
         ])
     }
 
-    private func makeAddressCard(index: Int, nameLine: String, addressText: String) -> UIView {
+    private func makeAddressCard(index: Int, nameLine: String, addressText: String, canDelete: Bool) -> UIView {
         let card = UIView()
         card.backgroundColor = .white
         card.layer.cornerRadius = 16
@@ -362,25 +381,30 @@ class AddressViewController: UIViewController {
         let editTap = UITapGestureRecognizer(target: self, action: #selector(editTapped(_:)))
         editIcon.addGestureRecognizer(editTap)
 
-        // DELETE icon
+        // DELETE icon - only show if address can be deleted
         let deleteIcon = UIImageView(image: UIImage(systemName: "trash"))
         deleteIcon.tintColor = .gray
         deleteIcon.tag = index
-        deleteIcon.isUserInteractionEnabled = true
+        deleteIcon.isUserInteractionEnabled = canDelete
+        deleteIcon.isHidden = !canDelete
         deleteIcon.translatesAutoresizingMaskIntoConstraints = false
         card.addSubview(deleteIcon)
 
-        let deleteTap = UITapGestureRecognizer(target: self, action: #selector(deleteTapped(_:)))
-        deleteIcon.addGestureRecognizer(deleteTap)
+        if canDelete {
+            let deleteTap = UITapGestureRecognizer(target: self, action: #selector(deleteTapped(_:)))
+            deleteIcon.addGestureRecognizer(deleteTap)
+        }
 
-        // 👇 THIS IS THE CRITICAL FIX
+        // Bring icons to front for tap handling
         card.bringSubviewToFront(editIcon)
         card.bringSubviewToFront(deleteIcon)
 
+        // Position edit icon based on whether delete is visible
+        let editTrailingConstant: CGFloat = canDelete ? -45 : -18
 
         NSLayoutConstraint.activate([
             editIcon.topAnchor.constraint(equalTo: card.topAnchor, constant: 14),
-            editIcon.trailingAnchor.constraint(equalTo: card.trailingAnchor, constant: -45),
+            editIcon.trailingAnchor.constraint(equalTo: card.trailingAnchor, constant: editTrailingConstant),
             editIcon.widthAnchor.constraint(equalToConstant: 18),
             editIcon.heightAnchor.constraint(equalToConstant: 18),
 
@@ -422,6 +446,20 @@ class AddressViewController: UIViewController {
 
         let address = addresses[icon.tag]
 
+        // Double-check if address can be deleted
+        guard addressRepository.canDeleteAddress(address, totalAddressCount: addresses.count) else {
+            let errorAlert = UIAlertController(
+                title: "Cannot Delete",
+                message: address.is_default
+                    ? "The default address cannot be deleted. Please set another address as default first."
+                    : "You must have at least one address.",
+                preferredStyle: .alert
+            )
+            errorAlert.addAction(UIAlertAction(title: "OK", style: .default))
+            present(errorAlert, animated: true)
+            return
+        }
+
         let alert = UIAlertController(
             title: "Delete Address?",
             message: "This action cannot be undone.",
@@ -436,8 +474,27 @@ class AddressViewController: UIViewController {
                     try await self.addressRepository.deleteAddress(id: address.id)
                     print("🗑️ Address deleted:", address.id)
                     await self.loadAddresses()
+                } catch let error as AddressError {
+                    await MainActor.run {
+                        let errorAlert = UIAlertController(
+                            title: "Cannot Delete",
+                            message: error.errorDescription,
+                            preferredStyle: .alert
+                        )
+                        errorAlert.addAction(UIAlertAction(title: "OK", style: .default))
+                        self.present(errorAlert, animated: true)
+                    }
                 } catch {
                     print("❌ Failed to delete address:", error)
+                    await MainActor.run {
+                        let errorAlert = UIAlertController(
+                            title: "Error",
+                            message: "Failed to delete address. Please try again.",
+                            preferredStyle: .alert
+                        )
+                        errorAlert.addAction(UIAlertAction(title: "OK", style: .default))
+                        self.present(errorAlert, animated: true)
+                    }
                 }
             }
         })
@@ -556,6 +613,16 @@ class AddressViewController: UIViewController {
         addressCards.removeAll()
         radioViews.removeAll()
 
+        let totalCount = addresses.count
+
+        // Show/hide empty state
+        if totalCount == 0 {
+            emptyStateLabel.isHidden = false
+            return
+        } else {
+            emptyStateLabel.isHidden = true
+        }
+
         for (index, address) in addresses.enumerated() {
             let nameLine = "\(address.name)   \(address.phone)"
             let addressText = """
@@ -563,10 +630,14 @@ class AddressViewController: UIViewController {
             \(address.city), \(address.state) \(address.postal_code)
             """
 
+            // Check if this address can be deleted
+            let canDelete = addressRepository.canDeleteAddress(address, totalAddressCount: totalCount)
+
             let card = makeAddressCard(
                 index: index,
                 nameLine: nameLine,
-                addressText: addressText
+                addressText: addressText,
+                canDelete: canDelete
             )
 
             addressesStack.addArrangedSubview(card)
