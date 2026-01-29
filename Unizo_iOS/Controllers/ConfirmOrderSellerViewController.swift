@@ -21,6 +21,10 @@ class ConfirmOrderSellerViewController: UIViewController {
         btn.tintColor = .black
         btn.backgroundColor = .white
         btn.layer.cornerRadius = 22
+        btn.layer.shadowColor = UIColor.black.cgColor
+        btn.layer.shadowOpacity = 0.1
+        btn.layer.shadowRadius = 8
+        btn.layer.shadowOffset = CGSize(width: 0, height: 2)
         return btn
     }()
 
@@ -38,6 +42,10 @@ class ConfirmOrderSellerViewController: UIViewController {
         btn.tintColor = .black
         btn.backgroundColor = .white
         btn.layer.cornerRadius = 22
+        btn.layer.shadowColor = UIColor.black.cgColor
+        btn.layer.shadowOpacity = 0.1
+        btn.layer.shadowRadius = 8
+        btn.layer.shadowOffset = CGSize(width: 0, height: 2)
         return btn
     }()
 
@@ -199,29 +207,19 @@ class ConfirmOrderSellerViewController: UIViewController {
     override func viewDidLoad() {
         super.viewDidLoad()
         setupUI()
-        self.title = "Confirm Order"
-        navigationItem.backButtonTitle = ""
-        navigationItem.rightBarButtonItem = UIBarButtonItem(
-            image: UIImage(systemName: "heart"),
-            style: .plain,
-            target: self,
-            action: #selector(heartTapped)
-        )
         rejectButton.addTarget(self, action: #selector(openRejectedPage), for: .touchUpInside)
         acceptButton.addTarget(self, action: #selector(openAcceptedPage), for: .touchUpInside)
     }
     override func viewWillAppear(_ animated: Bool) {
         super.viewWillAppear(animated)
-        navigationController?.setNavigationBarHidden(false, animated: false)
+        navigationController?.setNavigationBarHidden(true, animated: false)
         tabBarController?.tabBar.isHidden = true
-        self.tabBarController?.tabBar.isHidden = true
     }
     override func viewWillDisappear(_ animated: Bool) {
-            super.viewWillDisappear(animated)
-            tabBarController?.tabBar.isHidden = false
-            if let mainTab = tabBarController as? MainTabBarController {
-            }
-        }
+        super.viewWillDisappear(animated)
+        navigationController?.setNavigationBarHidden(false, animated: false)
+        tabBarController?.tabBar.isHidden = false
+    }
     @objc func heartTapped() {
         let vc = WishlistViewController()
 

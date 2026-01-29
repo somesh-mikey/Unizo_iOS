@@ -26,6 +26,10 @@ class ChatDetailViewController: UIViewController, UITableViewDataSource, UITable
         let b = UIButton(type: .system)
         b.backgroundColor = .white
         b.layer.cornerRadius = 22
+        b.layer.shadowColor = UIColor.black.cgColor
+        b.layer.shadowOpacity = 0.1
+        b.layer.shadowRadius = 8
+        b.layer.shadowOffset = CGSize(width: 0, height: 2)
         b.setImage(UIImage(systemName: "chevron.left"), for: .normal)
         b.tintColor = .black
         b.translatesAutoresizingMaskIntoConstraints = false

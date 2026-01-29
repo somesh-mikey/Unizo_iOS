@@ -88,11 +88,23 @@ final class SignUpViewController: UIViewController {
         super.viewDidLoad()
         view.backgroundColor = UIColor.black.withAlphaComponent(0.4)
 
+        // Add tap gesture to dismiss when tapping outside the card
+        let tapGesture = UITapGestureRecognizer(target: self, action: #selector(handleTapOutside(_:)))
+        tapGesture.cancelsTouchesInView = false
+        view.addGestureRecognizer(tapGesture)
+
         setupFields()
         setupHierarchy()
         setupConstraints()
         setupActions()
         setupTermsLabel()
+    }
+
+    @objc private func handleTapOutside(_ gesture: UITapGestureRecognizer) {
+        let location = gesture.location(in: view)
+        if !cardView.frame.contains(location) {
+            dismiss(animated: true, completion: nil)
+        }
     }
 
     // MARK: - Setup Helpers

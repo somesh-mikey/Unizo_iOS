@@ -246,11 +246,23 @@ class OrderDetailsViewController: UIViewController {
 
         backButton.setImage(UIImage(systemName: "chevron.left"), for: .normal)
         backButton.tintColor = .black
+        backButton.backgroundColor = .white
+        backButton.layer.cornerRadius = 22
+        backButton.layer.shadowColor = UIColor.black.cgColor
+        backButton.layer.shadowOpacity = 0.1
+        backButton.layer.shadowRadius = 8
+        backButton.layer.shadowOffset = CGSize(width: 0, height: 2)
         backButton.translatesAutoresizingMaskIntoConstraints = false
         backButton.addTarget(self, action: #selector(backPressed), for: .touchUpInside)
 
         heartButton.setImage(UIImage(systemName: "heart"), for: .normal)
         heartButton.tintColor = .black
+        heartButton.backgroundColor = .white
+        heartButton.layer.cornerRadius = 22
+        heartButton.layer.shadowColor = UIColor.black.cgColor
+        heartButton.layer.shadowOpacity = 0.1
+        heartButton.layer.shadowRadius = 8
+        heartButton.layer.shadowOffset = CGSize(width: 0, height: 2)
         heartButton.translatesAutoresizingMaskIntoConstraints = false
 
         navTitleLabel.text = "Order Details"
@@ -267,15 +279,15 @@ class OrderDetailsViewController: UIViewController {
             topBar.trailingAnchor.constraint(equalTo: view.trailingAnchor),
             topBar.heightAnchor.constraint(equalToConstant: 56),
 
-            backButton.leadingAnchor.constraint(equalTo: topBar.leadingAnchor, constant: 12),
+            backButton.leadingAnchor.constraint(equalTo: topBar.leadingAnchor, constant: 16),
             backButton.centerYAnchor.constraint(equalTo: topBar.centerYAnchor),
-            backButton.widthAnchor.constraint(equalToConstant: 40),
-            backButton.heightAnchor.constraint(equalToConstant: 40),
+            backButton.widthAnchor.constraint(equalToConstant: 44),
+            backButton.heightAnchor.constraint(equalToConstant: 44),
 
-            heartButton.trailingAnchor.constraint(equalTo: topBar.trailingAnchor, constant: -12),
+            heartButton.trailingAnchor.constraint(equalTo: topBar.trailingAnchor, constant: -16),
             heartButton.centerYAnchor.constraint(equalTo: topBar.centerYAnchor),
-            heartButton.widthAnchor.constraint(equalToConstant: 40),
-            heartButton.heightAnchor.constraint(equalToConstant: 40),
+            heartButton.widthAnchor.constraint(equalToConstant: 44),
+            heartButton.heightAnchor.constraint(equalToConstant: 44),
 
             navTitleLabel.centerXAnchor.constraint(equalTo: topBar.centerXAnchor),
             navTitleLabel.centerYAnchor.constraint(equalTo: topBar.centerYAnchor)

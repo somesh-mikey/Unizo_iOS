@@ -35,6 +35,12 @@ class MyOrdersViewController: UIViewController {
         let btn = UIButton(type: .system)
         btn.setImage(UIImage(systemName: "chevron.left"), for: .normal)
         btn.tintColor = .black
+        btn.backgroundColor = .white
+        btn.layer.cornerRadius = 22
+        btn.layer.shadowColor = UIColor.black.cgColor
+        btn.layer.shadowOpacity = 0.1
+        btn.layer.shadowRadius = 8
+        btn.layer.shadowOffset = CGSize(width: 0, height: 2)
         return btn
     }()
 
@@ -159,10 +165,10 @@ class MyOrdersViewController: UIViewController {
         NSLayoutConstraint.activate([
 
             // Back Button
-            backButton.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor, constant: 8),
+            backButton.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor, constant: 10),
             backButton.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 16),
-            backButton.widthAnchor.constraint(equalToConstant: 32),
-            backButton.heightAnchor.constraint(equalToConstant: 32),
+            backButton.widthAnchor.constraint(equalToConstant: 44),
+            backButton.heightAnchor.constraint(equalToConstant: 44),
 
             // Title Label
             titleLabel.centerXAnchor.constraint(equalTo: view.centerXAnchor),

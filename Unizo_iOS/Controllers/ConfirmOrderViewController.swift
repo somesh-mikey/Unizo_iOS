@@ -180,10 +180,22 @@ class ConfirmOrderViewController: UIViewController, UITextViewDelegate {
 
         backButton.setImage(UIImage(systemName: "chevron.left"), for: .normal)
         backButton.tintColor = .black
+        backButton.backgroundColor = .white
+        backButton.layer.cornerRadius = 22
+        backButton.layer.shadowColor = UIColor.black.cgColor
+        backButton.layer.shadowOpacity = 0.1
+        backButton.layer.shadowRadius = 8
+        backButton.layer.shadowOffset = CGSize(width: 0, height: 2)
         backButton.translatesAutoresizingMaskIntoConstraints = false
 
         heartButton.setImage(UIImage(systemName: "heart"), for: .normal)
         heartButton.tintColor = .black
+        heartButton.backgroundColor = .white
+        heartButton.layer.cornerRadius = 22
+        heartButton.layer.shadowColor = UIColor.black.cgColor
+        heartButton.layer.shadowOpacity = 0.1
+        heartButton.layer.shadowRadius = 8
+        heartButton.layer.shadowOffset = CGSize(width: 0, height: 2)
         heartButton.translatesAutoresizingMaskIntoConstraints = false
 
         titleLabel.text = "Confirm Your Order"
@@ -198,15 +210,15 @@ class ConfirmOrderViewController: UIViewController, UITextViewDelegate {
         topBarContainer.addSubview(titleLabel)
 
         NSLayoutConstraint.activate([
-            backButton.leadingAnchor.constraint(equalTo: topBarContainer.leadingAnchor, constant: 20),
+            backButton.leadingAnchor.constraint(equalTo: topBarContainer.leadingAnchor, constant: 16),
             backButton.centerYAnchor.constraint(equalTo: topBarContainer.centerYAnchor),
-            backButton.widthAnchor.constraint(equalToConstant: 28),
-            backButton.heightAnchor.constraint(equalToConstant: 28),
+            backButton.widthAnchor.constraint(equalToConstant: 44),
+            backButton.heightAnchor.constraint(equalToConstant: 44),
 
-            heartButton.trailingAnchor.constraint(equalTo: topBarContainer.trailingAnchor, constant: -20),
+            heartButton.trailingAnchor.constraint(equalTo: topBarContainer.trailingAnchor, constant: -16),
             heartButton.centerYAnchor.constraint(equalTo: topBarContainer.centerYAnchor),
-            heartButton.widthAnchor.constraint(equalToConstant: 28),
-            heartButton.heightAnchor.constraint(equalToConstant: 28),
+            heartButton.widthAnchor.constraint(equalToConstant: 44),
+            heartButton.heightAnchor.constraint(equalToConstant: 44),
 
             titleLabel.centerXAnchor.constraint(equalTo: topBarContainer.centerXAnchor),
             titleLabel.centerYAnchor.constraint(equalTo: topBarContainer.centerYAnchor)

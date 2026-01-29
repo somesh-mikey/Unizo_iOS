@@ -28,6 +28,18 @@ class ResetPasswordViewController: UIViewController {
         super.viewDidLoad()
         setupUI()
         setupConstraints()
+
+        // Add tap gesture to dismiss when tapping outside the card
+        let tapGesture = UITapGestureRecognizer(target: self, action: #selector(handleTapOutside(_:)))
+        tapGesture.cancelsTouchesInView = false
+        view.addGestureRecognizer(tapGesture)
+    }
+
+    @objc private func handleTapOutside(_ gesture: UITapGestureRecognizer) {
+        let location = gesture.location(in: view)
+        if !cardView.frame.contains(location) {
+            dismiss(animated: true, completion: nil)
+        }
     }
 
     // MARK: - UI Setup
