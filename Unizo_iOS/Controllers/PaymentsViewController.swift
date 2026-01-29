@@ -47,6 +47,12 @@ class PaymentsViewController: UIViewController {
         let backBtn = UIButton(type: .system)
         backBtn.setImage(UIImage(systemName: "chevron.left"), for: .normal)
         backBtn.tintColor = .black
+        backBtn.backgroundColor = .white
+        backBtn.layer.cornerRadius = 22
+        backBtn.layer.shadowColor = UIColor.black.cgColor
+        backBtn.layer.shadowOpacity = 0.1
+        backBtn.layer.shadowRadius = 8
+        backBtn.layer.shadowOffset = CGSize(width: 0, height: 2)
         backBtn.translatesAutoresizingMaskIntoConstraints = false
         backBtn.addTarget(self, action: #selector(goBack), for: .touchUpInside)
 
@@ -59,10 +65,10 @@ class PaymentsViewController: UIViewController {
         view.addSubview(title)
 
         NSLayoutConstraint.activate([
-            backBtn.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 20),
-            backBtn.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor, constant: 5),
-            backBtn.widthAnchor.constraint(equalToConstant: 30),
-            backBtn.heightAnchor.constraint(equalToConstant: 30),
+            backBtn.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 16),
+            backBtn.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor, constant: 10),
+            backBtn.widthAnchor.constraint(equalToConstant: 44),
+            backBtn.heightAnchor.constraint(equalToConstant: 44),
 
             title.centerXAnchor.constraint(equalTo: view.centerXAnchor),
             title.centerYAnchor.constraint(equalTo: backBtn.centerYAnchor)

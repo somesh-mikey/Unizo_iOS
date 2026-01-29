@@ -35,9 +35,15 @@ class WishlistViewController: UIViewController {
 
     // MARK: - Navigation Bar Setup
     private func setupNavigationBar() {
-        // Back Button
+        // Back Button with glowing style
         backButton.setImage(UIImage(systemName: "chevron.backward"), for: .normal)
         backButton.tintColor = .black
+        backButton.backgroundColor = .white
+        backButton.layer.cornerRadius = 22
+        backButton.layer.shadowColor = UIColor.black.cgColor
+        backButton.layer.shadowOpacity = 0.1
+        backButton.layer.shadowRadius = 8
+        backButton.layer.shadowOffset = CGSize(width: 0, height: 2)
 
         // Title
         titleLabel.text = "My Wishlist"
@@ -54,9 +60,9 @@ class WishlistViewController: UIViewController {
         NSLayoutConstraint.activate([
             // Back button
             backButton.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 16),
-            backButton.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor, constant: 8),
-            backButton.widthAnchor.constraint(equalToConstant: 40),
-            backButton.heightAnchor.constraint(equalToConstant: 40),
+            backButton.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor, constant: 10),
+            backButton.widthAnchor.constraint(equalToConstant: 44),
+            backButton.heightAnchor.constraint(equalToConstant: 44),
 
             // Title centered
             titleLabel.centerXAnchor.constraint(equalTo: view.centerXAnchor),

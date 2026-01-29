@@ -99,11 +99,23 @@ final class LoginModalViewController: UIViewController {
     private func setupBaseUI() {
         view.backgroundColor = UIColor.black.withAlphaComponent(0.45)
 
+        // Add tap gesture to dismiss when tapping outside the card
+        let tapGesture = UITapGestureRecognizer(target: self, action: #selector(handleTapOutside(_:)))
+        tapGesture.cancelsTouchesInView = false
+        view.addGestureRecognizer(tapGesture)
+
         view.addSubview(cardView)
         [
             titleLabel, fieldsGroupView,
             forgotPasswordButton, loginButton
         ].forEach { cardView.addSubview($0) }
+    }
+
+    @objc private func handleTapOutside(_ gesture: UITapGestureRecognizer) {
+        let location = gesture.location(in: view)
+        if !cardView.frame.contains(location) {
+            dismiss(animated: true, completion: nil)
+        }
     }
 
     // MARK: - Password Eye Toggle
