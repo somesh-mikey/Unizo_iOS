@@ -73,6 +73,15 @@ final class PostItemViewController: UIViewController,
     // MARK: - Final Button
     private let finalUploadButton = UIButton(type: .system)
 
+    // MARK: - Loading Indicator
+    private let loadingIndicator: UIActivityIndicatorView = {
+        let indicator = UIActivityIndicatorView(style: .large)
+        indicator.color = .white
+        indicator.hidesWhenStopped = true
+        indicator.translatesAutoresizingMaskIntoConstraints = false
+        return indicator
+    }()
+
     // MARK: - Lifecycle
     override func viewDidLoad() {
         super.viewDidLoad()
@@ -89,6 +98,7 @@ final class PostItemViewController: UIViewController,
         setupProductDetails()
         setupNegotiableSection()
         setupFinalButton()
+        setupLoadingIndicator()
         updateNegotiableButtons()
 
         // Check authentication
@@ -343,6 +353,15 @@ final class PostItemViewController: UIViewController,
         ])
     }
 
+    // MARK: - Loading Indicator Setup
+    private func setupLoadingIndicator() {
+        view.addSubview(loadingIndicator)
+        NSLayoutConstraint.activate([
+            loadingIndicator.centerXAnchor.constraint(equalTo: view.centerXAnchor),
+            loadingIndicator.centerYAnchor.constraint(equalTo: view.centerYAnchor)
+        ])
+    }
+
     // MARK: - Upload Logic
     @objc private func uploadProduct() {
 
@@ -357,8 +376,19 @@ final class PostItemViewController: UIViewController,
             let description = fields[6].text, !description.isEmpty
         else {
             print("❌ Validation failed")
+            let alert = UIAlertController(
+                title: "Missing Information",
+                message: "Please fill in all fields and upload a photo",
+                preferredStyle: .alert
+            )
+            alert.addAction(UIAlertAction(title: "OK", style: .default))
+            present(alert, animated: true)
             return
         }
+
+        // Show loading indicator and disable button
+        loadingIndicator.startAnimating()
+        finalUploadButton.isEnabled = false
 
         Task {
             do {
@@ -388,14 +418,37 @@ final class PostItemViewController: UIViewController,
 
                 print("✅ Product uploaded successfully")
 
-                // Navigate to Product Posted success screen
+                // Hide loading indicator and show success alert
                 await MainActor.run {
-                    let productPostedVC = ProductPostedViewController()
-                    navigationController?.pushViewController(productPostedVC, animated: true)
+                    self.loadingIndicator.stopAnimating()
+                    self.finalUploadButton.isEnabled = true
+
+                    let alert = UIAlertController(
+                        title: "Success",
+                        message: "Your product has been uploaded successfully!",
+                        preferredStyle: .alert
+                    )
+                    alert.addAction(UIAlertAction(title: "OK", style: .default) { _ in
+                        let productPostedVC = ProductPostedViewController()
+                        self.navigationController?.pushViewController(productPostedVC, animated: true)
+                    })
+                    self.present(alert, animated: true)
                 }
 
             } catch {
                 print("❌ Upload failed:", error)
+                await MainActor.run {
+                    self.loadingIndicator.stopAnimating()
+                    self.finalUploadButton.isEnabled = true
+
+                    let alert = UIAlertController(
+                        title: "Upload Failed",
+                        message: error.localizedDescription,
+                        preferredStyle: .alert
+                    )
+                    alert.addAction(UIAlertAction(title: "OK", style: .default))
+                    self.present(alert, animated: true)
+                }
             }
         }
     }

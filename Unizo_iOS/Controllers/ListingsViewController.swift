@@ -43,10 +43,12 @@ class ListingsViewController: UIViewController {
         let name: String
         let status: String
         let price: String
+        let productId: UUID
     }
 
     // MARK: - Listings Data
     private var listings: [Listing] = []
+    private var products: [ProductDTO] = []
 
 
     // MARK: - Lifecycle
@@ -86,6 +88,7 @@ class ListingsViewController: UIViewController {
 
                 // Convert ProductDTO to Listing model
                 await MainActor.run {
+                    self.products = products
                     self.listings = products.map { product in
                         Listing(
                             image: nil,
@@ -93,7 +96,8 @@ class ListingsViewController: UIViewController {
                             category: product.category ?? "Other",
                             name: product.title,
                             status: "Pending",
-                            price: "₹\(Int(product.price))"
+                            price: "₹\(Int(product.price))",
+                            productId: product.id
                         )
                     }
                     self.collectionView.reloadData()
@@ -144,6 +148,7 @@ extension ListingsViewController: UICollectionViewDelegateFlowLayout, UICollecti
         ) as! ListingCell
 
         cell.configure(with: listings[indexPath.row])
+        cell.delegate = self
         return cell
     }
 
@@ -152,5 +157,74 @@ extension ListingsViewController: UICollectionViewDelegateFlowLayout, UICollecti
                         sizeForItemAt indexPath: IndexPath) -> CGSize {
 
         return CGSize(width: collectionView.frame.width, height: 135)
+    }
+}
+
+// MARK: - ListingCell Delegate
+extension ListingsViewController: ListingCellDelegate {
+
+    func didTapEdit(on cell: ListingCell) {
+        guard let indexPath = collectionView.indexPath(for: cell) else { return }
+        let product = products[indexPath.row]
+
+        // Navigate to Edit Listing screen
+        let editVC = EditListingViewController()
+        editVC.product = product
+        navigationController?.pushViewController(editVC, animated: true)
+    }
+
+    func didTapDelete(on cell: ListingCell) {
+        guard let indexPath = collectionView.indexPath(for: cell) else { return }
+        let product = products[indexPath.row]
+
+        // Show confirmation alert
+        let alert = UIAlertController(
+            title: "Delete Listing",
+            message: "Are you sure you want to delete \"\(product.title)\"?",
+            preferredStyle: .alert
+        )
+
+        alert.addAction(UIAlertAction(title: "Cancel", style: .cancel))
+        alert.addAction(UIAlertAction(title: "Delete", style: .destructive) { _ in
+            self.deleteProduct(at: indexPath)
+        })
+
+        present(alert, animated: true)
+    }
+
+    private func deleteProduct(at indexPath: IndexPath) {
+        let product = products[indexPath.row]
+
+        Task {
+            do {
+                // Delete from Supabase
+                try await supabase
+                    .from("products")
+                    .delete()
+                    .eq("id", value: product.id.uuidString)
+                    .execute()
+
+                print("✅ Product deleted successfully")
+
+                // Remove from local arrays and reload
+                await MainActor.run {
+                    products.remove(at: indexPath.row)
+                    listings.remove(at: indexPath.row)
+                    collectionView.deleteItems(at: [indexPath])
+                }
+
+            } catch {
+                print("❌ Failed to delete product:", error)
+                await MainActor.run {
+                    let alert = UIAlertController(
+                        title: "Error",
+                        message: "Failed to delete product: \(error.localizedDescription)",
+                        preferredStyle: .alert
+                    )
+                    alert.addAction(UIAlertAction(title: "OK", style: .default))
+                    self.present(alert, animated: true)
+                }
+            }
+        }
     }
 }

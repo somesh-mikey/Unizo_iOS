@@ -4,7 +4,14 @@
 
 import UIKit
 
+protocol ListingCellDelegate: AnyObject {
+    func didTapEdit(on cell: ListingCell)
+    func didTapDelete(on cell: ListingCell)
+}
+
 final class ListingCell: UICollectionViewCell {
+
+    weak var delegate: ListingCellDelegate?
 
     private let productImageView: UIImageView = {
         let iv = UIImageView()
@@ -120,6 +127,18 @@ final class ListingCell: UICollectionViewCell {
             deleteButton.widthAnchor.constraint(equalToConstant: 24),
             deleteButton.heightAnchor.constraint(equalToConstant: 24)
         ])
+
+        // Add button actions
+        editButton.addTarget(self, action: #selector(editButtonTapped), for: .touchUpInside)
+        deleteButton.addTarget(self, action: #selector(deleteButtonTapped), for: .touchUpInside)
+    }
+
+    @objc private func editButtonTapped() {
+        delegate?.didTapEdit(on: self)
+    }
+
+    @objc private func deleteButtonTapped() {
+        delegate?.didTapDelete(on: self)
     }
 
     func configure(with item: ListingsViewController.Listing) {
@@ -158,3 +177,4 @@ final class ListingCell: UICollectionViewCell {
         }
     }
 }
+
