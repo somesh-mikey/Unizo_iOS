@@ -146,7 +146,8 @@ final class CartViewController: UIViewController {
     }
 
     @objc private func backPressed() {
-        navigationController?.popViewController(animated: true)
+        // Always go back to Landing VC (root of navigation stack)
+        navigationController?.popToRootViewController(animated: true)
     }
 
     // MARK: - ScrollView
