@@ -194,54 +194,64 @@ class WelcomeViewController: UIViewController {
                                      iconName: String,
                                      tintColor: UIColor) {
 
-        button.setTitle(title, for: .normal)
-        button.setTitleColor(tintColor, for: .normal)
-        button.titleLabel?.font = UIFont.systemFont(ofSize: 15, weight: .medium)
+        // Completely clear the button's default content
+        button.setTitle("", for: .normal)
+        button.setImage(nil, for: .normal)
+        button.titleLabel?.isHidden = true
+
+        // Remove any existing subviews (in case called multiple times)
+        button.subviews.forEach { subview in
+            if subview is UIStackView {
+                subview.removeFromSuperview()
+            }
+        }
 
         // 🔥 Bolder border
         button.layer.borderColor = tintColor.cgColor
         button.layer.borderWidth = 1.4
         button.layer.cornerRadius = 10
+        button.backgroundColor = .white
 
-        // ----- ICON SETUP -----
-        var icon: UIImage?
+        // ----- CREATE HORIZONTAL STACK FOR ICON + TEXT -----
+        let containerStack = UIStackView()
+        containerStack.axis = .horizontal
+        containerStack.alignment = .center
+        containerStack.spacing = 12
+        containerStack.translatesAutoresizingMaskIntoConstraints = false
+        containerStack.isUserInteractionEnabled = false
 
-        if iconName == "google_logo" {
-            // Use the asset and scale it down explicitly
-            let base = UIImage(named: "google_logo")
-            // Target smaller size (e.g., 14x14) for a subtler look
-            let targetSize = CGSize(width: 30, height: 30)
-            if let base = base {
-                // Render a resized image to avoid layout fighting
-                UIGraphicsBeginImageContextWithOptions(targetSize, false, 0.0)
-                base.draw(in: CGRect(origin: .zero, size: targetSize))
-                icon = UIGraphicsGetImageFromCurrentImageContext()
-                UIGraphicsEndImageContext()
-            }
-        } else {
-            icon = UIImage(systemName: iconName)
-        }
-
-        button.setImage(icon, for: .normal)
-        // Ensure SF Symbols render with the provided tint (teal)
-        if iconName != "google_logo" {
-            button.tintColor = UIColor(red: 0/255, green: 76/255, blue: 97/255, alpha: 1)
-        }
-        button.imageView?.contentMode = .scaleAspectFit
+        // Icon
+        let iconImageView = UIImageView()
+        iconImageView.contentMode = .scaleAspectFit
+        iconImageView.translatesAutoresizingMaskIntoConstraints = false
 
         if iconName == "google_logo" {
-            // More spacing between Google icon and text
-            button.imageEdgeInsets = UIEdgeInsets(top: 0, left: -22, bottom: 0, right: 16)
-            button.titleEdgeInsets = UIEdgeInsets(top: 0, left: 20, bottom: 0, right: -20)
+            iconImageView.image = UIImage(named: "google_logo")
         } else {
-            // More spacing between email SF symbol and text (updated as per instructions)
-            button.imageEdgeInsets = UIEdgeInsets(top: 0, left: -26, bottom: 0, right: 20)
-            button.titleEdgeInsets = UIEdgeInsets(top: 0, left: 24, bottom: 0, right: -24)
+            let config = UIImage.SymbolConfiguration(pointSize: 20, weight: .medium)
+            iconImageView.image = UIImage(systemName: iconName, withConfiguration: config)
+            iconImageView.tintColor = tintColor
         }
 
+        // Label
+        let label = UILabel()
+        label.text = title
+        label.font = UIFont.systemFont(ofSize: 15, weight: .medium)
+        label.textColor = tintColor
 
-        // Prevent the icon from shrinking
-        button.imageView?.setContentHuggingPriority(.required, for: .horizontal)
+        containerStack.addArrangedSubview(iconImageView)
+        containerStack.addArrangedSubview(label)
+
+        button.addSubview(containerStack)
+
+        // Center the stack in the button
+        NSLayoutConstraint.activate([
+            iconImageView.widthAnchor.constraint(equalToConstant: 24),
+            iconImageView.heightAnchor.constraint(equalToConstant: 24),
+
+            containerStack.centerXAnchor.constraint(equalTo: button.centerXAnchor),
+            containerStack.centerYAnchor.constraint(equalTo: button.centerYAnchor)
+        ])
     }
 
     // MARK: - Actions
