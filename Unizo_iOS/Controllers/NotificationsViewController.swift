@@ -17,6 +17,28 @@ final class NotificationsViewController: UIViewController {
     private var sellingNotifications: [NotificationUIModel] = []
     private var currentData: [NotificationUIModel] = []
     private var isLoading = false
+    // MARK: - Custom Navigation
+        private let backButton: UIButton = {
+            let btn = UIButton(type: .system)
+            btn.setImage(UIImage(systemName: "chevron.left"), for: .normal)
+            btn.tintColor = .black
+            btn.backgroundColor = .white
+            btn.layer.cornerRadius = 22
+            btn.layer.shadowColor = UIColor.black.cgColor
+            btn.layer.shadowOpacity = 0.1
+            btn.layer.shadowRadius = 8
+            btn.layer.shadowOffset = CGSize(width: 0, height: 2)
+            btn.translatesAutoresizingMaskIntoConstraints = false
+            return btn
+        }()
+
+        private let titleLabel: UILabel = {
+            let lbl = UILabel()
+            lbl.text = "Notifications"
+            lbl.font = UIFont.systemFont(ofSize: 24, weight: .bold)
+            lbl.translatesAutoresizingMaskIntoConstraints = false
+            return lbl
+        }()
 
     // MARK: - Custom Navigation
     private let backButton: UIButton = {
@@ -223,7 +245,7 @@ final class NotificationsViewController: UIViewController {
         )
 
         NSLayoutConstraint.activate([
-            segmentBackground.topAnchor.constraint(equalTo: backButton.bottomAnchor, constant: 16),
+            segmentBackground.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor, constant: 10),
             segmentBackground.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 20),
             segmentBackground.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -20),
             segmentBackground.heightAnchor.constraint(equalToConstant: 45),

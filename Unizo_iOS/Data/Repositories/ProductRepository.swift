@@ -49,7 +49,7 @@ final class ProductRepository {
                 category,
                 size,
                 condition,
-                seller:users!seller_id(id, first_name, last_name)
+                seller:users!seller_id(id, first_name, last_name, email)
             """)
             .eq("is_active", value: true)
             .range(from: from, to: to)
@@ -87,7 +87,7 @@ final class ProductRepository {
                 category,
                 size,
                 condition,
-                seller:users!seller_id(id, first_name, last_name)
+                seller:users!seller_id(id, first_name, last_name, email)
             """)
             .eq("is_active", value: true)
             .order("views_count", ascending: false)
@@ -119,7 +119,7 @@ final class ProductRepository {
                 category,
                 size,
                 condition,
-                seller:users!seller_id(id, first_name, last_name)
+                seller:users!seller_id(id, first_name, last_name, email)
             """)
             .eq("is_active", value: true)
             .eq("is_negotiable", value: true)
@@ -150,7 +150,7 @@ final class ProductRepository {
                 category,
                 size,
                 condition,
-                seller:users!seller_id(id, first_name, last_name)
+                seller:users!seller_id(id, first_name, last_name, email)
             """)
             .eq("category", value: category)
             .eq("is_active", value: true)
@@ -197,7 +197,7 @@ final class ProductRepository {
                 category,
                 size,
                 condition,
-                seller:users!seller_id(id, first_name, last_name)
+                seller:users!seller_id(id, first_name, last_name, email)
             """)
             .eq("is_active", value: true)
             .or(

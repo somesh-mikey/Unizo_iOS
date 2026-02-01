@@ -12,6 +12,7 @@ struct ProductSellerDTO: Codable {
     let id: UUID
     let first_name: String?
     let last_name: String?
+    let email: String?
 }
 
 struct ProductDTO: Codable {
@@ -54,6 +55,15 @@ struct ProductDTO: Codable {
         let firstName = seller.first_name ?? ""
         let lastName = seller.last_name ?? ""
         let fullName = "\(firstName) \(lastName)".trimmingCharacters(in: .whitespaces)
-        return fullName.isEmpty ? "Unknown Seller" : fullName
+
+        // Use full name if available, otherwise use email prefix, otherwise "Unknown Seller"
+        if !fullName.isEmpty {
+            return fullName
+        } else if let email = seller.email, !email.isEmpty {
+            // Use part before @ as display name
+            return email.components(separatedBy: "@").first ?? "Unknown Seller"
+        } else {
+            return "Unknown Seller"
+        }
     }
 }
