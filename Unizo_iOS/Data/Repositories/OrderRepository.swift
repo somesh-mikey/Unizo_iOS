@@ -119,11 +119,12 @@ final class OrderRepository {
         struct UserName: Codable {
             let first_name: String?
             let last_name: String?
+            let email: String?
         }
 
         let user: UserName = try await client
             .from("users")
-            .select("first_name, last_name")
+            .select("first_name, last_name, email")
             .eq("id", value: userId.uuidString)
             .single()
             .execute()
@@ -138,6 +139,9 @@ final class OrderRepository {
             return firstName
         } else if !lastName.isEmpty {
             return lastName
+        } else if let email = user.email, !email.isEmpty {
+            // Use part before @ as display name
+            return email.components(separatedBy: "@").first ?? "A buyer"
         } else {
             return "A buyer"
         }
@@ -200,7 +204,7 @@ final class OrderRepository {
                         category,
                         size,
                         condition,
-                        seller:users!seller_id(id, first_name, last_name)
+                        seller:users!seller_id(id, first_name, last_name, email)
                     )
                 ),
                 address:addresses(
@@ -274,7 +278,7 @@ final class OrderRepository {
                     category,
                     size,
                     condition,
-                    seller:users!seller_id(id, first_name, last_name)
+                    seller:users!seller_id(id, first_name, last_name, email)
                 )
             """)
             .eq("order_id", value: orderId.uuidString)
