@@ -18,6 +18,29 @@ final class NotificationsViewController: UIViewController {
     private var currentData: [NotificationUIModel] = []
     private var isLoading = false
 
+    // MARK: - Custom Navigation
+    private let backButton: UIButton = {
+        let btn = UIButton(type: .system)
+        btn.setImage(UIImage(systemName: "chevron.left"), for: .normal)
+        btn.tintColor = .black
+        btn.backgroundColor = .white
+        btn.layer.cornerRadius = 22
+        btn.layer.shadowColor = UIColor.black.cgColor
+        btn.layer.shadowOpacity = 0.1
+        btn.layer.shadowRadius = 8
+        btn.layer.shadowOffset = CGSize(width: 0, height: 2)
+        btn.translatesAutoresizingMaskIntoConstraints = false
+        return btn
+    }()
+
+    private let titleLabel: UILabel = {
+        let lbl = UILabel()
+        lbl.text = "Notifications"
+        lbl.font = UIFont.systemFont(ofSize: 24, weight: .bold)
+        lbl.translatesAutoresizingMaskIntoConstraints = false
+        return lbl
+    }()
+
     // MARK: - Segmented Control Wrapper
     private let segmentBackground: UIView = {
         let v = UIView()
@@ -93,22 +116,20 @@ final class NotificationsViewController: UIViewController {
 
     // MARK: - Navigation Bar
     private func setupNavigation() {
-        title = "Notifications"
-        navigationController?.navigationBar.prefersLargeTitles = false
+        view.addSubview(backButton)
+        view.addSubview(titleLabel)
 
-        navigationItem.leftBarButtonItem = UIBarButtonItem(
-            image: UIImage(systemName: "chevron.left"),
-            style: .plain,
-            target: self,
-            action: #selector(backPressed)
-        )
+        backButton.addTarget(self, action: #selector(backPressed), for: .touchUpInside)
 
-        navigationItem.rightBarButtonItem = UIBarButtonItem(
-            image: UIImage(systemName: "checkmark.circle"),
-            style: .plain,
-            target: self,
-            action: #selector(markAllRead)
-        )
+        NSLayoutConstraint.activate([
+            backButton.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor, constant: 10),
+            backButton.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 20),
+            backButton.widthAnchor.constraint(equalToConstant: 44),
+            backButton.heightAnchor.constraint(equalToConstant: 44),
+
+            titleLabel.centerYAnchor.constraint(equalTo: backButton.centerYAnchor),
+            titleLabel.leadingAnchor.constraint(equalTo: backButton.trailingAnchor, constant: 16)
+        ])
     }
 
     @objc private func backPressed() {
