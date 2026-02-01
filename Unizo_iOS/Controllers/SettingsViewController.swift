@@ -207,8 +207,14 @@ final class SettingsViewController: UIViewController {
 
     private func makeAccountCard() -> UIView {
         let card = buildCard()
+
+        let signOutRow = makeArrowRow(icon: "arrow.right.square", title: "Sign Out")
+        let signOutTap = UITapGestureRecognizer(target: self, action: #selector(signOutTapped))
+        signOutRow.addGestureRecognizer(signOutTap)
+        signOutRow.isUserInteractionEnabled = true
+
         stackRows(card, rows: [
-            makeArrowRow(icon: "arrow.right.square", title: "Sign Out"),
+            signOutRow,
             makeArrowRow(icon: "trash", title: "Delete Account")
         ])
         return card
@@ -352,5 +358,62 @@ final class SettingsViewController: UIViewController {
 
     @objc private func toggleBiometric(_ sender: UISwitch) {
         print("Biometric Login:", sender.isOn)
+    }
+
+    // MARK: - Sign Out
+    @objc private func signOutTapped() {
+        let alert = UIAlertController(
+            title: "Sign Out",
+            message: "Are you sure you want to sign out?",
+            preferredStyle: .alert
+        )
+
+        alert.addAction(UIAlertAction(title: "Cancel", style: .cancel))
+        alert.addAction(UIAlertAction(title: "Sign Out", style: .destructive) { [weak self] _ in
+            self?.performSignOut()
+        })
+
+        present(alert, animated: true)
+    }
+
+    private func performSignOut() {
+        Task {
+            do {
+                // Stop notification listener first
+                await NotificationManager.shared.stopListening()
+
+                // Sign out from Supabase
+                try await AuthManager.shared.signOut()
+
+                print("✅ User signed out successfully")
+
+                // Navigate to welcome screen
+                await MainActor.run {
+                    guard let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
+                          let window = windowScene.windows.first else { return }
+
+                    let welcomeVC = WelcomeViewController()
+                    window.rootViewController = welcomeVC
+                    window.makeKeyAndVisible()
+
+                    UIView.transition(with: window,
+                                      duration: 0.3,
+                                      options: .transitionCrossDissolve,
+                                      animations: nil,
+                                      completion: nil)
+                }
+            } catch {
+                print("❌ Sign out failed:", error)
+                await MainActor.run {
+                    let alert = UIAlertController(
+                        title: "Error",
+                        message: "Failed to sign out: \(error.localizedDescription)",
+                        preferredStyle: .alert
+                    )
+                    alert.addAction(UIAlertAction(title: "OK", style: .default))
+                    self.present(alert, animated: true)
+                }
+            }
+        }
     }
 }

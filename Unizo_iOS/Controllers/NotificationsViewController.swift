@@ -5,56 +5,18 @@
 
 import UIKit
 
-// MARK: - Model
-struct NotificationItem {
-    let icon: String
-    let title: String
-    let subtitle: String
-    let time: String
-}
-
 final class NotificationsViewController: UIViewController {
 
     // MARK: - Colors
     private let bgColor = UIColor(red: 0.94, green: 0.95, blue: 0.98, alpha: 1)
 
-    // MARK: - Custom Navigation Buttons
-    private let backButton: UIButton = {
-        let btn = UIButton(type: .system)
-        btn.setImage(UIImage(systemName: "chevron.left"), for: .normal)
-        btn.tintColor = .black
-        btn.backgroundColor = .white
-        btn.layer.cornerRadius = 22
-        btn.layer.shadowColor = UIColor.black.cgColor
-        btn.layer.shadowOpacity = 0.1
-        btn.layer.shadowRadius = 8
-        btn.layer.shadowOffset = CGSize(width: 0, height: 2)
-        btn.translatesAutoresizingMaskIntoConstraints = false
-        return btn
-    }()
-
-    private let titleLabel: UILabel = {
-        let lbl = UILabel()
-        lbl.text = "Notifications"
-        lbl.font = UIFont.systemFont(ofSize: 20, weight: .semibold)
-        lbl.textAlignment = .center
-        lbl.translatesAutoresizingMaskIntoConstraints = false
-        return lbl
-    }()
-
-    private let heartButton: UIButton = {
-        let btn = UIButton(type: .system)
-        btn.setImage(UIImage(systemName: "heart"), for: .normal)
-        btn.tintColor = .black
-        btn.backgroundColor = .white
-        btn.layer.cornerRadius = 22
-        btn.layer.shadowColor = UIColor.black.cgColor
-        btn.layer.shadowOpacity = 0.1
-        btn.layer.shadowRadius = 8
-        btn.layer.shadowOffset = CGSize(width: 0, height: 2)
-        btn.translatesAutoresizingMaskIntoConstraints = false
-        return btn
-    }()
+    // MARK: - Data
+    private let repository = NotificationRepository()
+    private var allNotifications: [NotificationUIModel] = []
+    private var buyingNotifications: [NotificationUIModel] = []
+    private var sellingNotifications: [NotificationUIModel] = []
+    private var currentData: [NotificationUIModel] = []
+    private var isLoading = false
 
     // MARK: - Segmented Control Wrapper
     private let segmentBackground: UIView = {
@@ -68,7 +30,7 @@ final class NotificationsViewController: UIViewController {
     private let segmentedControl: UISegmentedControl = {
         let sc = UISegmentedControl(items: ["All", "Buying", "Selling"])
         sc.translatesAutoresizingMaskIntoConstraints = false
-        sc.applyPrimarySegmentStyle() // ✅ GLOBAL STYLE
+        sc.applyPrimarySegmentStyle()
         return sc
     }()
 
@@ -83,11 +45,27 @@ final class NotificationsViewController: UIViewController {
         return t
     }()
 
-    // MARK: - Data
-    private var allData: [NotificationItem] = []
-    private var buyingData: [NotificationItem] = []
-    private var sellingData: [NotificationItem] = []
-    private var currentData: [NotificationItem] = []
+    // MARK: - Loading & Empty State
+    private let loadingIndicator: UIActivityIndicatorView = {
+        let indicator = UIActivityIndicatorView(style: .large)
+        indicator.hidesWhenStopped = true
+        indicator.translatesAutoresizingMaskIntoConstraints = false
+        return indicator
+    }()
+
+    private let emptyStateLabel: UILabel = {
+        let lbl = UILabel()
+        lbl.text = "No notifications yet"
+        lbl.font = .systemFont(ofSize: 16)
+        lbl.textColor = .secondaryLabel
+        lbl.textAlignment = .center
+        lbl.isHidden = true
+        lbl.translatesAutoresizingMaskIntoConstraints = false
+        return lbl
+    }()
+
+    // MARK: - Refresh Control
+    private let refreshControl = UIRefreshControl()
 
     // MARK: - Lifecycle
     override func viewDidLoad() {
@@ -95,14 +73,16 @@ final class NotificationsViewController: UIViewController {
         view.backgroundColor = bgColor
 
         setupNavigation()
-        loadData()
         setupSegment()
         setupTable()
+        setupLoadingState()
     }
+
     override func viewWillAppear(_ animated: Bool) {
         super.viewWillAppear(animated)
         navigationController?.setNavigationBarHidden(true, animated: false)
         self.tabBarController?.tabBar.isHidden = true
+        loadNotifications()
     }
 
     override func viewWillDisappear(_ animated: Bool) {
@@ -113,83 +93,105 @@ final class NotificationsViewController: UIViewController {
 
     // MARK: - Navigation Bar
     private func setupNavigation() {
-        // Hide the system navigation bar
-        navigationController?.setNavigationBarHidden(true, animated: false)
+        title = "Notifications"
+        navigationController?.navigationBar.prefersLargeTitles = false
 
-        // Add custom header elements
-        view.addSubview(backButton)
-        view.addSubview(titleLabel)
-        view.addSubview(heartButton)
+        navigationItem.leftBarButtonItem = UIBarButtonItem(
+            image: UIImage(systemName: "chevron.left"),
+            style: .plain,
+            target: self,
+            action: #selector(backPressed)
+        )
 
-        NSLayoutConstraint.activate([
-            backButton.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor, constant: 10),
-            backButton.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 16),
-            backButton.widthAnchor.constraint(equalToConstant: 44),
-            backButton.heightAnchor.constraint(equalToConstant: 44),
-
-            heartButton.centerYAnchor.constraint(equalTo: backButton.centerYAnchor),
-            heartButton.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -16),
-            heartButton.widthAnchor.constraint(equalToConstant: 44),
-            heartButton.heightAnchor.constraint(equalToConstant: 44),
-
-            titleLabel.centerXAnchor.constraint(equalTo: view.centerXAnchor),
-            titleLabel.centerYAnchor.constraint(equalTo: backButton.centerYAnchor)
-        ])
-
-        backButton.addTarget(self, action: #selector(backPressed), for: .touchUpInside)
-        heartButton.addTarget(self, action: #selector(heartPressed), for: .touchUpInside)
+        navigationItem.rightBarButtonItem = UIBarButtonItem(
+            image: UIImage(systemName: "checkmark.circle"),
+            style: .plain,
+            target: self,
+            action: #selector(markAllRead)
+        )
     }
 
     @objc private func backPressed() {
         navigationController?.popViewController(animated: true)
     }
 
-    @objc private func heartPressed() {
-        let vc = WishlistViewController()
-        navigationController?.pushViewController(vc, animated: true)
+    @objc private func markAllRead() {
+        Task {
+            await NotificationManager.shared.markAllAsRead()
+            await loadNotifications()
+        }
     }
 
-    // MARK: - Data
-    private func loadData() {
+    // MARK: - Setup Loading State
+    private func setupLoadingState() {
+        view.addSubview(loadingIndicator)
+        view.addSubview(emptyStateLabel)
 
-        allData = [
-            .init(icon: "cart",
-                  title: "Jiya",
-                  subtitle: "wants to place order for\nHostel Table Lamp.",
-                  time: "16:04"),
+        NSLayoutConstraint.activate([
+            loadingIndicator.centerXAnchor.constraint(equalTo: view.centerXAnchor),
+            loadingIndicator.centerYAnchor.constraint(equalTo: view.centerYAnchor),
 
-            .init(icon: "cart",
-                  title: "Arjun",
-                  subtitle: "wants to place order for\nUnder Armour Cap.",
-                  time: "15:38"),
+            emptyStateLabel.centerXAnchor.constraint(equalTo: view.centerXAnchor),
+            emptyStateLabel.centerYAnchor.constraint(equalTo: view.centerYAnchor)
+        ])
+    }
 
-            .init(icon: "gift",
-                  title: "Order Confirmed!",
-                  subtitle: "Your order for Slip Jeans Medium\nhas been confirmed.",
-                  time: "14:23"),
+    // MARK: - Load Notifications from Backend
+    private func loadNotifications() {
+        guard !isLoading else { return }
+        isLoading = true
 
-            .init(icon: "indianrupeesign.circle",
-                  title: "Payment Received",
-                  subtitle: "The payment for your recent sale\nhas been successfully processed.",
-                  time: "13:02")
-        ]
+        if !refreshControl.isRefreshing {
+            loadingIndicator.startAnimating()
+        }
+        emptyStateLabel.isHidden = true
 
-        buyingData = [
-            allData[2],
-            allData[3]
-        ]
+        Task {
+            do {
+                let notifications = try await repository.fetchNotifications()
+                let mapped = notifications.map { NotificationMapper.toUIModel($0) }
 
-        sellingData = [
-            allData[0],
-            allData[1]
-        ]
+                await MainActor.run {
+                    self.allNotifications = mapped
 
-        currentData = allData
+                    // Filter by type for segments
+                    // Selling: new orders (seller receives)
+                    self.sellingNotifications = mapped.filter {
+                        $0.type == .newOrder
+                    }
+
+                    // Buying: order status updates (buyer receives)
+                    self.buyingNotifications = mapped.filter {
+                        $0.type == .orderAccepted ||
+                        $0.type == .orderRejected ||
+                        $0.type == .orderShipped ||
+                        $0.type == .orderDelivered
+                    }
+
+                    self.updateCurrentData()
+                    self.tableView.reloadData()
+                    self.refreshControl.endRefreshing()
+                    self.loadingIndicator.stopAnimating()
+                    self.isLoading = false
+
+                    // Show empty state if needed
+                    self.emptyStateLabel.isHidden = !self.currentData.isEmpty
+                }
+            } catch {
+                print("Failed to load notifications: \(error)")
+                await MainActor.run {
+                    self.refreshControl.endRefreshing()
+                    self.loadingIndicator.stopAnimating()
+                    self.isLoading = false
+                    self.emptyStateLabel.text = "Failed to load notifications"
+                    self.emptyStateLabel.isHidden = false
+                }
+            }
+        }
     }
 
     // MARK: - Segmented Control
     private func setupSegment() {
-
         view.addSubview(segmentBackground)
         segmentBackground.addSubview(segmentedControl)
 
@@ -213,13 +215,18 @@ final class NotificationsViewController: UIViewController {
     }
 
     @objc private func segmentChanged() {
+        updateCurrentData()
+        tableView.reloadData()
+        emptyStateLabel.isHidden = !currentData.isEmpty
+    }
+
+    private func updateCurrentData() {
         switch segmentedControl.selectedSegmentIndex {
-        case 0: currentData = allData
-        case 1: currentData = buyingData
-        case 2: currentData = sellingData
+        case 0: currentData = allNotifications
+        case 1: currentData = buyingNotifications
+        case 2: currentData = sellingNotifications
         default: break
         }
-        tableView.reloadData()
     }
 
     // MARK: - Table
@@ -230,12 +237,21 @@ final class NotificationsViewController: UIViewController {
         tableView.delegate = self
         tableView.register(NotificationCell.self, forCellReuseIdentifier: NotificationCell.reuseId)
 
+        // Pull to refresh
+        refreshControl.addTarget(self, action: #selector(handleRefresh), for: .valueChanged)
+        tableView.refreshControl = refreshControl
+
         NSLayoutConstraint.activate([
             tableView.topAnchor.constraint(equalTo: segmentBackground.bottomAnchor, constant: 15),
             tableView.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 20),
             tableView.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -20),
             tableView.bottomAnchor.constraint(equalTo: view.safeAreaLayoutGuide.bottomAnchor)
         ])
+    }
+
+    @objc private func handleRefresh() {
+        isLoading = false // Reset to allow new load
+        loadNotifications()
     }
 }
 
@@ -259,14 +275,48 @@ extension NotificationsViewController: UITableViewDataSource, UITableViewDelegat
     }
 
     func tableView(_ tableView: UITableView, didSelectRowAt indexPath: IndexPath) {
+        let notification = currentData[indexPath.row]
 
-        let vc = ConfirmOrderSellerViewController()
+        // Mark as read
+        Task {
+            await NotificationManager.shared.markAsRead(notificationId: notification.id)
 
-        if let nav = navigationController {
-            nav.pushViewController(vc, animated: true)
-        } else {
-            vc.modalPresentationStyle = .fullScreen
-            present(vc, animated: true)
+            // Update local data
+            await MainActor.run {
+                if let index = self.allNotifications.firstIndex(where: { $0.id == notification.id }) {
+                    // We can't mutate directly, just reload
+                }
+                tableView.reloadRows(at: [indexPath], with: .automatic)
+            }
+        }
+
+        // Navigate based on deeplink payload
+        let payload = notification.deeplinkPayload
+
+        switch payload.route {
+        case "confirm_order_seller":
+            guard let orderId = payload.orderId else { return }
+            let vc = ConfirmOrderSellerViewController()
+            vc.orderId = orderId
+
+            if let nav = navigationController {
+                nav.pushViewController(vc, animated: true)
+            } else {
+                vc.modalPresentationStyle = .fullScreen
+                present(vc, animated: true)
+            }
+
+        default:
+            // Default: open ConfirmOrderSellerVC if it's an order-related notification
+            let vc = ConfirmOrderSellerViewController()
+            vc.orderId = notification.orderId
+
+            if let nav = navigationController {
+                nav.pushViewController(vc, animated: true)
+            } else {
+                vc.modalPresentationStyle = .fullScreen
+                present(vc, animated: true)
+            }
         }
     }
 }
@@ -280,6 +330,7 @@ final class NotificationCell: UITableViewCell {
     private let titleLabel = UILabel()
     private let subtitleLabel = UILabel()
     private let timeLabel = UILabel()
+    private let unreadDot = UIView()
 
     override init(style: UITableViewCell.CellStyle, reuseIdentifier: String?) {
         super.init(style: style, reuseIdentifier: reuseIdentifier)
@@ -287,7 +338,7 @@ final class NotificationCell: UITableViewCell {
         selectionStyle = .none
         backgroundColor = .clear
 
-        iconView.tintColor = .black
+        iconView.tintColor = UIColor(red: 0.07, green: 0.33, blue: 0.42, alpha: 1.0)
         iconView.translatesAutoresizingMaskIntoConstraints = false
 
         titleLabel.font = .systemFont(ofSize: 15, weight: .semibold)
@@ -298,28 +349,40 @@ final class NotificationCell: UITableViewCell {
         subtitleLabel.numberOfLines = 2
         subtitleLabel.translatesAutoresizingMaskIntoConstraints = false
 
-        timeLabel.font = .systemFont(ofSize: 13)
+        timeLabel.font = .systemFont(ofSize: 12)
         timeLabel.textColor = .gray
         timeLabel.translatesAutoresizingMaskIntoConstraints = false
         timeLabel.setContentHuggingPriority(.required, for: .horizontal)
         timeLabel.setContentCompressionResistancePriority(.required, for: .horizontal)
 
+        unreadDot.backgroundColor = UIColor(red: 0.07, green: 0.33, blue: 0.42, alpha: 1.0)
+        unreadDot.layer.cornerRadius = 4
+        unreadDot.translatesAutoresizingMaskIntoConstraints = false
+        unreadDot.isHidden = true
+
         contentView.addSubview(iconView)
         contentView.addSubview(titleLabel)
         contentView.addSubview(subtitleLabel)
         contentView.addSubview(timeLabel)
+        contentView.addSubview(unreadDot)
 
         NSLayoutConstraint.activate([
             iconView.leadingAnchor.constraint(equalTo: contentView.leadingAnchor),
             iconView.centerYAnchor.constraint(equalTo: contentView.centerYAnchor),
-            iconView.widthAnchor.constraint(equalToConstant: 26),
-            iconView.heightAnchor.constraint(equalToConstant: 26),
+            iconView.widthAnchor.constraint(equalToConstant: 28),
+            iconView.heightAnchor.constraint(equalToConstant: 28),
+
+            unreadDot.leadingAnchor.constraint(equalTo: iconView.trailingAnchor, constant: 6),
+            unreadDot.topAnchor.constraint(equalTo: contentView.topAnchor, constant: 10),
+            unreadDot.widthAnchor.constraint(equalToConstant: 8),
+            unreadDot.heightAnchor.constraint(equalToConstant: 8),
 
             timeLabel.trailingAnchor.constraint(equalTo: contentView.trailingAnchor),
             timeLabel.topAnchor.constraint(equalTo: contentView.topAnchor, constant: 8),
 
             titleLabel.leadingAnchor.constraint(equalTo: iconView.trailingAnchor, constant: 12),
             titleLabel.topAnchor.constraint(equalTo: contentView.topAnchor, constant: 6),
+            titleLabel.trailingAnchor.constraint(lessThanOrEqualTo: timeLabel.leadingAnchor, constant: -8),
 
             subtitleLabel.leadingAnchor.constraint(equalTo: titleLabel.leadingAnchor),
             subtitleLabel.topAnchor.constraint(equalTo: titleLabel.bottomAnchor, constant: 2),
@@ -330,35 +393,21 @@ final class NotificationCell: UITableViewCell {
 
     required init?(coder: NSCoder) { fatalError() }
 
-    func configure(with item: NotificationItem) {
+    func configure(with model: NotificationUIModel) {
+        iconView.image = UIImage(systemName: model.iconName)
+        titleLabel.text = model.title
+        timeLabel.text = model.timeString
+        subtitleLabel.text = model.message
 
-        iconView.image = UIImage(systemName: item.icon)
-        titleLabel.text = item.title
-        timeLabel.text = item.time
-
-        let attributed = NSMutableAttributedString(
-            string: item.subtitle,
-            attributes: [
-                .font: UIFont.systemFont(ofSize: 13),
-                .foregroundColor: UIColor.darkGray
-            ]
-        )
-
-        let highlights = ["Hostel Table Lamp", "Under Armour Cap"]
-
-        for text in highlights {
-            let range = (item.subtitle as NSString).range(of: text)
-            if range.location != NSNotFound {
-                attributed.addAttributes(
-                    [
-                        .font: UIFont.systemFont(ofSize: 13, weight: .semibold),
-                        .foregroundColor: UIColor.black
-                    ],
-                    range: range
-                )
-            }
+        // Unread styling
+        if !model.isRead {
+            unreadDot.isHidden = false
+            titleLabel.font = .systemFont(ofSize: 15, weight: .bold)
+            backgroundColor = UIColor.systemBlue.withAlphaComponent(0.05)
+        } else {
+            unreadDot.isHidden = true
+            titleLabel.font = .systemFont(ofSize: 15, weight: .semibold)
+            backgroundColor = .clear
         }
-
-        subtitleLabel.attributedText = attributed
     }
 }

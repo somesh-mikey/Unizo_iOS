@@ -13,7 +13,7 @@ class OrderCardView: UIView {
     private let orderLabel = UILabel()
     private let dateLabel = UILabel()
     private let statusLabel = UILabel()
-    
+
     private let productImage = UIImageView()
     private let productTitle = UILabel()
     private let productDetail = UILabel()
@@ -22,6 +22,12 @@ class OrderCardView: UIView {
 
     private let divider = UIView()
     private let totalLabel = UILabel()
+
+    // Store order data for navigation
+    private var currentOrder: OrderDTO?
+
+    // Tap callback for navigation
+    var onTap: ((OrderDTO) -> Void)?
 
     // MARK: - Init
     override init(frame: CGRect) {
@@ -66,6 +72,9 @@ class OrderCardView: UIView {
 
     // MARK: - Configure (Real data from OrderDTO)
     func configure(with order: OrderDTO) {
+        // Store order for navigation
+        self.currentOrder = order
+
         // Format order ID (show last 8 characters of UUID)
         let shortId = String(order.id.uuidString.suffix(8)).uppercased()
         orderLabel.text = "Order #\(shortId)"
@@ -171,6 +180,11 @@ class OrderCardView: UIView {
         container.layer.shadowRadius = 5
         container.layer.shadowOffset = CGSize(width: 0, height: 2)
 
+        // Add tap gesture for navigation
+        let tapGesture = UITapGestureRecognizer(target: self, action: #selector(cardTapped))
+        container.addGestureRecognizer(tapGesture)
+        container.isUserInteractionEnabled = true
+
         addSubview(container)
         container.translatesAutoresizingMaskIntoConstraints = false
 
@@ -264,6 +278,12 @@ class OrderCardView: UIView {
             totalLabel.leadingAnchor.constraint(equalTo: divider.leadingAnchor),
             totalLabel.bottomAnchor.constraint(equalTo: container.bottomAnchor, constant: -16)
         ])
+    }
+
+    // MARK: - Actions
+    @objc private func cardTapped() {
+        guard let order = currentOrder else { return }
+        onTap?(order)
     }
 }
 
