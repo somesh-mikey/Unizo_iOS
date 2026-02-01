@@ -55,9 +55,20 @@ final class ProductRepository {
             .range(from: from, to: to)
             .execute()
 
+        // Debug: Print raw JSON to see what Supabase returns
+        if let jsonString = String(data: response.data, encoding: .utf8) {
+            print("🔍 Raw Supabase response (first 2000 chars):", String(jsonString.prefix(2000)))
+        }
+
         let products = try JSONDecoder().decode([ProductDTO].self, from: response.data)
 
         print("📥 Supabase returned:", products.count)
+
+        // Debug: Check seller info for first product
+        if let first = products.first {
+            print("🔍 First product seller:", first.seller ?? "nil")
+            print("🔍 First product sellerDisplayName:", first.sellerDisplayName)
+        }
 
         // Cache only once
         if page == 1 && cachedProducts.isEmpty {
