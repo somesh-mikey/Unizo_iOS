@@ -270,8 +270,22 @@ class MyOrdersViewController: UIViewController {
         for order in filteredOrders {
             let card = OrderCardView()
             card.configure(with: order)
+            card.onTap = { [weak self] tappedOrder in
+                self?.navigateToOrderDetails(order: tappedOrder)
+            }
             contentStack.addArrangedSubview(card)
         }
+    }
+
+    // MARK: - Navigate to Order Details
+    private func navigateToOrderDetails(order: OrderDTO) {
+        let vc = OrderDetailsViewController()
+        vc.orderId = order.id
+        vc.orderAddress = order.address
+        vc.orderTotal = order.total_amount
+        vc.orderCreatedAt = order.created_at
+        vc.orderStatus = order.status
+        navigationController?.pushViewController(vc, animated: true)
     }
 
     // MARK: - Actions

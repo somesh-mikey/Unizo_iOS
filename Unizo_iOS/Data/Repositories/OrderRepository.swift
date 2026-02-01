@@ -71,7 +71,76 @@ final class OrderRepository {
                 .execute()
         }
 
+        // MARK: - Create Notifications Per Seller
+        // Group items by seller_id
+        var sellerItems: [UUID: [CartItem]] = [:]
+        for item in items {
+            guard let sellerId = item.product.sellerId else { continue }
+            sellerItems[sellerId, default: []].append(item)
+        }
+
+        // Get buyer name for notification
+        let buyerName = try await fetchCurrentUserName()
+
+        // Create one notification per seller
+        let notificationRepo = NotificationRepository(client: client)
+        for (sellerId, sellerCartItems) in sellerItems {
+            let productNames = sellerCartItems.map { $0.product.name }.joined(separator: ", ")
+            let itemCount = sellerCartItems.count
+            let message = itemCount == 1
+                ? "wants to place order for \(productNames)."
+                : "wants to place order for \(itemCount) items."
+
+            // Build deeplink payload for navigation
+            let deeplinkPayload = DeeplinkPayload(
+                route: "confirm_order_seller",
+                orderId: orderId,
+                sellerId: sellerId
+            )
+
+            try await notificationRepo.createNotification(
+                recipientId: sellerId,      // Seller receives
+                senderId: userId,           // Buyer triggered
+                orderId: orderId,
+                type: .newOrder,
+                title: buyerName,
+                message: message,
+                deeplinkPayload: deeplinkPayload
+            )
+        }
+
         return orderId
+    }
+
+    // MARK: - Fetch Current User Name
+    private func fetchCurrentUserName() async throws -> String {
+        let userId = try await getCurrentUserId()
+
+        struct UserName: Codable {
+            let first_name: String?
+            let last_name: String?
+        }
+
+        let user: UserName = try await client
+            .from("users")
+            .select("first_name, last_name")
+            .eq("id", value: userId.uuidString)
+            .single()
+            .execute()
+            .value
+
+        let firstName = user.first_name ?? ""
+        let lastName = user.last_name ?? ""
+
+        if !firstName.isEmpty && !lastName.isEmpty {
+            return "\(firstName) \(lastName)"
+        } else if !firstName.isEmpty {
+            return firstName
+        } else if !lastName.isEmpty {
+            return lastName
+        } else {
+            return "A buyer"
+        }
     }
 
     // MARK: - Fetch Order by ID

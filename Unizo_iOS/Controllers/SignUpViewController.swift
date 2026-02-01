@@ -288,6 +288,9 @@ final class SignUpViewController: UIViewController {
 
                 print("✅ User profile updated in users table")
 
+                // Start notification listener
+                await NotificationManager.shared.startListening()
+
                 // Show success screen
                 await MainActor.run {
                     let vc = AccountCreatedViewController(

@@ -11,6 +11,8 @@ class OrderDetailsViewController: UIViewController {
     var orderId: UUID?
     var orderAddress: AddressDTO?
     var orderTotal: Double = 0
+    var orderCreatedAt: String?  // ISO8601 timestamp
+    var orderStatus: String = "pending"
 
     // MARK: - Fetched Data
     private var orderItems: [OrderItemDTO] = []
@@ -114,10 +116,8 @@ class OrderDetailsViewController: UIViewController {
             deliveryAddressLabel.text = "\(address.line1),\n\(address.city), \(address.state) \(address.postal_code)"
         }
 
-        // Format current time for status
-        let formatter = DateFormatter()
-        formatter.dateFormat = "h:mm a"
-        statusTimeLabel.text = "Today, \(formatter.string(from: Date()))"
+        // Format actual order creation time for status card
+        statusTimeLabel.text = formatTimelineDate(orderCreatedAt)
 
         // Update order summary with real values
         summarySubtotalValue.text = "₹\(Int(orderTotal))"
@@ -410,8 +410,48 @@ class OrderDetailsViewController: UIViewController {
             timelineStack.trailingAnchor.constraint(equalTo: contentView.trailingAnchor, constant: -16)
         ])
 
-        timelineStack.addArrangedSubview(makeTimelineRow(title: "Order Delivery", subtitle: "Pending", completed: false))
-        timelineStack.addArrangedSubview(makeTimelineRow(title: "Order Confirmed", subtitle: "Today, 12:15 PM", completed: true))
+        // Determine delivery status and time
+        let status = OrderStatus(rawValue: orderStatus) ?? .pending
+        let isDelivered = status == .delivered
+        let deliverySubtitle = isDelivered ? formatTimelineDate(orderCreatedAt) : "Pending"
+
+        // Format order confirmation time
+        let confirmationTime = formatTimelineDate(orderCreatedAt)
+
+        timelineStack.addArrangedSubview(makeTimelineRow(title: "Order Delivery", subtitle: deliverySubtitle, completed: isDelivered))
+        timelineStack.addArrangedSubview(makeTimelineRow(title: "Order Confirmed", subtitle: confirmationTime, completed: true))
+    }
+
+    // MARK: - Format Timeline Date
+    private func formatTimelineDate(_ dateString: String?) -> String {
+        guard let dateString = dateString else { return "—" }
+
+        let inputFormatter = ISO8601DateFormatter()
+        inputFormatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+
+        var date: Date?
+        date = inputFormatter.date(from: dateString)
+
+        // Fallback: try without fractional seconds
+        if date == nil {
+            inputFormatter.formatOptions = [.withInternetDateTime]
+            date = inputFormatter.date(from: dateString)
+        }
+
+        guard let parsedDate = date else { return dateString }
+
+        let outputFormatter = DateFormatter()
+        let calendar = Calendar.current
+
+        if calendar.isDateInToday(parsedDate) {
+            outputFormatter.dateFormat = "'Today,' h:mm a"
+        } else if calendar.isDateInYesterday(parsedDate) {
+            outputFormatter.dateFormat = "'Yesterday,' h:mm a"
+        } else {
+            outputFormatter.dateFormat = "MMM d, h:mm a"
+        }
+
+        return outputFormatter.string(from: parsedDate)
     }
 
     private func makeTimelineRow(title: String, subtitle: String, completed: Bool) -> UIView {

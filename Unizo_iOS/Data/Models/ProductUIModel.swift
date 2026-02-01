@@ -20,6 +20,7 @@ struct ProductUIModel {
     let size: String?
     let condition: String?
     let sellerName: String
+    let sellerId: UUID?  // Preserve seller ID for notifications
 }
 
 

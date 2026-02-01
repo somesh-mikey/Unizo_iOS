@@ -23,7 +23,8 @@ struct ProductMapper {
             colour: dto.colour,
             size: dto.size,
             condition: dto.condition,
-            sellerName: dto.sellerDisplayName
+            sellerName: dto.sellerDisplayName,
+            sellerId: dto.seller?.id  // Preserve seller ID for notifications
         )
     }
 }

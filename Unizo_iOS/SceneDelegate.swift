@@ -20,7 +20,16 @@ class SceneDelegate: UIResponder, UIWindowSceneDelegate {
     }
 
     func sceneDidDisconnect(_ scene: UIScene) {}
-    func sceneDidBecomeActive(_ scene: UIScene) {}
+
+    func sceneDidBecomeActive(_ scene: UIScene) {
+        // Start notification listener if user is already logged in
+        Task {
+            if await AuthManager.shared.isLoggedIn {
+                await NotificationManager.shared.startListening()
+            }
+        }
+    }
+
     func sceneWillResignActive(_ scene: UIScene) {}
     func sceneWillEnterForeground(_ scene: UIScene) {}
     func sceneDidEnterBackground(_ scene: UIScene) {}

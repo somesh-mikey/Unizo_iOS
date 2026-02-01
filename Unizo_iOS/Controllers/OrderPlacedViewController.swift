@@ -549,6 +549,11 @@ class OrderPlacedViewController: UIViewController {
         vc.orderId = orderId
         vc.orderAddress = orderAddress
         vc.orderTotal = orderTotal
+        // For newly placed orders, use current time as creation time
+        let formatter = ISO8601DateFormatter()
+        formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+        vc.orderCreatedAt = formatter.string(from: Date())
+        vc.orderStatus = "confirmed"
         vc.modalPresentationStyle = .fullScreen
         present(vc, animated: true)
     }

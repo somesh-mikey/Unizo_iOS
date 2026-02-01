@@ -9,6 +9,24 @@ import UIKit
 
 class ConfirmOrderSellerViewController: UIViewController {
 
+    // MARK: - Order Data (passed from notification)
+    var orderId: UUID?
+
+    // MARK: - Fetched Data
+    private let orderRepository = OrderRepository()
+    private var orderDetails: OrderDTO?
+    private var sellerItems: [OrderItemDTO] = []
+    private var buyerAddress: AddressDTO?
+    private var isLoading = false
+
+    // MARK: - Loading Indicator
+    private let loadingIndicator: UIActivityIndicatorView = {
+        let indicator = UIActivityIndicatorView(style: .large)
+        indicator.hidesWhenStopped = true
+        indicator.translatesAutoresizingMaskIntoConstraints = false
+        return indicator
+    }()
+
     // MARK: - UI Components
 
     private let scrollView = UIScrollView()
@@ -207,8 +225,116 @@ class ConfirmOrderSellerViewController: UIViewController {
     override func viewDidLoad() {
         super.viewDidLoad()
         setupUI()
+        setupLoadingIndicator()
+        self.title = "Confirm Order"
+        navigationItem.backButtonTitle = ""
+        navigationItem.rightBarButtonItem = UIBarButtonItem(
+            image: UIImage(systemName: "heart"),
+            style: .plain,
+            target: self,
+            action: #selector(heartTapped)
+        )
         rejectButton.addTarget(self, action: #selector(openRejectedPage), for: .touchUpInside)
         acceptButton.addTarget(self, action: #selector(openAcceptedPage), for: .touchUpInside)
+
+        // Load real order data if orderId is provided
+        if let orderId = orderId {
+            loadOrderDetails(orderId: orderId)
+        }
+    }
+
+    // MARK: - Setup Loading Indicator
+    private func setupLoadingIndicator() {
+        view.addSubview(loadingIndicator)
+        NSLayoutConstraint.activate([
+            loadingIndicator.centerXAnchor.constraint(equalTo: view.centerXAnchor),
+            loadingIndicator.centerYAnchor.constraint(equalTo: view.centerYAnchor)
+        ])
+    }
+
+    // MARK: - Load Order Details
+    private func loadOrderDetails(orderId: UUID) {
+        guard !isLoading else { return }
+        isLoading = true
+        loadingIndicator.startAnimating()
+
+        Task {
+            do {
+                // Fetch full order with items and address
+                let order = try await orderRepository.fetchOrderWithDetails(id: orderId)
+                self.orderDetails = order
+                self.buyerAddress = order.address
+
+                // Get current seller ID
+                guard let currentSellerId = await AuthManager.shared.currentUserId else {
+                    await MainActor.run {
+                        self.isLoading = false
+                        self.loadingIndicator.stopAnimating()
+                        self.showErrorAlert(message: "Not authenticated")
+                    }
+                    return
+                }
+
+                // Filter items for THIS seller only
+                self.sellerItems = order.items?.filter { item in
+                    item.product?.seller?.id == currentSellerId
+                } ?? []
+
+                await MainActor.run {
+                    self.isLoading = false
+                    self.loadingIndicator.stopAnimating()
+                    self.updateUIWithOrderData()
+                }
+            } catch {
+                print("Failed to load order: \(error)")
+                await MainActor.run {
+                    self.isLoading = false
+                    self.loadingIndicator.stopAnimating()
+                    self.showErrorAlert(message: "Failed to load order details")
+                }
+            }
+        }
+    }
+
+    // MARK: - Update UI with Real Data
+    private func updateUIWithOrderData() {
+        guard let order = orderDetails else { return }
+
+        // Update buyer info
+        if let address = buyerAddress {
+            buyerNameLabel.text = address.name
+            buyerAddressLabel.text = "\(address.line1), \(address.city), \(address.state) \(address.postal_code)"
+        }
+
+        // Display first seller item (or summary if multiple)
+        if let firstItem = sellerItems.first, let product = firstItem.product {
+            titleText.text = product.title
+            priceLabel.text = "₹\(Int(firstItem.price_at_purchase))"
+            categoryLabel.text = product.category ?? "General"
+            colourValueLabel.text = firstItem.colour ?? "-"
+            sizeValueLabel.text = firstItem.size ?? "-"
+            conditionValueLabel.text = product.condition ?? "-"
+
+            // Load product image
+            if let imageURL = product.imageUrl, !imageURL.isEmpty {
+                productImageView.loadImage(from: imageURL)
+            }
+
+            // Show quantity
+            if sellerItems.count == 1 {
+                qtyLabel.text = "Qty\n\(firstItem.quantity)"
+            } else {
+                let totalQty = sellerItems.reduce(0) { $0 + $1.quantity }
+                qtyLabel.text = "Items\n\(totalQty)"
+            }
+        }
+    }
+
+    // MARK: - Show Error Alert
+    private func showErrorAlert(message: String) {
+        let alert = UIAlertController(title: "Error", message: message, preferredStyle: .alert)
+        alert.addAction(UIAlertAction(title: "OK", style: .default))
+        present(alert, animated: true)
     }
     override func viewWillAppear(_ animated: Bool) {
         super.viewWillAppear(animated)
@@ -433,37 +559,100 @@ private extension ConfirmOrderSellerViewController {
     }
 
     @objc func didTapReject() {
-        // handle rejection
-        let ac = UIAlertController(title: "Reject", message: "Order rejected.", preferredStyle: .alert)
-        ac.addAction(UIAlertAction(title: "OK", style: .default))
-        present(ac, animated: true)
+        // Handled by openRejectedPage
     }
 
     @objc func didTapAccept() {
-        // handle acceptance
-        let ac = UIAlertController(title: "Accept", message: "Order accepted.", preferredStyle: .alert)
-        ac.addAction(UIAlertAction(title: "OK", style: .default))
-        present(ac, animated: true)
+        // Handled by openAcceptedPage
     }
-    @objc private func openAcceptedPage() {
-        let vc = OrderAcceptedViewController()
 
-        if let nav = navigationController {
-            nav.pushViewController(vc, animated: true)
-        } else {
-            vc.modalPresentationStyle = .fullScreen
-            present(vc, animated: true)
+    @objc private func openAcceptedPage() {
+        guard let orderId = orderId else {
+            // Fallback for hardcoded demo
+            let vc = OrderAcceptedViewController()
+            if let nav = navigationController {
+                nav.pushViewController(vc, animated: true)
+            } else {
+                vc.modalPresentationStyle = .fullScreen
+                present(vc, animated: true)
+            }
+            return
+        }
+
+        // Disable buttons while processing
+        acceptButton.isEnabled = false
+        rejectButton.isEnabled = false
+        loadingIndicator.startAnimating()
+
+        Task {
+            do {
+                // Update order status to confirmed
+                try await orderRepository.updateOrderStatus(orderId: orderId, status: .confirmed)
+
+                await MainActor.run {
+                    self.loadingIndicator.stopAnimating()
+                    let vc = OrderAcceptedViewController()
+                    if let nav = self.navigationController {
+                        nav.pushViewController(vc, animated: true)
+                    } else {
+                        vc.modalPresentationStyle = .fullScreen
+                        self.present(vc, animated: true)
+                    }
+                }
+            } catch {
+                print("Failed to accept order: \(error)")
+                await MainActor.run {
+                    self.loadingIndicator.stopAnimating()
+                    self.acceptButton.isEnabled = true
+                    self.rejectButton.isEnabled = true
+                    self.showErrorAlert(message: "Failed to accept order")
+                }
+            }
         }
     }
 
     @objc private func openRejectedPage() {
-        let vc = OrderRejectedViewController()
+        guard let orderId = orderId else {
+            // Fallback for hardcoded demo
+            let vc = OrderRejectedViewController()
+            if let nav = navigationController {
+                nav.pushViewController(vc, animated: true)
+            } else {
+                vc.modalPresentationStyle = .fullScreen
+                present(vc, animated: true)
+            }
+            return
+        }
 
-        if let nav = navigationController {
-            nav.pushViewController(vc, animated: true)
-        } else {
-            vc.modalPresentationStyle = .fullScreen
-            present(vc, animated: true)
+        // Disable buttons while processing
+        acceptButton.isEnabled = false
+        rejectButton.isEnabled = false
+        loadingIndicator.startAnimating()
+
+        Task {
+            do {
+                // Update order status to cancelled
+                try await orderRepository.updateOrderStatus(orderId: orderId, status: .cancelled)
+
+                await MainActor.run {
+                    self.loadingIndicator.stopAnimating()
+                    let vc = OrderRejectedViewController()
+                    if let nav = self.navigationController {
+                        nav.pushViewController(vc, animated: true)
+                    } else {
+                        vc.modalPresentationStyle = .fullScreen
+                        self.present(vc, animated: true)
+                    }
+                }
+            } catch {
+                print("Failed to reject order: \(error)")
+                await MainActor.run {
+                    self.loadingIndicator.stopAnimating()
+                    self.acceptButton.isEnabled = true
+                    self.rejectButton.isEnabled = true
+                    self.showErrorAlert(message: "Failed to reject order")
+                }
+            }
         }
     }
 }
