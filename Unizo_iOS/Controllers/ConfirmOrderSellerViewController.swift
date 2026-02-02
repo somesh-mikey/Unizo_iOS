@@ -14,6 +14,7 @@ class ConfirmOrderSellerViewController: UIViewController {
 
     // MARK: - Fetched Data
     private let orderRepository = OrderRepository()
+    private let notificationRepository = NotificationRepository()
     private var orderDetails: OrderDTO?
     private var sellerItems: [OrderItemDTO] = []
     private var buyerAddress: AddressDTO?
@@ -83,7 +84,8 @@ class ConfirmOrderSellerViewController: UIViewController {
 
     private let productImageView: UIImageView = {
         let iv = UIImageView()
-        iv.image = UIImage(named: "lamp")
+        iv.image = UIImage(systemName: "photo")  // Placeholder image
+        iv.tintColor = .lightGray
         iv.contentMode = .scaleAspectFill
         iv.clipsToBounds = true
         iv.layer.cornerRadius = 16
@@ -93,7 +95,7 @@ class ConfirmOrderSellerViewController: UIViewController {
 
     private let categoryLabel: UILabel = {
         let lbl = UILabel()
-        lbl.text = "Fashion"
+        lbl.text = "Loading..."
         lbl.font = .systemFont(ofSize: 16)
         lbl.textColor = .gray
         lbl.translatesAutoresizingMaskIntoConstraints = false
@@ -103,16 +105,16 @@ class ConfirmOrderSellerViewController: UIViewController {
     // —— Reduced fonts and made equal —— //
     private let titleText: UILabel = {
         let lbl = UILabel()
-        lbl.text = "Hostel Table Lamp"
-        lbl.font = UIFont.systemFont(ofSize: 22, weight: .semibold) // reduced & equal
+        lbl.text = "Loading..."
+        lbl.font = UIFont.systemFont(ofSize: 22, weight: .semibold)
         lbl.translatesAutoresizingMaskIntoConstraints = false
         return lbl
     }()
 
     private let priceLabel: UILabel = {
         let lbl = UILabel()
-        lbl.text = "₹500"
-        lbl.font = UIFont.systemFont(ofSize: 22, weight: .semibold) // reduced & equal
+        lbl.text = "₹—"
+        lbl.font = UIFont.systemFont(ofSize: 22, weight: .semibold)
         lbl.translatesAutoresizingMaskIntoConstraints = false
         return lbl
     }()
@@ -142,9 +144,9 @@ class ConfirmOrderSellerViewController: UIViewController {
     private lazy var sizeTitleLabel = makeTitleLabel("Size:")
     private lazy var conditionTitleLabel = makeTitleLabel("Condition:")
 
-    private lazy var colourValueLabel = makeValueLabel("Yellow")
-    private lazy var sizeValueLabel = makeValueLabel("-")
-    private lazy var conditionValueLabel = makeValueLabel("New")
+    private lazy var colourValueLabel = makeValueLabel("—")
+    private lazy var sizeValueLabel = makeValueLabel("—")
+    private lazy var conditionValueLabel = makeValueLabel("—")
 
 
     // MARK: - Buyer Card
@@ -159,7 +161,7 @@ class ConfirmOrderSellerViewController: UIViewController {
 
     private let buyerNameLabel: UILabel = {
         let lbl = UILabel()
-        lbl.text = "Jonathan"
+        lbl.text = "Loading..."
         lbl.font = UIFont.systemFont(ofSize: 20, weight: .semibold)
         lbl.translatesAutoresizingMaskIntoConstraints = false
         return lbl
@@ -167,7 +169,7 @@ class ConfirmOrderSellerViewController: UIViewController {
 
     private let buyerAddressLabel: UILabel = {
         let lbl = UILabel()
-        lbl.text = "4517 Washington Ave, Manchester, Kentucky 39495"
+        lbl.text = "Loading address..."
         lbl.font = UIFont.systemFont(ofSize: 14)
         lbl.textColor = .darkGray
         lbl.numberOfLines = 0
@@ -177,7 +179,7 @@ class ConfirmOrderSellerViewController: UIViewController {
 
     private let qtyLabel: UILabel = {
         let lbl = UILabel()
-        lbl.text = "Qty\n1"
+        lbl.text = "Qty\n—"
         lbl.font = UIFont.systemFont(ofSize: 17, weight: .bold)
         lbl.textAlignment = .center
         lbl.numberOfLines = 2
@@ -335,6 +337,23 @@ class ConfirmOrderSellerViewController: UIViewController {
         let alert = UIAlertController(title: "Error", message: message, preferredStyle: .alert)
         alert.addAction(UIAlertAction(title: "OK", style: .default))
         present(alert, animated: true)
+    }
+
+    // MARK: - Get Seller Display Name
+    private func getSellerDisplayName() async -> String {
+        // Try to get seller name from the product's seller info
+        if let seller = sellerItems.first?.product?.seller {
+            let firstName = seller.first_name ?? ""
+            let lastName = seller.last_name ?? ""
+            let fullName = "\(firstName) \(lastName)".trimmingCharacters(in: .whitespaces)
+            if !fullName.isEmpty {
+                return fullName
+            }
+            if let email = seller.email, !email.isEmpty {
+                return email.components(separatedBy: "@").first ?? "Seller"
+            }
+        }
+        return "Seller"
     }
     override func viewWillAppear(_ animated: Bool) {
         super.viewWillAppear(animated)
@@ -589,6 +608,34 @@ private extension ConfirmOrderSellerViewController {
                 // Update order status to confirmed
                 try await orderRepository.updateOrderStatus(orderId: orderId, status: .confirmed)
 
+                // Notify the buyer that their order was accepted
+                if let order = orderDetails,
+                   let currentSellerId = await AuthManager.shared.currentUserId {
+
+                    // Get seller name for notification
+                    let sellerName = await getSellerDisplayName()
+
+                    // Get product name for message
+                    let productName = sellerItems.first?.product?.title ?? "your item"
+
+                    // Create notification for buyer
+                    let deeplinkPayload = DeeplinkPayload(
+                        route: "order_details",
+                        orderId: orderId,
+                        sellerId: currentSellerId
+                    )
+
+                    try await notificationRepository.createNotification(
+                        recipientId: order.user_id,  // Buyer receives
+                        senderId: currentSellerId,    // Seller triggered
+                        orderId: orderId,
+                        type: .orderAccepted,
+                        title: sellerName,
+                        message: "accepted your order for \(productName).",
+                        deeplinkPayload: deeplinkPayload
+                    )
+                }
+
                 await MainActor.run {
                     self.loadingIndicator.stopAnimating()
                     let vc = OrderAcceptedViewController()
@@ -633,6 +680,34 @@ private extension ConfirmOrderSellerViewController {
             do {
                 // Update order status to cancelled
                 try await orderRepository.updateOrderStatus(orderId: orderId, status: .cancelled)
+
+                // Notify the buyer that their order was rejected
+                if let order = orderDetails,
+                   let currentSellerId = await AuthManager.shared.currentUserId {
+
+                    // Get seller name for notification
+                    let sellerName = await getSellerDisplayName()
+
+                    // Get product name for message
+                    let productName = sellerItems.first?.product?.title ?? "your item"
+
+                    // Create notification for buyer
+                    let deeplinkPayload = DeeplinkPayload(
+                        route: "order_details",
+                        orderId: orderId,
+                        sellerId: currentSellerId
+                    )
+
+                    try await notificationRepository.createNotification(
+                        recipientId: order.user_id,  // Buyer receives
+                        senderId: currentSellerId,    // Seller triggered
+                        orderId: orderId,
+                        type: .orderRejected,
+                        title: sellerName,
+                        message: "rejected your order for \(productName).",
+                        deeplinkPayload: deeplinkPayload
+                    )
+                }
 
                 await MainActor.run {
                     self.loadingIndicator.stopAnimating()

@@ -81,11 +81,14 @@ class OrderDetailsViewController: UIViewController {
         setupOrderSummary()
         setupBottomButtons()
 
-        // Update UI with real data
-        updateUIWithOrderData()
-
-        // Fetch order items from database
-        fetchOrderItems()
+        // If we have minimal data (from notification), fetch full order details
+        if orderAddress == nil && orderId != nil {
+            fetchFullOrderDetails()
+        } else {
+            // Update UI with provided data
+            updateUIWithOrderData()
+            fetchOrderItems()
+        }
     }
 
     // MARK: - Hide Nav + Tab Bar
@@ -122,6 +125,32 @@ class OrderDetailsViewController: UIViewController {
         // Update order summary with real values
         summarySubtotalValue.text = "₹\(Int(orderTotal))"
         summaryTotalValue.text = "₹\(Int(orderTotal))"
+    }
+
+    // MARK: - Fetch Full Order Details (when navigating from notification)
+    private func fetchFullOrderDetails() {
+        guard let id = orderId else { return }
+
+        Task {
+            do {
+                let order = try await orderRepository.fetchOrderWithDetails(id: id)
+                await MainActor.run {
+                    // Update local properties with fetched data
+                    self.orderAddress = order.address
+                    self.orderTotal = order.total_amount
+                    self.orderCreatedAt = order.created_at
+                    self.orderStatus = order.status
+                    self.orderItems = order.items ?? []
+
+                    // Update UI with real data
+                    self.updateUIWithOrderData()
+                    self.updateItemsUI()
+                    self.updateTimelineForStatus()
+                }
+            } catch {
+                print("❌ Failed to fetch order details:", error)
+            }
+        }
     }
 
     // MARK: - Fetch Order Items
@@ -420,6 +449,46 @@ class OrderDetailsViewController: UIViewController {
 
         timelineStack.addArrangedSubview(makeTimelineRow(title: "Order Delivery", subtitle: deliverySubtitle, completed: isDelivered))
         timelineStack.addArrangedSubview(makeTimelineRow(title: "Order Confirmed", subtitle: confirmationTime, completed: true))
+    }
+
+    // MARK: - Update Timeline for Status (after fetching order)
+    private func updateTimelineForStatus() {
+        // Clear existing timeline rows
+        timelineStack.arrangedSubviews.forEach { $0.removeFromSuperview() }
+
+        let status = OrderStatus(rawValue: orderStatus) ?? .pending
+        let confirmationTime = formatTimelineDate(orderCreatedAt)
+
+        // Build timeline based on current status
+        switch status {
+        case .cancelled:
+            timelineStack.addArrangedSubview(makeTimelineRow(title: "Order Cancelled", subtitle: confirmationTime, completed: true))
+            // Update status card to show cancelled
+            statusTitleLabel.text = "Order Cancelled"
+            statusCircle.backgroundColor = .systemRed
+
+        case .delivered:
+            timelineStack.addArrangedSubview(makeTimelineRow(title: "Order Delivered", subtitle: confirmationTime, completed: true))
+            timelineStack.addArrangedSubview(makeTimelineRow(title: "Order Shipped", subtitle: confirmationTime, completed: true))
+            timelineStack.addArrangedSubview(makeTimelineRow(title: "Order Confirmed", subtitle: confirmationTime, completed: true))
+            statusTitleLabel.text = "Order Delivered"
+
+        case .shipped:
+            timelineStack.addArrangedSubview(makeTimelineRow(title: "Order Delivery", subtitle: "Pending", completed: false))
+            timelineStack.addArrangedSubview(makeTimelineRow(title: "Order Shipped", subtitle: confirmationTime, completed: true))
+            timelineStack.addArrangedSubview(makeTimelineRow(title: "Order Confirmed", subtitle: confirmationTime, completed: true))
+            statusTitleLabel.text = "Order Shipped"
+
+        case .confirmed:
+            timelineStack.addArrangedSubview(makeTimelineRow(title: "Order Delivery", subtitle: "Pending", completed: false))
+            timelineStack.addArrangedSubview(makeTimelineRow(title: "Order Confirmed", subtitle: confirmationTime, completed: true))
+            statusTitleLabel.text = "Order Confirmed"
+
+        case .pending:
+            timelineStack.addArrangedSubview(makeTimelineRow(title: "Order Delivery", subtitle: "Pending", completed: false))
+            timelineStack.addArrangedSubview(makeTimelineRow(title: "Awaiting Confirmation", subtitle: confirmationTime, completed: false))
+            statusTitleLabel.text = "Pending Confirmation"
+        }
     }
 
     // MARK: - Format Timeline Date
