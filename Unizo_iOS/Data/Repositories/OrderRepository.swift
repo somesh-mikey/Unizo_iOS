@@ -75,16 +75,25 @@ final class OrderRepository {
         // Group items by seller_id
         var sellerItems: [UUID: [CartItem]] = [:]
         for item in items {
-            guard let sellerId = item.product.sellerId else { continue }
+            guard let sellerId = item.product.sellerId else {
+                print("⚠️ Product \(item.product.name) has no sellerId - skipping notification")
+                continue
+            }
             sellerItems[sellerId, default: []].append(item)
         }
 
+        print("📦 Order created - preparing notifications for \(sellerItems.count) seller(s)")
+        print("📦 Buyer (current user) ID: \(userId.uuidString)")
+
         // Get buyer name for notification
         let buyerName = try await fetchCurrentUserName()
+        print("📦 Buyer name: \(buyerName)")
 
         // Create one notification per seller
         let notificationRepo = NotificationRepository(client: client)
         for (sellerId, sellerCartItems) in sellerItems {
+            print("📦 Processing notification for seller: \(sellerId.uuidString)")
+
             let productNames = sellerCartItems.map { $0.product.name }.joined(separator: ", ")
             let itemCount = sellerCartItems.count
             let message = itemCount == 1
