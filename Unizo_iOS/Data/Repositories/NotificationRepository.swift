@@ -37,6 +37,18 @@ final class NotificationRepository {
         // Generate event_key for idempotency (prevents duplicates)
         let eventKey = "\(type.rawValue):\(orderId.uuidString):\(recipientId.uuidString)"
 
+        // Get current user for debugging
+        let currentUserId = try await getCurrentUserId()
+
+        print("🔔 Creating notification:")
+        print("   - Current User ID (auth.uid): \(currentUserId.uuidString)")
+        print("   - Sender ID: \(senderId.uuidString)")
+        print("   - Recipient ID: \(recipientId.uuidString)")
+        print("   - Order ID: \(orderId.uuidString)")
+        print("   - Type: \(type.rawValue)")
+        print("   - Event Key: \(eventKey)")
+        print("   - sender_id == auth.uid: \(senderId == currentUserId)")
+
         let payload = NotificationInsertDTO(
             id: UUID(),
             recipient_id: recipientId,
@@ -49,11 +61,18 @@ final class NotificationRepository {
             event_key: eventKey
         )
 
-        // Upsert with ON CONFLICT DO NOTHING for idempotency
-        try await client
-            .from("notifications")
-            .upsert(payload, onConflict: "event_key")
-            .execute()
+        do {
+            // Upsert with ON CONFLICT DO NOTHING for idempotency
+            try await client
+                .from("notifications")
+                .upsert(payload, onConflict: "event_key")
+                .execute()
+            print("✅ Notification created successfully")
+        } catch {
+            print("❌ Notification creation failed: \(error)")
+            print("❌ Error details: \(error.localizedDescription)")
+            throw error
+        }
     }
 
     // MARK: - Fetch Notifications for Current User

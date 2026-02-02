@@ -121,9 +121,13 @@ final class NotificationManager {
     private func handleNewNotification(_ insertion: InsertAction) async {
         do {
             // Decode the notification from the realtime payload
-            let data = try JSONSerialization.data(withJSONObject: insertion.record)
+            // Use JSONEncoder to convert the record to Data
+            let encoder = JSONEncoder()
+            let data = try encoder.encode(insertion.record)
             let decoder = JSONDecoder()
             let notification = try decoder.decode(NotificationDTO.self, from: data)
+
+            print("NotificationManager: Received realtime notification - \(notification.title)")
 
             // Update unread count
             await MainActor.run {
