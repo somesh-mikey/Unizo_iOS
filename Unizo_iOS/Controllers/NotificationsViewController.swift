@@ -316,6 +316,7 @@ extension NotificationsViewController: UITableViewDataSource, UITableViewDelegat
 
         switch payload.route {
         case "confirm_order_seller":
+            // Seller flow: view order to accept/reject
             guard let orderId = payload.orderId else { return }
             let vc = ConfirmOrderSellerViewController()
             vc.orderId = orderId
@@ -327,16 +328,43 @@ extension NotificationsViewController: UITableViewDataSource, UITableViewDelegat
                 present(vc, animated: true)
             }
 
-        default:
-            // Default: open ConfirmOrderSellerVC if it's an order-related notification
-            let vc = ConfirmOrderSellerViewController()
-            vc.orderId = notification.orderId
+        case "order_details":
+            // Buyer flow: view order status after seller accepted/rejected
+            guard let orderId = payload.orderId else { return }
+            let vc = OrderDetailsViewController()
+            vc.orderId = orderId
 
             if let nav = navigationController {
                 nav.pushViewController(vc, animated: true)
             } else {
                 vc.modalPresentationStyle = .fullScreen
                 present(vc, animated: true)
+            }
+
+        default:
+            // Default navigation based on notification type
+            switch notification.type {
+            case .newOrder:
+                // Seller receives new order notification
+                let vc = ConfirmOrderSellerViewController()
+                vc.orderId = notification.orderId
+                if let nav = navigationController {
+                    nav.pushViewController(vc, animated: true)
+                } else {
+                    vc.modalPresentationStyle = .fullScreen
+                    present(vc, animated: true)
+                }
+
+            case .orderAccepted, .orderRejected, .orderShipped, .orderDelivered:
+                // Buyer receives order status update
+                let vc = OrderDetailsViewController()
+                vc.orderId = notification.orderId
+                if let nav = navigationController {
+                    nav.pushViewController(vc, animated: true)
+                } else {
+                    vc.modalPresentationStyle = .fullScreen
+                    present(vc, animated: true)
+                }
             }
         }
     }
