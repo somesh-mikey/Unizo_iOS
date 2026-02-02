@@ -639,6 +639,8 @@ private extension ConfirmOrderSellerViewController {
                 await MainActor.run {
                     self.loadingIndicator.stopAnimating()
                     let vc = OrderAcceptedViewController()
+                    vc.orderId = orderId  // Pass orderId for navigation to OrderDetailsVC
+                    vc.buyerName = self.buyerAddress?.name  // Pass buyer name for display
                     if let nav = self.navigationController {
                         nav.pushViewController(vc, animated: true)
                     } else {
@@ -712,6 +714,7 @@ private extension ConfirmOrderSellerViewController {
                 await MainActor.run {
                     self.loadingIndicator.stopAnimating()
                     let vc = OrderRejectedViewController()
+                    vc.buyerName = self.buyerAddress?.name  // Pass buyer name for display
                     if let nav = self.navigationController {
                         nav.pushViewController(vc, animated: true)
                     } else {

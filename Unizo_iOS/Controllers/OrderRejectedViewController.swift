@@ -9,13 +9,17 @@ import UIKit
 
 class OrderRejectedViewController: UIViewController {
 
+    // MARK: - Data passed from ConfirmOrderSellerVC
+    var buyerName: String?
+
     // MARK: - Colors
     private let bgColor = UIColor(red: 0.94, green: 0.95, blue: 0.98, alpha: 1.0)
     private let darkTeal = UIColor(red: 0.07, green: 0.33, blue: 0.42, alpha: 1.0)
     private let borderTeal = UIColor(red: 0.00, green: 0.62, blue: 0.71, alpha: 1.0)
 
-    // MARK: - Buttons
-    private let viewListingsButton = UIButton(type: .system)   // <<— IMPORTANT FIX
+    // MARK: - UI Components
+    private let viewListingsButton = UIButton(type: .system)
+    private let subtitleLabel = UILabel()
 
     override func viewDidLoad() {
         super.viewDidLoad()
@@ -25,6 +29,11 @@ class OrderRejectedViewController: UIViewController {
 
         // Attach action
         viewListingsButton.addTarget(self, action: #selector(goToListings), for: .touchUpInside)
+
+        // Update subtitle with real buyer name if available
+        if let name = buyerName, !name.isEmpty {
+            subtitleLabel.text = "\(name)'s order has been successfully\nrejected."
+        }
     }
     
     override func viewWillAppear(_ animated: Bool) {
@@ -117,8 +126,7 @@ class OrderRejectedViewController: UIViewController {
         // ----------------------------------------------------
         // SUBTITLE LABEL
         // ----------------------------------------------------
-        let subtitleLabel = UILabel()
-        subtitleLabel.text = "Jonathan’s order has been successfully\nrejected."
+        subtitleLabel.text = "The order has been successfully\nrejected."
         subtitleLabel.font = UIFont.systemFont(ofSize: 14)
         subtitleLabel.textColor = .gray
         subtitleLabel.numberOfLines = 0
