@@ -9,6 +9,10 @@ import UIKit
 
 class OrderAcceptedViewController: UIViewController {
 
+    // MARK: - Data passed from ConfirmOrderSellerVC
+    var orderId: UUID?
+    var buyerName: String?
+
     private let scrollView = UIScrollView()
     private let contentView = UIView()
 
@@ -39,6 +43,11 @@ class OrderAcceptedViewController: UIViewController {
         // 👉 Add button targets
         viewOrderButton.addTarget(self, action: #selector(openOrderDetails), for: .touchUpInside)
         viewListingsButton.addTarget(self, action: #selector(goToListings), for: .touchUpInside)
+
+        // Update subtitle with real buyer name if available
+        if let name = buyerName, !name.isEmpty {
+            subtitleLabel.text = "\(name)'s order has been successfully\naccepted."
+        }
     }
 
     // MARK: - Hide Tab Bar
@@ -143,7 +152,8 @@ class OrderAcceptedViewController: UIViewController {
         titleLabel.textAlignment = .center
 
         subtitleLabel.translatesAutoresizingMaskIntoConstraints = false
-        subtitleLabel.text = "Jonathan’s order has been successfully\naccepted."
+        // Will be updated with real buyer name in viewDidLoad
+        subtitleLabel.text = "The order has been successfully\naccepted."
         subtitleLabel.font = UIFont.systemFont(ofSize: 14)
         subtitleLabel.textColor = .gray
         subtitleLabel.numberOfLines = 0
@@ -199,6 +209,7 @@ class OrderAcceptedViewController: UIViewController {
     // MARK: - Navigation Actions
     @objc private func openOrderDetails() {
         let vc = OrderDetailsViewController()
+        vc.orderId = self.orderId  // Pass orderId for real data loading
 
         if let nav = navigationController {
             nav.pushViewController(vc, animated: true)
