@@ -439,55 +439,74 @@ class OrderDetailsViewController: UIViewController {
             timelineStack.trailingAnchor.constraint(equalTo: contentView.trailingAnchor, constant: -16)
         ])
 
-        // Determine delivery status and time
-        let status = OrderStatus(rawValue: orderStatus) ?? .pending
-        let isDelivered = status == .delivered
-        let deliverySubtitle = isDelivered ? formatTimelineDate(orderCreatedAt) : "Pending"
-
-        // Format order confirmation time
-        let confirmationTime = formatTimelineDate(orderCreatedAt)
-
-        timelineStack.addArrangedSubview(makeTimelineRow(title: "Order Delivery", subtitle: deliverySubtitle, completed: isDelivered))
-        timelineStack.addArrangedSubview(makeTimelineRow(title: "Order Confirmed", subtitle: confirmationTime, completed: true))
+        // Build initial timeline based on current status
+        buildTimelineForCurrentStatus()
     }
 
-    // MARK: - Update Timeline for Status (after fetching order)
-    private func updateTimelineForStatus() {
+    // MARK: - Build Timeline for Current Status
+    private func buildTimelineForCurrentStatus() {
         // Clear existing timeline rows
         timelineStack.arrangedSubviews.forEach { $0.removeFromSuperview() }
 
         let status = OrderStatus(rawValue: orderStatus) ?? .pending
-        let confirmationTime = formatTimelineDate(orderCreatedAt)
+        let orderTime = formatTimelineDate(orderCreatedAt)
 
-        // Build timeline based on current status
+        // Timeline shows: Placed → Confirmed → Delivered (3 states)
+        // Or for declined: Placed ✓ → Declined ✗
         switch status {
         case .cancelled:
-            timelineStack.addArrangedSubview(makeTimelineRow(title: "Order Cancelled", subtitle: confirmationTime, completed: true))
-            // Update status card to show cancelled
-            statusTitleLabel.text = "Order Cancelled"
-            statusCircle.backgroundColor = .systemRed
+            // Declined flow: Order Placed ✓ then Order Declined ✗
+            timelineStack.addArrangedSubview(makeTimelineRow(title: "Order Declined", subtitle: orderTime, completed: false, isDeclined: true))
+            timelineStack.addArrangedSubview(makeTimelineRow(title: "Order Placed", subtitle: orderTime, completed: true))
 
         case .delivered:
-            timelineStack.addArrangedSubview(makeTimelineRow(title: "Order Delivered", subtitle: confirmationTime, completed: true))
-            timelineStack.addArrangedSubview(makeTimelineRow(title: "Order Shipped", subtitle: confirmationTime, completed: true))
-            timelineStack.addArrangedSubview(makeTimelineRow(title: "Order Confirmed", subtitle: confirmationTime, completed: true))
-            statusTitleLabel.text = "Order Delivered"
+            // All 3 states completed
+            timelineStack.addArrangedSubview(makeTimelineRow(title: "Order Delivered", subtitle: orderTime, completed: true))
+            timelineStack.addArrangedSubview(makeTimelineRow(title: "Order Confirmed", subtitle: orderTime, completed: true))
+            timelineStack.addArrangedSubview(makeTimelineRow(title: "Order Placed", subtitle: orderTime, completed: true))
 
-        case .shipped:
-            timelineStack.addArrangedSubview(makeTimelineRow(title: "Order Delivery", subtitle: "Pending", completed: false))
-            timelineStack.addArrangedSubview(makeTimelineRow(title: "Order Shipped", subtitle: confirmationTime, completed: true))
-            timelineStack.addArrangedSubview(makeTimelineRow(title: "Order Confirmed", subtitle: confirmationTime, completed: true))
-            statusTitleLabel.text = "Order Shipped"
-
-        case .confirmed:
-            timelineStack.addArrangedSubview(makeTimelineRow(title: "Order Delivery", subtitle: "Pending", completed: false))
-            timelineStack.addArrangedSubview(makeTimelineRow(title: "Order Confirmed", subtitle: confirmationTime, completed: true))
-            statusTitleLabel.text = "Order Confirmed"
+        case .confirmed, .shipped:
+            // Confirmed state (shipped is treated same as confirmed for 3-state timeline)
+            timelineStack.addArrangedSubview(makeTimelineRow(title: "Order Delivered", subtitle: "Pending", completed: false))
+            timelineStack.addArrangedSubview(makeTimelineRow(title: "Order Confirmed", subtitle: orderTime, completed: true))
+            timelineStack.addArrangedSubview(makeTimelineRow(title: "Order Placed", subtitle: orderTime, completed: true))
 
         case .pending:
-            timelineStack.addArrangedSubview(makeTimelineRow(title: "Order Delivery", subtitle: "Pending", completed: false))
-            timelineStack.addArrangedSubview(makeTimelineRow(title: "Awaiting Confirmation", subtitle: confirmationTime, completed: false))
-            statusTitleLabel.text = "Pending Confirmation"
+            // Order placed, awaiting seller confirmation
+            timelineStack.addArrangedSubview(makeTimelineRow(title: "Order Delivered", subtitle: "Pending", completed: false))
+            timelineStack.addArrangedSubview(makeTimelineRow(title: "Order Confirmed", subtitle: "Awaiting seller", completed: false))
+            timelineStack.addArrangedSubview(makeTimelineRow(title: "Order Placed", subtitle: orderTime, completed: true))
+        }
+    }
+
+    // MARK: - Update Timeline for Status (after fetching order)
+    private func updateTimelineForStatus() {
+        // Rebuild timeline with current status
+        buildTimelineForCurrentStatus()
+
+        // Update status card based on current status
+        let status = OrderStatus(rawValue: orderStatus) ?? .pending
+
+        switch status {
+        case .cancelled:
+            statusTitleLabel.text = "Order Declined"
+            statusCircle.backgroundColor = .systemRed
+            statusCheck.image = UIImage(systemName: "xmark")
+
+        case .delivered:
+            statusTitleLabel.text = "Order Delivered"
+            statusCircle.backgroundColor = darkTeal
+            statusCheck.image = UIImage(systemName: "checkmark")
+
+        case .shipped, .confirmed:
+            statusTitleLabel.text = "Order Confirmed"
+            statusCircle.backgroundColor = darkTeal
+            statusCheck.image = UIImage(systemName: "checkmark")
+
+        case .pending:
+            statusTitleLabel.text = "Order Placed"
+            statusCircle.backgroundColor = UIColor(red: 1.0, green: 0.6, blue: 0.0, alpha: 1.0) // Orange for pending
+            statusCheck.image = UIImage(systemName: "clock")
         }
     }
 
@@ -523,7 +542,7 @@ class OrderDetailsViewController: UIViewController {
         return outputFormatter.string(from: parsedDate)
     }
 
-    private func makeTimelineRow(title: String, subtitle: String, completed: Bool) -> UIView {
+    private func makeTimelineRow(title: String, subtitle: String, completed: Bool, isDeclined: Bool = false) -> UIView {
         let row = UIView()
         row.translatesAutoresizingMaskIntoConstraints = false
         row.heightAnchor.constraint(equalToConstant: 48).isActive = true
@@ -531,9 +550,19 @@ class OrderDetailsViewController: UIViewController {
         let dot = UIView()
         dot.translatesAutoresizingMaskIntoConstraints = false
         dot.layer.cornerRadius = 14
-        dot.backgroundColor = completed ? darkTeal : UIColor(white: 0.78, alpha: 1.0)
 
-        let check = UIImageView(image: UIImage(systemName: "checkmark"))
+        // Set dot color based on state
+        if isDeclined {
+            dot.backgroundColor = .systemRed
+        } else if completed {
+            dot.backgroundColor = darkTeal
+        } else {
+            dot.backgroundColor = UIColor(white: 0.78, alpha: 1.0)
+        }
+
+        // Set icon based on state
+        let iconName = isDeclined ? "xmark" : "checkmark"
+        let check = UIImageView(image: UIImage(systemName: iconName))
         check.tintColor = .white
         check.translatesAutoresizingMaskIntoConstraints = false
 
@@ -542,6 +571,7 @@ class OrderDetailsViewController: UIViewController {
         let titleLabel = UILabel()
         titleLabel.text = title
         titleLabel.font = .systemFont(ofSize: 15, weight: .semibold)
+        titleLabel.textColor = isDeclined ? .systemRed : .black
         titleLabel.translatesAutoresizingMaskIntoConstraints = false
 
         let subtitleLabel = UILabel()
