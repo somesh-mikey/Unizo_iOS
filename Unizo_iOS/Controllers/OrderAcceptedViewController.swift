@@ -114,7 +114,18 @@ class OrderAcceptedViewController: UIViewController {
     }
 
     @objc private func backPressed() {
-        navigationController?.popViewController(animated: true)
+        // Navigate to home screen instead of back to ConfirmOrderSellerVC
+        navigateToHome()
+    }
+
+    private func navigateToHome() {
+        if let scene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
+           let window = scene.windows.first {
+            let tab = MainTabBarController()
+            tab.selectedIndex = 0 // Home tab
+            window.rootViewController = tab
+            window.makeKeyAndVisible()
+        }
     }
 
     // MARK: - Illustration
