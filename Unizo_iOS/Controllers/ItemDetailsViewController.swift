@@ -234,8 +234,14 @@ class ItemDetailsViewController: UIViewController {
         // Wishlist state
         Task {
             do {
+                // Use authenticated user ID instead of local Session.userId
+                guard let userId = await AuthManager.shared.currentUserId else {
+                    print("⚠️ No authenticated user for wishlist check")
+                    return
+                }
+
                 let wishlistProducts = try await wishlistRepo.fetchWishlist(
-                    userId: Session.userId
+                    userId: userId
                 )
 
                 isWishlisted = wishlistProducts.contains { $0.id == product.id }
@@ -244,7 +250,7 @@ class ItemDetailsViewController: UIViewController {
                     updateHeartIcon()
                 }
             } catch {
-                print("❌ Failed to load wishlist state")
+                print("❌ Failed to load wishlist state: \(error)")
             }
         }
     }
@@ -537,15 +543,21 @@ class ItemDetailsViewController: UIViewController {
 
         Task {
             do {
+                // Use authenticated user ID instead of local Session.userId
+                guard let userId = await AuthManager.shared.currentUserId else {
+                    print("⚠️ No authenticated user for wishlist action")
+                    return
+                }
+
                 if isWishlisted {
                     try await wishlistRepo.remove(
                         productId: product.id,
-                        userId: Session.userId
+                        userId: userId
                     )
                 } else {
                     try await wishlistRepo.add(
                         productId: product.id,
-                        userId: Session.userId
+                        userId: userId
                     )
                 }
 
