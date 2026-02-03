@@ -162,8 +162,14 @@ extension WishlistViewController: UICollectionViewDataSource, UICollectionViewDe
     @MainActor
     private func loadWishlist() async {
         do {
+            // Use authenticated user ID instead of local Session.userId
+            guard let userId = await AuthManager.shared.currentUserId else {
+                print("⚠️ No authenticated user for wishlist")
+                return
+            }
+
             let dtos = try await wishlistRepository.fetchWishlist(
-                userId: Session.userId
+                userId: userId
             )
 
             self.wishlistItems = dtos.map(ProductMapper.toUIModel)
