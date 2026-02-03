@@ -351,10 +351,20 @@ final class OrderRepository {
             let status: String
         }
 
+        print("📝 Updating order status:")
+        print("   - Order ID: \(orderId.uuidString)")
+        print("   - New Status: \(status.rawValue)")
+
         try await client
             .from("orders")
             .update(StatusUpdate(status: status.rawValue))
             .eq("id", value: orderId.uuidString)
             .execute()
+
+        print("✅ Order status updated successfully to: \(status.rawValue)")
+
+        // Verify the update
+        let updatedOrder = try await fetchOrder(id: orderId)
+        print("🔍 Verification - Order status in DB: \(updatedOrder.status)")
     }
 }

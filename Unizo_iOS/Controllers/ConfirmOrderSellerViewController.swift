@@ -605,8 +605,12 @@ private extension ConfirmOrderSellerViewController {
 
         Task {
             do {
+                print("🛒 Seller accepting order: \(orderId.uuidString)")
+
                 // Update order status to confirmed
                 try await orderRepository.updateOrderStatus(orderId: orderId, status: .confirmed)
+
+                print("✅ Order status update completed")
 
                 // Notify the buyer that their order was accepted
                 if let order = orderDetails,
