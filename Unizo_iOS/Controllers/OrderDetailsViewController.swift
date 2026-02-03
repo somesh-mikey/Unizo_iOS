@@ -96,6 +96,38 @@ class OrderDetailsViewController: UIViewController {
         super.viewWillAppear(animated)
         navigationController?.setNavigationBarHidden(true, animated: false)
         tabBarController?.tabBar.isHidden = true
+
+        // Always refresh order status when view appears (in case seller accepted/rejected)
+        if orderId != nil {
+            refreshOrderStatus()
+        }
+    }
+
+    // MARK: - Refresh Order Status
+    private func refreshOrderStatus() {
+        guard let id = orderId else { return }
+
+        print("🔄 Refreshing order status for order: \(id.uuidString)")
+
+        Task {
+            do {
+                let order = try await orderRepository.fetchOrderWithDetails(id: id)
+                await MainActor.run {
+                    print("🔄 Fetched order status: \(order.status)")
+
+                    // Only update if status changed
+                    if self.orderStatus != order.status {
+                        print("🔄 Status changed from '\(self.orderStatus)' to '\(order.status)' - updating UI")
+                        self.orderStatus = order.status
+                        self.updateTimelineForStatus()
+                    } else {
+                        print("🔄 Status unchanged: \(self.orderStatus)")
+                    }
+                }
+            } catch {
+                print("❌ Failed to refresh order status: \(error)")
+            }
+        }
     }
 
     override func viewWillDisappear(_ animated: Bool) {
@@ -450,6 +482,8 @@ class OrderDetailsViewController: UIViewController {
 
         let status = OrderStatus(rawValue: orderStatus) ?? .pending
         let orderTime = formatTimelineDate(orderCreatedAt)
+
+        print("📊 Building timeline for status: \(orderStatus) -> parsed as: \(status)")
 
         // Timeline shows: Placed → Confirmed → Delivered (3 states)
         // Or for declined: Placed ✓ → Declined ✗

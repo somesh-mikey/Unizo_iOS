@@ -553,7 +553,8 @@ class OrderPlacedViewController: UIViewController {
         let formatter = ISO8601DateFormatter()
         formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
         vc.orderCreatedAt = formatter.string(from: Date())
-        vc.orderStatus = "confirmed"
+        // Order starts as 'pending' - awaiting seller confirmation
+        vc.orderStatus = "pending"
         vc.modalPresentationStyle = .fullScreen
         present(vc, animated: true)
     }
