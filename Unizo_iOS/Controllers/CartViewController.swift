@@ -426,6 +426,58 @@ final class CartViewController: UIViewController {
 
     // MARK: - Checkout
     @objc private func checkoutTapped() {
+        // Disable button during validation
+        checkoutButton.isEnabled = false
+        checkoutButton.setTitle("Checking...", for: .normal)
+
+        Task {
+            // Validate cart items before checkout
+            let validationResult = await CartManager.shared.validateCart(productRepository: productRepository)
+
+            await MainActor.run {
+                self.checkoutButton.isEnabled = true
+                self.checkoutButton.setTitle("Checkout", for: .normal)
+
+                if validationResult.hasUnavailableItems {
+                    // Show alert about unavailable items
+                    self.showUnavailableItemsAlert(unavailableItems: validationResult.unavailableItems)
+                } else {
+                    // All items available, proceed to checkout
+                    self.proceedToCheckout()
+                }
+            }
+        }
+    }
+
+    private func showUnavailableItemsAlert(unavailableItems: [CartItem]) {
+        let itemNames = unavailableItems.map { $0.product.name }.joined(separator: ", ")
+
+        let alert = UIAlertController(
+            title: "Items No Longer Available",
+            message: "The following items are no longer available and will be removed from your cart:\n\n\(itemNames)",
+            preferredStyle: .alert
+        )
+
+        alert.addAction(UIAlertAction(title: "Remove & Continue", style: .default) { _ in
+            // Remove unavailable items
+            let productIds = unavailableItems.map { $0.product.id }
+            CartManager.shared.removeUnavailableItems(productIds: productIds)
+
+            // Refresh UI
+            self.refreshCartUI()
+
+            // If cart still has items, proceed to checkout
+            if !CartManager.shared.items.isEmpty {
+                self.proceedToCheckout()
+            }
+        })
+
+        alert.addAction(UIAlertAction(title: "Cancel", style: .cancel))
+
+        present(alert, animated: true)
+    }
+
+    private func proceedToCheckout() {
         let vc = AddressViewController()
         vc.flowSource = .fromCart
 
