@@ -37,12 +37,12 @@ final class OrderRepository {
         let orderId = UUID()
         let userId = try await getCurrentUserId()
 
-        // Create the order
+        // Create the order with 'pending' status - will become 'confirmed' when seller accepts
         let orderPayload = OrderInsertDTO(
             id: orderId,
             user_id: userId,
             address_id: addressId,
-            status: OrderStatus.confirmed.rawValue,
+            status: OrderStatus.pending.rawValue,
             total_amount: totalAmount,
             payment_method: paymentMethod,
             instructions: instructions
