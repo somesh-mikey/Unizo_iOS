@@ -90,12 +90,23 @@ class ListingsViewController: UIViewController {
                 await MainActor.run {
                     self.products = products
                     self.listings = products.map { product in
-                        Listing(
+                        // Determine display status from product status
+                        let displayStatus: String
+                        switch product.status {
+                        case .sold:
+                            displayStatus = "Sold"
+                        case .pending:
+                            displayStatus = "Pending"
+                        case .available, .none:
+                            displayStatus = "Available"
+                        }
+
+                        return Listing(
                             image: nil,
                             imageURL: product.imageUrl,
                             category: product.category ?? "Other",
                             name: product.title,
-                            status: "Pending",
+                            status: displayStatus,
                             price: "₹\(Int(product.price))",
                             productId: product.id
                         )
@@ -162,6 +173,19 @@ extension ListingsViewController: UICollectionViewDelegateFlowLayout, UICollecti
 
 // MARK: - ListingCell Delegate
 extension ListingsViewController: ListingCellDelegate {
+
+    func didTapView(on cell: ListingCell) {
+        guard let indexPath = collectionView.indexPath(for: cell) else { return }
+        let product = products[indexPath.row]
+
+        // Convert ProductDTO to ProductUIModel for ItemDetailsViewController
+        let productUIModel = ProductMapper.toUIModel(product)
+
+        // Navigate to Item Details screen
+        let detailVC = ItemDetailsViewController(nibName: "ItemDetailsViewController", bundle: nil)
+        detailVC.product = productUIModel
+        navigationController?.pushViewController(detailVC, animated: true)
+    }
 
     func didTapEdit(on cell: ListingCell) {
         guard let indexPath = collectionView.indexPath(for: cell) else { return }

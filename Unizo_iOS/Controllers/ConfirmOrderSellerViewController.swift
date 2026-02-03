@@ -15,6 +15,7 @@ class ConfirmOrderSellerViewController: UIViewController {
     // MARK: - Fetched Data
     private let orderRepository = OrderRepository()
     private let notificationRepository = NotificationRepository()
+    private let productRepository = ProductRepository(supabase: supabase)
     private var orderDetails: OrderDTO?
     private var sellerItems: [OrderItemDTO] = []
     private var buyerAddress: AddressDTO?
@@ -611,6 +612,22 @@ private extension ConfirmOrderSellerViewController {
                 try await orderRepository.updateOrderStatus(orderId: orderId, status: .confirmed)
 
                 print("✅ Order status update completed")
+
+                // Mark all seller's items in this order as sold
+                for item in sellerItems {
+                    if let productId = item.product?.id {
+                        do {
+                            try await productRepository.markProductAsSold(
+                                productId: productId,
+                                quantitySold: item.quantity
+                            )
+                            print("✅ Product \(productId) marked as sold (qty: \(item.quantity))")
+                        } catch {
+                            print("⚠️ Failed to mark product \(productId) as sold: \(error)")
+                            // Continue with other items even if one fails
+                        }
+                    }
+                }
 
                 // Notify the buyer that their order was accepted
                 if let order = orderDetails,

@@ -7,6 +7,7 @@ import UIKit
 protocol ListingCellDelegate: AnyObject {
     func didTapEdit(on cell: ListingCell)
     func didTapDelete(on cell: ListingCell)
+    func didTapView(on cell: ListingCell)  // Tap to view product details
 }
 
 final class ListingCell: UICollectionViewCell {
@@ -74,6 +75,14 @@ final class ListingCell: UICollectionViewCell {
         layer.cornerRadius = 20
         backgroundColor = .white
         setupUI()
+
+        // Add tap gesture to view product details
+        let tapGesture = UITapGestureRecognizer(target: self, action: #selector(cellTapped))
+        contentView.addGestureRecognizer(tapGesture)
+    }
+
+    @objc private func cellTapped() {
+        delegate?.didTapView(on: self)
     }
 
     required init?(coder: NSCoder) {
@@ -146,6 +155,18 @@ final class ListingCell: UICollectionViewCell {
         nameLabel.text = item.name
         statusLabel.text = item.status
         priceLabel.text = item.price
+
+        // Set status label color based on status
+        switch item.status.lowercased() {
+        case "sold":
+            statusLabel.textColor = .systemRed
+        case "pending":
+            statusLabel.textColor = .systemOrange
+        case "available":
+            statusLabel.textColor = .systemGreen
+        default:
+            statusLabel.textColor = .gray
+        }
 
         // Load image from URL if available, otherwise use provided image
         if let imageURLString = item.imageURL, let url = URL(string: imageURLString) {

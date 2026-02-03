@@ -7,6 +7,13 @@
 
 import Foundation
 
+// MARK: - Product Status Enum
+enum ProductStatus: String, Codable {
+    case available = "available"
+    case pending = "pending"
+    case sold = "sold"
+}
+
 // Nested seller info from users table
 struct ProductSellerDTO: Codable {
     let id: UUID
@@ -30,6 +37,10 @@ struct ProductDTO: Codable {
     let size: String?
     let condition: String?
 
+    // Inventory fields
+    let quantity: Int?
+    let status: ProductStatus?
+
     // Seller info (joined from users table)
     let seller: ProductSellerDTO?
 
@@ -46,6 +57,8 @@ struct ProductDTO: Codable {
         case category
         case size
         case condition
+        case quantity
+        case status
         case seller
     }
 

@@ -24,7 +24,9 @@ struct ProductMapper {
             size: dto.size,
             condition: dto.condition,
             sellerName: dto.sellerDisplayName,
-            sellerId: dto.seller?.id  // Preserve seller ID for notifications
+            sellerId: dto.seller?.id,  // Preserve seller ID for notifications
+            quantity: dto.quantity ?? 1,
+            status: dto.status ?? .available
         )
     }
 }

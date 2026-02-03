@@ -139,7 +139,38 @@ class ItemDetailsViewController: UIViewController {
         populateData()
         addToCartButton.addTarget(self, action: #selector(addToCartTapped), for: .touchUpInside)
         buyNowButton.addTarget(self, action: #selector(buyNowTapped), for: .touchUpInside)
-        
+
+        // Disable purchase buttons if product is sold or unavailable
+        updatePurchaseButtonsState()
+    }
+
+    private func updatePurchaseButtonsState() {
+        guard let product = product else { return }
+
+        if !product.isAvailable {
+            // Product is sold or out of stock
+            addToCartButton.isEnabled = false
+            addToCartButton.setTitle("Sold Out", for: .normal)
+            addToCartButton.layer.borderColor = UIColor.gray.cgColor
+            addToCartButton.setTitleColor(.gray, for: .normal)
+
+            buyNowButton.isEnabled = false
+            buyNowButton.setTitle("Unavailable", for: .normal)
+            buyNowButton.backgroundColor = .gray
+        }
+    }
+
+    private func showUnavailableAlert() {
+        let alert = UIAlertController(
+            title: "Item Unavailable",
+            message: "Sorry, this item is no longer available for purchase.",
+            preferredStyle: .alert
+        )
+        alert.addAction(UIAlertAction(title: "OK", style: .default))
+        present(alert, animated: true)
+
+        // Update button states
+        updatePurchaseButtonsState()
     }
     override func viewWillAppear(_ animated: Bool) {
         super.viewWillAppear(animated)
@@ -456,6 +487,12 @@ class ItemDetailsViewController: UIViewController {
     @objc private func addToCartTapped() {
         guard let product else { return }
 
+        // Check if product is still available
+        guard product.isAvailable else {
+            showUnavailableAlert()
+            return
+        }
+
         CartManager.shared.add(product: product)
 
         // Native iOS-style confirmation
@@ -482,6 +519,12 @@ class ItemDetailsViewController: UIViewController {
 
     @objc private func buyNowTapped() {
         guard let product else { return }
+
+        // Check if product is still available
+        guard product.isAvailable else {
+            showUnavailableAlert()
+            return
+        }
 
         CartManager.shared.clear()
         CartManager.shared.add(product: product)
