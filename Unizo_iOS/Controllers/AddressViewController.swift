@@ -123,6 +123,7 @@ class AddressViewController: UIViewController {
         heartButton.layer.shadowRadius = 8
         heartButton.layer.shadowOffset = CGSize(width: 0, height: 2)
         heartButton.translatesAutoresizingMaskIntoConstraints = false
+        heartButton.addTarget(self, action: #selector(wishlistTapped), for: .touchUpInside)
 
         // Title - different based on flow
         titleLabel.text = (flowSource == .fromAccount) ? "My Addresses" : "Select Address"
@@ -173,6 +174,17 @@ class AddressViewController: UIViewController {
             nav.popViewController(animated: true)
         } else {
             dismiss(animated: true)
+        }
+    }
+    @objc private func wishlistTapped() {
+        let vc = WishlistViewController()
+
+        if let nav = navigationController {
+            nav.pushViewController(vc, animated: true)
+        } else {
+            let nav = UINavigationController(rootViewController: vc)
+            nav.modalPresentationStyle = .fullScreen
+            present(nav, animated: true)
         }
     }
 

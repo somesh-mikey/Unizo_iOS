@@ -231,12 +231,12 @@ class ConfirmOrderSellerViewController: UIViewController {
         setupLoadingIndicator()
         self.title = "Confirm Order"
         navigationItem.backButtonTitle = ""
-        navigationItem.rightBarButtonItem = UIBarButtonItem(
-            image: UIImage(systemName: "heart"),
-            style: .plain,
-            target: self,
-            action: #selector(heartTapped)
-        )
+//        navigationItem.rightBarButtonItem = UIBarButtonItem(
+//            image: UIImage(systemName: "heart"),
+//            style: .plain,
+//            target: self,
+//            action: #selector(heartTapped)
+//        )
         rejectButton.addTarget(self, action: #selector(openRejectedPage), for: .touchUpInside)
         acceptButton.addTarget(self, action: #selector(openAcceptedPage), for: .touchUpInside)
 
@@ -387,6 +387,7 @@ class ConfirmOrderSellerViewController: UIViewController {
 extension ConfirmOrderSellerViewController {
 
     func setupUI() {
+        heartButton.addTarget(self, action: #selector(heartTapped), for: .touchUpInside)
         view.backgroundColor = UIColor.systemGray6
 
         // MARK: - ScrollView Setup
