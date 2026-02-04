@@ -232,14 +232,13 @@ class OrderAcceptedViewController: UIViewController {
     }
 
     @objc private func goToListings() {
-        let vc = ListingsViewController()
-
-        if let nav = navigationController {
-            nav.pushViewController(vc, animated: true)
-            return
+        // Navigate to Listings tab (index 3) via fresh MainTabBarController
+        if let scene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
+           let window = scene.windows.first {
+            let tab = MainTabBarController()
+            tab.selectedIndex = 3 // Listings tab
+            window.rootViewController = tab
+            window.makeKeyAndVisible()
         }
-
-        vc.modalPresentationStyle = .fullScreen
-        present(vc, animated: true)
     }
 }

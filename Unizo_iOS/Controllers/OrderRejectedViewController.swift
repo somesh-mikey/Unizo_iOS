@@ -196,37 +196,13 @@ class OrderRejectedViewController: UIViewController {
     }
 
     @objc private func goToListings() {
-        // find the tabBarController
-        guard let tabBar = self.tabBarController else {
-            // fallback: present modally if no tab bar
-            let vc = ListingsViewController()
-            vc.modalPresentationStyle = .fullScreen
-            present(vc, animated: true)
-            return
+        // Navigate to Listings tab (index 3) via fresh MainTabBarController
+        if let scene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
+           let window = scene.windows.first {
+            let tab = MainTabBarController()
+            tab.selectedIndex = 3 // Listings tab
+            window.rootViewController = tab
+            window.makeKeyAndVisible()
         }
-
-        // find index of the view controller that hosts ListingsViewController
-        // this works if your tabs are UINavigationControllers whose root is ListingsViewController
-        if let idx = tabBar.viewControllers?.firstIndex(where: { vc in
-            if let nav = vc as? UINavigationController {
-                return nav.viewControllers.first is ListingsViewController
-            } else {
-                return vc is ListingsViewController
-            }
-        }) {
-            // Switch to the listings tab
-            tabBar.selectedIndex = idx
-
-            // Ensure the listings nav is at its root
-            if let nav = tabBar.viewControllers?[idx] as? UINavigationController {
-                nav.popToRootViewController(animated: false)
-            }
-            return
-        }
-
-        // If we couldn't find it, fallback to a modal present
-        let vc = ListingsViewController()
-        vc.modalPresentationStyle = .fullScreen
-        present(vc, animated: true)
     }
 }

@@ -48,7 +48,7 @@ final class PostItemViewController: UIViewController,
 
     // MARK: - Picker Data
     private let categories = [
-        "Electronics", "Clothing", "Books",
+        "Electronics", "Clothing",
         "Furniture", "Sports", "Hostel Essentials"
     ]
 

@@ -50,7 +50,6 @@ class ListingsViewController: UIViewController {
     private var listings: [Listing] = []
     private var products: [ProductDTO] = []
 
-
     // MARK: - Lifecycle
     override func viewDidLoad() {
         super.viewDidLoad()
@@ -63,7 +62,7 @@ class ListingsViewController: UIViewController {
 
     override func viewWillAppear(_ animated: Bool) {
         super.viewWillAppear(animated)
-        // Fetch user's listings every time view appears
+        // Always fetch fresh data from server to ensure consistency
         fetchUserListings()
     }
 
@@ -190,6 +189,18 @@ extension ListingsViewController: ListingCellDelegate {
     func didTapEdit(on cell: ListingCell) {
         guard let indexPath = collectionView.indexPath(for: cell) else { return }
         let product = products[indexPath.row]
+
+        // Prevent editing sold listings
+        if product.status == .sold {
+            let alert = UIAlertController(
+                title: "Cannot Edit",
+                message: "Once sold, listing cannot be edited.",
+                preferredStyle: .alert
+            )
+            alert.addAction(UIAlertAction(title: "OK", style: .default))
+            present(alert, animated: true)
+            return
+        }
 
         // Navigate to Edit Listing screen
         let editVC = EditListingViewController()
