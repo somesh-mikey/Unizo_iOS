@@ -991,6 +991,33 @@ extension LandingScreenViewController: UIScrollViewDelegate {
             loadNextPage()
         }
     }
+
+    // MARK: - Manual Scroll Handling for Carousel
+    func scrollViewWillBeginDragging(_ scrollView: UIScrollView) {
+        // Pause auto-scroll when user starts manual scrolling
+        if scrollView == carouselScrollView {
+            timer?.invalidate()
+            timer = nil
+        }
+    }
+
+    func scrollViewDidEndDecelerating(_ scrollView: UIScrollView) {
+        // Sync index and resume auto-scroll after manual scroll ends
+        if scrollView == carouselScrollView {
+            let pageWidth = view.bounds.width - 40 + 20
+            currentBannerIndex = Int(round(scrollView.contentOffset.x / pageWidth))
+            startAutoScroll()
+        }
+    }
+
+    func scrollViewDidEndDragging(_ scrollView: UIScrollView, willDecelerate decelerate: Bool) {
+        // If no deceleration, sync index and resume auto-scroll immediately
+        if scrollView == carouselScrollView && !decelerate {
+            let pageWidth = view.bounds.width - 40 + 20
+            currentBannerIndex = Int(round(scrollView.contentOffset.x / pageWidth))
+            startAutoScroll()
+        }
+    }
 }
 
 

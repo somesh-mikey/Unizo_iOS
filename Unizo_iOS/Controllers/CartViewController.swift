@@ -7,6 +7,12 @@
 //
 
 import UIKit
+import ObjectiveC
+
+// Associated object key for storing product ID on delete buttons
+private struct AssociatedKeys {
+    static var productId = "cartItemProductId"
+}
 
 final class CartViewController: UIViewController {
 

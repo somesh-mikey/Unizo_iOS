@@ -60,6 +60,10 @@ final class ProfileViewController: UIViewController {
         return dp
     }()
 
+    // MARK: - Gender Picker
+    private let genderOptions = ["Male", "Female", "Neutral"]
+    private let genderPicker = UIPickerView()
+
     // MARK: - Section Titles
     private let personalInfoTitle = ProfileViewController.makeSectionLabel("Personal Information")
     private let addressInfoTitle = ProfileViewController.makeSectionLabel("Address Information")
@@ -121,6 +125,7 @@ final class ProfileViewController: UIViewController {
         setupConstraints()
         configureInteractions()
         setupDOBPicker()
+        setupGenderPicker()
         loadUserData()
     }
     override func viewWillAppear(_ animated: Bool) {
@@ -490,6 +495,59 @@ final class ProfileViewController: UIViewController {
 
     @objc private func cancelDOBPicker() {
         view.endEditing(true)
+    }
+
+    // MARK: - Gender Picker Setup
+    private func setupGenderPicker() {
+        genderPicker.delegate = self
+        genderPicker.dataSource = self
+
+        let toolbar = UIToolbar()
+        toolbar.sizeToFit()
+
+        let cancel = UIBarButtonItem(title: "Cancel", style: .plain, target: self, action: #selector(cancelGenderPicker))
+        let space = UIBarButtonItem(systemItem: .flexibleSpace)
+        let done = UIBarButtonItem(title: "Done", style: .done, target: self, action: #selector(doneGenderPicker))
+
+        toolbar.setItems([cancel, space, done], animated: false)
+
+        genderTF.inputView = genderPicker
+        genderTF.inputAccessoryView = toolbar
+
+        // Pre-select current value if exists
+        if let currentGender = genderTF.text, !currentGender.isEmpty,
+           let index = genderOptions.firstIndex(of: currentGender) {
+            genderPicker.selectRow(index, inComponent: 0, animated: false)
+        }
+    }
+
+    @objc private func doneGenderPicker() {
+        let selectedRow = genderPicker.selectedRow(inComponent: 0)
+        genderTF.text = genderOptions[selectedRow]
+        view.endEditing(true)
+    }
+
+    @objc private func cancelGenderPicker() {
+        view.endEditing(true)
+    }
+}
+
+// MARK: - Gender Picker Delegate
+extension ProfileViewController: UIPickerViewDelegate, UIPickerViewDataSource {
+    func numberOfComponents(in pickerView: UIPickerView) -> Int {
+        return 1
+    }
+
+    func pickerView(_ pickerView: UIPickerView, numberOfRowsInComponent component: Int) -> Int {
+        return genderOptions.count
+    }
+
+    func pickerView(_ pickerView: UIPickerView, titleForRow row: Int, forComponent component: Int) -> String? {
+        return genderOptions[row]
+    }
+
+    func pickerView(_ pickerView: UIPickerView, didSelectRow row: Int, inComponent component: Int) {
+        genderTF.text = genderOptions[row]
     }
 }
 

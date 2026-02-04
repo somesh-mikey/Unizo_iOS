@@ -421,13 +421,14 @@ final class NotificationCell: UITableViewCell {
             iconView.widthAnchor.constraint(equalToConstant: 28),
             iconView.heightAnchor.constraint(equalToConstant: 28),
 
-            unreadDot.leadingAnchor.constraint(equalTo: iconView.trailingAnchor, constant: 6),
-            unreadDot.topAnchor.constraint(equalTo: contentView.topAnchor, constant: 10),
-            unreadDot.widthAnchor.constraint(equalToConstant: 8),
-            unreadDot.heightAnchor.constraint(equalToConstant: 8),
-
             timeLabel.trailingAnchor.constraint(equalTo: contentView.trailingAnchor),
             timeLabel.topAnchor.constraint(equalTo: contentView.topAnchor, constant: 8),
+
+            // Unread dot on the right side, below the time label
+            unreadDot.centerXAnchor.constraint(equalTo: timeLabel.centerXAnchor),
+            unreadDot.topAnchor.constraint(equalTo: timeLabel.bottomAnchor, constant: 4),
+            unreadDot.widthAnchor.constraint(equalToConstant: 8),
+            unreadDot.heightAnchor.constraint(equalToConstant: 8),
 
             titleLabel.leadingAnchor.constraint(equalTo: iconView.trailingAnchor, constant: 12),
             titleLabel.topAnchor.constraint(equalTo: contentView.topAnchor, constant: 6),
