@@ -604,7 +604,6 @@ class LandingScreenViewController: UIViewController {
             self.loader.stopAnimating()
             self.loader.removeFromSuperview()
 
-            // 🔥 CRITICAL FIX
             self.collectionView.reloadData()
             self.collectionView.layoutIfNeeded()
             self.updateCollectionHeight()
@@ -977,7 +976,7 @@ extension LandingScreenViewController: UIScrollViewDelegate {
             return
         }
 
-        // 🔥 PAGINATION TRIGGER (main scroll view)
+        //  PAGINATION TRIGGER (main scroll view)
         guard scrollView == mainScrollView,
               hasMorePages,
               !isLoadingMore else { return }
