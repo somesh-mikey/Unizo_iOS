@@ -38,24 +38,35 @@ final class LoginModalViewController: UIViewController {
     }()
 
     // MARK: - Text Fields
-    private func styledField(_ placeholder: String) -> UITextField {
+    private func styledField(_ placeholder: String, secure: Bool = false) -> UITextField {
         let tf = UITextField()
         tf.placeholder = placeholder
         tf.borderStyle = .none
         tf.font = UIFont.systemFont(ofSize: 15)
         tf.textColor = .darkGray
+
+        tf.autocapitalizationType = .none
+        tf.autocorrectionType = .no
+        tf.spellCheckingType = .no
+
+        if secure {
+            tf.isSecureTextEntry = true
+            tf.textContentType = .oneTimeCode
+            tf.passwordRules = nil
+        } else {
+            tf.textContentType = .emailAddress
+            tf.keyboardType = .emailAddress
+        }
+
         tf.leftView = UIView(frame: CGRect(x: 0, y: 0, width: 14, height: 0))
         tf.leftViewMode = .always
+
         return tf
     }
 
     private lazy var collegeEmailField = styledField("College Email")
 
-    private lazy var passwordField: UITextField = {
-        let tf = styledField("Password")
-        tf.isSecureTextEntry = true
-        return tf
-    }()
+    private lazy var passwordField: UITextField = styledField("Password", secure: true)
 
     // MARK: - Dividers
     private func divider() -> UIView {

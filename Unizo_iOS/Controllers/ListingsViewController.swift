@@ -53,27 +53,22 @@ class ListingsViewController: UIViewController {
     // MARK: - Lifecycle
     override func viewDidLoad() {
         super.viewDidLoad()
-
         view.backgroundColor = UIColor(red: 0.95, green: 0.96, blue: 1.0, alpha: 1)
-
         setupUI()
         setupCollectionView()
     }
 
     override func viewWillAppear(_ animated: Bool) {
         super.viewWillAppear(animated)
-        // Always fetch fresh data from server to ensure consistency
         fetchUserListings()
     }
 
-    // MARK: - Fetch User Listings from Supabase
+    // MARK: - Fetch User Listings
     private func fetchUserListings() {
         Task {
             do {
-                // Get current user ID
                 let userId = try await supabase.auth.session.user.id.uuidString
 
-                // Fetch products for this seller
                 let response = try await supabase
                     .from("products")
                     .select("*")
@@ -81,15 +76,17 @@ class ListingsViewController: UIViewController {
                     .order("created_at", ascending: false)
                     .execute()
 
-                let products = try JSONDecoder().decode([ProductDTO].self, from: response.data)
+                let fetchedProducts = try JSONDecoder().decode([ProductDTO].self, from: response.data)
 
-                print("✅ Fetched \(products.count) listings")
+                let deletedIDs = DeletedListingsStore.all()
 
-                // Convert ProductDTO to Listing model
                 await MainActor.run {
-                    self.products = products
-                    self.listings = products.map { product in
-                        // Determine display status from product status
+                    // Filter deleted products (CRITICAL FIX)
+                    self.products = fetchedProducts.filter {
+                        !deletedIDs.contains($0.id.uuidString)
+                    }
+
+                    self.listings = self.products.map { product in
                         let displayStatus: String
                         switch product.status {
                         case .sold:
@@ -110,8 +107,8 @@ class ListingsViewController: UIViewController {
                             productId: product.id
                         )
                     }
+
                     self.collectionView.reloadData()
-                    print("✅ Updated listings UI with \(self.listings.count) items")
                 }
 
             } catch {
@@ -120,6 +117,7 @@ class ListingsViewController: UIViewController {
         }
     }
 
+    // MARK: - UI Setup
     private func setupUI() {
         view.addSubview(titleLabel)
         view.addSubview(collectionView)
@@ -142,11 +140,11 @@ class ListingsViewController: UIViewController {
     }
 }
 
-// MARK: - CollectionView Delegate & DataSource
+// MARK: - CollectionView
 extension ListingsViewController: UICollectionViewDelegateFlowLayout, UICollectionViewDataSource {
 
     func collectionView(_ collectionView: UICollectionView, numberOfItemsInSection section: Int) -> Int {
-        return listings.count
+        listings.count
     }
 
     func collectionView(_ collectionView: UICollectionView,
@@ -166,7 +164,7 @@ extension ListingsViewController: UICollectionViewDelegateFlowLayout, UICollecti
                         layout collectionViewLayout: UICollectionViewLayout,
                         sizeForItemAt indexPath: IndexPath) -> CGSize {
 
-        return CGSize(width: collectionView.frame.width, height: 135)
+        CGSize(width: collectionView.frame.width, height: 135)
     }
 }
 
@@ -177,10 +175,7 @@ extension ListingsViewController: ListingCellDelegate {
         guard let indexPath = collectionView.indexPath(for: cell) else { return }
         let product = products[indexPath.row]
 
-        // Convert ProductDTO to ProductUIModel for ItemDetailsViewController
         let productUIModel = ProductMapper.toUIModel(product)
-
-        // Navigate to Item Details screen
         let detailVC = ItemDetailsViewController(nibName: "ItemDetailsViewController", bundle: nil)
         detailVC.product = productUIModel
         navigationController?.pushViewController(detailVC, animated: true)
@@ -190,7 +185,6 @@ extension ListingsViewController: ListingCellDelegate {
         guard let indexPath = collectionView.indexPath(for: cell) else { return }
         let product = products[indexPath.row]
 
-        // Prevent editing sold listings
         if product.status == .sold {
             let alert = UIAlertController(
                 title: "Cannot Edit",
@@ -202,7 +196,6 @@ extension ListingsViewController: ListingCellDelegate {
             return
         }
 
-        // Navigate to Edit Listing screen
         let editVC = EditListingViewController()
         editVC.product = product
         navigationController?.pushViewController(editVC, animated: true)
@@ -212,7 +205,6 @@ extension ListingsViewController: ListingCellDelegate {
         guard let indexPath = collectionView.indexPath(for: cell) else { return }
         let product = products[indexPath.row]
 
-        // Show confirmation alert
         let alert = UIAlertController(
             title: "Delete Listing",
             message: "Are you sure you want to delete \"\(product.title)\"?",
@@ -230,18 +222,17 @@ extension ListingsViewController: ListingCellDelegate {
     private func deleteProduct(at indexPath: IndexPath) {
         let product = products[indexPath.row]
 
+        // 🔐 Persist deletion locally (KEY FIX)
+        DeletedListingsStore.add(product.id.uuidString)
+
         Task {
             do {
-                // Delete from Supabase
                 try await supabase
                     .from("products")
                     .delete()
                     .eq("id", value: product.id.uuidString)
                     .execute()
 
-                print("✅ Product deleted successfully")
-
-                // Remove from local arrays and reload
                 await MainActor.run {
                     products.remove(at: indexPath.row)
                     listings.remove(at: indexPath.row)
@@ -250,16 +241,22 @@ extension ListingsViewController: ListingCellDelegate {
 
             } catch {
                 print("❌ Failed to delete product:", error)
-                await MainActor.run {
-                    let alert = UIAlertController(
-                        title: "Error",
-                        message: "Failed to delete product: \(error.localizedDescription)",
-                        preferredStyle: .alert
-                    )
-                    alert.addAction(UIAlertAction(title: "OK", style: .default))
-                    self.present(alert, animated: true)
-                }
             }
         }
+    }
+}
+
+// MARK: - Local Deleted Listings Store
+private enum DeletedListingsStore {
+    private static let key = "deleted_listing_ids"
+
+    static func all() -> Set<String> {
+        Set(UserDefaults.standard.stringArray(forKey: key) ?? [])
+    }
+
+    static func add(_ id: String) {
+        var set = all()
+        set.insert(id)
+        UserDefaults.standard.set(Array(set), forKey: key)
     }
 }

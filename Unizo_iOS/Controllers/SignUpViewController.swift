@@ -116,12 +116,16 @@ final class SignUpViewController: UIViewController {
         tf.textColor = .darkGray
         tf.borderStyle = .none
         tf.backgroundColor = .clear
+
+        tf.autocapitalizationType = .none
+        tf.autocorrectionType = .no
+        tf.spellCheckingType = .no
+
         tf.leftView = UIView(frame: CGRect(x: 0, y: 0, width: 12, height: 0))
         tf.leftViewMode = .always
         tf.isSecureTextEntry = secure
         return tf
     }
-
     private func makeSeparator() -> UIView {
         let v = UIView()
         v.backgroundColor = UIColor.lightGray.withAlphaComponent(0.35)

@@ -45,13 +45,26 @@ final class SettingsViewController: UIViewController {
         navigationItem.rightBarButtonItem = UIBarButtonItem(
             image: UIImage(systemName: "heart"),
             style: .plain,
-            target: nil,
-            action: nil
-        )
-    }
+            target: self,
+            action: #selector(heartTapped)
+        )    }
 
     @objc private func backPressed() {
         navigationController?.popViewController(animated: true)
+    }
+    @objc private func heartTapped() {
+        let vc = WishlistViewController()
+
+        // Preferred path — push
+        if let nav = navigationController {
+            nav.pushViewController(vc, animated: true)
+            return
+        }
+
+        // Fallback — modal
+        vc.modalPresentationStyle = .fullScreen
+        vc.modalTransitionStyle = .coverVertical
+        present(vc, animated: true)
     }
 
     // MARK: - Scroll Setup

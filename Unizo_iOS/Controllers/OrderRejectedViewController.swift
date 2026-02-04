@@ -16,6 +16,7 @@ class OrderRejectedViewController: UIViewController {
     private let bgColor = UIColor(red: 0.94, green: 0.95, blue: 0.98, alpha: 1.0)
     private let darkTeal = UIColor(red: 0.07, green: 0.33, blue: 0.42, alpha: 1.0)
     private let borderTeal = UIColor(red: 0.00, green: 0.62, blue: 0.71, alpha: 1.0)
+    private let primaryTeal = UIColor(red: 0.02, green: 0.34, blue: 0.46, alpha: 1.0)
 
     // MARK: - UI Components
     private let viewListingsButton = UIButton(type: .system)
@@ -162,12 +163,19 @@ class OrderRejectedViewController: UIViewController {
         // ----------------------------------------------------
         // ACTIVE — VIEW LISTINGS BUTTON
         // ----------------------------------------------------
-        viewListingsButton.setTitle("View Listings", for: .normal)
-        viewListingsButton.setTitleColor(borderTeal, for: .normal)
-        viewListingsButton.layer.borderColor = borderTeal.cgColor
-        viewListingsButton.layer.borderWidth = 2
-        viewListingsButton.layer.cornerRadius = 25
+//        viewListingsButton.setTitle("View Listings", for: .normal)
+//        viewListingsButton.setTitleColor(borderTeal, for: .normal)
+//        viewListingsButton.layer.borderColor = borderTeal.cgColor
+//        viewListingsButton.layer.borderWidth = 2
+//        viewListingsButton.layer.cornerRadius = 25
+//        viewListingsButton.translatesAutoresizingMaskIntoConstraints = false
         viewListingsButton.translatesAutoresizingMaskIntoConstraints = false
+        viewListingsButton.setTitle("View Listings", for: .normal)
+        viewListingsButton.setTitleColor(primaryTeal, for: .normal)
+        viewListingsButton.layer.borderWidth = 2
+        viewListingsButton.layer.borderColor = primaryTeal.cgColor
+        viewListingsButton.layer.cornerRadius = 26
+        viewListingsButton.titleLabel?.font = UIFont.systemFont(ofSize: 16, weight: .semibold)
 
         view.addSubview(viewListingsButton)
 

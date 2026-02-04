@@ -1,4 +1,4 @@
-//
+
 //  CartViewController.swift
 //  Unizo_iOS
 //
@@ -379,9 +379,22 @@ final class CartViewController: UIViewController {
         priceLabel.text = "₹\(Int(item.product.price))"
         priceLabel.font = .systemFont(ofSize: 16, weight: .semibold)
         priceLabel.textAlignment = .right
+        
+        let deleteButton = UIButton(type: .system)
+        deleteButton.setImage(UIImage(systemName: "trash"), for: .normal)
+        deleteButton.tintColor = .systemRed
+        deleteButton.addTarget(self, action: #selector(deleteCartItem(_:)), for: .touchUpInside)
+
+        // Attach productId
+        objc_setAssociatedObject(
+            deleteButton,
+            &AssociatedKeys.productId,
+            item.product.id,
+            .OBJC_ASSOCIATION_RETAIN_NONATOMIC
+        )
 
         // Add Subviews
-        [imageView, textStack, priceLabel].forEach {
+        [imageView, textStack, priceLabel, deleteButton].forEach {
             card.addSubview($0)
             $0.translatesAutoresizingMaskIntoConstraints = false
         }
@@ -399,7 +412,11 @@ final class CartViewController: UIViewController {
 
             textStack.leadingAnchor.constraint(equalTo: imageView.trailingAnchor, constant: 12),
             textStack.trailingAnchor.constraint(equalTo: priceLabel.leadingAnchor, constant: -12),
-            textStack.centerYAnchor.constraint(equalTo: card.centerYAnchor)
+            textStack.centerYAnchor.constraint(equalTo: card.centerYAnchor),
+            
+            deleteButton.trailingAnchor.constraint(equalTo: priceLabel.trailingAnchor),
+            deleteButton.topAnchor.constraint(equalTo: soldByLabel.bottomAnchor, constant: 6),
+            deleteButton.widthAnchor.constraint(equalToConstant: 20),      deleteButton.heightAnchor.constraint(equalToConstant: 20)
         ])
 
         return card
@@ -428,6 +445,18 @@ final class CartViewController: UIViewController {
             _ = try? await productRepository.fetchAllProducts(page: 1)
             await MainActor.run { self.refreshCartUI() }
         }
+    }
+    @objc private func deleteCartItem(_ sender: UIButton) {
+        guard let productId = objc_getAssociatedObject(
+            sender,
+            &AssociatedKeys.productId
+        ) as? UUID else { return }
+
+        // Frontend-only removal (persists across navigation)
+        CartManager.shared.remove(productId: productId)
+
+        // Rebuild UI safely
+        refreshCartUI()
     }
 
     // MARK: - Checkout
