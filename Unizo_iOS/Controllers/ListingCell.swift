@@ -124,17 +124,17 @@ final class ListingCell: UICollectionViewCell {
             priceLabel.centerYAnchor.constraint(equalTo: nameLabel.centerYAnchor),
             priceLabel.trailingAnchor.constraint(equalTo: contentView.trailingAnchor, constant: -16),
 
-            // EDIT BUTTON (under name)
-            editButton.topAnchor.constraint(equalTo: nameLabel.bottomAnchor, constant: 12),
-            editButton.leadingAnchor.constraint(equalTo: categoryLabel.leadingAnchor),
-            editButton.widthAnchor.constraint(equalToConstant: 24),
-            editButton.heightAnchor.constraint(equalToConstant: 24),
+            // EDIT BUTTON (under name) - 44pt minimum touch target per Apple HIG
+            editButton.topAnchor.constraint(equalTo: nameLabel.bottomAnchor, constant: 4),
+            editButton.leadingAnchor.constraint(equalTo: categoryLabel.leadingAnchor, constant: -10),
+            editButton.widthAnchor.constraint(equalToConstant: 44),
+            editButton.heightAnchor.constraint(equalToConstant: 44),
 
-            // DELETE BUTTON next to edit
+            // DELETE BUTTON next to edit - 44pt minimum touch target per Apple HIG
             deleteButton.centerYAnchor.constraint(equalTo: editButton.centerYAnchor),
-            deleteButton.leadingAnchor.constraint(equalTo: editButton.trailingAnchor, constant: 16),
-            deleteButton.widthAnchor.constraint(equalToConstant: 24),
-            deleteButton.heightAnchor.constraint(equalToConstant: 24)
+            deleteButton.leadingAnchor.constraint(equalTo: editButton.trailingAnchor, constant: 4),
+            deleteButton.widthAnchor.constraint(equalToConstant: 44),
+            deleteButton.heightAnchor.constraint(equalToConstant: 44)
         ])
 
         // Add button actions
@@ -174,6 +174,51 @@ final class ListingCell: UICollectionViewCell {
         } else {
             productImageView.image = item.image ?? UIImage(systemName: "photo")
         }
+
+        // MARK: - Accessibility (Apple HIG Compliance)
+        setupAccessibility(for: item)
+    }
+
+    private func setupAccessibility(for item: ListingsViewController.Listing) {
+        // Cell accessibility
+        isAccessibilityElement = false
+        accessibilityElements = [productImageView, nameLabel, statusLabel, priceLabel, editButton, deleteButton]
+
+        // Product image
+        productImageView.isAccessibilityElement = true
+        productImageView.accessibilityLabel = "Product image for \(item.name)"
+        productImageView.accessibilityTraits = .image
+
+        // Name label
+        nameLabel.isAccessibilityElement = true
+        nameLabel.accessibilityLabel = item.name
+        nameLabel.accessibilityTraits = .staticText
+
+        // Status label
+        statusLabel.isAccessibilityElement = true
+        statusLabel.accessibilityLabel = "Status: \(item.status)"
+        statusLabel.accessibilityTraits = .staticText
+
+        // Price label
+        priceLabel.isAccessibilityElement = true
+        priceLabel.accessibilityLabel = "Price: \(item.price)"
+        priceLabel.accessibilityTraits = .staticText
+
+        // Edit button
+        editButton.isAccessibilityElement = true
+        editButton.accessibilityLabel = "Edit listing"
+        editButton.accessibilityHint = "Double tap to edit this listing"
+        editButton.accessibilityTraits = .button
+
+        // Delete button
+        deleteButton.isAccessibilityElement = true
+        deleteButton.accessibilityLabel = "Delete listing"
+        deleteButton.accessibilityHint = "Double tap to delete this listing"
+        deleteButton.accessibilityTraits = .button
+
+        // Overall cell accessibility summary
+        accessibilityLabel = "\(item.name), \(item.category), \(item.price), \(item.status)"
+        accessibilityHint = "Double tap to view details"
     }
 
     private func loadImage(from url: URL) {

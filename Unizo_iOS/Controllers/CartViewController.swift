@@ -414,10 +414,33 @@ final class CartViewController: UIViewController {
             textStack.trailingAnchor.constraint(equalTo: priceLabel.leadingAnchor, constant: -12),
             textStack.centerYAnchor.constraint(equalTo: card.centerYAnchor),
             
-            deleteButton.trailingAnchor.constraint(equalTo: priceLabel.trailingAnchor),
-            deleteButton.topAnchor.constraint(equalTo: soldByLabel.bottomAnchor, constant: 6),
-            deleteButton.widthAnchor.constraint(equalToConstant: 20),      deleteButton.heightAnchor.constraint(equalToConstant: 20)
+            // Delete button - 44pt minimum touch target per Apple HIG
+            deleteButton.trailingAnchor.constraint(equalTo: card.trailingAnchor, constant: -4),
+            deleteButton.topAnchor.constraint(equalTo: soldByLabel.bottomAnchor, constant: 0),
+            deleteButton.widthAnchor.constraint(equalToConstant: 44),
+            deleteButton.heightAnchor.constraint(equalToConstant: 44)
         ])
+
+        // MARK: - Accessibility (Apple HIG Compliance)
+        card.isAccessibilityElement = false
+        card.accessibilityElements = [imageView, titleLabel, priceLabel, deleteButton]
+
+        imageView.isAccessibilityElement = true
+        imageView.accessibilityLabel = "Product image for \(item.product.name)"
+        imageView.accessibilityTraits = .image
+
+        titleLabel.isAccessibilityElement = true
+        titleLabel.accessibilityLabel = item.product.name
+        titleLabel.accessibilityTraits = .staticText
+
+        priceLabel.isAccessibilityElement = true
+        priceLabel.accessibilityLabel = "Price: \(Int(item.product.price)) rupees"
+        priceLabel.accessibilityTraits = .staticText
+
+        deleteButton.isAccessibilityElement = true
+        deleteButton.accessibilityLabel = "Remove \(item.product.name) from cart"
+        deleteButton.accessibilityHint = "Double tap to remove this item from your cart"
+        deleteButton.accessibilityTraits = .button
 
         return card
     }

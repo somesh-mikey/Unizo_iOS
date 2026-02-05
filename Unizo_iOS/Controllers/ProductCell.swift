@@ -169,6 +169,29 @@ final class ProductCell: UICollectionViewCell {
             into: productImageView,
             placeholder: UIImage(named: "placeholder")
         )
+
+        // MARK: - Accessibility (Apple HIG Compliance)
+        setupAccessibility(for: product)
+    }
+
+    private func setupAccessibility(for product: ProductUIModel) {
+        // Make the entire cell accessible as a single element for VoiceOver
+        isAccessibilityElement = true
+        accessibilityTraits = .button
+
+        // Create a comprehensive accessibility label
+        let negotiableText = product.negotiable ? "Negotiable" : "Non-Negotiable"
+        let availabilityText = product.isAvailable ? "" : ", Sold out"
+
+        accessibilityLabel = "\(product.name), Price: \(Int(product.price)) rupees, Rating: \(String(format: "%.1f", product.rating)) out of 5 stars, \(negotiableText)\(availabilityText)"
+        accessibilityHint = "Double tap to view product details"
+
+        // Individual element accessibility (for when cell is not a single accessible element)
+        productImageView.isAccessibilityElement = false
+        nameLabel.isAccessibilityElement = false
+        priceLabel.isAccessibilityElement = false
+        ratingLabel.isAccessibilityElement = false
+        negotiableLabel.isAccessibilityElement = false
     }
 
 }
