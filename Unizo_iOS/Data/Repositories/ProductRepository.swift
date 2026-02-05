@@ -87,7 +87,16 @@ final class ProductRepository {
             print("🔍 Raw Supabase response (first 2000 chars):", String(jsonString.prefix(2000)))
         }
 
-        let products = try JSONDecoder().decode([ProductDTO].self, from: response.data)
+        var products = try JSONDecoder().decode([ProductDTO].self, from: response.data)
+
+        // Filter out products from blocked sellers (local filter for immediate effect)
+        let blockedUsers = BlockedUsersStore.all()
+        if !blockedUsers.isEmpty {
+            products = products.filter { product in
+                guard let sellerId = product.seller?.id.uuidString else { return true }
+                return !blockedUsers.contains(sellerId)
+            }
+        }
 
         print("📥 Supabase returned:", products.count)
 
