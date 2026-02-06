@@ -16,6 +16,9 @@ class MainTabBarController: UITabBarController, UITabBarControllerDelegate {
 
     // Always pop Home tab to root when selecting it
     func tabBarController(_ tabBarController: UITabBarController, shouldSelect viewController: UIViewController) -> Bool {
+        // Haptic feedback for tab selection (Apple HIG)
+        HapticFeedback.tabSelected()
+
         if let nav = viewController as? UINavigationController,
            nav.viewControllers.first is LandingScreenViewController {
             nav.popToRootViewController(animated: false)
@@ -110,8 +113,8 @@ class MainTabBarController: UITabBarController, UITabBarControllerDelegate {
         tabBar.isTranslucent = true
         tabBar.clipsToBounds = false
 
-        tabBar.tintColor = UIColor(red: 0.10, green: 0.45, blue: 0.72, alpha: 1)   // Active blue
-        tabBar.unselectedItemTintColor = .darkGray
+        tabBar.tintColor = .brandPrimary   // Active brand color
+        tabBar.unselectedItemTintColor = .secondaryLabel
 
         // Remove default background view
         if let bg = tabBar.subviews.first(where: {

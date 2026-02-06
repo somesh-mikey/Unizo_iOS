@@ -17,7 +17,9 @@ class ListingsViewController: UIViewController {
     private let titleLabel: UILabel = {
         let label = UILabel()
         label.text = "Listings"
-        label.font = UIFont.systemFont(ofSize: 32, weight: .bold)
+        label.font = UIFont.preferredFont(forTextStyle: .largeTitle)
+        label.adjustsFontForContentSizeCategory = true
+        label.textColor = .label
         label.translatesAutoresizingMaskIntoConstraints = false
         return label
     }()
@@ -32,8 +34,11 @@ class ListingsViewController: UIViewController {
         cv.translatesAutoresizingMaskIntoConstraints = false
         cv.backgroundColor = .clear
         cv.showsVerticalScrollIndicator = false
+        cv.alwaysBounceVertical = true
         return cv
     }()
+
+    private let refreshControl = UIRefreshControl()
 
     // MARK: - Listing Model
     struct Listing {
@@ -53,7 +58,7 @@ class ListingsViewController: UIViewController {
     // MARK: - Lifecycle
     override func viewDidLoad() {
         super.viewDidLoad()
-        view.backgroundColor = UIColor(red: 0.95, green: 0.96, blue: 1.0, alpha: 1)
+        view.backgroundColor = .systemGroupedBackground
         setupUI()
         setupCollectionView()
     }
@@ -109,10 +114,14 @@ class ListingsViewController: UIViewController {
                     }
 
                     self.collectionView.reloadData()
+                    self.refreshControl.endRefreshing()
                 }
 
             } catch {
                 print("❌ Failed to fetch listings:", error)
+                await MainActor.run {
+                    self.refreshControl.endRefreshing()
+                }
             }
         }
     }
@@ -137,6 +146,15 @@ class ListingsViewController: UIViewController {
         collectionView.delegate = self
         collectionView.dataSource = self
         collectionView.register(ListingCell.self, forCellWithReuseIdentifier: "ListingCell")
+
+        // Pull-to-refresh
+        refreshControl.addTarget(self, action: #selector(handleRefresh), for: .valueChanged)
+        collectionView.refreshControl = refreshControl
+    }
+
+    @objc private func handleRefresh() {
+        HapticFeedback.pullToRefresh()
+        fetchUserListings()
     }
 }
 
@@ -221,6 +239,8 @@ extension ListingsViewController: ListingCellDelegate {
 
     private func deleteProduct(at indexPath: IndexPath) {
         let product = products[indexPath.row]
+
+        HapticFeedback.delete()
 
         // 🔐 Persist deletion locally (KEY FIX)
         DeletedListingsStore.add(product.id.uuidString)

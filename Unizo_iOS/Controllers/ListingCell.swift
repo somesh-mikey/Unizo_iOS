@@ -25,31 +25,37 @@ final class ListingCell: UICollectionViewCell {
 
     private let categoryLabel: UILabel = {
         let lbl = UILabel()
-        lbl.font = UIFont.systemFont(ofSize: 12, weight: .regular)
-        lbl.textColor = .darkGray
+        lbl.font = UIFont.preferredFont(forTextStyle: .caption1)
+        lbl.adjustsFontForContentSizeCategory = true
+        lbl.textColor = .secondaryLabel
         lbl.translatesAutoresizingMaskIntoConstraints = false
         return lbl
     }()
 
     private let nameLabel: UILabel = {
         let lbl = UILabel()
-        lbl.font = UIFont.systemFont(ofSize: 16, weight: .semibold)
+        lbl.font = UIFont.preferredFont(forTextStyle: .headline)
+        lbl.adjustsFontForContentSizeCategory = true
         lbl.numberOfLines = 1
+        lbl.textColor = .label
         lbl.translatesAutoresizingMaskIntoConstraints = false
         return lbl
     }()
 
     private let statusLabel: UILabel = {
         let lbl = UILabel()
-        lbl.font = UIFont.systemFont(ofSize: 12, weight: .medium)
-        lbl.textColor = .gray
+        lbl.font = UIFont.preferredFont(forTextStyle: .caption1)
+        lbl.adjustsFontForContentSizeCategory = true
+        lbl.textColor = .secondaryLabel
         lbl.translatesAutoresizingMaskIntoConstraints = false
         return lbl
     }()
 
     private let priceLabel: UILabel = {
         let lbl = UILabel()
-        lbl.font = UIFont.systemFont(ofSize: 16, weight: .bold)
+        lbl.font = UIFont.preferredFont(forTextStyle: .headline)
+        lbl.adjustsFontForContentSizeCategory = true
+        lbl.textColor = .label
         lbl.translatesAutoresizingMaskIntoConstraints = false
         return lbl
     }()

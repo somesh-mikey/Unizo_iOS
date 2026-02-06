@@ -51,14 +51,16 @@ class ItemDetailsViewController: UIViewController {
     private let descriptionHeaderLabel: UILabel = {
         let l = UILabel()
         l.text = "Description"
-        l.font = UIFont.systemFont(ofSize: 16, weight: .semibold)
-        l.textColor = UIColor.systemGray
+        l.font = UIFont.preferredFont(forTextStyle: .headline)
+        l.adjustsFontForContentSizeCategory = true
+        l.textColor = .secondaryLabel
         return l
     }()
 
     private let descriptionBodyLabel: UILabel = {
         let l = UILabel()
-        l.font = UIFont.systemFont(ofSize: 15)
+        l.font = UIFont.preferredFont(forTextStyle: .body)
+        l.adjustsFontForContentSizeCategory = true
         l.textColor = .label
         l.numberOfLines = 0
         return l
@@ -67,14 +69,16 @@ class ItemDetailsViewController: UIViewController {
     private let featuresHeaderLabel: UILabel = {
         let l = UILabel()
         l.text = "Features"
-        l.font = UIFont.systemFont(ofSize: 16, weight: .semibold)
-        l.textColor = UIColor.systemGray
+        l.font = UIFont.preferredFont(forTextStyle: .headline)
+        l.adjustsFontForContentSizeCategory = true
+        l.textColor = .secondaryLabel
         return l
     }()
 
     private let featuresBodyLabel: UILabel = {
         let l = UILabel()
-        l.font = UIFont.systemFont(ofSize: 15)
+        l.font = UIFont.preferredFont(forTextStyle: .body)
+        l.adjustsFontForContentSizeCategory = true
         l.textColor = .label
         l.numberOfLines = 0
         return l
@@ -93,11 +97,11 @@ class ItemDetailsViewController: UIViewController {
     // Seller card
     private let sellerCard: UIView = {
         let v = UIView()
-        v.backgroundColor = UIColor(red: 0.85, green: 0.96, blue: 0.96, alpha: 1)
-        v.layer.cornerRadius = 12
+        v.backgroundColor = UIColor.brandLight
+        v.layer.cornerRadius = Spacing.cornerRadiusMedium
         v.layer.masksToBounds = false
         // make light shadow to mimic Figma card
-        v.layer.shadowColor = UIColor.black.cgColor
+        v.layer.shadowColor = UIColor.cardShadow.cgColor
         v.layer.shadowOpacity = 0.06
         v.layer.shadowRadius = 8
         v.layer.shadowOffset = CGSize(width: 0, height: 4)
@@ -107,22 +111,24 @@ class ItemDetailsViewController: UIViewController {
     private let sellerTitleLabel: UILabel = {
         let l = UILabel()
         l.text = "Seller"
-        l.font = UIFont.systemFont(ofSize: 18, weight: .bold)
-        l.textColor = .black
+        l.font = UIFont.preferredFont(forTextStyle: .headline)
+        l.adjustsFontForContentSizeCategory = true
+        l.textColor = .label
         return l
     }()
     private let sellerNameLabel: UILabel = {
         let l = UILabel()
         l.text = "" // Will be populated from product data
-        l.font = UIFont.systemFont(ofSize: 16)
-        l.textColor = .black
+        l.font = UIFont.preferredFont(forTextStyle: .subheadline)
+        l.adjustsFontForContentSizeCategory = true
+        l.textColor = .secondaryLabel
         return l
     }()
 
     private let sellerChatButton: UIButton = {
         let b = UIButton(type: .system)
         b.setImage(UIImage(systemName: "bubble.right"), for: .normal)
-        b.tintColor = .black
+        b.tintColor = .brandPrimary
         return b
     }()
 
@@ -130,15 +136,17 @@ class ItemDetailsViewController: UIViewController {
     private static func makeSmallGrayTitle(_ t: String) -> UILabel {
         let l = UILabel()
         l.text = t
-        l.font = UIFont.systemFont(ofSize: 14, weight: .semibold)
-        l.textColor = UIColor.systemGray
+        l.font = UIFont.preferredFont(forTextStyle: .caption1)
+        l.adjustsFontForContentSizeCategory = true
+        l.textColor = .secondaryLabel
         return l
     }
 
     private static func makeValueLabel(_ t: String) -> UILabel {
         let l = UILabel()
         l.text = t
-        l.font = UIFont.systemFont(ofSize: 16, weight: .semibold)
+        l.font = UIFont.preferredFont(forTextStyle: .subheadline)
+        l.adjustsFontForContentSizeCategory = true
         l.textColor = .label
         return l
     }
@@ -155,6 +163,10 @@ class ItemDetailsViewController: UIViewController {
         addToCartButton.addTarget(self, action: #selector(addToCartTapped), for: .touchUpInside)
         buyNowButton.addTarget(self, action: #selector(buyNowTapped), for: .touchUpInside)
 
+        // Add tap animations to buttons for iOS native feel
+        addToCartButton.addTapAnimation()
+        buyNowButton.addTapAnimation()
+
         // Disable purchase buttons if product is sold or unavailable
         updatePurchaseButtonsState()
     }
@@ -166,12 +178,12 @@ class ItemDetailsViewController: UIViewController {
             // Product is sold or out of stock
             addToCartButton.isEnabled = false
             addToCartButton.setTitle("Sold Out", for: .normal)
-            addToCartButton.layer.borderColor = UIColor.gray.cgColor
-            addToCartButton.setTitleColor(.gray, for: .normal)
+            addToCartButton.layer.borderColor = UIColor.systemGray3.cgColor
+            addToCartButton.setTitleColor(.secondaryLabel, for: .normal)
 
             buyNowButton.isEnabled = false
             buyNowButton.setTitle("Unavailable", for: .normal)
-            buyNowButton.backgroundColor = .gray
+            buyNowButton.backgroundColor = .systemGray3
         }
     }
 
@@ -207,11 +219,11 @@ class ItemDetailsViewController: UIViewController {
         title = p.name
         titleLabel.text = p.name
         priceLabel.text = "₹\(p.price)"
-        // MARK: - Rating (SF Symbol star + teal color)
+        // MARK: - Rating (SF Symbol star + brand color)
         let ratingText = NSMutableAttributedString()
 
         let starImage = UIImage(systemName: "star.fill")?
-            .withTintColor(UIColor(red: 0/255, green: 142/255, blue: 153/255, alpha: 1), renderingMode: .alwaysOriginal)
+            .withTintColor(.brandPrimary, renderingMode: .alwaysOriginal)
 
         let starAttachment = NSTextAttachment()
         starAttachment.image = starImage
@@ -275,27 +287,39 @@ class ItemDetailsViewController: UIViewController {
         view.backgroundColor = .systemBackground
 
         productImageView.contentMode = .scaleAspectFit
-        productImageView.layer.cornerRadius = 12
+        productImageView.layer.cornerRadius = Spacing.cornerRadiusMedium
         productImageView.layer.masksToBounds = true
 
-        categoryLabel.font = UIFont.systemFont(ofSize: 13)
-        categoryLabel.textColor = .systemGray
+        // Dynamic Type support for all labels
+        categoryLabel.font = UIFont.preferredFont(forTextStyle: .caption1)
+        categoryLabel.adjustsFontForContentSizeCategory = true
+        categoryLabel.textColor = .secondaryLabel
 
-        titleLabel.font = UIFont.systemFont(ofSize: 20, weight: .bold)
-        priceLabel.font = UIFont.systemFont(ofSize: 20, weight: .bold)
+        titleLabel.font = UIFont.preferredFont(forTextStyle: .title2)
+        titleLabel.adjustsFontForContentSizeCategory = true
+        titleLabel.textColor = .label
 
-        ratingLabel.font = UIFont.systemFont(ofSize: 15)
-        ratingLabel.textColor = UIColor(red: 0/255, green: 142/255, blue: 153/255, alpha: 1)
+        priceLabel.font = UIFont.preferredFont(forTextStyle: .title2)
+        priceLabel.adjustsFontForContentSizeCategory = true
+        priceLabel.textColor = .label
 
-        // Buttons style: keep rounded, borders as before
-        addToCartButton.layer.cornerRadius = 22
+        ratingLabel.font = UIFont.preferredFont(forTextStyle: .subheadline)
+        ratingLabel.adjustsFontForContentSizeCategory = true
+        ratingLabel.textColor = .brandPrimary
+
+        // Buttons style with semantic colors
+        addToCartButton.layer.cornerRadius = Spacing.buttonHeight / 2
         addToCartButton.layer.borderWidth = 1.5
-        addToCartButton.layer.borderColor = UIColor.systemTeal.cgColor
-        addToCartButton.setTitleColor(UIColor.systemTeal, for: .normal)
+        addToCartButton.layer.borderColor = UIColor.brandPrimary.cgColor
+        addToCartButton.setTitleColor(.brandPrimary, for: .normal)
+        addToCartButton.titleLabel?.font = UIFont.preferredFont(forTextStyle: .headline)
+        addToCartButton.titleLabel?.adjustsFontForContentSizeCategory = true
 
-        buyNowButton.layer.cornerRadius = 22
-        buyNowButton.backgroundColor = UIColor(red: 22/255, green: 63/255, blue: 75/255, alpha: 1)
-        buyNowButton.setTitleColor(.white, for: .normal)
+        buyNowButton.layer.cornerRadius = Spacing.buttonHeight / 2
+        buyNowButton.backgroundColor = .brandPrimary
+        buyNowButton.setTitleColor(.buttonPrimaryText, for: .normal)
+        buyNowButton.titleLabel?.font = UIFont.preferredFont(forTextStyle: .headline)
+        buyNowButton.titleLabel?.adjustsFontForContentSizeCategory = true
     }
 
     // MARK: - Programmatic UI & Layout
@@ -488,9 +512,9 @@ class ItemDetailsViewController: UIViewController {
             action: #selector(showMoreOptions)
         )
 
-        heartButton.tintColor = .black
-        cartButton.tintColor = .black
-        moreButton.tintColor = .black
+        heartButton.tintColor = .label
+        cartButton.tintColor = .label
+        moreButton.tintColor = .label
 
         // Accessibility for more button
         moreButton.accessibilityLabel = "More options"
@@ -694,18 +718,24 @@ class ItemDetailsViewController: UIViewController {
 
         let imageName = isWishlisted ? "heart.fill" : "heart"
 
+        // Animate the heart icon change with bounce effect
         UIView.transition(
             with: navBar,
-            duration: 0.2,
+            duration: AnimationDuration.standard,
             options: .transitionCrossDissolve,
             animations: {
                 self.navigationItem.rightBarButtonItems?.last?.image =
                     UIImage(systemName: imageName)
 
                 self.navigationItem.rightBarButtonItems?.last?.tintColor =
-                    self.isWishlisted ? .systemRed : .black
+                    self.isWishlisted ? .systemRed : .label
             }
         )
+
+        // Add bounce animation to the navigation bar for visual feedback
+        if isWishlisted {
+            navBar.animatePulse(repeatCount: 1)
+        }
     }
 
 
@@ -715,11 +745,13 @@ class ItemDetailsViewController: UIViewController {
 
         // Check if product is still available
         guard product.isAvailable else {
+            HapticFeedback.error()
             showUnavailableAlert()
             return
         }
 
         CartManager.shared.add(product: product)
+        HapticFeedback.addToCart()
 
         // Native iOS-style confirmation
         let alert = UIAlertController(
@@ -748,10 +780,12 @@ class ItemDetailsViewController: UIViewController {
 
         // Check if product is still available
         guard product.isAvailable else {
+            HapticFeedback.error()
             showUnavailableAlert()
             return
         }
 
+        HapticFeedback.placeOrder()
         CartManager.shared.clear()
         CartManager.shared.add(product: product)
 
@@ -774,17 +808,20 @@ class ItemDetailsViewController: UIViewController {
                         productId: product.id,
                         userId: userId
                     )
+                    HapticFeedback.removeFromWishlist()
                 } else {
                     try await wishlistRepo.add(
                         productId: product.id,
                         userId: userId
                     )
+                    HapticFeedback.addToWishlist()
                 }
 
                 isWishlisted.toggle()
                 updateHeartIcon() // ❤️ turns red
             } catch {
                 print("❌ Wishlist error:", error)
+                HapticFeedback.error()
             }
         }
     }
