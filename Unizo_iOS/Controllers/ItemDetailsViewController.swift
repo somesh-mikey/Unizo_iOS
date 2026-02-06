@@ -116,6 +116,15 @@ class ItemDetailsViewController: UIViewController {
         l.textColor = .label
         return l
     }()
+
+    private let sellerRatingLabel: UILabel = {
+        let l = UILabel()
+        l.font = UIFont.preferredFont(forTextStyle: .subheadline)
+        l.adjustsFontForContentSizeCategory = true
+        l.textColor = .brandPrimary
+        return l
+    }()
+
     private let sellerNameLabel: UILabel = {
         let l = UILabel()
         l.text = "" // Will be populated from product data
@@ -160,8 +169,12 @@ class ItemDetailsViewController: UIViewController {
         setupUIForIBOutlets()   // ensure IBOutlets are styled
         setupProgrammaticUI()   // add programmatic labels & layout
         populateData()
-        addToCartButton.addTarget(self, action: #selector(addToCartTapped), for: .touchUpInside)
-        buyNowButton.addTarget(self, action: #selector(buyNowTapped), for: .touchUpInside)
+        // Update button titles
+        addToCartButton.setTitle("Chat", for: .normal)
+        buyNowButton.setTitle("Deal", for: .normal)
+
+        addToCartButton.addTarget(self, action: #selector(chatWithSellerTapped), for: .touchUpInside)
+        buyNowButton.addTarget(self, action: #selector(dealTapped), for: .touchUpInside)
 
         // Add tap animations to buttons for iOS native feel
         addToCartButton.addTapAnimation()
@@ -175,14 +188,9 @@ class ItemDetailsViewController: UIViewController {
         guard let product = product else { return }
 
         if !product.isAvailable {
-            // Product is sold or out of stock
-            addToCartButton.isEnabled = false
-            addToCartButton.setTitle("Sold Out", for: .normal)
-            addToCartButton.layer.borderColor = UIColor.systemGray3.cgColor
-            addToCartButton.setTitleColor(.secondaryLabel, for: .normal)
-
+            // Product is sold or out of stock - disable Deal button but keep Chat enabled
             buyNowButton.isEnabled = false
-            buyNowButton.setTitle("Unavailable", for: .normal)
+            buyNowButton.setTitle("Sold", for: .normal)
             buyNowButton.backgroundColor = .systemGray3
         }
     }
@@ -219,20 +227,9 @@ class ItemDetailsViewController: UIViewController {
         title = p.name
         titleLabel.text = p.name
         priceLabel.text = "₹\(p.price)"
-        // MARK: - Rating (SF Symbol star + brand color)
-        let ratingText = NSMutableAttributedString()
 
-        let starImage = UIImage(systemName: "star.fill")?
-            .withTintColor(.brandPrimary, renderingMode: .alwaysOriginal)
-
-        let starAttachment = NSTextAttachment()
-        starAttachment.image = starImage
-        starAttachment.bounds = CGRect(x: 0, y: -2, width: 16, height: 16)
-
-        ratingText.append(NSAttributedString(attachment: starAttachment))
-        ratingText.append(NSAttributedString(string: "  \(String(format: "%.1f", p.rating))"))
-
-        ratingLabel.attributedText = ratingText
+        // Hide the old rating label (it's now in the seller card)
+        ratingLabel.isHidden = true
 //        productImageView.image = UIImage(named: p.imageURL ?? "")
 //        categoryLabel.text = "General"
         // Load product image from URL or local asset
@@ -255,8 +252,19 @@ class ItemDetailsViewController: UIViewController {
         sizeValueLabel.text = p.size ?? "—"
         conditionValueLabel.text = p.condition ?? "—"
 
-        // Seller name
+        // Seller name and rating
         sellerNameLabel.text = p.sellerName
+
+        // Seller rating (SF Symbol star + brand color)
+        let ratingText = NSMutableAttributedString()
+        let starImage = UIImage(systemName: "star.fill")?
+            .withTintColor(.brandPrimary, renderingMode: .alwaysOriginal)
+        let starAttachment = NSTextAttachment()
+        starAttachment.image = starImage
+        starAttachment.bounds = CGRect(x: 0, y: -2, width: 14, height: 14)
+        ratingText.append(NSAttributedString(attachment: starAttachment))
+        ratingText.append(NSAttributedString(string: " \(String(format: "%.1f", p.rating))"))
+        sellerRatingLabel.attributedText = ratingText
 
         // Wishlist state
         Task {
@@ -307,7 +315,7 @@ class ItemDetailsViewController: UIViewController {
         ratingLabel.adjustsFontForContentSizeCategory = true
         ratingLabel.textColor = .brandPrimary
 
-        // Buttons style with semantic colors
+        // Chat button style (outline)
         addToCartButton.layer.cornerRadius = Spacing.buttonHeight / 2
         addToCartButton.layer.borderWidth = 1.5
         addToCartButton.layer.borderColor = UIColor.brandPrimary.cgColor
@@ -315,6 +323,7 @@ class ItemDetailsViewController: UIViewController {
         addToCartButton.titleLabel?.font = UIFont.preferredFont(forTextStyle: .headline)
         addToCartButton.titleLabel?.adjustsFontForContentSizeCategory = true
 
+        // Deal button style (filled primary)
         buyNowButton.layer.cornerRadius = Spacing.buttonHeight / 2
         buyNowButton.backgroundColor = .brandPrimary
         buyNowButton.setTitleColor(.buttonPrimaryText, for: .normal)
@@ -333,12 +342,12 @@ class ItemDetailsViewController: UIViewController {
         // Add programmatic elements to contentView.
         // NOTE: We intentionally do NOT add descriptionTextView / featuresTextView here because
         // we now use descriptionBodyLabel and featuresBodyLabel.
+        // Rating moved to seller card, so not included here
         let programmaticViews: [UIView] = [
             productImageView,
             categoryLabel,
             titleLabel,
             priceLabel,
-            ratingLabel,
             descriptionHeaderLabel,
             descriptionBodyLabel,
             featuresHeaderLabel,
@@ -357,11 +366,11 @@ class ItemDetailsViewController: UIViewController {
         // Seller card layout: add internal subviews
         sellerCard.addSubview(sellerTitleLabel)
         sellerCard.addSubview(sellerNameLabel)
-        sellerCard.addSubview(sellerChatButton)
+        sellerCard.addSubview(sellerRatingLabel)
 
         sellerTitleLabel.translatesAutoresizingMaskIntoConstraints = false
         sellerNameLabel.translatesAutoresizingMaskIntoConstraints = false
-        sellerChatButton.translatesAutoresizingMaskIntoConstraints = false
+        sellerRatingLabel.translatesAutoresizingMaskIntoConstraints = false
 
         // Bottom button stack (we keep the existing IBOutlets for the buttons but create a programmatic stack)
         let buttonStack = UIStackView(arrangedSubviews: [addToCartButton, buyNowButton])
@@ -393,7 +402,7 @@ class ItemDetailsViewController: UIViewController {
             productImageView.heightAnchor.constraint(equalToConstant: 240)
         ])
 
-        // Category / Title / Price / Rating
+        // Category / Title / Price (rating moved to seller card)
         NSLayoutConstraint.activate([
             categoryLabel.topAnchor.constraint(equalTo: productImageView.bottomAnchor, constant: 10),
             categoryLabel.leadingAnchor.constraint(equalTo: contentView.leadingAnchor),
@@ -402,15 +411,12 @@ class ItemDetailsViewController: UIViewController {
             titleLabel.leadingAnchor.constraint(equalTo: contentView.leadingAnchor),
 
             priceLabel.centerYAnchor.constraint(equalTo: titleLabel.centerYAnchor),
-            priceLabel.trailingAnchor.constraint(equalTo: contentView.trailingAnchor),
-
-            ratingLabel.topAnchor.constraint(equalTo: titleLabel.bottomAnchor, constant: 8),
-            ratingLabel.leadingAnchor.constraint(equalTo: contentView.leadingAnchor)
+            priceLabel.trailingAnchor.constraint(equalTo: contentView.trailingAnchor)
         ])
 
-        // Description section
+        // Description section (anchored to titleLabel since rating is removed)
         NSLayoutConstraint.activate([
-            descriptionHeaderLabel.topAnchor.constraint(equalTo: ratingLabel.bottomAnchor, constant: 18),
+            descriptionHeaderLabel.topAnchor.constraint(equalTo: titleLabel.bottomAnchor, constant: 18),
             descriptionHeaderLabel.leadingAnchor.constraint(equalTo: contentView.leadingAnchor),
 
             descriptionBodyLabel.topAnchor.constraint(equalTo: descriptionHeaderLabel.bottomAnchor, constant: 8),
@@ -460,16 +466,17 @@ class ItemDetailsViewController: UIViewController {
 
         // Seller card internal layout
         NSLayoutConstraint.activate([
+            // "Seller" title on the left
             sellerTitleLabel.topAnchor.constraint(equalTo: sellerCard.topAnchor, constant: 14),
             sellerTitleLabel.leadingAnchor.constraint(equalTo: sellerCard.leadingAnchor, constant: 16),
 
+            // Seller name below title
             sellerNameLabel.topAnchor.constraint(equalTo: sellerTitleLabel.bottomAnchor, constant: 6),
             sellerNameLabel.leadingAnchor.constraint(equalTo: sellerCard.leadingAnchor, constant: 16),
 
-            sellerChatButton.centerYAnchor.constraint(equalTo: sellerCard.centerYAnchor),
-            sellerChatButton.trailingAnchor.constraint(equalTo: sellerCard.trailingAnchor, constant: -16),
-            sellerChatButton.widthAnchor.constraint(equalToConstant: 36),
-            sellerChatButton.heightAnchor.constraint(equalToConstant: 36)
+            // Rating on the right (replaces chat button)
+            sellerRatingLabel.centerYAnchor.constraint(equalTo: sellerCard.centerYAnchor),
+            sellerRatingLabel.trailingAnchor.constraint(equalTo: sellerCard.trailingAnchor, constant: -16)
         ])
 
         // Bottom button stack constraints
@@ -740,42 +747,22 @@ class ItemDetailsViewController: UIViewController {
 
 
     // MARK: - Actions
-    @objc private func addToCartTapped() {
+
+    /// Navigate to chat with the seller
+    @objc private func chatWithSellerTapped() {
         guard let product else { return }
 
-        // Check if product is still available
-        guard product.isAvailable else {
-            HapticFeedback.error()
-            showUnavailableAlert()
-            return
-        }
+        HapticFeedback.selection()
 
-        CartManager.shared.add(product: product)
-        HapticFeedback.addToCart()
+        let chatVC = ChatDetailViewController()
+        chatVC.chatTitle = product.sellerName
+        chatVC.isSeller = false  // Current user is buyer, chatting with seller
 
-        // Native iOS-style confirmation
-        let alert = UIAlertController(
-            title: "Added to Cart",
-            message: "\(product.name) has been added to your cart.",
-            preferredStyle: .alert
-        )
-
-        alert.addAction(UIAlertAction(title: "OK", style: .default))
-        alert.addAction(
-            UIAlertAction(
-                title: "View Cart",
-                style: .default,
-                handler: { _ in
-                    let vc = CartViewController()
-                    self.navigationController?.pushViewController(vc, animated: true)
-                }
-            )
-        )
-
-        present(alert, animated: true)
+        navigationController?.pushViewController(chatVC, animated: true)
     }
 
-    @objc private func buyNowTapped() {
+    /// Navigate to Deal flow (same as previous Buy Now)
+    @objc private func dealTapped() {
         guard let product else { return }
 
         // Check if product is still available
