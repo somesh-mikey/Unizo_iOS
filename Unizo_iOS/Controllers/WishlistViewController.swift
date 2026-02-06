@@ -14,6 +14,7 @@ class WishlistViewController: UIViewController {
     private let backButton = UIButton(type: .system)
     private let titleLabel = UILabel()
     private var collectionView: UICollectionView!
+    private let refreshControl = UIRefreshControl()
 
     // MARK: - Data
     private var wishlistItems: [ProductUIModel] = []
@@ -37,18 +38,19 @@ class WishlistViewController: UIViewController {
     private func setupNavigationBar() {
         // Back Button with glowing style
         backButton.setImage(UIImage(systemName: "chevron.backward"), for: .normal)
-        backButton.tintColor = .black
-        backButton.backgroundColor = .white
-        backButton.layer.cornerRadius = 22
-        backButton.layer.shadowColor = UIColor.black.cgColor
+        backButton.tintColor = .label
+        backButton.backgroundColor = .secondarySystemBackground
+        backButton.layer.cornerRadius = Spacing.minTouchTarget / 2
+        backButton.layer.shadowColor = UIColor.cardShadow.cgColor
         backButton.layer.shadowOpacity = 0.1
         backButton.layer.shadowRadius = 8
         backButton.layer.shadowOffset = CGSize(width: 0, height: 2)
 
-        // Title
+        // Title with Dynamic Type
         titleLabel.text = "My Wishlist"
-        titleLabel.font = UIFont.systemFont(ofSize: 20, weight: .semibold)
-        titleLabel.textColor = .black
+        titleLabel.font = UIFont.preferredFont(forTextStyle: .title3)
+        titleLabel.adjustsFontForContentSizeCategory = true
+        titleLabel.textColor = .label
 
         // Add to View
         view.addSubview(backButton)
@@ -85,6 +87,10 @@ class WishlistViewController: UIViewController {
         // Reuse your ProductCell
         collectionView.register(ProductCell.self,
                                 forCellWithReuseIdentifier: ProductCell.reuseIdentifier)
+
+        // Pull-to-refresh
+        refreshControl.addTarget(self, action: #selector(handleRefresh), for: .valueChanged)
+        collectionView.refreshControl = refreshControl
 
         view.addSubview(collectionView)
         collectionView.translatesAutoresizingMaskIntoConstraints = false
@@ -158,6 +164,17 @@ extension WishlistViewController: UICollectionViewDataSource, UICollectionViewDe
         let landingVC = LandingScreenViewController()
         landingVC.modalPresentationStyle = .fullScreen
         present(landingVC, animated: true)
+    }
+
+    @objc private func handleRefresh() {
+        HapticFeedback.pullToRefresh()
+
+        Task {
+            await loadWishlist()
+            await MainActor.run {
+                self.refreshControl.endRefreshing()
+            }
+        }
     }
     @MainActor
     private func loadWishlist() async {

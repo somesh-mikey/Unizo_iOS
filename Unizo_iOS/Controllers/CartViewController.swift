@@ -32,6 +32,7 @@ final class CartViewController: UIViewController {
     // MARK: - UI Containers
     private let scrollView = UIScrollView()
     private let contentView = UIView()
+    private let refreshControl = UIRefreshControl()
 
     // MARK: - Empty State
     private let emptyStateContainer: UIView = {
@@ -43,7 +44,7 @@ final class CartViewController: UIViewController {
     private let emptyCartImageView: UIImageView = {
         let iv = UIImageView()
         iv.image = UIImage(systemName: "cart")
-        iv.tintColor = UIColor(red: 0.75, green: 0.75, blue: 0.78, alpha: 1)
+        iv.tintColor = .tertiaryLabel
         iv.contentMode = .scaleAspectFit
         return iv
     }()
@@ -51,8 +52,9 @@ final class CartViewController: UIViewController {
     private let emptyStateLabel: UILabel = {
         let l = UILabel()
         l.text = "Your cart is empty"
-        l.font = .systemFont(ofSize: 20, weight: .semibold)
-        l.textColor = .darkGray
+        l.font = UIFont.preferredFont(forTextStyle: .title3)
+        l.adjustsFontForContentSizeCategory = true
+        l.textColor = .secondaryLabel
         l.textAlignment = .center
         return l
     }()
@@ -60,8 +62,9 @@ final class CartViewController: UIViewController {
     private let emptyStateSubtitle: UILabel = {
         let l = UILabel()
         l.text = "Looks like you haven't added\nanything to your cart yet"
-        l.font = .systemFont(ofSize: 14)
-        l.textColor = .gray
+        l.font = UIFont.preferredFont(forTextStyle: .subheadline)
+        l.adjustsFontForContentSizeCategory = true
+        l.textColor = .tertiaryLabel
         l.textAlignment = .center
         l.numberOfLines = 2
         return l
@@ -71,7 +74,9 @@ final class CartViewController: UIViewController {
     private let itemsTitle: UILabel = {
         let l = UILabel()
         l.text = "Items"
-        l.font = .systemFont(ofSize: 22, weight: .semibold)
+        l.font = UIFont.preferredFont(forTextStyle: .title2)
+        l.adjustsFontForContentSizeCategory = true
+        l.textColor = .label
         return l
     }()
 
@@ -86,7 +91,9 @@ final class CartViewController: UIViewController {
     private let suggestionsTitle: UILabel = {
         let l = UILabel()
         l.text = "You may also like"
-        l.font = .systemFont(ofSize: 18, weight: .semibold)
+        l.font = UIFont.preferredFont(forTextStyle: .headline)
+        l.adjustsFontForContentSizeCategory = true
+        l.textColor = .label
         return l
     }()
 
@@ -111,13 +118,11 @@ final class CartViewController: UIViewController {
     private let totalPriceLabel = UILabel()
     private let checkoutButton = UIButton()
 
-    private let darkTeal = UIColor(red: 0.02, green: 0.34, blue: 0.46, alpha: 1)
-
     // MARK: - Lifecycle
     override func viewDidLoad() {
         super.viewDidLoad()
 
-        view.backgroundColor = UIColor(red: 0.94, green: 0.95, blue: 0.98, alpha: 1)
+        view.backgroundColor = .systemGroupedBackground
 
         setupNavBar()
         setupScrollView()
@@ -156,12 +161,30 @@ final class CartViewController: UIViewController {
         navigationController?.popToRootViewController(animated: true)
     }
 
+    @objc private func handleRefresh() {
+        HapticFeedback.pullToRefresh()
+
+        Task {
+            // Refresh product data for suggestions
+            _ = try? await productRepository.fetchAllProducts(page: 1)
+
+            await MainActor.run {
+                self.refreshCartUI()
+                self.refreshControl.endRefreshing()
+            }
+        }
+    }
+
     // MARK: - ScrollView
     private func setupScrollView() {
         view.addSubview(scrollView)
         scrollView.translatesAutoresizingMaskIntoConstraints = false
         scrollView.addSubview(contentView)
         contentView.translatesAutoresizingMaskIntoConstraints = false
+
+        // Pull-to-refresh
+        refreshControl.addTarget(self, action: #selector(handleRefresh), for: .valueChanged)
+        scrollView.refreshControl = refreshControl
 
         NSLayoutConstraint.activate([
             scrollView.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor),
@@ -260,13 +283,27 @@ final class CartViewController: UIViewController {
 
     // MARK: - Bottom Bar
     private func setupBottomBar() {
-        bottomBar.backgroundColor = .white
-        bottomBar.layer.cornerRadius = 30
+        bottomBar.backgroundColor = .systemBackground
+        bottomBar.layer.cornerRadius = Spacing.cornerRadiusXL
 
+        // Items count label with Dynamic Type
+        itemsCountLabel.font = UIFont.preferredFont(forTextStyle: .subheadline)
+        itemsCountLabel.adjustsFontForContentSizeCategory = true
+        itemsCountLabel.textColor = .secondaryLabel
+
+        // Total price label with Dynamic Type
+        totalPriceLabel.font = UIFont.preferredFont(forTextStyle: .headline)
+        totalPriceLabel.adjustsFontForContentSizeCategory = true
+        totalPriceLabel.textColor = .label
+
+        // Checkout button with brand colors
         checkoutButton.setTitle("Checkout", for: .normal)
-        checkoutButton.backgroundColor = darkTeal
-        checkoutButton.layer.cornerRadius = 22
+        checkoutButton.backgroundColor = .brandPrimary
+        checkoutButton.layer.cornerRadius = Spacing.buttonHeight / 2
+        checkoutButton.titleLabel?.font = UIFont.preferredFont(forTextStyle: .headline)
+        checkoutButton.titleLabel?.adjustsFontForContentSizeCategory = true
         checkoutButton.addTarget(self, action: #selector(checkoutTapped), for: .touchUpInside)
+        checkoutButton.addTapAnimation()
 
         [itemsCountLabel, totalPriceLabel, checkoutButton].forEach {
             bottomBar.addSubview($0)
@@ -331,15 +368,15 @@ final class CartViewController: UIViewController {
     private func makeCartItemCard(for item: CartItem) -> UIView {
 
         let card = UIView()
-        card.backgroundColor = .white
-        card.layer.cornerRadius = 14
+        card.backgroundColor = .secondarySystemBackground
+        card.layer.cornerRadius = Spacing.cornerRadiusMedium
 
         // Image
         let imageView = UIImageView()
-        imageView.layer.cornerRadius = 10
+        imageView.layer.cornerRadius = Spacing.cornerRadiusSmall
         imageView.clipsToBounds = true
         imageView.contentMode = .scaleAspectFill
-        imageView.backgroundColor = UIColor(white: 0.94, alpha: 1)
+        imageView.backgroundColor = .tertiarySystemBackground
 
         if let img = item.product.imageURL {
             img.hasPrefix("http")
@@ -347,23 +384,27 @@ final class CartViewController: UIViewController {
                 : (imageView.image = UIImage(named: img))
         }
 
-        // Category
+        // Category with Dynamic Type
         let categoryLabel = UILabel()
         categoryLabel.text = item.product.category ?? "General"
-        categoryLabel.font = .systemFont(ofSize: 12)
-        categoryLabel.textColor = .gray
+        categoryLabel.font = UIFont.preferredFont(forTextStyle: .caption1)
+        categoryLabel.adjustsFontForContentSizeCategory = true
+        categoryLabel.textColor = .secondaryLabel
 
-        // Title
+        // Title with Dynamic Type
         let titleLabel = UILabel()
         titleLabel.text = item.product.name
-        titleLabel.font = .systemFont(ofSize: 15, weight: .semibold)
+        titleLabel.font = UIFont.preferredFont(forTextStyle: .subheadline)
+        titleLabel.adjustsFontForContentSizeCategory = true
+        titleLabel.textColor = .label
         titleLabel.numberOfLines = 2
 
-        // Sold By
+        // Sold By with Dynamic Type
         let soldByLabel = UILabel()
         soldByLabel.text = "Sold by \(item.product.sellerName)"
-        soldByLabel.font = .systemFont(ofSize: 12)
-        soldByLabel.textColor = UIColor.systemBlue
+        soldByLabel.font = UIFont.preferredFont(forTextStyle: .caption1)
+        soldByLabel.adjustsFontForContentSizeCategory = true
+        soldByLabel.textColor = .brandPrimary
 
         // Text Stack
         let textStack = UIStackView(arrangedSubviews: [
@@ -372,12 +413,14 @@ final class CartViewController: UIViewController {
             soldByLabel
         ])
         textStack.axis = .vertical
-        textStack.spacing = 4
+        textStack.spacing = Spacing.xs
 
-        // Price (VERTICALLY CENTERED)
+        // Price with Dynamic Type
         let priceLabel = UILabel()
         priceLabel.text = "₹\(Int(item.product.price))"
-        priceLabel.font = .systemFont(ofSize: 16, weight: .semibold)
+        priceLabel.font = UIFont.preferredFont(forTextStyle: .headline)
+        priceLabel.adjustsFontForContentSizeCategory = true
+        priceLabel.textColor = .label
         priceLabel.textAlignment = .right
         
         let deleteButton = UIButton(type: .system)
@@ -475,6 +518,9 @@ final class CartViewController: UIViewController {
             &AssociatedKeys.productId
         ) as? UUID else { return }
 
+        // Haptic feedback for delete action
+        HapticFeedback.removeFromCart()
+
         // Frontend-only removal (persists across navigation)
         CartManager.shared.remove(productId: productId)
 
@@ -508,6 +554,8 @@ final class CartViewController: UIViewController {
     }
 
     private func showUnavailableItemsAlert(unavailableItems: [CartItem]) {
+        HapticFeedback.warning()
+
         let itemNames = unavailableItems.map { $0.product.name }.joined(separator: ", ")
 
         let alert = UIAlertController(
@@ -536,6 +584,8 @@ final class CartViewController: UIViewController {
     }
 
     private func proceedToCheckout() {
+        HapticFeedback.medium()
+
         let vc = AddressViewController()
         vc.flowSource = .fromCart
 

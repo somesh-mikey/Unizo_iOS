@@ -65,31 +65,30 @@ final class ProductCell: UICollectionViewCell {
         cardView.addSubview(separator)
         separator.translatesAutoresizingMaskIntoConstraints = false
 
-        // Name
-        nameLabel.font = UIFont.systemFont(ofSize: 14, weight: .semibold)
+        // Name - Dynamic Type support
+        nameLabel.font = UIFont.preferredFont(forTextStyle: .subheadline)
+        nameLabel.adjustsFontForContentSizeCategory = true
         nameLabel.numberOfLines = 2
-        nameLabel.textColor = .black
+        nameLabel.textColor = .label
 
         // Star
         starImageView.image = UIImage(systemName: "star.fill")
         starImageView.tintColor = .systemYellow
         starImageView.contentMode = .scaleAspectFit
 
-        // Rating
-        ratingLabel.font = UIFont.systemFont(ofSize: 12)
-        ratingLabel.textColor = UIColor(
-            red: 0.239,
-            green: 0.486,
-            blue: 0.596,
-            alpha: 1
-        )
+        // Rating - Dynamic Type support
+        ratingLabel.font = UIFont.preferredFont(forTextStyle: .caption1)
+        ratingLabel.adjustsFontForContentSizeCategory = true
+        ratingLabel.textColor = UIColor.brandPrimary
 
-        // Negotiable
-        negotiableLabel.font = UIFont.systemFont(ofSize: 12, weight: .medium)
+        // Negotiable - Dynamic Type support
+        negotiableLabel.font = UIFont.preferredFont(forTextStyle: .caption1)
+        negotiableLabel.adjustsFontForContentSizeCategory = true
 
-        // Price
-        priceLabel.font = UIFont.systemFont(ofSize: 15, weight: .bold)
-        priceLabel.textColor = .black
+        // Price - Dynamic Type support
+        priceLabel.font = UIFont.preferredFont(forTextStyle: .headline)
+        priceLabel.adjustsFontForContentSizeCategory = true
+        priceLabel.textColor = .label
 
         // Add subviews
         [nameLabel, starImageView, ratingLabel, negotiableLabel, priceLabel]
