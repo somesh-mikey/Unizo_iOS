@@ -3,6 +3,7 @@
 //  Unizo_iOS
 //
 //  Created by Somesh on 26/11/25.
+//  Enhanced with search, filters, and buyer information
 //
 
 import UIKit
@@ -16,7 +17,7 @@ class ListingsViewController: UIViewController {
     // MARK: - UI Components
     private let titleLabel: UILabel = {
         let label = UILabel()
-        label.text = "Listings"
+        label.text = "My Listings"
         label.font = UIFont.preferredFont(forTextStyle: .largeTitle)
         label.adjustsFontForContentSizeCategory = true
         label.textColor = .label
@@ -24,23 +25,105 @@ class ListingsViewController: UIViewController {
         return label
     }()
 
+    private let listingsCountLabel: UILabel = {
+        let label = UILabel()
+        label.font = UIFont.preferredFont(forTextStyle: .subheadline)
+        label.adjustsFontForContentSizeCategory = true
+        label.textColor = .secondaryLabel
+        label.translatesAutoresizingMaskIntoConstraints = false
+        return label
+    }()
+
+    private let searchBar: UISearchBar = {
+        let sb = UISearchBar()
+        sb.placeholder = "Search listings..."
+        sb.searchBarStyle = .minimal
+        sb.translatesAutoresizingMaskIntoConstraints = false
+        return sb
+    }()
+
+    private let filterSegmentedControl: UISegmentedControl = {
+        let items = ["All", "Available", "Pending", "Sold"]
+        let sc = UISegmentedControl(items: items)
+        sc.selectedSegmentIndex = 0
+        sc.translatesAutoresizingMaskIntoConstraints = false
+
+        // Match Landing Screen style - pill-shaped selected segment
+        sc.selectedSegmentTintColor = .brandPrimary
+
+        // Text color for unselected segments
+        sc.setTitleTextAttributes([
+            .foregroundColor: UIColor.brandPrimary,
+            .font: UIFont.systemFont(ofSize: 14, weight: .medium)
+        ], for: .normal)
+
+        // Text color for selected segment
+        sc.setTitleTextAttributes([
+            .foregroundColor: UIColor.white,
+            .font: UIFont.systemFont(ofSize: 14, weight: .semibold)
+        ], for: .selected)
+
+        return sc
+    }()
+
     private let collectionView: UICollectionView = {
         let layout = UICollectionViewFlowLayout()
         layout.scrollDirection = .vertical
-        layout.minimumLineSpacing = 20
-        layout.sectionInset = UIEdgeInsets(top: 16, left: 0, bottom: 32, right: 0)
+        layout.minimumLineSpacing = Spacing.lg
+        layout.sectionInset = UIEdgeInsets(top: Spacing.md, left: 0, bottom: Spacing.xxxl, right: 0)
 
         let cv = UICollectionView(frame: .zero, collectionViewLayout: layout)
         cv.translatesAutoresizingMaskIntoConstraints = false
         cv.backgroundColor = .clear
         cv.showsVerticalScrollIndicator = false
         cv.alwaysBounceVertical = true
+        cv.keyboardDismissMode = .onDrag
         return cv
     }()
 
     private let refreshControl = UIRefreshControl()
 
-    // MARK: - Listing Model
+    // MARK: - Empty State
+    private let emptyStateContainer: UIView = {
+        let v = UIView()
+        v.isHidden = true
+        v.translatesAutoresizingMaskIntoConstraints = false
+        return v
+    }()
+
+    private let emptyStateImageView: UIImageView = {
+        let iv = UIImageView()
+        iv.image = UIImage(systemName: "tray")
+        iv.tintColor = .tertiaryLabel
+        iv.contentMode = .scaleAspectFit
+        iv.translatesAutoresizingMaskIntoConstraints = false
+        return iv
+    }()
+
+    private let emptyStateLabel: UILabel = {
+        let l = UILabel()
+        l.text = "No listings yet"
+        l.font = UIFont.preferredFont(forTextStyle: .title3)
+        l.adjustsFontForContentSizeCategory = true
+        l.textColor = .secondaryLabel
+        l.textAlignment = .center
+        l.translatesAutoresizingMaskIntoConstraints = false
+        return l
+    }()
+
+    private let emptyStateSubtitle: UILabel = {
+        let l = UILabel()
+        l.text = "Start selling by posting\nyour first item"
+        l.font = UIFont.preferredFont(forTextStyle: .subheadline)
+        l.adjustsFontForContentSizeCategory = true
+        l.textColor = .tertiaryLabel
+        l.textAlignment = .center
+        l.numberOfLines = 2
+        l.translatesAutoresizingMaskIntoConstraints = false
+        return l
+    }()
+
+    // MARK: - Enhanced Listing Model
     struct Listing {
         let image: UIImage?
         let imageURL: String?
@@ -49,11 +132,20 @@ class ListingsViewController: UIViewController {
         let status: String
         let price: String
         let productId: UUID
+        let viewsCount: Int
+        let createdAt: Date?
+        let quantity: Int
+        let buyerName: String?
+        let orderStatus: String?
     }
 
     // MARK: - Listings Data
-    private var listings: [Listing] = []
+    private var allListings: [Listing] = []
+    private var filteredListings: [Listing] = []
     private var products: [ProductDTO] = []
+
+    private var currentSearchText: String = ""
+    private var currentFilter: String = "All"
 
     // MARK: - Lifecycle
     override func viewDidLoad() {
@@ -61,6 +153,8 @@ class ListingsViewController: UIViewController {
         view.backgroundColor = .systemGroupedBackground
         setupUI()
         setupCollectionView()
+        setupSearchBar()
+        setupFilterControl()
     }
 
     override func viewWillAppear(_ animated: Bool) {
@@ -74,6 +168,7 @@ class ListingsViewController: UIViewController {
             do {
                 let userId = try await supabase.auth.session.user.id.uuidString
 
+                // Fetch products
                 let response = try await supabase
                     .from("products")
                     .select("*")
@@ -86,12 +181,12 @@ class ListingsViewController: UIViewController {
                 let deletedIDs = DeletedListingsStore.all()
 
                 await MainActor.run {
-                    // Filter deleted products (CRITICAL FIX)
+                    // Filter deleted products
                     self.products = fetchedProducts.filter {
                         !deletedIDs.contains($0.id.uuidString)
                     }
 
-                    self.listings = self.products.map { product in
+                    self.allListings = self.products.map { product in
                         let displayStatus: String
                         switch product.status {
                         case .sold:
@@ -109,11 +204,17 @@ class ListingsViewController: UIViewController {
                             name: product.title,
                             status: displayStatus,
                             price: "₹\(Int(product.price))",
-                            productId: product.id
+                            productId: product.id,
+                            viewsCount: product.viewsCount ?? 0,
+                            createdAt: nil,
+                            quantity: product.quantity ?? 1,
+                            buyerName: nil,
+                            orderStatus: nil
                         )
                     }
 
-                    self.collectionView.reloadData()
+                    self.applyFilters()
+                    self.updateListingsCount()
                     self.refreshControl.endRefreshing()
                 }
 
@@ -126,35 +227,163 @@ class ListingsViewController: UIViewController {
         }
     }
 
+    // MARK: - Filter Logic
+    private func applyFilters() {
+        var result = allListings
+
+        // Apply status filter
+        if currentFilter != "All" {
+            result = result.filter { $0.status == currentFilter }
+        }
+
+        // Apply search filter
+        if !currentSearchText.isEmpty {
+            result = result.filter {
+                $0.name.localizedCaseInsensitiveContains(currentSearchText) ||
+                $0.category.localizedCaseInsensitiveContains(currentSearchText)
+            }
+        }
+
+        filteredListings = result
+        collectionView.reloadData()
+        updateEmptyState()
+    }
+
+    private func updateEmptyState() {
+        let isEmpty = filteredListings.isEmpty
+
+        emptyStateContainer.isHidden = !isEmpty
+        collectionView.isHidden = isEmpty
+
+        if isEmpty {
+            if !currentSearchText.isEmpty {
+                emptyStateLabel.text = "No results found"
+                emptyStateSubtitle.text = "Try a different search term"
+                emptyStateImageView.image = UIImage(systemName: "magnifyingglass")
+            } else if currentFilter != "All" {
+                emptyStateLabel.text = "No \(currentFilter.lowercased()) listings"
+                emptyStateSubtitle.text = "Items with this status\nwill appear here"
+                emptyStateImageView.image = UIImage(systemName: "tray")
+            } else {
+                emptyStateLabel.text = "No listings yet"
+                emptyStateSubtitle.text = "Start selling by posting\nyour first item"
+                emptyStateImageView.image = UIImage(systemName: "tray")
+            }
+        }
+    }
+
+    private func updateListingsCount() {
+        let total = allListings.count
+        let available = allListings.filter { $0.status == "Available" }.count
+        let sold = allListings.filter { $0.status == "Sold" }.count
+
+        listingsCountLabel.text = "\(total) listings • \(available) available • \(sold) sold"
+    }
+
     // MARK: - UI Setup
     private func setupUI() {
         view.addSubview(titleLabel)
+        view.addSubview(listingsCountLabel)
+        view.addSubview(searchBar)
+        view.addSubview(filterSegmentedControl)
         view.addSubview(collectionView)
+        view.addSubview(emptyStateContainer)
+
+        emptyStateContainer.addSubview(emptyStateImageView)
+        emptyStateContainer.addSubview(emptyStateLabel)
+        emptyStateContainer.addSubview(emptyStateSubtitle)
 
         NSLayoutConstraint.activate([
-            titleLabel.topAnchor.constraint(equalTo: view.topAnchor, constant: 80),
-            titleLabel.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 24),
+            // Title
+            titleLabel.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor, constant: Spacing.lg),
+            titleLabel.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: Spacing.contentMargin),
 
-            collectionView.topAnchor.constraint(equalTo: titleLabel.bottomAnchor, constant: 20),
-            collectionView.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 20),
-            collectionView.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -20),
-            collectionView.bottomAnchor.constraint(equalTo: view.bottomAnchor)
+            // Listings count
+            listingsCountLabel.topAnchor.constraint(equalTo: titleLabel.bottomAnchor, constant: Spacing.xs),
+            listingsCountLabel.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: Spacing.contentMargin),
+
+            // Search bar
+            searchBar.topAnchor.constraint(equalTo: listingsCountLabel.bottomAnchor, constant: Spacing.md),
+            searchBar.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: Spacing.sm),
+            searchBar.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -Spacing.sm),
+
+            // Filter segmented control (matching Landing Screen style)
+            filterSegmentedControl.topAnchor.constraint(equalTo: searchBar.bottomAnchor, constant: Spacing.sm),
+            filterSegmentedControl.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: Spacing.contentMargin),
+            filterSegmentedControl.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -Spacing.contentMargin),
+            filterSegmentedControl.heightAnchor.constraint(equalToConstant: 35),
+
+            // Collection view
+            collectionView.topAnchor.constraint(equalTo: filterSegmentedControl.bottomAnchor, constant: Spacing.md),
+            collectionView.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: Spacing.contentMargin),
+            collectionView.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -Spacing.contentMargin),
+            collectionView.bottomAnchor.constraint(equalTo: view.bottomAnchor),
+
+            // Empty state container
+            emptyStateContainer.centerXAnchor.constraint(equalTo: view.centerXAnchor),
+            emptyStateContainer.centerYAnchor.constraint(equalTo: view.centerYAnchor, constant: 50),
+
+            emptyStateImageView.topAnchor.constraint(equalTo: emptyStateContainer.topAnchor),
+            emptyStateImageView.centerXAnchor.constraint(equalTo: emptyStateContainer.centerXAnchor),
+            emptyStateImageView.widthAnchor.constraint(equalToConstant: 60),
+            emptyStateImageView.heightAnchor.constraint(equalToConstant: 60),
+
+            emptyStateLabel.topAnchor.constraint(equalTo: emptyStateImageView.bottomAnchor, constant: Spacing.lg),
+            emptyStateLabel.centerXAnchor.constraint(equalTo: emptyStateContainer.centerXAnchor),
+
+            emptyStateSubtitle.topAnchor.constraint(equalTo: emptyStateLabel.bottomAnchor, constant: Spacing.sm),
+            emptyStateSubtitle.centerXAnchor.constraint(equalTo: emptyStateContainer.centerXAnchor),
+            emptyStateSubtitle.bottomAnchor.constraint(equalTo: emptyStateContainer.bottomAnchor)
         ])
     }
 
     private func setupCollectionView() {
         collectionView.delegate = self
         collectionView.dataSource = self
-        collectionView.register(ListingCell.self, forCellWithReuseIdentifier: "ListingCell")
+        collectionView.register(EnhancedListingCell.self, forCellWithReuseIdentifier: EnhancedListingCell.reuseIdentifier)
 
         // Pull-to-refresh
         refreshControl.addTarget(self, action: #selector(handleRefresh), for: .valueChanged)
         collectionView.refreshControl = refreshControl
     }
 
+    private func setupSearchBar() {
+        searchBar.delegate = self
+    }
+
+    private func setupFilterControl() {
+        filterSegmentedControl.addTarget(self, action: #selector(filterChanged), for: .valueChanged)
+    }
+
     @objc private func handleRefresh() {
         HapticFeedback.pullToRefresh()
         fetchUserListings()
+    }
+
+    @objc private func filterChanged() {
+        HapticFeedback.selection()
+        let index = filterSegmentedControl.selectedSegmentIndex
+        currentFilter = filterSegmentedControl.titleForSegment(at: index) ?? "All"
+        applyFilters()
+    }
+}
+
+// MARK: - UISearchBarDelegate
+extension ListingsViewController: UISearchBarDelegate {
+    func searchBar(_ searchBar: UISearchBar, textDidChange searchText: String) {
+        currentSearchText = searchText
+        applyFilters()
+    }
+
+    func searchBarSearchButtonClicked(_ searchBar: UISearchBar) {
+        searchBar.resignFirstResponder()
+    }
+
+    func searchBarCancelButtonClicked(_ searchBar: UISearchBar) {
+        searchBar.text = ""
+        currentSearchText = ""
+        searchBar.resignFirstResponder()
+        applyFilters()
     }
 }
 
@@ -162,18 +391,18 @@ class ListingsViewController: UIViewController {
 extension ListingsViewController: UICollectionViewDelegateFlowLayout, UICollectionViewDataSource {
 
     func collectionView(_ collectionView: UICollectionView, numberOfItemsInSection section: Int) -> Int {
-        listings.count
+        filteredListings.count
     }
 
     func collectionView(_ collectionView: UICollectionView,
                         cellForItemAt indexPath: IndexPath) -> UICollectionViewCell {
 
         let cell = collectionView.dequeueReusableCell(
-            withReuseIdentifier: "ListingCell",
+            withReuseIdentifier: EnhancedListingCell.reuseIdentifier,
             for: indexPath
-        ) as! ListingCell
+        ) as! EnhancedListingCell
 
-        cell.configure(with: listings[indexPath.row])
+        cell.configure(with: filteredListings[indexPath.row])
         cell.delegate = self
         return cell
     }
@@ -182,16 +411,20 @@ extension ListingsViewController: UICollectionViewDelegateFlowLayout, UICollecti
                         layout collectionViewLayout: UICollectionViewLayout,
                         sizeForItemAt indexPath: IndexPath) -> CGSize {
 
-        CGSize(width: collectionView.frame.width, height: 135)
+        // Taller cells to accommodate more info
+        CGSize(width: collectionView.frame.width, height: 160)
     }
 }
 
-// MARK: - ListingCell Delegate
-extension ListingsViewController: ListingCellDelegate {
+// MARK: - EnhancedListingCellDelegate
+extension ListingsViewController: EnhancedListingCellDelegate {
 
-    func didTapView(on cell: ListingCell) {
+    func didTapView(on cell: EnhancedListingCell) {
         guard let indexPath = collectionView.indexPath(for: cell) else { return }
-        let product = products[indexPath.row]
+        let listing = filteredListings[indexPath.row]
+
+        // Find the original product
+        guard let product = products.first(where: { $0.id == listing.productId }) else { return }
 
         let productUIModel = ProductMapper.toUIModel(product)
         let detailVC = ItemDetailsViewController(nibName: "ItemDetailsViewController", bundle: nil)
@@ -199,11 +432,14 @@ extension ListingsViewController: ListingCellDelegate {
         navigationController?.pushViewController(detailVC, animated: true)
     }
 
-    func didTapEdit(on cell: ListingCell) {
+    func didTapEdit(on cell: EnhancedListingCell) {
         guard let indexPath = collectionView.indexPath(for: cell) else { return }
-        let product = products[indexPath.row]
+        let listing = filteredListings[indexPath.row]
+
+        guard let product = products.first(where: { $0.id == listing.productId }) else { return }
 
         if product.status == .sold {
+            HapticFeedback.warning()
             let alert = UIAlertController(
                 title: "Cannot Edit",
                 message: "Once sold, listing cannot be edited.",
@@ -219,9 +455,11 @@ extension ListingsViewController: ListingCellDelegate {
         navigationController?.pushViewController(editVC, animated: true)
     }
 
-    func didTapDelete(on cell: ListingCell) {
+    func didTapDelete(on cell: EnhancedListingCell) {
         guard let indexPath = collectionView.indexPath(for: cell) else { return }
-        let product = products[indexPath.row]
+        let listing = filteredListings[indexPath.row]
+
+        guard let product = products.first(where: { $0.id == listing.productId }) else { return }
 
         let alert = UIAlertController(
             title: "Delete Listing",
@@ -230,19 +468,17 @@ extension ListingsViewController: ListingCellDelegate {
         )
 
         alert.addAction(UIAlertAction(title: "Cancel", style: .cancel))
-        alert.addAction(UIAlertAction(title: "Delete", style: .destructive) { _ in
-            self.deleteProduct(at: indexPath)
+        alert.addAction(UIAlertAction(title: "Delete", style: .destructive) { [weak self] _ in
+            self?.deleteProduct(product, listing: listing)
         })
 
         present(alert, animated: true)
     }
 
-    private func deleteProduct(at indexPath: IndexPath) {
-        let product = products[indexPath.row]
-
+    private func deleteProduct(_ product: ProductDTO, listing: Listing) {
         HapticFeedback.delete()
 
-        // 🔐 Persist deletion locally (KEY FIX)
+        // Persist deletion locally
         DeletedListingsStore.add(product.id.uuidString)
 
         Task {
@@ -254,9 +490,11 @@ extension ListingsViewController: ListingCellDelegate {
                     .execute()
 
                 await MainActor.run {
-                    products.remove(at: indexPath.row)
-                    listings.remove(at: indexPath.row)
-                    collectionView.deleteItems(at: [indexPath])
+                    // Remove from all data sources
+                    self.products.removeAll { $0.id == product.id }
+                    self.allListings.removeAll { $0.productId == product.id }
+                    self.applyFilters()
+                    self.updateListingsCount()
                 }
 
             } catch {

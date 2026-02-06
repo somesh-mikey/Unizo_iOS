@@ -25,7 +25,15 @@ class LandingScreenViewController: UIViewController {
     private let topContainer = UIView()
     private let navBarView = UIView()
     private let homeLabel = UILabel()
-    private let toolbar = UIToolbar()
+
+    // Menu button (replaces UIToolbar - per Apple HIG, toolbars are for actions, not navigation)
+    private let menuButton: UIButton = {
+        let btn = UIButton(type: .system)
+        btn.setImage(UIImage(systemName: "ellipsis"), for: .normal)
+        btn.tintColor = .white
+        btn.translatesAutoresizingMaskIntoConstraints = false
+        return btn
+    }()
     private let searchBar: UISearchBar = {
         let sb = UISearchBar()
         sb.placeholder = "Search"
@@ -323,37 +331,19 @@ class LandingScreenViewController: UIViewController {
             navBarView.heightAnchor.constraint(equalToConstant: 120)
         ])
         
-        // --- Toolbar ---
-        toolbar.tintColor = .white
-        toolbar.isTranslucent = false
-        toolbar.backgroundColor = .clear
-        toolbar.setShadowImage(UIImage(), forToolbarPosition: .any)
-        toolbar.setBackgroundImage(UIImage(), forToolbarPosition: .any, barMetrics: .default)
-        navBarView.addSubview(toolbar)
-        toolbar.translatesAutoresizingMaskIntoConstraints = false
+        // --- Menu Button (Apple HIG: Use plain buttons, not toolbars, for navigation areas) ---
+        navBarView.addSubview(menuButton)
+        menuButton.addTarget(self, action: #selector(menuButtonTapped), for: .touchUpInside)
+
+        // 44pt minimum touch target per Apple HIG
         NSLayoutConstraint.activate([
-            toolbar.topAnchor.constraint(equalTo: navBarView.topAnchor),
-            toolbar.leadingAnchor.constraint(equalTo: navBarView.leadingAnchor),
-            toolbar.trailingAnchor.constraint(equalTo: navBarView.trailingAnchor),
-            toolbar.heightAnchor.constraint(equalToConstant: 44)
+            menuButton.topAnchor.constraint(equalTo: navBarView.topAnchor, constant: Spacing.sm),
+            menuButton.trailingAnchor.constraint(equalTo: navBarView.trailingAnchor, constant: -Spacing.md),
+            menuButton.widthAnchor.constraint(equalToConstant: Spacing.minTouchTarget),
+            menuButton.heightAnchor.constraint(equalToConstant: Spacing.minTouchTarget)
         ])
-        
-        let flexSpace = UIBarButtonItem(
-            barButtonSystemItem: .flexibleSpace,
-            target: nil,
-            action: nil
-        )
 
-        let menuItem = UIBarButtonItem(
-            image: UIImage(systemName: "ellipsis"),
-            style: .plain,
-            target: self,
-            action: #selector(menuButtonTapped)
-        )
-
-        toolbar.setItems([flexSpace, menuItem], animated: false)
-        
-        // --- Home title (PLAIN LABEL, not a toolbar item) ---
+        // --- Home title ---
         homeLabel.text = "Home"
         homeLabel.textColor = .white
         homeLabel.font = UIFont.systemFont(ofSize: 35, weight: .bold)
@@ -365,7 +355,7 @@ class LandingScreenViewController: UIViewController {
 
         NSLayoutConstraint.activate([
             homeLabel.leadingAnchor.constraint(equalTo: navBarView.leadingAnchor, constant: 20),
-            homeLabel.centerYAnchor.constraint(equalTo: toolbar.centerYAnchor)
+            homeLabel.centerYAnchor.constraint(equalTo: menuButton.centerYAnchor)
         ])
         
         // --- Search Bar ---
@@ -375,8 +365,7 @@ class LandingScreenViewController: UIViewController {
         searchBar.searchBarStyle = .minimal
         searchBar.placeholder = "Search"
         NSLayoutConstraint.activate([
-            //searchBar.topAnchor.constraint(equalTo: navBarView.bottomAnchor, constant: 8),
-            searchBar.topAnchor.constraint(equalTo: toolbar.bottomAnchor, constant: 18),
+            searchBar.topAnchor.constraint(equalTo: menuButton.bottomAnchor, constant: Spacing.md),
             searchBar.leadingAnchor.constraint(equalTo: navBarView.leadingAnchor, constant: 20),
             searchBar.trailingAnchor.constraint(equalTo: navBarView.trailingAnchor, constant: -20),
             searchBar.heightAnchor.constraint(equalToConstant: 44)
@@ -860,7 +849,8 @@ class LandingScreenViewController: UIViewController {
         alert.addAction(UIAlertAction(title: "Cancel", style: .cancel))
 
         if let popover = alert.popoverPresentationController {
-            popover.barButtonItem = toolbar.items?.last
+            popover.sourceView = menuButton
+            popover.sourceRect = menuButton.bounds
         }
 
         present(alert, animated: true)
