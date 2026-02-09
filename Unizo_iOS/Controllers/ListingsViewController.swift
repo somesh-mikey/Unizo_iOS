@@ -18,8 +18,7 @@ class ListingsViewController: UIViewController {
     private let titleLabel: UILabel = {
         let label = UILabel()
         label.text = "My Listings"
-        label.font = UIFont.preferredFont(forTextStyle: .largeTitle)
-        label.adjustsFontForContentSizeCategory = true
+        label.font = .systemFont(ofSize: 35, weight: .bold)
         label.textColor = .label
         label.translatesAutoresizingMaskIntoConstraints = false
         return label
@@ -295,8 +294,7 @@ class ListingsViewController: UIViewController {
 
         NSLayoutConstraint.activate([
             // Title
-            titleLabel.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor, constant: Spacing.lg),
-            titleLabel.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: Spacing.contentMargin),
+            titleLabel.topAnchor.constraint(equalTo: view.topAnchor, constant: 75),        titleLabel.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: Spacing.contentMargin),
 
             // Listings count
             listingsCountLabel.topAnchor.constraint(equalTo: titleLabel.bottomAnchor, constant: Spacing.xs),

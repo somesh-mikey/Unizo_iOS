@@ -36,6 +36,8 @@ private final class ChatCell: UITableViewCell {
         super.init(style: style, reuseIdentifier: reuseIdentifier)
         selectionStyle = .none
         accessoryType = .disclosureIndicator
+        backgroundColor = .clear
+        contentView.backgroundColor = .clear
         setupUI()
         setupConstraints()
     }
@@ -129,7 +131,7 @@ final class ChatViewController: UIViewController {
     private let titleLabel: UILabel = {
         let l = UILabel()
         l.text = "Chat"
-        l.font = .systemFont(ofSize: 38, weight: .bold)
+        l.font = .systemFont(ofSize: 35, weight: .bold)
         return l
     }()
 
@@ -157,7 +159,7 @@ final class ChatViewController: UIViewController {
     // MARK: Lifecycle
     override func viewDidLoad() {
         super.viewDidLoad()
-        view.backgroundColor = UIColor(white: 0.98, alpha: 1)
+        view.backgroundColor = .systemGray6
         setupUI()
         setupTable()
         refreshData()
@@ -170,7 +172,7 @@ final class ChatViewController: UIViewController {
             view.addSubview($0)
         }
 
-        searchContainer.backgroundColor = UIColor(white: 0.94, alpha: 1)
+        searchContainer.backgroundColor = .white
         searchContainer.layer.cornerRadius = 20
 
         searchField.placeholder = "Search"
@@ -182,7 +184,7 @@ final class ChatViewController: UIViewController {
 
         NSLayoutConstraint.activate([
             titleLabel.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 20),
-            titleLabel.topAnchor.constraint(equalTo: view.topAnchor, constant: 60),
+            titleLabel.topAnchor.constraint(equalTo: view.topAnchor, constant: 75),
 
             searchContainer.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 16),
             searchContainer.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -16),
@@ -208,6 +210,7 @@ final class ChatViewController: UIViewController {
     private func setupTable() {
         tableView.register(ChatCell.self, forCellReuseIdentifier: ChatCell.reuseId)
         tableView.separatorStyle = .none
+        tableView.backgroundColor = .clear
         tableView.dataSource = self
         tableView.delegate = self
     }

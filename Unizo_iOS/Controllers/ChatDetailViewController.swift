@@ -72,7 +72,7 @@ class ChatDetailViewController: UIViewController, UITableViewDataSource, UITable
     private let tableView: UITableView = {
         let t = UITableView()
         t.separatorStyle = .none
-        t.backgroundColor = UIColor(white: 0.97, alpha: 1)
+        t.backgroundColor = .systemGray6
         t.translatesAutoresizingMaskIntoConstraints = false
         t.showsVerticalScrollIndicator = false
         t.allowsSelection = false
@@ -82,7 +82,7 @@ class ChatDetailViewController: UIViewController, UITableViewDataSource, UITable
     // INPUT BAR
     private let inputContainer: UIView = {
         let v = UIView()
-        v.backgroundColor = UIColor(white: 0.98, alpha: 1)
+        v.backgroundColor = .systemGray6
         v.translatesAutoresizingMaskIntoConstraints = false
         return v
     }()
@@ -128,7 +128,7 @@ class ChatDetailViewController: UIViewController, UITableViewDataSource, UITable
     override func viewDidLoad() {
         super.viewDidLoad()
 
-        view.backgroundColor = UIColor(white: 0.97, alpha: 1)
+        view.backgroundColor = .systemGray6
 
         setupHeader()
         setupTable()

@@ -310,14 +310,14 @@ class LandingScreenViewController: UIViewController {
 
         // --- Scroll background solid white (covers below topContainer) ---
 
-        // --- Top Container ---
+        // --- Top Container (navBar with Home + search, extends to scroll) ---
         view.addSubview(topContainer)
         topContainer.translatesAutoresizingMaskIntoConstraints = false
         NSLayoutConstraint.activate([
             topContainer.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor),
             topContainer.leadingAnchor.constraint(equalTo: view.leadingAnchor),
             topContainer.trailingAnchor.constraint(equalTo: view.trailingAnchor),
-            topContainer.heightAnchor.constraint(equalToConstant: 360) // slightly taller for spacing
+            topContainer.heightAnchor.constraint(equalToConstant: 145) // extend to cover gap before scroll
         ])
         
         // --- NavBar ---
@@ -328,7 +328,7 @@ class LandingScreenViewController: UIViewController {
             navBarView.topAnchor.constraint(equalTo: topContainer.topAnchor),
             navBarView.leadingAnchor.constraint(equalTo: topContainer.leadingAnchor),
             navBarView.trailingAnchor.constraint(equalTo: topContainer.trailingAnchor),
-            navBarView.heightAnchor.constraint(equalToConstant: 120)
+            navBarView.bottomAnchor.constraint(equalTo: topContainer.bottomAnchor) // fill entire top container
         ])
         
         // --- Menu Button (Apple HIG: Use plain buttons, not toolbars, for navigation areas) ---
@@ -371,7 +371,54 @@ class LandingScreenViewController: UIViewController {
             searchBar.heightAnchor.constraint(equalToConstant: 44)
         ])
         
-        // --- Trending Categories Background ---
+        // --- White background below trending categories (covers tab bar area) ---
+        let whiteBackground = UIView()
+        whiteBackground.backgroundColor = .white
+        whiteBackground.translatesAutoresizingMaskIntoConstraints = false
+        view.addSubview(whiteBackground)
+        NSLayoutConstraint.activate([
+            whiteBackground.topAnchor.constraint(equalTo: searchBar.bottomAnchor, constant: 150), // below trending categories
+            whiteBackground.leadingAnchor.constraint(equalTo: view.leadingAnchor),
+            whiteBackground.trailingAnchor.constraint(equalTo: view.trailingAnchor),
+            whiteBackground.bottomAnchor.constraint(equalTo: view.bottomAnchor)
+        ])
+
+        // --- Main Scroll Section ---
+        view.addSubview(mainScrollView)
+        mainScrollView.translatesAutoresizingMaskIntoConstraints = false
+        mainScrollView.backgroundColor = .clear
+        NSLayoutConstraint.activate([
+            // Scroll starts from TOP of trending categories box
+            mainScrollView.topAnchor.constraint(equalTo: searchBar.bottomAnchor, constant: 22),
+            mainScrollView.leadingAnchor.constraint(equalTo: view.leadingAnchor),
+            mainScrollView.trailingAnchor.constraint(equalTo: view.trailingAnchor),
+            mainScrollView.bottomAnchor.constraint(equalTo: view.bottomAnchor)
+        ])
+        
+        mainScrollView.addSubview(contentView)
+        contentView.translatesAutoresizingMaskIntoConstraints = false
+        NSLayoutConstraint.activate([
+            contentView.topAnchor.constraint(equalTo: mainScrollView.topAnchor),
+            contentView.leadingAnchor.constraint(equalTo: mainScrollView.leadingAnchor),
+            contentView.trailingAnchor.constraint(equalTo: mainScrollView.trailingAnchor),
+            contentView.bottomAnchor.constraint(equalTo: mainScrollView.bottomAnchor),
+            contentView.widthAnchor.constraint(equalTo: mainScrollView.widthAnchor)
+        ])
+
+        // --- Add teal background strip behind trending categories for rounded corner effect ---
+        let tealStrip = UIView()
+        tealStrip.backgroundColor = UIColor(red: 0.239, green: 0.486, blue: 0.596, alpha: 1) // #3D7C98 teal
+        tealStrip.translatesAutoresizingMaskIntoConstraints = false
+        contentView.addSubview(tealStrip)
+        NSLayoutConstraint.activate([
+            tealStrip.topAnchor.constraint(equalTo: contentView.topAnchor),
+            tealStrip.leadingAnchor.constraint(equalTo: contentView.leadingAnchor),
+            tealStrip.trailingAnchor.constraint(equalTo: contentView.trailingAnchor),
+            tealStrip.heightAnchor.constraint(equalToConstant: 30) // Just covers the rounded corner area
+        ])
+
+        // --- Add Trending Categories to scroll content ---
+        // Setup trendingCategoriesbg styling
         trendingCategoriesbg.backgroundColor = UIColor(red: 0.83, green: 0.95, blue: 0.96, alpha: 1) // #D4F2F4
         trendingCategoriesbg.layer.cornerRadius = 20
         trendingCategoriesbg.layer.maskedCorners = [
@@ -380,20 +427,14 @@ class LandingScreenViewController: UIViewController {
         ]
         trendingCategoriesbg.clipsToBounds = true
         trendingCategoriesbg.translatesAutoresizingMaskIntoConstraints = false
-        topContainer.addSubview(trendingCategoriesbg)
+
+        contentView.addSubview(trendingCategoriesbg)
         NSLayoutConstraint.activate([
-            trendingCategoriesbg.leadingAnchor.constraint(equalTo: topContainer.leadingAnchor),
-            trendingCategoriesbg.trailingAnchor.constraint(equalTo: topContainer.trailingAnchor),
-            trendingCategoriesbg.topAnchor.constraint(equalTo: searchBar.bottomAnchor, constant: 22)
+            trendingCategoriesbg.topAnchor.constraint(equalTo: contentView.topAnchor),
+            trendingCategoriesbg.leadingAnchor.constraint(equalTo: contentView.leadingAnchor),
+            trendingCategoriesbg.trailingAnchor.constraint(equalTo: contentView.trailingAnchor)
         ])
-        
-        // Optional soft shadow (Figma look)
-        trendingCategoriesbg.layer.shadowColor = UIColor.black.cgColor
-        trendingCategoriesbg.layer.shadowOpacity = 0.08
-        trendingCategoriesbg.layer.shadowRadius = 6
-        trendingCategoriesbg.layer.shadowOffset = CGSize(width: 0, height: 3)
-        trendingCategoriesbg.layer.masksToBounds = false
-        
+
         // --- Trending Label ---
         trendingLabel.text = "Trending Categories"
         trendingLabel.font = UIFont.boldSystemFont(ofSize: 17)
@@ -404,7 +445,7 @@ class LandingScreenViewController: UIViewController {
             trendingLabel.topAnchor.constraint(equalTo: trendingCategoriesbg.topAnchor, constant: 10),
             trendingLabel.leadingAnchor.constraint(equalTo: trendingCategoriesbg.leadingAnchor, constant: 15)
         ])
-        
+
         // --- Category Stack ---
         categoryStackView.axis = .horizontal
         categoryStackView.alignment = .top
@@ -415,15 +456,14 @@ class LandingScreenViewController: UIViewController {
         NSLayoutConstraint.activate([
             categoryStackView.topAnchor.constraint(equalTo: trendingLabel.bottomAnchor, constant: 10),
             categoryStackView.leadingAnchor.constraint(equalTo: trendingCategoriesbg.leadingAnchor, constant: 10),
-            categoryStackView.trailingAnchor.constraint(equalTo: trendingCategoriesbg.trailingAnchor, constant: -10),
-            categoryStackView.bottomAnchor.constraint(equalTo: trendingCategoriesbg.bottomAnchor, constant: -8)
+            categoryStackView.trailingAnchor.constraint(equalTo: trendingCategoriesbg.trailingAnchor, constant: -10)
         ])
+        // Set bottom constraint for trendingCategoriesbg height
         trendingCategoriesbg.bottomAnchor
             .constraint(equalTo: categoryStackView.bottomAnchor, constant: 25)
             .isActive = true
-        
+
         // --- Categories ---
-        // --- Categories (FIXED BUTTON INTERACTION) ---
         let categories = [
             ("cart", "Hostel Essentials"),
             ("tablecells", "Furniture"),
@@ -433,7 +473,6 @@ class LandingScreenViewController: UIViewController {
         ]
 
         for i in 0..<categories.count {
-
             let (icon, caption) = categories[i]
 
             let v = UIStackView()
@@ -441,10 +480,10 @@ class LandingScreenViewController: UIViewController {
             v.alignment = .center
             v.distribution = .fill
             v.spacing = 6
-            v.isUserInteractionEnabled = true   // CRITICAL FIX
+            v.isUserInteractionEnabled = true
 
             let btn = UIButton(type: .system)
-            btn.tag = i                         // CORRECT TAG
+            btn.tag = i
             btn.isUserInteractionEnabled = true
             btn.addTarget(self, action: #selector(categoryTapped(_:)), for: .touchUpInside)
             btn.setImage(UIImage(systemName: icon), for: .normal)
@@ -467,27 +506,6 @@ class LandingScreenViewController: UIViewController {
             categoryStackView.addArrangedSubview(v)
         }
         
-        // --- Main Scroll Section ---
-        view.addSubview(mainScrollView)
-        mainScrollView.translatesAutoresizingMaskIntoConstraints = false
-        mainScrollView.backgroundColor = .white
-        NSLayoutConstraint.activate([
-            mainScrollView.topAnchor.constraint(equalTo: trendingCategoriesbg.bottomAnchor),
-            mainScrollView.leadingAnchor.constraint(equalTo: view.leadingAnchor),
-            mainScrollView.trailingAnchor.constraint(equalTo: view.trailingAnchor),
-            mainScrollView.bottomAnchor.constraint(equalTo: view.bottomAnchor)
-        ])
-        
-        mainScrollView.addSubview(contentView)
-        contentView.translatesAutoresizingMaskIntoConstraints = false
-        NSLayoutConstraint.activate([
-            contentView.topAnchor.constraint(equalTo: mainScrollView.topAnchor),
-            contentView.leadingAnchor.constraint(equalTo: mainScrollView.leadingAnchor),
-            contentView.trailingAnchor.constraint(equalTo: mainScrollView.trailingAnchor),
-            contentView.bottomAnchor.constraint(equalTo: mainScrollView.bottomAnchor),
-            contentView.widthAnchor.constraint(equalTo: mainScrollView.widthAnchor)
-        ])
-        
         // --- Carousel ---
         contentView.addSubview(carouselScrollView)
         contentView.backgroundColor = .white
@@ -496,7 +514,8 @@ class LandingScreenViewController: UIViewController {
         carouselScrollView.showsHorizontalScrollIndicator = false
         carouselScrollView.translatesAutoresizingMaskIntoConstraints = false
         NSLayoutConstraint.activate([
-            carouselScrollView.topAnchor.constraint(equalTo: contentView.topAnchor, constant: 20),
+            // Start carousel below trending categories
+            carouselScrollView.topAnchor.constraint(equalTo: trendingCategoriesbg.bottomAnchor, constant: 20),
 
             // Horizontal inset for smaller rounded cards
             carouselScrollView.leadingAnchor.constraint(equalTo: contentView.leadingAnchor, constant: 20),
@@ -1108,22 +1127,21 @@ final class ImageLoader {
         placeholder: UIImage? = nil
     ) {
         imageView.image = placeholder
-
+        
         if let cached = cache.object(forKey: urlString as NSString) {
             imageView.image = cached
             return
         }
-
+        
         guard let url = URL(string: urlString) else { return }
-
+        
         URLSession.shared.dataTask(with: url) { data, _, _ in
             guard let data, let image = UIImage(data: data) else { return }
             self.cache.setObject(image, forKey: urlString as NSString)
-
+            
             DispatchQueue.main.async {
                 imageView.image = image
             }
         }.resume()
     }
 }
-
