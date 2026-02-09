@@ -21,7 +21,7 @@ final class PostItemViewController: UIViewController,
     private let titleLabel: UILabel = {
         let l = UILabel()
         l.text = "Post Item"
-        l.font = .systemFont(ofSize: 28, weight: .bold)
+        l.font = .systemFont(ofSize: 35, weight: .bold)
         return l
     }()
 

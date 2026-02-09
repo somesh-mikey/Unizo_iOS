@@ -71,11 +71,7 @@ class ConfirmOrderSellerViewController: UIViewController {
 
     private let toolbarBackground: UIView = {
         let v = UIView()
-        v.backgroundColor = .white      // opaque white
-        v.layer.shadowColor = UIColor.black.cgColor
-        v.layer.shadowOpacity = 0.05     // subtle shadow like iOS navigation bars
-        v.layer.shadowRadius = 4
-        v.layer.shadowOffset = CGSize(width: 0, height: 2)
+        v.backgroundColor = .systemGray6      // match grey background
         return v
     }()
 
@@ -87,9 +83,14 @@ class ConfirmOrderSellerViewController: UIViewController {
         let iv = UIImageView()
         iv.image = UIImage(systemName: "photo")  // Placeholder image
         iv.tintColor = .lightGray
-        iv.contentMode = .scaleAspectFill
+        iv.contentMode = .scaleAspectFit
         iv.clipsToBounds = true
-        iv.layer.cornerRadius = 16
+        iv.layer.cornerRadius = 8
+        iv.backgroundColor = .white
+        iv.layer.shadowColor = UIColor.black.cgColor
+        iv.layer.shadowOpacity = 0.1
+        iv.layer.shadowRadius = 8
+        iv.layer.shadowOffset = CGSize(width: 0, height: 2)
         iv.translatesAutoresizingMaskIntoConstraints = false
         return iv
     }()
@@ -97,17 +98,17 @@ class ConfirmOrderSellerViewController: UIViewController {
     private let categoryLabel: UILabel = {
         let lbl = UILabel()
         lbl.text = "Loading..."
-        lbl.font = .systemFont(ofSize: 16)
-        lbl.textColor = .gray
+        lbl.font = .systemFont(ofSize: 15)
+        lbl.textColor = .systemGray
         lbl.translatesAutoresizingMaskIntoConstraints = false
         return lbl
     }()
 
-    // —— Reduced fonts and made equal —— //
+    // Product title and price
     private let titleText: UILabel = {
         let lbl = UILabel()
         lbl.text = "Loading..."
-        lbl.font = UIFont.systemFont(ofSize: 22, weight: .semibold)
+        lbl.font = UIFont.systemFont(ofSize: 22, weight: .bold)
         lbl.translatesAutoresizingMaskIntoConstraints = false
         return lbl
     }()
@@ -115,7 +116,7 @@ class ConfirmOrderSellerViewController: UIViewController {
     private let priceLabel: UILabel = {
         let lbl = UILabel()
         lbl.text = "₹—"
-        lbl.font = UIFont.systemFont(ofSize: 22, weight: .semibold)
+        lbl.font = UIFont.systemFont(ofSize: 22, weight: .bold)
         lbl.translatesAutoresizingMaskIntoConstraints = false
         return lbl
     }()
@@ -127,7 +128,7 @@ class ConfirmOrderSellerViewController: UIViewController {
         let lbl = UILabel()
         lbl.text = text
         lbl.font = .systemFont(ofSize: 16)
-        lbl.textColor = .gray
+        lbl.textColor = .systemGray
         lbl.translatesAutoresizingMaskIntoConstraints = false
         return lbl
     }
@@ -135,15 +136,15 @@ class ConfirmOrderSellerViewController: UIViewController {
     private func makeValueLabel(_ text: String) -> UILabel {
         let lbl = UILabel()
         lbl.text = text
-        lbl.font = .systemFont(ofSize: 16, weight: .semibold)
+        lbl.font = .systemFont(ofSize: 16, weight: .medium)
         lbl.textAlignment = .right
         lbl.translatesAutoresizingMaskIntoConstraints = false
         return lbl
     }
 
-    private lazy var colourTitleLabel = makeTitleLabel("Colour:")
-    private lazy var sizeTitleLabel = makeTitleLabel("Size:")
-    private lazy var conditionTitleLabel = makeTitleLabel("Condition:")
+    private lazy var colourTitleLabel = makeTitleLabel("Colour")
+    private lazy var sizeTitleLabel = makeTitleLabel("Size")
+    private lazy var conditionTitleLabel = makeTitleLabel("Condition")
 
     private lazy var colourValueLabel = makeValueLabel("—")
     private lazy var sizeValueLabel = makeValueLabel("—")
@@ -155,15 +156,23 @@ class ConfirmOrderSellerViewController: UIViewController {
     private let buyerCard: UIView = {
         let v = UIView()
         v.backgroundColor = UIColor.systemTeal.withAlphaComponent(0.2)
-        v.layer.cornerRadius = 12
+        v.layer.cornerRadius = 16
         v.translatesAutoresizingMaskIntoConstraints = false
         return v
+    }()
+
+    private let buyerTitleLabel: UILabel = {
+        let lbl = UILabel()
+        lbl.text = "Buyer"
+        lbl.font = UIFont.systemFont(ofSize: 15, weight: .semibold)
+        lbl.translatesAutoresizingMaskIntoConstraints = false
+        return lbl
     }()
 
     private let buyerNameLabel: UILabel = {
         let lbl = UILabel()
         lbl.text = "Loading..."
-        lbl.font = UIFont.systemFont(ofSize: 20, weight: .semibold)
+        lbl.font = UIFont.systemFont(ofSize: 18, weight: .semibold)
         lbl.translatesAutoresizingMaskIntoConstraints = false
         return lbl
     }()
@@ -172,18 +181,26 @@ class ConfirmOrderSellerViewController: UIViewController {
         let lbl = UILabel()
         lbl.text = "Loading address..."
         lbl.font = UIFont.systemFont(ofSize: 14)
-        lbl.textColor = .darkGray
+        lbl.textColor = .systemGray
         lbl.numberOfLines = 0
         lbl.translatesAutoresizingMaskIntoConstraints = false
         return lbl
     }()
 
-    private let qtyLabel: UILabel = {
+    private let qtyTitleLabel: UILabel = {
         let lbl = UILabel()
-        lbl.text = "Qty\n—"
-        lbl.font = UIFont.systemFont(ofSize: 17, weight: .bold)
+        lbl.text = "Qty"
+        lbl.font = UIFont.systemFont(ofSize: 15, weight: .semibold)
         lbl.textAlignment = .center
-        lbl.numberOfLines = 2
+        lbl.translatesAutoresizingMaskIntoConstraints = false
+        return lbl
+    }()
+
+    private let qtyValueLabel: UILabel = {
+        let lbl = UILabel()
+        lbl.text = "1"
+        lbl.font = UIFont.systemFont(ofSize: 20, weight: .bold)
+        lbl.textAlignment = .center
         lbl.translatesAutoresizingMaskIntoConstraints = false
         return lbl
     }()
@@ -194,8 +211,10 @@ class ConfirmOrderSellerViewController: UIViewController {
         let tf = UITextField()
         tf.placeholder = "Send a message"
         tf.backgroundColor = .white
-        tf.layer.cornerRadius = 10
-        tf.setLeftPaddingPoints(14)
+        tf.layer.cornerRadius = 25
+        tf.layer.borderWidth = 1
+        tf.layer.borderColor = UIColor.systemGray4.cgColor
+        tf.setLeftPaddingPoints(16)
         tf.translatesAutoresizingMaskIntoConstraints = false
         return tf
     }()
@@ -204,11 +223,11 @@ class ConfirmOrderSellerViewController: UIViewController {
     // MARK: - Bottom Buttons (now in contentView)
     private let rejectButton: UIButton = {
         let btn = UIButton(type: .system)
-        btn.setTitle("Reject", for: .normal)
-        btn.backgroundColor = .systemRed
+        btn.setTitle("Decline", for: .normal)
+        btn.backgroundColor = UIColor(red: 0.95, green: 0.45, blue: 0.45, alpha: 1.0) // Softer red
         btn.setTitleColor(.white, for: .normal)
-        btn.titleLabel?.font = .systemFont(ofSize: 20, weight: .bold)
-        btn.layer.cornerRadius = 20
+        btn.titleLabel?.font = .systemFont(ofSize: 18, weight: .semibold)
+        btn.layer.cornerRadius = 28
         btn.translatesAutoresizingMaskIntoConstraints = false
         return btn
     }()
@@ -218,8 +237,8 @@ class ConfirmOrderSellerViewController: UIViewController {
         btn.setTitle("Accept", for: .normal)
         btn.backgroundColor = UIColor(red: 0.02, green: 0.27, blue: 0.37, alpha: 1.0) // #04445F
         btn.setTitleColor(.white, for: .normal)
-        btn.titleLabel?.font = .systemFont(ofSize: 20, weight: .bold)
-        btn.layer.cornerRadius = 20
+        btn.titleLabel?.font = .systemFont(ofSize: 18, weight: .semibold)
+        btn.layer.cornerRadius = 28
         btn.translatesAutoresizingMaskIntoConstraints = false
         return btn
     }()
@@ -325,10 +344,12 @@ class ConfirmOrderSellerViewController: UIViewController {
 
             // Show quantity
             if sellerItems.count == 1 {
-                qtyLabel.text = "Qty\n\(firstItem.quantity)"
+                qtyTitleLabel.text = "Qty"
+                qtyValueLabel.text = "\(firstItem.quantity)"
             } else {
                 let totalQty = sellerItems.reduce(0) { $0 + $1.quantity }
-                qtyLabel.text = "Items\n\(totalQty)"
+                qtyTitleLabel.text = "Items"
+                qtyValueLabel.text = "\(totalQty)"
             }
         }
     }
@@ -395,8 +416,8 @@ extension ConfirmOrderSellerViewController {
         scrollView.translatesAutoresizingMaskIntoConstraints = false
 
         NSLayoutConstraint.activate([
-            // now full height — buttons live inside contentView so scroll includes them
-            scrollView.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor),
+            // Start scroll below toolbar (64pt from safe area top)
+            scrollView.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor, constant: 64),
             scrollView.leadingAnchor.constraint(equalTo: view.leadingAnchor),
             scrollView.trailingAnchor.constraint(equalTo: view.trailingAnchor),
             scrollView.bottomAnchor.constraint(equalTo: view.bottomAnchor)
@@ -459,21 +480,21 @@ extension ConfirmOrderSellerViewController {
         }
 
 
-        // MARK: - Product Layout
+        // MARK: - Product Layout (LARGER IMAGE with proper spacing from top)
         NSLayoutConstraint.activate([
             productImageView.topAnchor.constraint(equalTo: contentView.topAnchor, constant: 20),
-            productImageView.leadingAnchor.constraint(equalTo: contentView.leadingAnchor, constant: 20),
-            productImageView.trailingAnchor.constraint(equalTo: contentView.trailingAnchor, constant: -20),
-            productImageView.heightAnchor.constraint(equalTo: productImageView.widthAnchor),
+            productImageView.centerXAnchor.constraint(equalTo: contentView.centerXAnchor),
+            productImageView.widthAnchor.constraint(equalTo: contentView.widthAnchor, multiplier: 0.7),
+            productImageView.heightAnchor.constraint(equalTo: productImageView.widthAnchor, multiplier: 1.0),
 
-            categoryLabel.topAnchor.constraint(equalTo: productImageView.bottomAnchor, constant: 12),
-            categoryLabel.leadingAnchor.constraint(equalTo: productImageView.leadingAnchor),
+            categoryLabel.topAnchor.constraint(equalTo: productImageView.bottomAnchor, constant: 20),
+            categoryLabel.leadingAnchor.constraint(equalTo: contentView.leadingAnchor, constant: 20),
 
-            titleText.topAnchor.constraint(equalTo: categoryLabel.bottomAnchor, constant: 5),
-            titleText.leadingAnchor.constraint(equalTo: productImageView.leadingAnchor),
+            titleText.topAnchor.constraint(equalTo: categoryLabel.bottomAnchor, constant: 6),
+            titleText.leadingAnchor.constraint(equalTo: contentView.leadingAnchor, constant: 20),
 
             priceLabel.centerYAnchor.constraint(equalTo: titleText.centerYAnchor),
-            priceLabel.trailingAnchor.constraint(equalTo: productImageView.trailingAnchor)
+            priceLabel.trailingAnchor.constraint(equalTo: contentView.trailingAnchor, constant: -20)
         ])
 
 
@@ -490,13 +511,13 @@ extension ConfirmOrderSellerViewController {
 
         let detailsStack = UIStackView(arrangedSubviews: [colourRow, sizeRow, conditionRow])
         detailsStack.axis = .vertical
-        detailsStack.spacing = 6
+        detailsStack.spacing = 10
         detailsStack.translatesAutoresizingMaskIntoConstraints = false
 
         contentView.addSubview(detailsStack)
 
         NSLayoutConstraint.activate([
-            detailsStack.topAnchor.constraint(equalTo: titleText.bottomAnchor, constant: 12),
+            detailsStack.topAnchor.constraint(equalTo: titleText.bottomAnchor, constant: 16),
             detailsStack.leadingAnchor.constraint(equalTo: contentView.leadingAnchor, constant: 20),
             detailsStack.trailingAnchor.constraint(equalTo: contentView.trailingAnchor, constant: -20)
         ])
@@ -505,13 +526,19 @@ extension ConfirmOrderSellerViewController {
         // MARK: - Buyer Card
         contentView.addSubview(buyerCard)
 
-        let buyerStack = UIStackView(arrangedSubviews: [buyerNameLabel, buyerAddressLabel])
+        let buyerStack = UIStackView(arrangedSubviews: [buyerTitleLabel, buyerNameLabel, buyerAddressLabel])
         buyerStack.axis = .vertical
-        buyerStack.spacing = 4
+        buyerStack.spacing = 2
         buyerStack.translatesAutoresizingMaskIntoConstraints = false
 
+        let qtyStack = UIStackView(arrangedSubviews: [qtyTitleLabel, qtyValueLabel])
+        qtyStack.axis = .vertical
+        qtyStack.spacing = 2
+        qtyStack.alignment = .center
+        qtyStack.translatesAutoresizingMaskIntoConstraints = false
+
         buyerCard.addSubview(buyerStack)
-        buyerCard.addSubview(qtyLabel)
+        buyerCard.addSubview(qtyStack)
 
         NSLayoutConstraint.activate([
             buyerCard.topAnchor.constraint(equalTo: detailsStack.bottomAnchor, constant: 20),
@@ -520,12 +547,12 @@ extension ConfirmOrderSellerViewController {
 
             buyerStack.topAnchor.constraint(equalTo: buyerCard.topAnchor, constant: 16),
             buyerStack.leadingAnchor.constraint(equalTo: buyerCard.leadingAnchor, constant: 16),
-            buyerStack.trailingAnchor.constraint(lessThanOrEqualTo: qtyLabel.leadingAnchor, constant: -12),
+            buyerStack.trailingAnchor.constraint(lessThanOrEqualTo: qtyStack.leadingAnchor, constant: -12),
             buyerStack.bottomAnchor.constraint(equalTo: buyerCard.bottomAnchor, constant: -16),
 
-            qtyLabel.centerYAnchor.constraint(equalTo: buyerCard.centerYAnchor),
-            qtyLabel.trailingAnchor.constraint(equalTo: buyerCard.trailingAnchor, constant: -16),
-            qtyLabel.widthAnchor.constraint(equalToConstant: 50)
+            qtyStack.centerYAnchor.constraint(equalTo: buyerCard.centerYAnchor),
+            qtyStack.trailingAnchor.constraint(equalTo: buyerCard.trailingAnchor, constant: -20),
+            qtyStack.widthAnchor.constraint(equalToConstant: 50)
         ])
 
 
@@ -533,10 +560,10 @@ extension ConfirmOrderSellerViewController {
         contentView.addSubview(messageField)
 
         NSLayoutConstraint.activate([
-            messageField.topAnchor.constraint(equalTo: buyerCard.bottomAnchor, constant: 20),
+            messageField.topAnchor.constraint(equalTo: buyerCard.bottomAnchor, constant: 24),
             messageField.leadingAnchor.constraint(equalTo: contentView.leadingAnchor, constant: 20),
             messageField.trailingAnchor.constraint(equalTo: contentView.trailingAnchor, constant: -20),
-            messageField.heightAnchor.constraint(equalToConstant: 52)
+            messageField.heightAnchor.constraint(equalToConstant: 56)
         ])
 
 
@@ -549,20 +576,20 @@ extension ConfirmOrderSellerViewController {
         acceptButton.translatesAutoresizingMaskIntoConstraints = false
         
         NSLayoutConstraint.activate([
-            // reject (left)
-            rejectButton.topAnchor.constraint(equalTo: messageField.bottomAnchor, constant: 20),
+            // reject (left) - BIGGER BUTTONS
+            rejectButton.topAnchor.constraint(equalTo: messageField.bottomAnchor, constant: 24),
             rejectButton.leadingAnchor.constraint(equalTo: contentView.leadingAnchor, constant: 20),
             rejectButton.widthAnchor.constraint(equalTo: contentView.widthAnchor, multiplier: 0.42),
-            rejectButton.heightAnchor.constraint(equalToConstant: 60),
+            rejectButton.heightAnchor.constraint(equalToConstant: 56),
 
-            // accept (right)
+            // accept (right) - BIGGER BUTTONS
             acceptButton.topAnchor.constraint(equalTo: rejectButton.topAnchor),
             acceptButton.trailingAnchor.constraint(equalTo: contentView.trailingAnchor, constant: -20),
             acceptButton.widthAnchor.constraint(equalTo: contentView.widthAnchor, multiplier: 0.42),
-            acceptButton.heightAnchor.constraint(equalToConstant: 60),
+            acceptButton.heightAnchor.constraint(equalToConstant: 56),
 
             // bottom anchor so contentView has intrinsic height for scrolling
-            acceptButton.bottomAnchor.constraint(equalTo: contentView.bottomAnchor, constant: -20)
+            acceptButton.bottomAnchor.constraint(equalTo: contentView.bottomAnchor, constant: -40)
         ])
 
         // optional: add actions

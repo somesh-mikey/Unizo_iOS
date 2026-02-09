@@ -98,10 +98,10 @@ class CategoryPageViewController: UIViewController, UITabBarDelegate, UIScrollVi
             topContainerTopConstraint,
             topContainer.leadingAnchor.constraint(equalTo: view.leadingAnchor),
             topContainer.trailingAnchor.constraint(equalTo: view.trailingAnchor),
-            topContainer.heightAnchor.constraint(equalToConstant: 360)
+            topContainer.heightAnchor.constraint(equalToConstant: 145) // Only navBar height
         ])
 
-        // NAVBAR
+        // NAVBAR - fills entire top container
         navBarView.backgroundColor = UIColor(red: 0.239, green: 0.486, blue: 0.596, alpha: 1)
         topContainer.addSubview(navBarView)
         navBarView.translatesAutoresizingMaskIntoConstraints = false
@@ -110,7 +110,7 @@ class CategoryPageViewController: UIViewController, UITabBarDelegate, UIScrollVi
             navBarView.topAnchor.constraint(equalTo: topContainer.topAnchor),
             navBarView.leadingAnchor.constraint(equalTo: topContainer.leadingAnchor),
             navBarView.trailingAnchor.constraint(equalTo: topContainer.trailingAnchor),
-            navBarView.heightAnchor.constraint(equalToConstant: 120)
+            navBarView.bottomAnchor.constraint(equalTo: topContainer.bottomAnchor) // Fill entire container
         ])
 
         // TOOLBAR
@@ -172,53 +172,7 @@ class CategoryPageViewController: UIViewController, UITabBarDelegate, UIScrollVi
             searchBar.heightAnchor.constraint(equalToConstant: 44)
         ])
 
-        // TRENDING BG - only round top corners (same as LandingVC)
-        trendingCategoriesbg.backgroundColor = UIColor(red: 0.83, green: 0.95, blue: 0.96, alpha: 1)
-        trendingCategoriesbg.layer.cornerRadius = 20
-        trendingCategoriesbg.layer.maskedCorners = [
-            .layerMinXMinYCorner, // top-left
-            .layerMaxXMinYCorner  // top-right
-        ]
-        trendingCategoriesbg.clipsToBounds = true
-        topContainer.addSubview(trendingCategoriesbg)
-        trendingCategoriesbg.translatesAutoresizingMaskIntoConstraints = false
-
-        NSLayoutConstraint.activate([
-            trendingCategoriesbg.leadingAnchor.constraint(equalTo: topContainer.leadingAnchor),
-            trendingCategoriesbg.trailingAnchor.constraint(equalTo: topContainer.trailingAnchor),
-            trendingCategoriesbg.topAnchor.constraint(equalTo: searchBar.bottomAnchor, constant: 22)
-        ])
-
-        // TRENDING LABEL
-        trendingLabel.text = "Trending Categories"
-        trendingLabel.font = UIFont.boldSystemFont(ofSize: 17)
-        trendingCategoriesbg.addSubview(trendingLabel)
-        trendingLabel.translatesAutoresizingMaskIntoConstraints = false
-
-        NSLayoutConstraint.activate([
-            trendingLabel.topAnchor.constraint(equalTo: trendingCategoriesbg.topAnchor, constant: 10),
-            trendingLabel.leadingAnchor.constraint(equalTo: trendingCategoriesbg.leadingAnchor, constant: 15)
-        ])
-
-        // STACK
-        trendingCategoriesbg.addSubview(categoryStackView)
-        categoryStackView.translatesAutoresizingMaskIntoConstraints = false
-        categoryStackView.axis = .horizontal
-        categoryStackView.alignment = .center
-        categoryStackView.spacing = 5
-        categoryStackView.distribution = .fillEqually
-
-        NSLayoutConstraint.activate([
-            categoryStackView.topAnchor.constraint(equalTo: trendingLabel.bottomAnchor, constant: 10),
-            categoryStackView.leadingAnchor.constraint(equalTo: trendingCategoriesbg.leadingAnchor, constant: 10),
-            categoryStackView.trailingAnchor.constraint(equalTo: trendingCategoriesbg.trailingAnchor, constant: -10),
-            categoryStackView.bottomAnchor.constraint(equalTo: trendingCategoriesbg.bottomAnchor, constant: -8)
-        ])
-
-        // Extra bottom anchor constraint (same as LandingVC)
-        trendingCategoriesbg.bottomAnchor
-            .constraint(equalTo: categoryStackView.bottomAnchor, constant: 25)
-            .isActive = true
+        // Trending categories will be added to scroll content in setupScrollSection()
     }
 
     // MARK: - TRENDING BUTTONS
@@ -281,7 +235,19 @@ class CategoryPageViewController: UIViewController, UITabBarDelegate, UIScrollVi
     // MARK: - SCROLL SECTION
     private func setupScrollSection() {
 
-        scrollView.backgroundColor = .white
+        // --- White background below trending categories (covers tab bar area) ---
+        let whiteBackground = UIView()
+        whiteBackground.backgroundColor = .white
+        whiteBackground.translatesAutoresizingMaskIntoConstraints = false
+        view.addSubview(whiteBackground)
+        NSLayoutConstraint.activate([
+            whiteBackground.topAnchor.constraint(equalTo: searchBar.bottomAnchor, constant: 150),
+            whiteBackground.leadingAnchor.constraint(equalTo: view.leadingAnchor),
+            whiteBackground.trailingAnchor.constraint(equalTo: view.trailingAnchor),
+            whiteBackground.bottomAnchor.constraint(equalTo: view.bottomAnchor)
+        ])
+
+        scrollView.backgroundColor = .clear
         contentView.backgroundColor = .white
         scrollView.delaysContentTouches = true
         scrollView.canCancelContentTouches = true
@@ -291,9 +257,9 @@ class CategoryPageViewController: UIViewController, UITabBarDelegate, UIScrollVi
         scrollView.translatesAutoresizingMaskIntoConstraints = false
         scrollView.isScrollEnabled = true
 
-        // Scroll starts from trendingCategoriesbg bottom
+        // Scroll starts from top of trending categories (same as LandingVC)
         NSLayoutConstraint.activate([
-            scrollView.topAnchor.constraint(equalTo: trendingCategoriesbg.bottomAnchor),
+            scrollView.topAnchor.constraint(equalTo: searchBar.bottomAnchor, constant: 22),
             scrollView.leadingAnchor.constraint(equalTo: view.leadingAnchor),
             scrollView.trailingAnchor.constraint(equalTo: view.trailingAnchor),
             scrollView.bottomAnchor.constraint(equalTo: view.bottomAnchor)
@@ -310,6 +276,65 @@ class CategoryPageViewController: UIViewController, UITabBarDelegate, UIScrollVi
             contentView.widthAnchor.constraint(equalTo: scrollView.widthAnchor)
         ])
 
+        // --- Add teal background strip behind trending categories for rounded corner effect ---
+        let tealStrip = UIView()
+        tealStrip.backgroundColor = UIColor(red: 0.239, green: 0.486, blue: 0.596, alpha: 1) // #3D7C98 teal
+        tealStrip.translatesAutoresizingMaskIntoConstraints = false
+        contentView.addSubview(tealStrip)
+        NSLayoutConstraint.activate([
+            tealStrip.topAnchor.constraint(equalTo: contentView.topAnchor),
+            tealStrip.leadingAnchor.constraint(equalTo: contentView.leadingAnchor),
+            tealStrip.trailingAnchor.constraint(equalTo: contentView.trailingAnchor),
+            tealStrip.heightAnchor.constraint(equalToConstant: 30)
+        ])
+
+        // --- Add Trending Categories to scroll content ---
+        trendingCategoriesbg.backgroundColor = UIColor(red: 0.83, green: 0.95, blue: 0.96, alpha: 1)
+        trendingCategoriesbg.layer.cornerRadius = 20
+        trendingCategoriesbg.layer.maskedCorners = [
+            .layerMinXMinYCorner,
+            .layerMaxXMinYCorner
+        ]
+        trendingCategoriesbg.clipsToBounds = true
+        trendingCategoriesbg.translatesAutoresizingMaskIntoConstraints = false
+
+        contentView.addSubview(trendingCategoriesbg)
+        NSLayoutConstraint.activate([
+            trendingCategoriesbg.topAnchor.constraint(equalTo: contentView.topAnchor),
+            trendingCategoriesbg.leadingAnchor.constraint(equalTo: contentView.leadingAnchor),
+            trendingCategoriesbg.trailingAnchor.constraint(equalTo: contentView.trailingAnchor)
+        ])
+
+        // TRENDING LABEL
+        trendingLabel.text = "Trending Categories"
+        trendingLabel.font = UIFont.boldSystemFont(ofSize: 17)
+        trendingCategoriesbg.addSubview(trendingLabel)
+        trendingLabel.translatesAutoresizingMaskIntoConstraints = false
+
+        NSLayoutConstraint.activate([
+            trendingLabel.topAnchor.constraint(equalTo: trendingCategoriesbg.topAnchor, constant: 10),
+            trendingLabel.leadingAnchor.constraint(equalTo: trendingCategoriesbg.leadingAnchor, constant: 15)
+        ])
+
+        // STACK
+        trendingCategoriesbg.addSubview(categoryStackView)
+        categoryStackView.translatesAutoresizingMaskIntoConstraints = false
+        categoryStackView.axis = .horizontal
+        categoryStackView.alignment = .top
+        categoryStackView.spacing = 5
+        categoryStackView.distribution = .fillEqually
+
+        NSLayoutConstraint.activate([
+            categoryStackView.topAnchor.constraint(equalTo: trendingLabel.bottomAnchor, constant: 10),
+            categoryStackView.leadingAnchor.constraint(equalTo: trendingCategoriesbg.leadingAnchor, constant: 10),
+            categoryStackView.trailingAnchor.constraint(equalTo: trendingCategoriesbg.trailingAnchor, constant: -10)
+        ])
+
+        // Set bottom constraint for trendingCategoriesbg height
+        trendingCategoriesbg.bottomAnchor
+            .constraint(equalTo: categoryStackView.bottomAnchor, constant: 25)
+            .isActive = true
+
         // Banner
         contentView.addSubview(bannerImage)
         bannerImage.translatesAutoresizingMaskIntoConstraints = false
@@ -318,7 +343,7 @@ class CategoryPageViewController: UIViewController, UITabBarDelegate, UIScrollVi
         bannerImage.contentMode = .scaleAspectFill
 
         NSLayoutConstraint.activate([
-            bannerImage.topAnchor.constraint(equalTo: contentView.topAnchor, constant: 20),
+            bannerImage.topAnchor.constraint(equalTo: trendingCategoriesbg.bottomAnchor, constant: 20),
             bannerImage.leadingAnchor.constraint(equalTo: contentView.leadingAnchor, constant: 20),
             bannerImage.trailingAnchor.constraint(equalTo: contentView.trailingAnchor, constant: -20),
             bannerImage.heightAnchor.constraint(equalToConstant: 180)

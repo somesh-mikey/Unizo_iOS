@@ -19,7 +19,7 @@ final class AccountViewController: UIViewController {
     private let titleLabel: UILabel = {
         let l = UILabel()
         l.text = "Account"
-        l.font = .systemFont(ofSize: 32, weight: .bold)
+        l.font = .systemFont(ofSize: 35, weight: .bold)
         return l
     }()
 
@@ -163,6 +163,11 @@ final class AccountViewController: UIViewController {
         view.addSubview(scrollView)
         scrollView.addSubview(contentView)
 
+        // Disable automatic content inset adjustment to remove extra space at top
+        scrollView.contentInsetAdjustmentBehavior = .never
+        scrollView.clipsToBounds = true
+
+        // All content including title is inside scrollView
         [
             titleLabel, profileImageView, nameLabel, emailLabel,
             featureContainer, generalLabel, generalCard,
@@ -197,7 +202,7 @@ final class AccountViewController: UIViewController {
         contentView.translatesAutoresizingMaskIntoConstraints = false
 
         NSLayoutConstraint.activate([
-            scrollView.topAnchor.constraint(equalTo: view.topAnchor, constant: 80),
+            scrollView.topAnchor.constraint(equalTo: view.topAnchor, constant: 75),
             scrollView.leadingAnchor.constraint(equalTo: view.leadingAnchor),
             scrollView.trailingAnchor.constraint(equalTo: view.trailingAnchor),
             scrollView.bottomAnchor.constraint(equalTo: view.bottomAnchor),
@@ -208,7 +213,7 @@ final class AccountViewController: UIViewController {
             contentView.bottomAnchor.constraint(equalTo: scrollView.bottomAnchor),
             contentView.widthAnchor.constraint(equalTo: scrollView.widthAnchor),
 
-            titleLabel.topAnchor.constraint(equalTo: contentView.topAnchor),
+            titleLabel.topAnchor.constraint(equalTo: contentView.topAnchor, constant: 0),
             titleLabel.leadingAnchor.constraint(equalTo: contentView.leadingAnchor, constant: 20),
 
             profileImageView.topAnchor.constraint(equalTo: titleLabel.bottomAnchor, constant: 16),
