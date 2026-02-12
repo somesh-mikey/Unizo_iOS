@@ -92,7 +92,7 @@ class AddNewAddressViewController: UIViewController {
 
     // MARK: - Navigation Bar
     private func setupNavBar() {
-        title = "Add New Address"
+        title = "Add New Hotspot"
 
         navigationItem.leftBarButtonItem = UIBarButtonItem(
             image: UIImage(systemName: "chevron.left"),
@@ -140,7 +140,7 @@ class AddNewAddressViewController: UIViewController {
 
     // MARK: Section Label
     private func setupSection() {
-        sectionLabel.text = "Current Address"
+        sectionLabel.text = "Hotspot Details"
         sectionLabel.font = UIFont.systemFont(ofSize: 16, weight: .semibold)
         sectionLabel.translatesAutoresizingMaskIntoConstraints = false
         contentView.addSubview(sectionLabel)
@@ -279,7 +279,7 @@ class AddNewAddressViewController: UIViewController {
                 guard let userId = await AuthManager.shared.currentUserId else {
                     await MainActor.run {
                         self.setLoading(false)
-                        self.showError("You must be logged in to add an address")
+                        self.showError("You must be logged in to add a hotspot")
                     }
                     return
                 }
@@ -331,10 +331,10 @@ class AddNewAddressViewController: UIViewController {
                     self.navigationController?.popViewController(animated: true)
                 }
             } catch {
-                print("❌ Failed to save address:", error)
+                print("❌ Failed to save hotspot:", error)
                 await MainActor.run {
                     self.setLoading(false)
-                    self.showError("Failed to save address: \(error.localizedDescription)")
+                    self.showError("Failed to save hotspot: \(error.localizedDescription)")
                 }
             }
         }

@@ -819,23 +819,6 @@ class LandingScreenViewController: UIViewController {
     @objc private func menuButtonTapped() {
         let alert = UIAlertController(title: nil, message: nil, preferredStyle: .actionSheet)
 
-        // --- CART ---
-        alert.addAction(UIAlertAction(title: "Cart", style: .default, handler: { _ in
-
-            // 1️⃣ Make sure the navigation bar is not hidden
-            self.navigationController?.setNavigationBarHidden(false, animated: false)
-
-            // 2️⃣ Push Cart screen properly
-            let vc = CartViewController()
-            if let nav = self.navigationController {
-                nav.pushViewController(vc, animated: true)
-            } else {
-                // fallback (rare case)
-                let navController = UINavigationController(rootViewController: vc)
-                navController.modalPresentationStyle = .fullScreen
-                self.present(navController, animated: true)
-            }
-        }))
         // --- WISHLIST ---
         alert.addAction(UIAlertAction(title: "Wishlist", style: .default, handler: { _ in
             // Add your Wishlist VC here later

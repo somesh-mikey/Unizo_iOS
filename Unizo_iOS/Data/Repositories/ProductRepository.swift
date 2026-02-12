@@ -15,6 +15,8 @@ final class ProductRepository {
     private let pageSize = 20
 
     // Standard select fields for all product queries
+    // Note: gallery_images column may not exist in older database schemas
+    // The field is optional in ProductDTO so it gracefully handles null/missing values
     private let productSelectFields = """
         id,
         title,
@@ -317,5 +319,39 @@ final class ProductRepository {
             .execute()
 
         return try JSONDecoder().decode([ProductDTO].self, from: response.data)
+    }
+
+    // MARK: - Increment View Count
+    /// Increments the view count for a product when a user views it
+    /// - Parameter productId: The product UUID
+    func incrementViewCount(productId: UUID) async throws {
+        // First fetch current views count
+        let response = try await supabase
+            .from("products")
+            .select("views_count")
+            .eq("id", value: productId.uuidString)
+            .single()
+            .execute()
+
+        struct ViewsResult: Codable {
+            let views_count: Int?
+        }
+
+        let result = try JSONDecoder().decode(ViewsResult.self, from: response.data)
+        let currentViews = result.views_count ?? 0
+        let newViews = currentViews + 1
+
+        // Update with incremented views count
+        struct ViewsUpdate: Codable {
+            let views_count: Int
+        }
+
+        try await supabase
+            .from("products")
+            .update(ViewsUpdate(views_count: newViews))
+            .eq("id", value: productId.uuidString)
+            .execute()
+
+        print("👁️ Product \(productId) view count updated: \(currentViews) → \(newViews)")
     }
 }

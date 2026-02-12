@@ -29,7 +29,7 @@ final class OrderRepository {
     // MARK: - Create Order
     func createOrder(
         addressId: UUID,
-        items: [CartItem],
+        items: [OrderItem],
         totalAmount: Double,
         paymentMethod: String,
         instructions: String?
@@ -73,7 +73,7 @@ final class OrderRepository {
 
         // MARK: - Create Notifications Per Seller
         // Group items by seller_id
-        var sellerItems: [UUID: [CartItem]] = [:]
+        var sellerItems: [UUID: [OrderItem]] = [:]
         for item in items {
             guard let sellerId = item.product.sellerId else {
                 print("⚠️ Product \(item.product.name) has no sellerId - skipping notification")
@@ -91,11 +91,11 @@ final class OrderRepository {
 
         // Create one notification per seller
         let notificationRepo = NotificationRepository(client: client)
-        for (sellerId, sellerCartItems) in sellerItems {
+        for (sellerId, sellerOrderItems) in sellerItems {
             print("📦 Processing notification for seller: \(sellerId.uuidString)")
 
-            let productNames = sellerCartItems.map { $0.product.name }.joined(separator: ", ")
-            let itemCount = sellerCartItems.count
+            let productNames = sellerOrderItems.map { $0.product.name }.joined(separator: ", ")
+            let itemCount = sellerOrderItems.count
             let message = itemCount == 1
                 ? "wants to place order for \(productNames)."
                 : "wants to place order for \(itemCount) items."

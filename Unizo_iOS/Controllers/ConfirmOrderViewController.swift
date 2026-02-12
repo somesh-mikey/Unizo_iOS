@@ -7,18 +7,18 @@
 
 import UIKit
 
-class ConfirmOrderViewController: UIViewController, UITextViewDelegate {
+class ConfirmOrderViewController: UIViewController {
 
     // MARK: - Data
     var selectedAddress: AddressDTO?
-    private var cartItems: [CartItem] { CartManager.shared.items }
-    private var totalAmount: Double { CartManager.shared.totalAmount }
+    var orderItems: [OrderItem] = []
+
+    private var totalAmount: Double {
+        orderItems.reduce(0) { $0 + $1.totalPrice }
+    }
 
     // MARK: - Repositories
     private let orderRepository = OrderRepository()
-
-    // MARK: - Payment Selection
-    private var selectedPaymentMethod: String = "Cash"
 
     // MARK: - Outlets from XIB
     @IBOutlet weak var topBarContainer: UIView!
@@ -31,7 +31,6 @@ class ConfirmOrderViewController: UIViewController, UITextViewDelegate {
 
     // MARK: - Top bar elements
     private let backButton = UIButton(type: .system)
-    private let heartButton = UIButton(type: .system)
     private let titleLabel = UILabel()
 
     // MARK: - Step indicator elements
@@ -46,15 +45,6 @@ class ConfirmOrderViewController: UIViewController, UITextViewDelegate {
     private let itemsScrollView = UIScrollView()
     private let itemsStackView = UIStackView()
     private let subtotalAmountLabel = UILabel()
-
-    // MARK: - Payment method elements
-    private let paymentTitleLabel = UILabel()
-    private let cashButton = UIButton(type: .system)
-    private let upiButton = UIButton(type: .system)
-
-    // MARK: - Instructions elements
-    private let instructionsTitleLabel = UILabel()
-    private let instructionsTextView = UITextView()
 
     // MARK: - Colors
     private let bgColor = UIColor(red: 0.96, green: 0.97, blue: 1.0, alpha: 1.0)
@@ -88,13 +78,9 @@ class ConfirmOrderViewController: UIViewController, UITextViewDelegate {
         setupStepIndicator()
         setupAddressSection()
         setupItemDetailSection()
-        setupPaymentMethodSection()
-        setupInstructionsSection()
         setupPlaceOrderButton()
-        
+
         placeOrderButton.addTarget(self, action: #selector(placeOrderTapped), for: .touchUpInside)
-        instructionsTextView.delegate = self
-        
     }
     override func viewWillAppear(_ animated: Bool) {
         super.viewWillAppear(animated)
@@ -120,12 +106,14 @@ class ConfirmOrderViewController: UIViewController, UITextViewDelegate {
          stepIndicatorContainer,
          addressContainer,
          itemDetailContainer,
-         paymentMethodContainer,
-         instructionsContainer,
          placeOrderButton
         ].forEach { container in
             container?.translatesAutoresizingMaskIntoConstraints = false
         }
+
+        // Hide unused containers from XIB
+        paymentMethodContainer?.isHidden = true
+        instructionsContainer?.isHidden = true
 
         NSLayoutConstraint.activate([
             // Top bar
@@ -151,20 +139,6 @@ class ConfirmOrderViewController: UIViewController, UITextViewDelegate {
             itemDetailContainer.leadingAnchor.constraint(equalTo: view.leadingAnchor),
             itemDetailContainer.trailingAnchor.constraint(equalTo: view.trailingAnchor),
 
-            // Payment method container
-            paymentMethodContainer.topAnchor.constraint(equalTo: itemDetailContainer.bottomAnchor, constant: 8),
-            paymentMethodContainer.leadingAnchor.constraint(equalTo: view.leadingAnchor),
-            paymentMethodContainer.trailingAnchor.constraint(equalTo: view.trailingAnchor),
-            paymentMethodContainer.heightAnchor.constraint(equalToConstant: 150),
-
-            // Instructions container
-            instructionsContainer.topAnchor.constraint(equalTo: paymentMethodContainer.bottomAnchor, constant: 8),
-            instructionsContainer.leadingAnchor.constraint(equalTo: view.leadingAnchor),
-            instructionsContainer.trailingAnchor.constraint(equalTo: view.trailingAnchor),
-            instructionsContainer.bottomAnchor.constraint(lessThanOrEqualTo: placeOrderButton.topAnchor, constant: -16),
-            instructionsContainer.heightAnchor.constraint(equalToConstant: 130),
-
-
             // Place Order button
             placeOrderButton.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 30),
             placeOrderButton.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -30),
@@ -188,16 +162,6 @@ class ConfirmOrderViewController: UIViewController, UITextViewDelegate {
         backButton.layer.shadowOffset = CGSize(width: 0, height: 2)
         backButton.translatesAutoresizingMaskIntoConstraints = false
 
-        heartButton.setImage(UIImage(systemName: "heart"), for: .normal)
-        heartButton.tintColor = .black
-        heartButton.backgroundColor = .white
-        heartButton.layer.cornerRadius = 22
-        heartButton.layer.shadowColor = UIColor.black.cgColor
-        heartButton.layer.shadowOpacity = 0.1
-        heartButton.layer.shadowRadius = 8
-        heartButton.layer.shadowOffset = CGSize(width: 0, height: 2)
-        heartButton.translatesAutoresizingMaskIntoConstraints = false
-
         titleLabel.text = "Confirm Your Order"
         titleLabel.font = UIFont.systemFont(ofSize: 17, weight: .semibold)
         titleLabel.textColor = .black
@@ -206,7 +170,6 @@ class ConfirmOrderViewController: UIViewController, UITextViewDelegate {
         backButton.addTarget(self, action: #selector(goBack), for: .touchUpInside)
 
         topBarContainer.addSubview(backButton)
-        topBarContainer.addSubview(heartButton)
         topBarContainer.addSubview(titleLabel)
 
         NSLayoutConstraint.activate([
@@ -214,11 +177,6 @@ class ConfirmOrderViewController: UIViewController, UITextViewDelegate {
             backButton.centerYAnchor.constraint(equalTo: topBarContainer.centerYAnchor),
             backButton.widthAnchor.constraint(equalToConstant: 44),
             backButton.heightAnchor.constraint(equalToConstant: 44),
-
-            heartButton.trailingAnchor.constraint(equalTo: topBarContainer.trailingAnchor, constant: -16),
-            heartButton.centerYAnchor.constraint(equalTo: topBarContainer.centerYAnchor),
-            heartButton.widthAnchor.constraint(equalToConstant: 44),
-            heartButton.heightAnchor.constraint(equalToConstant: 44),
 
             titleLabel.centerXAnchor.constraint(equalTo: topBarContainer.centerXAnchor),
             titleLabel.centerYAnchor.constraint(equalTo: topBarContainer.centerYAnchor)
@@ -259,7 +217,7 @@ class ConfirmOrderViewController: UIViewController, UITextViewDelegate {
         ])
 
         let step1Label = UILabel()
-        step1Label.text = "Set Address"
+        step1Label.text = "Set Hotspot"
         step1Label.font = UIFont.systemFont(ofSize: 14, weight: .semibold)
         step1Label.textColor = .black
 
@@ -392,9 +350,9 @@ class ConfirmOrderViewController: UIViewController, UITextViewDelegate {
     private func setupItemDetailSection() {
         itemDetailContainer.backgroundColor = bgColor
 
-        // Get cart items directly from CartManager
-        let items = CartManager.shared.items
-        print(" ConfirmOrder - Cart items count: \(items.count)")
+        // Use orderItems passed from AddressViewController
+        let items = orderItems
+        print(" ConfirmOrder - Order items count: \(items.count)")
         for (index, item) in items.enumerated() {
             print("  Item \(index + 1): \(item.product.name) - ₹\(item.product.price) x \(item.quantity)")
         }
@@ -475,7 +433,7 @@ class ConfirmOrderViewController: UIViewController, UITextViewDelegate {
             subtotalAmountLabel.trailingAnchor.constraint(equalTo: subtotalBar.trailingAnchor, constant: -12)
         ])
 
-        // Create a card for each cart item
+        // Create a card for each order item
         for item in items {
             let itemCard = createItemCard(for: item)
             itemsStackView.addArrangedSubview(itemCard)
@@ -483,8 +441,8 @@ class ConfirmOrderViewController: UIViewController, UITextViewDelegate {
     }
 
     // MARK: - Create Item Card
-    private func createItemCard(for cartItem: CartItem) -> UIView {
-        let product = cartItem.product
+    private func createItemCard(for orderItem: OrderItem) -> UIView {
+        let product = orderItem.product
 
         let itemCard = UIView()
         itemCard.translatesAutoresizingMaskIntoConstraints = false
@@ -553,7 +511,7 @@ class ConfirmOrderViewController: UIViewController, UITextViewDelegate {
 
         let colourValue = value(product.colour ?? "—")
         let sizeValue = value(product.size ?? "—")
-        let qtyValue = value("\(cartItem.quantity)")
+        let qtyValue = value("\(orderItem.quantity)")
 
         [productImage, categoryLabel, itemTitleLabel, priceLabel,
          colourLabel, sizeLabel, qtyLabel,
@@ -602,133 +560,6 @@ class ConfirmOrderViewController: UIViewController, UITextViewDelegate {
         return itemCard
     }
 
-    // MARK: - Payment Method Section
-
-    private func setupPaymentMethodSection() {
-        paymentMethodContainer.backgroundColor = bgColor
-
-        paymentTitleLabel.text = "Payment Method"
-        paymentTitleLabel.font = UIFont.systemFont(ofSize: 15, weight: .semibold)
-        paymentTitleLabel.translatesAutoresizingMaskIntoConstraints = false
-
-        // Setup toggle buttons
-        configurePaymentButton(cashButton, title: "Cash")
-        configurePaymentButton(upiButton, title: "UPI")
-
-        cashButton.addTarget(self, action: #selector(selectCash), for: .touchUpInside)
-        upiButton.addTarget(self, action: #selector(selectUPI), for: .touchUpInside)
-
-        let buttonStack = UIStackView(arrangedSubviews: [cashButton, upiButton])
-        buttonStack.axis = .horizontal
-        buttonStack.alignment = .fill
-        buttonStack.distribution = .fillEqually
-        buttonStack.spacing = 16
-        buttonStack.translatesAutoresizingMaskIntoConstraints = false
-
-        paymentMethodContainer.addSubview(paymentTitleLabel)
-        paymentMethodContainer.addSubview(buttonStack)
-
-        NSLayoutConstraint.activate([
-            paymentTitleLabel.topAnchor.constraint(equalTo: paymentMethodContainer.topAnchor),
-            paymentTitleLabel.leadingAnchor.constraint(equalTo: paymentMethodContainer.leadingAnchor, constant: 20),
-
-            buttonStack.topAnchor.constraint(equalTo: paymentTitleLabel.bottomAnchor, constant: 14),
-            buttonStack.leadingAnchor.constraint(equalTo: paymentMethodContainer.leadingAnchor, constant: 20),
-            buttonStack.trailingAnchor.constraint(equalTo: paymentMethodContainer.trailingAnchor, constant: -20),
-            buttonStack.heightAnchor.constraint(equalToConstant: 64)
-        ])
-    }
-
-
-    private func configurePaymentButton(_ button: UIButton, title: String) {
-
-        button.layer.cornerRadius = 12
-        button.layer.borderWidth = 2
-        //button.layer.borderColor = accentTeal.cgColor
-        button.layer.borderColor = UIColor(red: 0.09, green: 0.60, blue: 0.71, alpha: 1.0).cgColor  // #189AB4
-        button.backgroundColor = .white
-        button.translatesAutoresizingMaskIntoConstraints = false
-
-        // Remove old content
-        button.subviews.forEach { $0.removeFromSuperview() }
-
-        // Circle
-        let circle = UIView()
-        circle.tag = 99 // so we can find it later
-        circle.layer.cornerRadius = 7
-        circle.layer.borderWidth = 2
-        circle.layer.borderColor = accentTeal.cgColor
-        circle.translatesAutoresizingMaskIntoConstraints = false
-
-        // Title
-        let label = UILabel()
-        label.text = title
-        label.font = UIFont.systemFont(ofSize: 14, weight: .medium)
-        label.textColor = .black
-        label.translatesAutoresizingMaskIntoConstraints = false
-
-        button.addSubview(circle)
-        button.addSubview(label)
-
-        NSLayoutConstraint.activate([
-            circle.leadingAnchor.constraint(equalTo: button.leadingAnchor, constant: 18),
-            circle.centerYAnchor.constraint(equalTo: button.centerYAnchor),
-            circle.widthAnchor.constraint(equalToConstant: 14),
-            circle.heightAnchor.constraint(equalToConstant: 14),
-
-            label.leadingAnchor.constraint(equalTo: circle.trailingAnchor, constant: 10),
-            label.centerYAnchor.constraint(equalTo: button.centerYAnchor)
-        ])
-    }
-
-
-    // MARK: - Instructions Section
-
-    // MARK: - Instructions Section
-    private func setupInstructionsSection() {
-        instructionsContainer.backgroundColor = bgColor
-        instructionsContainer.isHidden = false
-
-        // ----- TITLE LABEL -----
-        instructionsTitleLabel.text = "Instructions"
-        instructionsTitleLabel.font = UIFont.systemFont(ofSize: 15, weight: .semibold)
-        instructionsTitleLabel.textColor = .black
-        instructionsTitleLabel.backgroundColor = .clear
-        instructionsTitleLabel.translatesAutoresizingMaskIntoConstraints = false
-
-        // ----- TEXTVIEW -----
-        instructionsTextView.text = "Add a message..."
-        instructionsTextView.font = UIFont.systemFont(ofSize: 14)
-        instructionsTextView.textColor = .lightGray
-        instructionsTextView.layer.cornerRadius = 12
-        instructionsTextView.layer.borderWidth = 0.5
-        instructionsTextView.layer.borderColor = UIColor.lightGray.withAlphaComponent(0.3).cgColor
-        instructionsTextView.backgroundColor = .white
-        instructionsTextView.translatesAutoresizingMaskIntoConstraints = false
-
-        // Add subviews (force rebuild)
-        instructionsContainer.addSubview(instructionsTitleLabel)
-        instructionsContainer.addSubview(instructionsTextView)
-        instructionsContainer.bringSubviewToFront(instructionsTitleLabel)
-
-        NSLayoutConstraint.activate([
-            // Title label
-            instructionsTitleLabel.topAnchor.constraint(equalTo: instructionsContainer.topAnchor),
-            instructionsTitleLabel.leadingAnchor.constraint(equalTo: instructionsContainer.leadingAnchor, constant: 20),
-            instructionsTitleLabel.trailingAnchor.constraint(equalTo: instructionsContainer.trailingAnchor, constant: -20),
-
-            // TextView under heading
-            instructionsTextView.topAnchor.constraint(equalTo: instructionsTitleLabel.bottomAnchor, constant: 10),
-            instructionsTextView.leadingAnchor.constraint(equalTo: instructionsContainer.leadingAnchor, constant: 20),
-            instructionsTextView.trailingAnchor.constraint(equalTo: instructionsContainer.trailingAnchor, constant: -20),
-            instructionsTextView.heightAnchor.constraint(equalToConstant: 80),
-            instructionsTextView.bottomAnchor.constraint(equalTo: instructionsContainer.bottomAnchor, constant: -10)
-        ])
-    }
-
-
-
-
     // MARK: - Place Order Button
 
     private func setupPlaceOrderButton() {
@@ -740,85 +571,21 @@ class ConfirmOrderViewController: UIViewController, UITextViewDelegate {
         placeOrderButton.titleLabel?.numberOfLines = 1
         placeOrderButton.titleLabel?.lineBreakMode = .byClipping
     }
-    
-    // MARK: - PAYMENT TOGGLE
-    @objc private func selectCash() {
-        selectedPaymentMethod = "Cash"
-        updatePaymentSelection(cashSelected: true)
-    }
 
-    @objc private func selectUPI() {
-        selectedPaymentMethod = "UPI"
-        updatePaymentSelection(cashSelected: false)
-    }
-
-    private func updatePaymentSelection(cashSelected: Bool) {
-
-        highlightPaymentButton(cashButton, selected: cashSelected)
-        highlightPaymentButton(upiButton, selected: !cashSelected)
-    }
-
-    private func highlightPaymentButton(_ button: UIButton, selected: Bool) {
-
-        let circle = button.viewWithTag(99) as! UIView
-        circle.subviews.forEach { $0.removeFromSuperview() }  // clear dot
-
-        if selected {
-            let dot = UIView()
-            dot.backgroundColor = accentTeal
-            dot.layer.cornerRadius = 4
-            dot.translatesAutoresizingMaskIntoConstraints = false
-            circle.addSubview(dot)
-
-            NSLayoutConstraint.activate([
-                dot.centerXAnchor.constraint(equalTo: circle.centerXAnchor),
-                dot.centerYAnchor.constraint(equalTo: circle.centerYAnchor),
-                dot.widthAnchor.constraint(equalToConstant: 8),
-                dot.heightAnchor.constraint(equalToConstant: 8)
-            ])
-
-            //button.layer.borderColor = accentTeal.cgColor
-            button.layer.borderColor = UIColor(red: 0.09, green: 0.60, blue: 0.71, alpha: 1.0).cgColor  // #189AB4
-        } else {
-            button.layer.borderColor = accentTeal.withAlphaComponent(0.4).cgColor
-        }
-    }
-    func textViewDidBeginEditing(_ textView: UITextView) {
-        if textView.text == "Add a message..." {
-            textView.text = ""
-            textView.textColor = .black
-        }
-    }
-
-    func textViewDidEndEditing(_ textView: UITextView) {
-        if textView.text.isEmpty {
-            textView.text = "Add a message..."
-            textView.textColor = .lightGray
-        }
-    }
-    
     @objc private func placeOrderTapped() {
         guard let address = selectedAddress else {
-            showAlert(title: "Error", message: "Please select a delivery address")
+            showAlert(title: "Error", message: "Please select a delivery hotspot")
             return
         }
 
-        let items = CartManager.shared.items
-        guard !items.isEmpty else {
-            showAlert(title: "Error", message: "Your cart is empty")
+        guard !orderItems.isEmpty else {
+            showAlert(title: "Error", message: "No items to order")
             return
-        }
-
-        // Get instructions text (ignore placeholder)
-        var instructions: String? = nil
-        if instructionsTextView.text != "Add a message..." && !instructionsTextView.text.isEmpty {
-            instructions = instructionsTextView.text
         }
 
         // Disable button to prevent double-tap
         placeOrderButton.isEnabled = false
 
-        // Save total before clearing cart (since totalAmount is computed from cart)
         let savedTotal = totalAmount
 
         Task {
@@ -826,17 +593,14 @@ class ConfirmOrderViewController: UIViewController, UITextViewDelegate {
                 // Create order in Supabase
                 let orderId = try await orderRepository.createOrder(
                     addressId: address.id,
-                    items: items,
+                    items: orderItems,
                     totalAmount: savedTotal,
-                    paymentMethod: selectedPaymentMethod,
-                    instructions: instructions
+                    paymentMethod: "Cash",  // Default payment method
+                    instructions: nil
                 )
 
                 // Get categories from ordered items for suggestions
-                let orderedCategories = items.compactMap { $0.product.category }
-
-                // Clear the cart after successful order
-                CartManager.shared.clear()
+                let orderedCategories = orderItems.compactMap { $0.product.category }
 
                 await MainActor.run {
                     // Navigate to OrderPlacedViewController with order data

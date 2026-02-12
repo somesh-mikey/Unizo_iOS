@@ -41,30 +41,10 @@ final class SettingsViewController: UIViewController {
             target: self,
             action: #selector(backPressed)
         )
-
-        navigationItem.rightBarButtonItem = UIBarButtonItem(
-            image: UIImage(systemName: "heart"),
-            style: .plain,
-            target: self,
-            action: #selector(heartTapped)
-        )    }
+    }
 
     @objc private func backPressed() {
         navigationController?.popViewController(animated: true)
-    }
-    @objc private func heartTapped() {
-        let vc = WishlistViewController()
-
-        // Preferred path — push
-        if let nav = navigationController {
-            nav.pushViewController(vc, animated: true)
-            return
-        }
-
-        // Fallback — modal
-        vc.modalPresentationStyle = .fullScreen
-        vc.modalTransitionStyle = .coverVertical
-        present(vc, animated: true)
     }
 
     // MARK: - Scroll Setup
@@ -193,8 +173,7 @@ final class SettingsViewController: UIViewController {
         stackRows(card, rows: [
             makeSwitchRow(icon: "bell", title: "Push Notifications", selector: #selector(togglePush)),
             makeSwitchRow(icon: "envelope", title: "Email Marketing", selector: #selector(toggleEmail)),
-            makeArrowRow(icon: "globe", title: "Language"),
-            makeArrowRow(icon: "dollarsign.circle", title: "Currency")
+            makeArrowRow(icon: "globe", title: "Language")
         ])
         return card
     }
@@ -202,7 +181,6 @@ final class SettingsViewController: UIViewController {
     private func makeSupportCard() -> UIView {
         let card = buildCard()
         stackRows(card, rows: [
-            makeArrowRow(icon: "questionmark.circle", title: "Help Center"),
             makeArrowRow(icon: "phone", title: "Contact Us"),
             makeArrowRow(icon: "star", title: "Rate Our App")
         ])
@@ -226,9 +204,14 @@ final class SettingsViewController: UIViewController {
         signOutRow.addGestureRecognizer(signOutTap)
         signOutRow.isUserInteractionEnabled = true
 
+        let deleteAccountRow = makeArrowRow(icon: "trash", title: "Delete Account")
+        let deleteAccountTap = UITapGestureRecognizer(target: self, action: #selector(deleteAccountTapped))
+        deleteAccountRow.addGestureRecognizer(deleteAccountTap)
+        deleteAccountRow.isUserInteractionEnabled = true
+
         stackRows(card, rows: [
             signOutRow,
-            makeArrowRow(icon: "trash", title: "Delete Account")
+            deleteAccountRow
         ])
         return card
     }
@@ -402,18 +385,7 @@ final class SettingsViewController: UIViewController {
 
                 // Navigate to welcome screen
                 await MainActor.run {
-                    guard let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
-                          let window = windowScene.windows.first else { return }
-
-                    let welcomeVC = WelcomeViewController()
-                    window.rootViewController = welcomeVC
-                    window.makeKeyAndVisible()
-
-                    UIView.transition(with: window,
-                                      duration: 0.3,
-                                      options: .transitionCrossDissolve,
-                                      animations: nil,
-                                      completion: nil)
+                    self.navigateToWelcome()
                 }
             } catch {
                 print("❌ Sign out failed:", error)
@@ -428,5 +400,67 @@ final class SettingsViewController: UIViewController {
                 }
             }
         }
+    }
+
+    // MARK: - Delete Account
+    @objc private func deleteAccountTapped() {
+        let alert = UIAlertController(
+            title: "Delete Account",
+            message: "Are you sure you want to delete your account? This action cannot be undone and all your data will be permanently removed.",
+            preferredStyle: .alert
+        )
+
+        alert.addAction(UIAlertAction(title: "Cancel", style: .cancel))
+        alert.addAction(UIAlertAction(title: "Delete", style: .destructive) { [weak self] _ in
+            self?.performDeleteAccount()
+        })
+
+        present(alert, animated: true)
+    }
+
+    private func performDeleteAccount() {
+        Task {
+            do {
+                // Stop notification listener first
+                await NotificationManager.shared.stopListening()
+
+                // Delete user account from Supabase
+                try await AuthManager.shared.deleteAccount()
+
+                print("✅ Account deleted successfully")
+
+                // Navigate to welcome screen
+                await MainActor.run {
+                    self.navigateToWelcome()
+                }
+            } catch {
+                print("❌ Delete account failed:", error)
+                await MainActor.run {
+                    let alert = UIAlertController(
+                        title: "Error",
+                        message: "Failed to delete account: \(error.localizedDescription)",
+                        preferredStyle: .alert
+                    )
+                    alert.addAction(UIAlertAction(title: "OK", style: .default))
+                    self.present(alert, animated: true)
+                }
+            }
+        }
+    }
+
+    // MARK: - Navigation Helper
+    private func navigateToWelcome() {
+        guard let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
+              let window = windowScene.windows.first else { return }
+
+        let welcomeVC = WelcomeViewController()
+        window.rootViewController = welcomeVC
+        window.makeKeyAndVisible()
+
+        UIView.transition(with: window,
+                          duration: 0.3,
+                          options: .transitionCrossDissolve,
+                          animations: nil,
+                          completion: nil)
     }
 }

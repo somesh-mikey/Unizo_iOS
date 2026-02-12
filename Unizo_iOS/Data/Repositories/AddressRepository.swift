@@ -165,11 +165,11 @@ enum AddressError: LocalizedError {
     var errorDescription: String? {
         switch self {
         case .cannotDeleteLastAddress:
-            return "You must have at least one address. This is your only address and cannot be deleted."
+            return "You must have at least one hotspot. This is your only hotspot and cannot be deleted."
         case .cannotDeleteDefaultAddress:
-            return "The default address cannot be deleted. Please set another address as default first."
+            return "The default hotspot cannot be deleted. Please set another hotspot as default first."
         case .addressNotFound:
-            return "Address not found."
+            return "Hotspot not found."
         }
     }
 }
