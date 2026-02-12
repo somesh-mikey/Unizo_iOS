@@ -267,4 +267,4 @@ extension ChatViewController: UITableViewDataSource, UITableViewDelegate {
         navigationController?.pushViewController(detailVC, animated: true)
     }
 }
-
+//Chat view controller updated
