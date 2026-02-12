@@ -424,19 +424,6 @@ class CategoryPageViewController: UIViewController, UITabBarDelegate, UIScrollVi
     @objc private func menuButtonTapped() {
         let alert = UIAlertController(title: nil, message: nil, preferredStyle: .actionSheet)
 
-        // --- CART ---
-        alert.addAction(UIAlertAction(title: "Cart", style: .default, handler: { _ in
-            self.navigationController?.setNavigationBarHidden(false, animated: false)
-            let vc = CartViewController()
-            if let nav = self.navigationController {
-                nav.pushViewController(vc, animated: true)
-            } else {
-                let navController = UINavigationController(rootViewController: vc)
-                navController.modalPresentationStyle = .fullScreen
-                self.present(navController, animated: true)
-            }
-        }))
-
         // --- WISHLIST ---
         alert.addAction(UIAlertAction(title: "Wishlist", style: .default, handler: { _ in
             let vc = WishlistViewController()

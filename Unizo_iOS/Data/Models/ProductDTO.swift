@@ -30,6 +30,7 @@ struct ProductDTO: Codable {
     let rating: Double?
     let isNegotiable: Bool?
     let imageUrl: String?
+    let galleryImages: [String]?  // Array of additional image URLs
     let viewsCount: Int?
 
     let colour: String?
@@ -51,6 +52,7 @@ struct ProductDTO: Codable {
         case price
         case rating
         case imageUrl = "image_url"
+        case galleryImages = "gallery_images"
         case isNegotiable = "is_negotiable"
         case viewsCount = "views_count"
         case colour

@@ -5,10 +5,12 @@
 
 import UIKit
 import Supabase
+import PhotosUI
 
 final class PostItemViewController: UIViewController,
                                     UIImagePickerControllerDelegate,
-                                    UINavigationControllerDelegate {
+                                    UINavigationControllerDelegate,
+                                    PHPickerViewControllerDelegate {
 
     // MARK: - Supabase
     private let supabase = SupabaseManager.shared.client
@@ -25,8 +27,22 @@ final class PostItemViewController: UIViewController,
         return l
     }()
 
+    // MARK: - Image Gallery
+    private var selectedImages: [UIImage] = []
+    private let maxImages = 5
+
     // MARK: - Upload Card
     private let uploadCard = UIView()
+    private let galleryCollectionView: UICollectionView = {
+        let layout = UICollectionViewFlowLayout()
+        layout.scrollDirection = .horizontal
+        layout.minimumInteritemSpacing = 8
+        layout.minimumLineSpacing = 8
+        let cv = UICollectionView(frame: .zero, collectionViewLayout: layout)
+        cv.backgroundColor = .clear
+        cv.showsHorizontalScrollIndicator = false
+        return cv
+    }()
     private let uploadImageView = UIImageView(image: UIImage(systemName: "camera"))
     private let sizeLabel = UILabel()
     private let uploadButton = UIButton(type: .system)
@@ -185,27 +201,30 @@ final class PostItemViewController: UIViewController,
         uploadCard.layer.borderColor = UIColor.lightGray.cgColor
         uploadCard.translatesAutoresizingMaskIntoConstraints = false
 
-        uploadImageView.tintColor = .gray
-        uploadImageView.contentMode = .scaleAspectFit
-        uploadImageView.clipsToBounds = true
+        // Setup collection view for gallery
+        galleryCollectionView.translatesAutoresizingMaskIntoConstraints = false
+        galleryCollectionView.delegate = self
+        galleryCollectionView.dataSource = self
+        galleryCollectionView.register(ImageGalleryCell.self, forCellWithReuseIdentifier: "ImageGalleryCell")
+        galleryCollectionView.register(AddImageCell.self, forCellWithReuseIdentifier: "AddImageCell")
 
-        sizeLabel.text = "Maximum size: 2 MB"
+        sizeLabel.text = "Add up to \(maxImages) photos (Max 2 MB each)"
         sizeLabel.font = .systemFont(ofSize: 12)
         sizeLabel.textAlignment = .center
         sizeLabel.textColor = .gray
 
-        uploadButton.setTitle("Upload Photo", for: .normal)
+        uploadButton.setTitle("Upload Photos", for: .normal)
         uploadButton.backgroundColor = UIColor(red: 0.07, green: 0.33, blue: 0.42, alpha: 1)
         uploadButton.setTitleColor(.white, for: .normal)
         uploadButton.layer.cornerRadius = 22
         uploadButton.addTarget(self, action: #selector(openGallery), for: .touchUpInside)
 
-        [uploadCard, uploadImageView, sizeLabel, uploadButton].forEach {
+        [uploadCard, galleryCollectionView, sizeLabel, uploadButton].forEach {
             $0.translatesAutoresizingMaskIntoConstraints = false
         }
 
         contentView.addSubview(uploadCard)
-        uploadCard.addSubview(uploadImageView)
+        uploadCard.addSubview(galleryCollectionView)
         uploadCard.addSubview(sizeLabel)
         uploadCard.addSubview(uploadButton)
 
@@ -214,16 +233,16 @@ final class PostItemViewController: UIViewController,
             uploadCard.leadingAnchor.constraint(equalTo: contentView.leadingAnchor, constant: 20),
             uploadCard.trailingAnchor.constraint(equalTo: contentView.trailingAnchor, constant: -20),
 
-            uploadImageView.topAnchor.constraint(equalTo: uploadCard.topAnchor, constant: 20),
-            uploadImageView.centerXAnchor.constraint(equalTo: uploadCard.centerXAnchor),
-            uploadImageView.widthAnchor.constraint(equalToConstant: 70),
-            uploadImageView.heightAnchor.constraint(equalToConstant: 70),
+            galleryCollectionView.topAnchor.constraint(equalTo: uploadCard.topAnchor, constant: 16),
+            galleryCollectionView.leadingAnchor.constraint(equalTo: uploadCard.leadingAnchor, constant: 16),
+            galleryCollectionView.trailingAnchor.constraint(equalTo: uploadCard.trailingAnchor, constant: -16),
+            galleryCollectionView.heightAnchor.constraint(equalToConstant: 100),
 
-            sizeLabel.topAnchor.constraint(equalTo: uploadImageView.bottomAnchor, constant: 8),
+            sizeLabel.topAnchor.constraint(equalTo: galleryCollectionView.bottomAnchor, constant: 12),
             sizeLabel.leadingAnchor.constraint(equalTo: uploadCard.leadingAnchor),
             sizeLabel.trailingAnchor.constraint(equalTo: uploadCard.trailingAnchor),
 
-            uploadButton.topAnchor.constraint(equalTo: sizeLabel.bottomAnchor, constant: 15),
+            uploadButton.topAnchor.constraint(equalTo: sizeLabel.bottomAnchor, constant: 12),
             uploadButton.leadingAnchor.constraint(equalTo: uploadCard.leadingAnchor, constant: 40),
             uploadButton.trailingAnchor.constraint(equalTo: uploadCard.trailingAnchor, constant: -40),
             uploadButton.heightAnchor.constraint(equalToConstant: 45),
@@ -366,7 +385,7 @@ final class PostItemViewController: UIViewController,
     @objc private func uploadProduct() {
 
         guard
-            let image = uploadImageView.image,
+            !selectedImages.isEmpty,
             let title = fields[0].text, !title.isEmpty,
             let priceText = fields[1].text, let price = Int(priceText),
             let colour = fields[2].text, !colour.isEmpty,
@@ -378,7 +397,7 @@ final class PostItemViewController: UIViewController,
             print("❌ Validation failed")
             let alert = UIAlertController(
                 title: "Missing Information",
-                message: "Please fill in all fields and upload a photo",
+                message: "Please fill in all fields and upload at least one photo",
                 preferredStyle: .alert
             )
             alert.addAction(UIAlertAction(title: "OK", style: .default))
@@ -395,14 +414,24 @@ final class PostItemViewController: UIViewController,
                 // Get current user ID
                 let userId = try await supabase.auth.session.user.id.uuidString
 
-                let imageURL = try await uploadImage(image)
+                // Upload all images
+                var imageURLs: [String] = []
+                for image in selectedImages {
+                    let url = try await uploadImage(image)
+                    imageURLs.append(url)
+                }
+
+                // First image is the main image, rest go to gallery
+                let mainImageURL = imageURLs.first ?? ""
+                let galleryImageURLs = imageURLs.count > 1 ? Array(imageURLs.dropFirst()) : nil
 
                 let product = ProductInsertDTO(
                     seller_id: userId,
                     title: title,
                     description: description,
                     price: price,
-                    image_url: imageURL,
+                    image_url: mainImageURL,
+                    gallery_images: galleryImageURLs,
                     is_negotiable: isNegotiable,
                     views_count: 0,
                     is_active: true,
@@ -416,7 +445,7 @@ final class PostItemViewController: UIViewController,
                 let repo = ProductRepository(supabase: supabase)
                 try await repo.insertProduct(product)
 
-                print("✅ Product uploaded successfully")
+                print("✅ Product uploaded successfully with \(imageURLs.count) images")
 
                 // Hide loading indicator and show success alert
                 await MainActor.run {
@@ -489,24 +518,204 @@ final class PostItemViewController: UIViewController,
 
     // MARK: - Image Picker
     @objc private func openGallery() {
-        let picker = UIImagePickerController()
+        let remainingSlots = maxImages - selectedImages.count
+        guard remainingSlots > 0 else {
+            let alert = UIAlertController(
+                title: "Maximum Images",
+                message: "You can only upload up to \(maxImages) images",
+                preferredStyle: .alert
+            )
+            alert.addAction(UIAlertAction(title: "OK", style: .default))
+            present(alert, animated: true)
+            return
+        }
+
+        var config = PHPickerConfiguration()
+        config.selectionLimit = remainingSlots
+        config.filter = .images
+
+        let picker = PHPickerViewController(configuration: config)
         picker.delegate = self
-        picker.allowsEditing = true
-        picker.sourceType = .photoLibrary
         present(picker, animated: true)
     }
 
+    // PHPicker delegate for multiple image selection
+    func picker(_ picker: PHPickerViewController, didFinishPicking results: [PHPickerResult]) {
+        dismiss(animated: true)
+
+        for result in results {
+            result.itemProvider.loadObject(ofClass: UIImage.self) { [weak self] object, error in
+                guard let self = self, let image = object as? UIImage else { return }
+
+                DispatchQueue.main.async {
+                    if self.selectedImages.count < self.maxImages {
+                        self.selectedImages.append(image)
+                        self.galleryCollectionView.reloadData()
+                        self.updateUploadButtonTitle()
+                    }
+                }
+            }
+        }
+    }
+
+    // Legacy UIImagePickerController delegate (kept for compatibility)
     func imagePickerController(_ picker: UIImagePickerController,
                                didFinishPickingMediaWithInfo info: [UIImagePickerController.InfoKey : Any]) {
         if let img = info[.editedImage] as? UIImage ?? info[.originalImage] as? UIImage {
-            uploadImageView.image = img
-            uploadImageView.contentMode = .scaleAspectFit
+            if selectedImages.count < maxImages {
+                selectedImages.append(img)
+                galleryCollectionView.reloadData()
+                updateUploadButtonTitle()
+            }
         }
         dismiss(animated: true)
     }
 
+    private func updateUploadButtonTitle() {
+        if selectedImages.isEmpty {
+            uploadButton.setTitle("Upload Photos", for: .normal)
+        } else {
+            uploadButton.setTitle("Add More (\(selectedImages.count)/\(maxImages))", for: .normal)
+        }
+    }
+
+    private func removeImage(at index: Int) {
+        guard index < selectedImages.count else { return }
+        selectedImages.remove(at: index)
+        galleryCollectionView.reloadData()
+        updateUploadButtonTitle()
+    }
+
     @objc private func setNegotiable() { isNegotiable = true }
     @objc private func setNonNegotiable() { isNegotiable = false }
+}
+
+// MARK: - Collection View for Image Gallery
+extension PostItemViewController: UICollectionViewDelegate, UICollectionViewDataSource, UICollectionViewDelegateFlowLayout {
+
+    func collectionView(_ collectionView: UICollectionView, numberOfItemsInSection section: Int) -> Int {
+        // Show add button if we haven't reached max
+        return selectedImages.count < maxImages ? selectedImages.count + 1 : selectedImages.count
+    }
+
+    func collectionView(_ collectionView: UICollectionView, cellForItemAt indexPath: IndexPath) -> UICollectionViewCell {
+        if indexPath.item < selectedImages.count {
+            // Image cell
+            let cell = collectionView.dequeueReusableCell(withReuseIdentifier: "ImageGalleryCell", for: indexPath) as! ImageGalleryCell
+            cell.configure(with: selectedImages[indexPath.item], index: indexPath.item)
+            cell.onDelete = { [weak self] index in
+                self?.removeImage(at: index)
+            }
+            return cell
+        } else {
+            // Add button cell
+            let cell = collectionView.dequeueReusableCell(withReuseIdentifier: "AddImageCell", for: indexPath) as! AddImageCell
+            return cell
+        }
+    }
+
+    func collectionView(_ collectionView: UICollectionView, didSelectItemAt indexPath: IndexPath) {
+        if indexPath.item >= selectedImages.count {
+            // Tapped on add button
+            openGallery()
+        }
+    }
+
+    func collectionView(_ collectionView: UICollectionView, layout collectionViewLayout: UICollectionViewLayout, sizeForItemAt indexPath: IndexPath) -> CGSize {
+        return CGSize(width: 80, height: 80)
+    }
+}
+
+// MARK: - Image Gallery Cell
+private class ImageGalleryCell: UICollectionViewCell {
+
+    private let imageView = UIImageView()
+    private let deleteButton = UIButton(type: .system)
+    private var index: Int = 0
+    var onDelete: ((Int) -> Void)?
+
+    override init(frame: CGRect) {
+        super.init(frame: frame)
+        setupUI()
+    }
+
+    required init?(coder: NSCoder) {
+        fatalError("init(coder:) has not been implemented")
+    }
+
+    private func setupUI() {
+        imageView.contentMode = .scaleAspectFill
+        imageView.clipsToBounds = true
+        imageView.layer.cornerRadius = 8
+        imageView.translatesAutoresizingMaskIntoConstraints = false
+
+        deleteButton.setImage(UIImage(systemName: "xmark.circle.fill"), for: .normal)
+        deleteButton.tintColor = .white
+        deleteButton.backgroundColor = UIColor.black.withAlphaComponent(0.5)
+        deleteButton.layer.cornerRadius = 10
+        deleteButton.translatesAutoresizingMaskIntoConstraints = false
+        deleteButton.addTarget(self, action: #selector(deleteTapped), for: .touchUpInside)
+
+        contentView.addSubview(imageView)
+        contentView.addSubview(deleteButton)
+
+        NSLayoutConstraint.activate([
+            imageView.topAnchor.constraint(equalTo: contentView.topAnchor),
+            imageView.leadingAnchor.constraint(equalTo: contentView.leadingAnchor),
+            imageView.trailingAnchor.constraint(equalTo: contentView.trailingAnchor),
+            imageView.bottomAnchor.constraint(equalTo: contentView.bottomAnchor),
+
+            deleteButton.topAnchor.constraint(equalTo: contentView.topAnchor, constant: 4),
+            deleteButton.trailingAnchor.constraint(equalTo: contentView.trailingAnchor, constant: -4),
+            deleteButton.widthAnchor.constraint(equalToConstant: 20),
+            deleteButton.heightAnchor.constraint(equalToConstant: 20)
+        ])
+    }
+
+    func configure(with image: UIImage, index: Int) {
+        imageView.image = image
+        self.index = index
+    }
+
+    @objc private func deleteTapped() {
+        onDelete?(index)
+    }
+}
+
+// MARK: - Add Image Cell
+private class AddImageCell: UICollectionViewCell {
+
+    private let addButton = UIImageView()
+
+    override init(frame: CGRect) {
+        super.init(frame: frame)
+        setupUI()
+    }
+
+    required init?(coder: NSCoder) {
+        fatalError("init(coder:) has not been implemented")
+    }
+
+    private func setupUI() {
+        contentView.backgroundColor = UIColor.systemGray5
+        contentView.layer.cornerRadius = 8
+        contentView.layer.borderWidth = 1
+        contentView.layer.borderColor = UIColor.systemGray3.cgColor
+
+        addButton.image = UIImage(systemName: "plus")
+        addButton.tintColor = .systemGray
+        addButton.contentMode = .scaleAspectFit
+        addButton.translatesAutoresizingMaskIntoConstraints = false
+
+        contentView.addSubview(addButton)
+
+        NSLayoutConstraint.activate([
+            addButton.centerXAnchor.constraint(equalTo: contentView.centerXAnchor),
+            addButton.centerYAnchor.constraint(equalTo: contentView.centerYAnchor),
+            addButton.widthAnchor.constraint(equalToConstant: 30),
+            addButton.heightAnchor.constraint(equalToConstant: 30)
+        ])
+    }
 }
 
 // MARK: - Picker

@@ -82,9 +82,8 @@ final class AccountViewController: UIViewController {
     private let otherCard = AccountViewController.makeCard()
 
     // MARK: - Rows
-    private lazy var rowMyOrders = makeRow("My Orders", icon: "shippingbox", action: #selector(openOrders))
     private lazy var rowProfile = makeRow("My Profile", icon: "person", action: #selector(openProfile))
-    private lazy var rowAddress = makeRow("My Address", icon: "mappin.and.ellipse", action: #selector(openAddress))
+    private lazy var rowAddress = makeRow("My Hotspots", icon: "mappin.and.ellipse", action: #selector(openAddress))
     private lazy var rowNotifications = makeRow("Notifications", icon: "bell", action: #selector(openNotifications))
 
     private lazy var rowTerms = makeRow("Terms & Conditions", icon: "doc.text", action: #selector(openTerms))
@@ -180,12 +179,12 @@ final class AccountViewController: UIViewController {
         featureContainer.addSubview(featureStack)
         featureStack.translatesAutoresizingMaskIntoConstraints = false
 
-        featureStack.addArrangedSubview(makeFeatureItem("creditcard", "Payments", #selector(openPayments)))
+        featureStack.addArrangedSubview(makeFeatureItem("shippingbox", "Orders", #selector(openOrders)))
         featureStack.addArrangedSubview(makeFeatureItem("ticket", "Event Tickets", #selector(openEvents)))
         featureStack.addArrangedSubview(makeFeatureItem("chart.bar", "Seller Dashboard", #selector(openSellerDashboard)))
 
         addGroupedRows(
-            rows: [rowMyOrders, rowProfile, rowAddress, rowNotifications],
+            rows: [rowProfile, rowAddress, rowNotifications],
             to: generalCard
         )
 
@@ -395,7 +394,6 @@ final class AccountViewController: UIViewController {
     @objc private func openSettings() { push(SettingsViewController()) }
     @objc private func openSellerDashboard() { push(SellerDashboardViewController()) }
     @objc private func openEvents() { push(BrowseEventsViewController()) }
-    @objc private func openPayments() { push(PaymentsViewController()) }
 
     private func push(_ vc: UIViewController) {
         if let nav = navigationController {

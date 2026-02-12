@@ -7,12 +7,13 @@
 
 import UIKit
 
-struct Order {
+// Local Order struct for UI display (maps from SellerOrder)
+struct DashboardOrder {
     let category: String
     let title: String
     let statusText: String
     let priceText: String
-    let imageName: String?
+    let imageUrl: String?
 }
 
 // MARK: - LegendItemView
@@ -63,7 +64,7 @@ private final class SellerOrderCardView: UIView {
     private let statusLabel = UILabel()
     private let priceLabel = UILabel()
 
-    init(order: Order) {
+    init(order: DashboardOrder) {
         super.init(frame: .zero)
         translatesAutoresizingMaskIntoConstraints = false
 
@@ -79,8 +80,14 @@ private final class SellerOrderCardView: UIView {
         productImageView.contentMode = .scaleAspectFill
         productImageView.clipsToBounds = true
         productImageView.layer.cornerRadius = 8
-        if let name = order.imageName, let img = UIImage(named: name) {
-            productImageView.image = img
+
+        // Load image from URL or use placeholder
+        if let imageUrl = order.imageUrl, !imageUrl.isEmpty {
+            if imageUrl.hasPrefix("http") {
+                productImageView.loadImage(from: imageUrl)
+            } else {
+                productImageView.image = UIImage(named: imageUrl)
+            }
         } else {
             productImageView.image = UIImage(systemName: "photo")
             productImageView.tintColor = .tertiaryLabel
@@ -195,6 +202,22 @@ private final class SimplePieChartView: UIView {
 // MARK: - SellerDashboardViewController
 final class SellerDashboardViewController: UIViewController {
 
+    // MARK: - Repository
+    private let repository = SellerDashboardRepository()
+
+    // MARK: - Data
+    private var sellerOrders: [SellerOrder] = []
+    private var statistics: SellerStatistics?
+    private var userProfile: UserDTO?
+
+    // MARK: - Loading
+    private let loadingIndicator: UIActivityIndicatorView = {
+        let indicator = UIActivityIndicatorView(style: .large)
+        indicator.hidesWhenStopped = true
+        indicator.translatesAutoresizingMaskIntoConstraints = false
+        return indicator
+    }()
+
     // MARK: - Scroll
     private let scrollView = UIScrollView()
     private let contentView = UIView()
@@ -230,13 +253,6 @@ final class SellerDashboardViewController: UIViewController {
     private let salesProgressView = UIProgressView(progressViewStyle: .default)
     private let salesAmountLabel = UILabel()
 
-    // Upcoming Payment
-    private let upcomingContainer = UIView()
-    private let upcomingIconView = UIImageView()
-    private let upcomingHeaderLabel = UILabel()   // <-- ADD THIS
-    private let upcomingSubtitleLabel = UILabel()
-    private let reminderButton = UIButton(type: .system)
-
     // MARK: - Breakdown
     private let breakdownTitle = UILabel()
     private let pieChartView = SimplePieChartView()
@@ -246,96 +262,17 @@ final class SellerDashboardViewController: UIViewController {
     // MARK: - Orders List
     private let ordersStack = UIStackView()
 
-    // Temporary demo data
-    private let demoOrders: [Order] = [
-
-        // --------------------
-        //  PENDING ITEMS (TOP)
-        // --------------------
-        Order(
-            category: "Sports",
-            title: "SS Size 5 Bat",
-            statusText: "Pending",
-            priceText: "₹1299",
-            imageName: "SSbat"
-        ),
-
-        Order(
-            category: "Fashion",
-            title: "Under Armour Cap",
-            statusText: "Pending",
-            priceText: "₹500",
-            imageName: "Cap"
-        ),
-
-        Order(
-            category: "Gadgets",
-            title: "JBL T450BT",
-            statusText: "Pending",
-            priceText: "₹1500",
-            imageName: "jblheadphones"
-        ),
-
-        Order(
-            category: "Hostel Essentials",
-            title: "Table Fan",
-            statusText: "Pending",
-            priceText: "₹849",
-            imageName: "tablefan"
-        ),
-
-        Order(
-            category: "Sports",
-            title: "Badminton Racket",
-            statusText: "Pending",
-            priceText: "₹550",
-            imageName: "badmintonracket"
-        ),
-
-
-        // --------------------
-        //  SOLD FOR ITEMS
-        // --------------------
-        Order(
-            category: "Hostel Essentials",
-            title: "Prestige Electric Kettle",
-            statusText: "Sold for",
-            priceText: "₹649",
-            imageName: "electrickettle"
-        ),
-
-        Order(
-            category: "Gadgets",
-            title: "Noise Two Wireless",
-            statusText: "Sold for",
-            priceText: "₹1800",
-            imageName: "noisetwowireless"
-        ),
-
-        Order(
-            category: "Furniture",
-            title: "Ergonomic Mesh Office Chair",
-            statusText: "Sold for",
-            priceText: "₹1299",
-            imageName: "ergonomicmeshchair"
-        ),
-
-        Order(
-            category: "Sports",
-            title: "Carrom Board",
-            statusText: "Sold for",
-            priceText: "₹700",
-            imageName: "carromboard"
-        ),
-
-        Order(
-            category: "Fashion",
-            title: "Blue Cap",
-            statusText: "Sold for",
-            priceText: "₹200",
-            imageName: "streetcap"
-        )
-    ]
+    // MARK: - Empty State
+    private let emptyStateLabel: UILabel = {
+        let label = UILabel()
+        label.text = "No orders yet"
+        label.font = .systemFont(ofSize: 16)
+        label.textColor = .secondaryLabel
+        label.textAlignment = .center
+        label.translatesAutoresizingMaskIntoConstraints = false
+        label.isHidden = true
+        return label
+    }()
 
 
 
@@ -344,8 +281,67 @@ final class SellerDashboardViewController: UIViewController {
         view.backgroundColor = .systemGroupedBackground
         setupUI()
         setupConstraints()
-        configureData()
+        setupLoadingIndicator()
         navigationController?.setNavigationBarHidden(true, animated: false)
+
+        // Load real data from backend
+        loadDashboardData()
+    }
+
+    private func setupLoadingIndicator() {
+        view.addSubview(loadingIndicator)
+        NSLayoutConstraint.activate([
+            loadingIndicator.centerXAnchor.constraint(equalTo: view.centerXAnchor),
+            loadingIndicator.centerYAnchor.constraint(equalTo: view.centerYAnchor)
+        ])
+    }
+
+    private func loadDashboardData() {
+        loadingIndicator.startAnimating()
+        scrollView.alpha = 0.3
+
+        Task {
+            do {
+                // Fetch all data in parallel
+                async let profileTask = repository.fetchSellerProfile()
+                async let ordersTask = repository.fetchSellerOrders()
+                async let statsTask = repository.fetchSellerStatistics()
+
+                let (profile, orders, stats) = try await (profileTask, ordersTask, statsTask)
+
+                self.userProfile = profile
+                self.sellerOrders = orders
+                self.statistics = stats
+
+                await MainActor.run {
+                    self.configureData()
+                    self.loadingIndicator.stopAnimating()
+                    UIView.animate(withDuration: 0.3) {
+                        self.scrollView.alpha = 1.0
+                    }
+                }
+            } catch {
+                print("❌ Failed to load dashboard data: \(error)")
+                await MainActor.run {
+                    self.loadingIndicator.stopAnimating()
+                    self.scrollView.alpha = 1.0
+                    self.showErrorState(message: "Failed to load dashboard data")
+                }
+            }
+        }
+    }
+
+    private func showErrorState(message: String) {
+        let alert = UIAlertController(
+            title: "Error",
+            message: message,
+            preferredStyle: .alert
+        )
+        alert.addAction(UIAlertAction(title: "Retry", style: .default) { [weak self] _ in
+            self?.loadDashboardData()
+        })
+        alert.addAction(UIAlertAction(title: "Cancel", style: .cancel))
+        present(alert, animated: true)
     }
     override func viewWillAppear(_ animated: Bool) {
         super.viewWillAppear(animated)
@@ -405,49 +401,6 @@ final class SellerDashboardViewController: UIViewController {
 
         [nameLabel, emailLabel, salesProgressView, salesAmountLabel].forEach { profileContainer.addSubview($0) }
 
-        // Upcoming Payment
-        upcomingContainer.translatesAutoresizingMaskIntoConstraints = false
-        upcomingContainer.backgroundColor = UIColor(red: 4/255, green: 68/255, blue: 95/255, alpha: 1)
-        contentView.addSubview(upcomingContainer)
-
-        // Bell icon
-        upcomingIconView.translatesAutoresizingMaskIntoConstraints = false
-        upcomingIconView.image = UIImage(systemName: "bell.fill")
-        upcomingIconView.tintColor = .white
-        upcomingContainer.addSubview(upcomingIconView)
-
-        // "Upcoming Payment" label
-        upcomingHeaderLabel.translatesAutoresizingMaskIntoConstraints = false
-        upcomingHeaderLabel.text = "Upcoming Payment"
-        upcomingHeaderLabel.font = .systemFont(ofSize: 16, weight: .semibold)
-        upcomingHeaderLabel.textColor = .white
-        upcomingContainer.addSubview(upcomingHeaderLabel)
-
-        // Subtitle
-        upcomingSubtitleLabel.translatesAutoresizingMaskIntoConstraints = false
-        upcomingSubtitleLabel.text = "Sep 30, 2025 • ₹200"
-        upcomingSubtitleLabel.font = .systemFont(ofSize: 14)
-        upcomingSubtitleLabel.textColor = .white
-        upcomingContainer.addSubview(upcomingSubtitleLabel)
-
-        // Button
-        reminderButton.translatesAutoresizingMaskIntoConstraints = false
-        reminderButton.setTitle("Send Reminder", for: .normal)
-        reminderButton.setTitleColor(.systemBlue, for: .normal)
-        reminderButton.backgroundColor = .white
-        reminderButton.layer.cornerRadius = 16
-        reminderButton.titleLabel?.font = .systemFont(ofSize: 14, weight: .medium)
-        upcomingContainer.addSubview(reminderButton)
-
-        reminderButton.translatesAutoresizingMaskIntoConstraints = false
-        reminderButton.setTitle("Send Reminder", for: .normal)
-        reminderButton.setTitleColor(.systemBlue, for: .normal)
-        reminderButton.backgroundColor = .white
-        reminderButton.layer.cornerRadius = 16
-        reminderButton.titleLabel?.font = .systemFont(ofSize: 14, weight: .medium)
-
-        upcomingContainer.addSubview(reminderButton)
-
         // Breakdown
         breakdownTitle.translatesAutoresizingMaskIntoConstraints = false
         breakdownTitle.text = "Breakdown"
@@ -464,34 +417,9 @@ final class SellerDashboardViewController: UIViewController {
 
         legendStack.translatesAutoresizingMaskIntoConstraints = false
         legendStack.axis = .vertical
-        legendStack.spacing = 8   // spacing between the two rows
-        contentView.addSubview(legendStack)
-
-        let row1 = UIStackView()
-        row1.axis = .horizontal
-        row1.spacing = 24
-        row1.alignment = .center
-        row1.distribution = .equalCentering
-
-        let row2 = UIStackView()
-        row2.axis = .horizontal
-        row2.spacing = 24
-        row2.alignment = .center
-        row2.distribution = .equalCentering
-
-        legendStack.addArrangedSubview(row1)
-        legendStack.addArrangedSubview(row2)
-
-        // Add legend items to rows
-        row1.addArrangedSubview(LegendItemView(color: .systemGreen, text: "Hostel Essentials 8"))
-        row1.addArrangedSubview(LegendItemView(color: .systemBlue, text: "Fashion 7"))
-
-        // Row 2
-        row2.addArrangedSubview(LegendItemView(color: .systemYellow, text: "Sports 12"))
-        row2.addArrangedSubview(LegendItemView(color: .systemRed, text: "Gadgets 10"))
-
         legendStack.spacing = 16
         contentView.addSubview(legendStack)
+        // Legend items will be added dynamically in configureData()
 
         // Orders
         ordersStack.translatesAutoresizingMaskIntoConstraints = false
@@ -552,38 +480,9 @@ final class SellerDashboardViewController: UIViewController {
             salesAmountLabel.trailingAnchor.constraint(equalTo: salesProgressView.trailingAnchor)
         ])
 
-        // Upcoming container
-        NSLayoutConstraint.activate([
-            upcomingContainer.topAnchor.constraint(equalTo: profileContainer.bottomAnchor),
-            upcomingContainer.leadingAnchor.constraint(equalTo: contentView.leadingAnchor),
-            upcomingContainer.trailingAnchor.constraint(equalTo: contentView.trailingAnchor),
-            upcomingContainer.heightAnchor.constraint(equalToConstant: 90),
-
-            // Bell icon
-            upcomingIconView.leadingAnchor.constraint(equalTo: upcomingContainer.leadingAnchor, constant: 16),
-            upcomingIconView.centerYAnchor.constraint(equalTo: upcomingContainer.centerYAnchor),
-            upcomingIconView.widthAnchor.constraint(equalToConstant: 20),
-            upcomingIconView.heightAnchor.constraint(equalToConstant: 20),
-
-            // Title
-            upcomingHeaderLabel.topAnchor.constraint(equalTo: upcomingContainer.topAnchor, constant: 23),
-            upcomingHeaderLabel.leadingAnchor.constraint(equalTo: upcomingIconView.trailingAnchor, constant: 8),
-
-            // Subtitle
-            upcomingSubtitleLabel.topAnchor.constraint(equalTo: upcomingHeaderLabel.bottomAnchor, constant: 4),
-            upcomingSubtitleLabel.leadingAnchor.constraint(equalTo: upcomingHeaderLabel.leadingAnchor),
-
-            // Button
-            reminderButton.centerYAnchor.constraint(equalTo: upcomingContainer.centerYAnchor),
-            reminderButton.trailingAnchor.constraint(equalTo: upcomingContainer.trailingAnchor, constant: -16),
-            reminderButton.widthAnchor.constraint(equalToConstant: 130),
-            reminderButton.heightAnchor.constraint(equalToConstant: 34)
-        ])
-
-
         // Breakdown
         NSLayoutConstraint.activate([
-            breakdownTitle.topAnchor.constraint(equalTo: upcomingContainer.bottomAnchor, constant: 22),
+            breakdownTitle.topAnchor.constraint(equalTo: profileContainer.bottomAnchor, constant: 22),
             breakdownTitle.leadingAnchor.constraint(equalTo: contentView.leadingAnchor, constant: 16),
 
             pieChartView.topAnchor.constraint(equalTo: breakdownTitle.bottomAnchor, constant: 12),
@@ -608,24 +507,118 @@ final class SellerDashboardViewController: UIViewController {
     }
 
     private func configureData() {
-        // profile
-        nameLabel.text = "Nishtha"
-        emailLabel.text = "ng7389@srmist.edu.in"
-        salesAmountLabel.text = "₹124.72 / ₹500.00"
-        salesProgressView.progress = Float(124.72 / 500.0)
+        // Profile
+        if let user = userProfile {
+            nameLabel.text = user.displayName
+            emailLabel.text = user.email ?? ""
+        } else {
+            nameLabel.text = "Seller"
+            emailLabel.text = ""
+        }
 
-        // pie chart data (hostel 7, fashion 2, sports 1, gadgets 2)
-        pieChartView.configure(segments: [
-            (.systemGreen, 8),   // Hostel Essentials
-                (.systemBlue, 7),    // Fashion
-                (.systemYellow, 12), // Sports
-                (.systemRed, 10)
-        ])
+        // Sales statistics
+        if let stats = statistics {
+            let totalSales = stats.totalSales
+            let salesGoal = stats.salesGoal
+            salesAmountLabel.text = "₹\(String(format: "%.2f", totalSales)) / ₹\(String(format: "%.0f", salesGoal))"
+            salesProgressView.progress = Float(min(totalSales / salesGoal, 1.0))
 
-        // orders
-        for order in demoOrders {
-            let card = SellerOrderCardView(order: order)
-            ordersStack.addArrangedSubview(card)
+            // Items sold in pie chart center
+            itemsSoldLabel.text = "\(stats.itemsSold)"
+
+            // Pie chart data from category breakdown
+            let segments = stats.categoryBreakdown.map { category -> (UIColor, CGFloat) in
+                let color = colorForCategory(category.color)
+                return (color, CGFloat(category.count))
+            }
+
+            if segments.isEmpty {
+                // Show placeholder if no data
+                pieChartView.configure(segments: [(.systemGray4, 1)])
+            } else {
+                pieChartView.configure(segments: segments)
+            }
+
+            // Update legend
+            updateLegend(with: stats.categoryBreakdown)
+        } else {
+            salesAmountLabel.text = "₹0.00 / ₹5000.00"
+            salesProgressView.progress = 0
+            itemsSoldLabel.text = "0"
+            pieChartView.configure(segments: [(.systemGray4, 1)])
+        }
+
+        // Clear existing order cards
+        ordersStack.arrangedSubviews.forEach { $0.removeFromSuperview() }
+
+        // Add order cards from real data
+        if sellerOrders.isEmpty {
+            emptyStateLabel.isHidden = false
+            ordersStack.addArrangedSubview(emptyStateLabel)
+        } else {
+            emptyStateLabel.isHidden = true
+            for order in sellerOrders {
+                let dashboardOrder = DashboardOrder(
+                    category: order.category,
+                    title: order.title,
+                    statusText: order.statusText,
+                    priceText: order.priceText,
+                    imageUrl: order.imageUrl
+                )
+                let card = SellerOrderCardView(order: dashboardOrder)
+                ordersStack.addArrangedSubview(card)
+            }
+        }
+    }
+
+    private func colorForCategory(_ colorName: String) -> UIColor {
+        switch colorName {
+        case "systemGreen": return .systemGreen
+        case "systemBlue": return .systemBlue
+        case "systemYellow": return .systemYellow
+        case "systemRed": return .systemRed
+        case "systemPurple": return .systemPurple
+        case "systemOrange": return .systemOrange
+        default: return .systemGray
+        }
+    }
+
+    private func updateLegend(with categories: [CategorySales]) {
+        // Clear existing legend items
+        legendStack.arrangedSubviews.forEach { $0.removeFromSuperview() }
+
+        // Create rows for legend (2 items per row)
+        let row1 = UIStackView()
+        row1.axis = .horizontal
+        row1.spacing = 24
+        row1.alignment = .center
+        row1.distribution = .equalCentering
+
+        let row2 = UIStackView()
+        row2.axis = .horizontal
+        row2.spacing = 24
+        row2.alignment = .center
+        row2.distribution = .equalCentering
+
+        legendStack.addArrangedSubview(row1)
+        legendStack.addArrangedSubview(row2)
+
+        // Add category items to rows
+        for (index, category) in categories.prefix(4).enumerated() {
+            let color = colorForCategory(category.color)
+            let legendItem = LegendItemView(color: color, text: "\(category.category) \(category.count)")
+
+            if index < 2 {
+                row1.addArrangedSubview(legendItem)
+            } else {
+                row2.addArrangedSubview(legendItem)
+            }
+        }
+
+        // If no categories, show placeholder
+        if categories.isEmpty {
+            let placeholder = LegendItemView(color: .systemGray4, text: "No sales yet")
+            row1.addArrangedSubview(placeholder)
         }
     }
 

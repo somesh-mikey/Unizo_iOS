@@ -19,6 +19,7 @@ struct ProductMapper {
             rating: dto.rating ?? 0.0,
             negotiable: dto.isNegotiable ?? false,
             imageURL: dto.imageUrl,
+            galleryImages: dto.galleryImages ?? [],
             category: dto.category,
             colour: dto.colour,
             size: dto.size,

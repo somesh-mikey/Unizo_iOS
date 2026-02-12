@@ -13,6 +13,7 @@ struct ProductInsertDTO: Encodable {
     let description: String
     let price: Int
     let image_url: String
+    let gallery_images: [String]?  // Array of additional image URLs
     let is_negotiable: Bool
     let views_count: Int
     let is_active: Bool

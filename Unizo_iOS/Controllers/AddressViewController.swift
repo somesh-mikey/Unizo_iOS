@@ -9,13 +9,15 @@ import UIKit
 
 enum AddressFlowSource {
     case fromAccount
-    case fromCart
+    case fromCheckout
 }
 
 class AddressViewController: UIViewController {
-    
-    var flowSource: AddressFlowSource = .fromCart
-    var isBuyNowFlow: Bool = false
+
+    var flowSource: AddressFlowSource = .fromCheckout
+
+    /// The items to be ordered (passed from ItemDetailsViewController)
+    var orderItems: [OrderItem] = []
     private let addressRepository = AddressRepository(client: supabase)
     private var addresses: [AddressDTO] = []
 
@@ -28,7 +30,6 @@ class AddressViewController: UIViewController {
     // MARK: - Top bar
     private let navBar = UIView()
     private let backButton = UIButton(type: .system)
-    private let heartButton = UIButton(type: .system)
     private let titleLabel = UILabel()
 
     // MARK: - Step indicator
@@ -113,26 +114,13 @@ class AddressViewController: UIViewController {
         backButton.translatesAutoresizingMaskIntoConstraints = false
         backButton.addTarget(self, action: #selector(backTapped), for: .touchUpInside)
 
-        // Heart with glowing style
-        heartButton.setImage(UIImage(systemName: "heart"), for: .normal)
-        heartButton.tintColor = .black
-        heartButton.backgroundColor = .white
-        heartButton.layer.cornerRadius = 22
-        heartButton.layer.shadowColor = UIColor.black.cgColor
-        heartButton.layer.shadowOpacity = 0.1
-        heartButton.layer.shadowRadius = 8
-        heartButton.layer.shadowOffset = CGSize(width: 0, height: 2)
-        heartButton.translatesAutoresizingMaskIntoConstraints = false
-        heartButton.addTarget(self, action: #selector(wishlistTapped), for: .touchUpInside)
-
         // Title - different based on flow
-        titleLabel.text = (flowSource == .fromAccount) ? "My Addresses" : "Select Address"
+        titleLabel.text = (flowSource == .fromAccount) ? "My Hotspots" : "Select Hotspot"
         titleLabel.font = UIFont.systemFont(ofSize: 18, weight: .semibold)
         titleLabel.textColor = .black
         titleLabel.translatesAutoresizingMaskIntoConstraints = false
 
         navBar.addSubview(backButton)
-        navBar.addSubview(heartButton)
         navBar.addSubview(titleLabel)
 
         NSLayoutConstraint.activate([
@@ -141,11 +129,6 @@ class AddressViewController: UIViewController {
             backButton.widthAnchor.constraint(equalToConstant: 44),
             backButton.heightAnchor.constraint(equalToConstant: 44),
 
-            heartButton.trailingAnchor.constraint(equalTo: navBar.trailingAnchor, constant: -16),
-            heartButton.centerYAnchor.constraint(equalTo: navBar.centerYAnchor),
-            heartButton.widthAnchor.constraint(equalToConstant: 44),
-            heartButton.heightAnchor.constraint(equalToConstant: 44),
-
             titleLabel.centerXAnchor.constraint(equalTo: navBar.centerXAnchor),
             titleLabel.centerYAnchor.constraint(equalTo: navBar.centerYAnchor)
         ])
@@ -153,22 +136,6 @@ class AddressViewController: UIViewController {
 
     // UPDATED: Back navigation based on flow source
     @objc private func backTapped() {
-        // If fromCart flow and presented modally (Cart presents AddressVC in a new nav controller)
-        if flowSource == .fromCart {
-            // Dismiss the entire modal navigation stack to return to Cart
-            if let presenting = presentingViewController {
-                presenting.dismiss(animated: true)
-                return
-            }
-            // If pushed onto Cart's nav stack, pop back
-            if let nav = navigationController {
-                if let cartVC = nav.viewControllers.first(where: { $0 is CartViewController }) {
-                    nav.popToViewController(cartVC, animated: true)
-                    return
-                }
-            }
-        }
-
         // Default: try to pop, otherwise dismiss
         if let nav = navigationController {
             nav.popViewController(animated: true)
@@ -176,18 +143,6 @@ class AddressViewController: UIViewController {
             dismiss(animated: true)
         }
     }
-    @objc private func wishlistTapped() {
-        let vc = WishlistViewController()
-
-        if let nav = navigationController {
-            nav.pushViewController(vc, animated: true)
-        } else {
-            let nav = UINavigationController(rootViewController: vc)
-            nav.modalPresentationStyle = .fullScreen
-            present(nav, animated: true)
-        }
-    }
-
     // MARK: - STEP INDICATOR
     private func setupStepIndicator() {
         stepContainer.translatesAutoresizingMaskIntoConstraints = false
@@ -238,7 +193,7 @@ class AddressViewController: UIViewController {
         ])
 
         let step1Text = UILabel()
-        step1Text.text = "Set Address"
+        step1Text.text = "Set Hotspot"
         step1Text.font = UIFont.systemFont(ofSize: 14, weight: .semibold)
         step1Text.textColor = .black
 
@@ -475,8 +430,8 @@ class AddressViewController: UIViewController {
             let errorAlert = UIAlertController(
                 title: "Cannot Delete",
                 message: address.is_default
-                    ? "The default address cannot be deleted. Please set another address as default first."
-                    : "You must have at least one address.",
+                    ? "The default hotspot cannot be deleted. Please set another hotspot as default first."
+                    : "You must have at least one hotspot.",
                 preferredStyle: .alert
             )
             errorAlert.addAction(UIAlertAction(title: "OK", style: .default))
@@ -485,7 +440,7 @@ class AddressViewController: UIViewController {
         }
 
         let alert = UIAlertController(
-            title: "Delete Address?",
+            title: "Delete Hotspot?",
             message: "This action cannot be undone.",
             preferredStyle: .alert
         )
@@ -496,7 +451,7 @@ class AddressViewController: UIViewController {
             Task {
                 do {
                     try await self.addressRepository.deleteAddress(id: address.id)
-                    print("🗑️ Address deleted:", address.id)
+                    print("🗑️ Hotspot deleted:", address.id)
                     await self.loadAddresses()
                 } catch let error as AddressError {
                     await MainActor.run {
@@ -509,11 +464,11 @@ class AddressViewController: UIViewController {
                         self.present(errorAlert, animated: true)
                     }
                 } catch {
-                    print("❌ Failed to delete address:", error)
+                    print("❌ Failed to delete hotspot:", error)
                     await MainActor.run {
                         let errorAlert = UIAlertController(
                             title: "Error",
-                            message: "Failed to delete address. Please try again.",
+                            message: "Failed to delete hotspot. Please try again.",
                             preferredStyle: .alert
                         )
                         errorAlert.addAction(UIAlertAction(title: "OK", style: .default))
@@ -555,9 +510,9 @@ class AddressViewController: UIViewController {
         }
     }
 
-    // MARK: - ADD NEW ADDRESS BUTTON
+    // MARK: - ADD NEW HOTSPOT BUTTON
     private func setupAddNewAddressButton() {
-        addNewAddressButton.setTitle("Add New Address", for: .normal)
+        addNewAddressButton.setTitle("Add New Hotspot", for: .normal)
         addNewAddressButton.setTitleColor(primaryTeal, for: .normal)
         addNewAddressButton.titleLabel?.font = UIFont.systemFont(ofSize: 14, weight: .semibold)
         addNewAddressButton.backgroundColor = .white
@@ -616,11 +571,11 @@ class AddressViewController: UIViewController {
     private func loadAddresses() async {
         do {
             let fetched = try await addressRepository.fetchAddresses()
-            print("📦 Addresses fetched:", fetched.count)
+            print("📦 Hotspots fetched:", fetched.count)
             self.addresses = fetched
             renderAddressCards()
         } catch {
-            print("❌ Failed to load addresses:", error)
+            print("❌ Failed to load hotspots:", error)
         }
         if selectedIndex >= addresses.count {
             selectedIndex = max(0, addresses.count - 1)
@@ -688,8 +643,8 @@ class AddressViewController: UIViewController {
                 dismiss(animated: true)
             }
 
-        case .fromCart:
-            // Move to Confirm Order screen with selected address
+        case .fromCheckout:
+            // Move to Confirm Order screen with selected address and order items
             let vc = ConfirmOrderViewController()
             vc.modalPresentationStyle = .fullScreen
 
@@ -697,6 +652,9 @@ class AddressViewController: UIViewController {
             if selectedIndex < addresses.count {
                 vc.selectedAddress = addresses[selectedIndex]
             }
+
+            // Pass order items
+            vc.orderItems = orderItems
 
             if let nav = navigationController {
                 nav.pushViewController(vc, animated: true)

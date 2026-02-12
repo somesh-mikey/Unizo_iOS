@@ -29,6 +29,33 @@ class ItemDetailsViewController: UIViewController {
     // MARK: - Incoming Product
     var product: ProductUIModel!
 
+    // MARK: - Repository
+    private let productRepository = ProductRepository(supabase: supabase)
+
+    // MARK: - Image Gallery
+    private var galleryImages: [String] = []
+    private var currentImageIndex = 0
+
+    private let imageCarouselCollectionView: UICollectionView = {
+        let layout = UICollectionViewFlowLayout()
+        layout.scrollDirection = .horizontal
+        layout.minimumLineSpacing = 0
+        layout.minimumInteritemSpacing = 0
+        let cv = UICollectionView(frame: .zero, collectionViewLayout: layout)
+        cv.backgroundColor = .clear
+        cv.isPagingEnabled = true
+        cv.showsHorizontalScrollIndicator = false
+        return cv
+    }()
+
+    private let pageControl: UIPageControl = {
+        let pc = UIPageControl()
+        pc.currentPageIndicatorTintColor = .brandPrimary
+        pc.pageIndicatorTintColor = .systemGray4
+        pc.hidesForSinglePage = true
+        return pc
+    }()
+
     // MARK: - Outlets from XIB (kept so Interface Builder connections remain)
     @IBOutlet weak var productImageView: UIImageView!
     @IBOutlet weak var categoryLabel: UILabel!
@@ -182,6 +209,30 @@ class ItemDetailsViewController: UIViewController {
 
         // Disable purchase buttons if product is sold or unavailable
         updatePurchaseButtonsState()
+
+        // Increment view count when user views the product
+        incrementProductViewCount()
+    }
+
+    // MARK: - View Count
+    private func incrementProductViewCount() {
+        guard let product = product else { return }
+
+        Task {
+            do {
+                // Only increment if the viewer is not the seller
+                let currentUserId = await AuthManager.shared.currentUserId
+                if let sellerId = product.sellerId, currentUserId == sellerId {
+                    // Seller viewing their own product - don't increment
+                    return
+                }
+
+                try await productRepository.incrementViewCount(productId: product.id)
+            } catch {
+                // Silently fail - view count is not critical
+                print("⚠️ Failed to increment view count: \(error)")
+            }
+        }
     }
 
     private func updatePurchaseButtonsState() {
@@ -230,18 +281,17 @@ class ItemDetailsViewController: UIViewController {
 
         // Hide the old rating label (it's now in the seller card)
         ratingLabel.isHidden = true
-//        productImageView.image = UIImage(named: p.imageURL ?? "")
-//        categoryLabel.text = "General"
-        // Load product image from URL or local asset
-                if let imageURL = p.imageURL, !imageURL.isEmpty {
-                    if imageURL.hasPrefix("http") {
-                        productImageView.loadImage(from: imageURL)
-                    } else {
-                        productImageView.image = UIImage(named: imageURL)
-                    }
-                }
 
-                categoryLabel.text = p.category ?? "General"
+        // Setup gallery images
+        galleryImages = p.allImages
+        pageControl.numberOfPages = galleryImages.count
+        pageControl.currentPage = 0
+        imageCarouselCollectionView.reloadData()
+
+        // Hide the old IBOutlet image view (we're using the carousel now)
+        productImageView.isHidden = true
+
+        categoryLabel.text = p.category ?? "General"
 
         // Description
         descriptionBodyLabel.text =
@@ -339,12 +389,18 @@ class ItemDetailsViewController: UIViewController {
         scrollView.addSubview(contentView)
         contentView.translatesAutoresizingMaskIntoConstraints = false
 
+        // Setup image carousel
+        imageCarouselCollectionView.delegate = self
+        imageCarouselCollectionView.dataSource = self
+        imageCarouselCollectionView.register(ImageCarouselCell.self, forCellWithReuseIdentifier: "ImageCarouselCell")
+
         // Add programmatic elements to contentView.
         // NOTE: We intentionally do NOT add descriptionTextView / featuresTextView here because
         // we now use descriptionBodyLabel and featuresBodyLabel.
         // Rating moved to seller card, so not included here
         let programmaticViews: [UIView] = [
-            productImageView,
+            imageCarouselCollectionView,
+            pageControl,
             categoryLabel,
             titleLabel,
             priceLabel,
@@ -394,17 +450,20 @@ class ItemDetailsViewController: UIViewController {
             contentView.widthAnchor.constraint(equalTo: scrollView.widthAnchor)
         ])
 
-        // Product image
+        // Image carousel
         NSLayoutConstraint.activate([
-            productImageView.topAnchor.constraint(equalTo: contentView.topAnchor, constant: 12),
-            productImageView.centerXAnchor.constraint(equalTo: contentView.centerXAnchor),
-            productImageView.widthAnchor.constraint(lessThanOrEqualTo: contentView.widthAnchor, multiplier: 0.6),
-            productImageView.heightAnchor.constraint(equalToConstant: 240)
+            imageCarouselCollectionView.topAnchor.constraint(equalTo: contentView.topAnchor, constant: 12),
+            imageCarouselCollectionView.leadingAnchor.constraint(equalTo: contentView.leadingAnchor),
+            imageCarouselCollectionView.trailingAnchor.constraint(equalTo: contentView.trailingAnchor),
+            imageCarouselCollectionView.heightAnchor.constraint(equalToConstant: 280),
+
+            pageControl.topAnchor.constraint(equalTo: imageCarouselCollectionView.bottomAnchor, constant: 8),
+            pageControl.centerXAnchor.constraint(equalTo: contentView.centerXAnchor)
         ])
 
         // Category / Title / Price (rating moved to seller card)
         NSLayoutConstraint.activate([
-            categoryLabel.topAnchor.constraint(equalTo: productImageView.bottomAnchor, constant: 10),
+            categoryLabel.topAnchor.constraint(equalTo: pageControl.bottomAnchor, constant: 10),
             categoryLabel.leadingAnchor.constraint(equalTo: contentView.leadingAnchor),
 
             titleLabel.topAnchor.constraint(equalTo: categoryLabel.bottomAnchor, constant: 6),
@@ -504,13 +563,6 @@ class ItemDetailsViewController: UIViewController {
             action: #selector(heartTapped)
         )
 
-        let cartButton = UIBarButtonItem(
-            image: UIImage(systemName: "cart"),
-            style: .plain,
-            target: self,
-            action: #selector(cartTapped)
-        )
-
         // More options button (Report, Block)
         let moreButton = UIBarButtonItem(
             image: UIImage(systemName: "ellipsis"),
@@ -520,14 +572,13 @@ class ItemDetailsViewController: UIViewController {
         )
 
         heartButton.tintColor = .label
-        cartButton.tintColor = .label
         moreButton.tintColor = .label
 
         // Accessibility for more button
         moreButton.accessibilityLabel = "More options"
         moreButton.accessibilityHint = "Double tap to report or block this listing"
 
-        navigationItem.rightBarButtonItems = [moreButton, cartButton, heartButton]
+        navigationItem.rightBarButtonItems = [moreButton, heartButton]
     }
 
     // MARK: - Report & Block (App Store Requirement)
@@ -773,10 +824,10 @@ class ItemDetailsViewController: UIViewController {
         }
 
         HapticFeedback.placeOrder()
-        CartManager.shared.clear()
-        CartManager.shared.add(product: product)
 
         let vc = AddressViewController()
+        vc.flowSource = .fromCheckout
+        vc.orderItems = [OrderItem(product: product)]
         navigationController?.pushViewController(vc, animated: true)
     }
     @objc private func heartTapped() {
@@ -813,15 +864,90 @@ class ItemDetailsViewController: UIViewController {
         }
     }
 
-    @objc private func cartTapped() {
-        let vc = CartViewController()
+}
 
-        if let nav = navigationController {
-            nav.pushViewController(vc, animated: true)
+// MARK: - Image Carousel Collection View
+extension ItemDetailsViewController: UICollectionViewDelegate, UICollectionViewDataSource, UICollectionViewDelegateFlowLayout {
+
+    func collectionView(_ collectionView: UICollectionView, numberOfItemsInSection section: Int) -> Int {
+        return max(galleryImages.count, 1) // Show at least 1 placeholder
+    }
+
+    func collectionView(_ collectionView: UICollectionView, cellForItemAt indexPath: IndexPath) -> UICollectionViewCell {
+        let cell = collectionView.dequeueReusableCell(withReuseIdentifier: "ImageCarouselCell", for: indexPath) as! ImageCarouselCell
+
+        if indexPath.item < galleryImages.count {
+            cell.configure(with: galleryImages[indexPath.item])
         } else {
-            vc.modalPresentationStyle = .fullScreen
-            present(vc, animated: true)
+            cell.configurePlaceholder()
         }
+
+        return cell
+    }
+
+    func collectionView(_ collectionView: UICollectionView, layout collectionViewLayout: UICollectionViewLayout, sizeForItemAt indexPath: IndexPath) -> CGSize {
+        return collectionView.bounds.size
+    }
+
+    func scrollViewDidEndDecelerating(_ scrollView: UIScrollView) {
+        guard scrollView == imageCarouselCollectionView else { return }
+        let page = Int(scrollView.contentOffset.x / scrollView.bounds.width)
+        pageControl.currentPage = page
+        currentImageIndex = page
+    }
+}
+
+// MARK: - Image Carousel Cell
+private class ImageCarouselCell: UICollectionViewCell {
+
+    private let imageView: UIImageView = {
+        let iv = UIImageView()
+        iv.contentMode = .scaleAspectFit
+        iv.clipsToBounds = true
+        iv.layer.cornerRadius = 12
+        iv.backgroundColor = .systemGray6
+        return iv
+    }()
+
+    override init(frame: CGRect) {
+        super.init(frame: frame)
+        setupUI()
+    }
+
+    required init?(coder: NSCoder) {
+        fatalError("init(coder:) has not been implemented")
+    }
+
+    private func setupUI() {
+        contentView.addSubview(imageView)
+        imageView.translatesAutoresizingMaskIntoConstraints = false
+
+        NSLayoutConstraint.activate([
+            imageView.topAnchor.constraint(equalTo: contentView.topAnchor),
+            imageView.leadingAnchor.constraint(equalTo: contentView.leadingAnchor, constant: 16),
+            imageView.trailingAnchor.constraint(equalTo: contentView.trailingAnchor, constant: -16),
+            imageView.bottomAnchor.constraint(equalTo: contentView.bottomAnchor)
+        ])
+    }
+
+    func configure(with imageURL: String) {
+        if imageURL.hasPrefix("http") {
+            imageView.loadImage(from: imageURL)
+        } else {
+            imageView.image = UIImage(named: imageURL)
+        }
+    }
+
+    func configurePlaceholder() {
+        imageView.image = UIImage(systemName: "photo")
+        imageView.tintColor = .systemGray3
+        imageView.contentMode = .scaleAspectFit
+    }
+
+    override func prepareForReuse() {
+        super.prepareForReuse()
+        imageView.image = nil
+        imageView.contentMode = .scaleAspectFit
     }
 }
 

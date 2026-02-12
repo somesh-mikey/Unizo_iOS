@@ -53,7 +53,7 @@ final class EditAddressViewController: UIViewController {
 
     // MARK: - UI
     private func setupNavBar() {
-        title = "Edit Address"
+        title = "Edit Hotspot"
         navigationItem.leftBarButtonItem = UIBarButtonItem(
             image: UIImage(systemName: "chevron.left"),
             style: .plain,
@@ -113,7 +113,7 @@ final class EditAddressViewController: UIViewController {
 
     private func defaultRow() -> UIView {
         let label = UILabel()
-        label.text = "Set as default address"
+        label.text = "Set as default hotspot"
         label.font = .systemFont(ofSize: 14, weight: .medium)
 
         let row = UIStackView(arrangedSubviews: [label, defaultSwitch])
@@ -157,7 +157,7 @@ final class EditAddressViewController: UIViewController {
                     navigationController?.popViewController(animated: true)
                 }
             } catch {
-                showError("Failed to save address")
+                showError("Failed to save hotspot")
             }
         }
     }

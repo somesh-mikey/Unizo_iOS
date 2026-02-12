@@ -67,4 +67,81 @@ final class AuthManager {
     func signOut() async throws {
         try await supabase.auth.signOut()
     }
+
+    // MARK: - Delete Account
+    func deleteAccount() async throws {
+        // Get current user ID before deletion
+        guard let userId = await currentUserId else {
+            throw NSError(domain: "AuthManager", code: 401, userInfo: [
+                NSLocalizedDescriptionKey: "User not authenticated"
+            ])
+        }
+
+        // Delete user data from database tables first
+        // This ensures all user-related data is removed before the auth user is deleted
+
+        // Delete user's addresses
+        try await supabase
+            .from("addresses")
+            .delete()
+            .eq("user_id", value: userId.uuidString)
+            .execute()
+
+        // Delete user's orders and order items
+        // First get order IDs to delete related order_items
+        let orders: [OrderDTO] = try await supabase
+            .from("orders")
+            .select("id")
+            .eq("user_id", value: userId.uuidString)
+            .execute()
+            .value
+
+        for order in orders {
+            try await supabase
+                .from("order_items")
+                .delete()
+                .eq("order_id", value: order.id.uuidString)
+                .execute()
+        }
+
+        // Delete orders
+        try await supabase
+            .from("orders")
+            .delete()
+            .eq("user_id", value: userId.uuidString)
+            .execute()
+
+        // Delete user's products
+        try await supabase
+            .from("products")
+            .delete()
+            .eq("seller_id", value: userId.uuidString)
+            .execute()
+
+        // Delete user's notifications
+        try await supabase
+            .from("notifications")
+            .delete()
+            .eq("recipient_id", value: userId.uuidString)
+            .execute()
+
+        // Delete user's wishlist items
+        try await supabase
+            .from("wishlists")
+            .delete()
+            .eq("user_id", value: userId.uuidString)
+            .execute()
+
+        // Delete user profile from users table
+        try await supabase
+            .from("users")
+            .delete()
+            .eq("id", value: userId.uuidString)
+            .execute()
+
+        // Finally sign out (this also clears the session)
+        try await supabase.auth.signOut()
+
+        print("✅ User account and all associated data deleted successfully")
+    }
 }

@@ -66,7 +66,7 @@ final class ProfileViewController: UIViewController {
 
     // MARK: - Section Titles
     private let personalInfoTitle = ProfileViewController.makeSectionLabel("Personal Information")
-    private let addressInfoTitle = ProfileViewController.makeSectionLabel("Address Information")
+    private let addressInfoTitle = ProfileViewController.makeSectionLabel("Hotspot Information")
     private let preferencesTitle = ProfileViewController.makeSectionLabel("Preferences")
 
     // MARK: - Containers

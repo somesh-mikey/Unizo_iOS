@@ -15,6 +15,7 @@ struct ProductUIModel {
     let rating: Double
     let negotiable: Bool
     let imageURL: String?
+    let galleryImages: [String]  // Array of additional image URLs
     let category: String?
     let colour: String?
     let size: String?
@@ -29,6 +30,16 @@ struct ProductUIModel {
     // Computed property to check if product is available for purchase
     var isAvailable: Bool {
         return status == .available && quantity > 0
+    }
+
+    // All images (main + gallery) for carousel display
+    var allImages: [String] {
+        var images: [String] = []
+        if let mainImage = imageURL, !mainImage.isEmpty {
+            images.append(mainImage)
+        }
+        images.append(contentsOf: galleryImages)
+        return images
     }
 }
 
