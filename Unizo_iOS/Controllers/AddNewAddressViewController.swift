@@ -101,15 +101,6 @@ class AddNewAddressViewController: UIViewController {
             action: #selector(goBack)
         )
         navigationItem.leftBarButtonItem?.tintColor = .black
-
-        let heartButton = UIBarButtonItem(
-            image: UIImage(systemName: "heart"),
-            style: .plain,
-            target: nil,
-            action: nil
-        )
-        heartButton.tintColor = .black
-        navigationItem.rightBarButtonItem = heartButton
     }
 
     @objc private func goBack() {
