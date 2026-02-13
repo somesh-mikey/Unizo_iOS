@@ -1,4 +1,5 @@
 import UIKit
+import Supabase
 
 final class ProfileViewController: UIViewController {
 
@@ -555,12 +556,93 @@ extension ProfileViewController: UIPickerViewDelegate, UIPickerViewDataSource {
 extension ProfileViewController: UIImagePickerControllerDelegate, UINavigationControllerDelegate {
     func imagePickerController(_ picker: UIImagePickerController,
                                didFinishPickingMediaWithInfo info: [UIImagePickerController.InfoKey: Any]) {
-        defer { picker.dismiss(animated: true) }
+        picker.dismiss(animated: true)
 
-        if let img = info[.originalImage] as? UIImage {
-            profileImageView.image = img
-        } else if let img = info[.editedImage] as? UIImage {
-            profileImageView.image = img
+        guard let image = info[.originalImage] as? UIImage ?? info[.editedImage] as? UIImage else {
+            return
+        }
+
+        // Show the selected image immediately for feedback
+        profileImageView.image = image
+
+        // Upload the image to storage
+        uploadProfileImage(image)
+    }
+
+    private func uploadProfileImage(_ image: UIImage) {
+        // Show loading indicator
+        let loadingView = UIActivityIndicatorView(style: .medium)
+        loadingView.center = profileImageView.center
+        loadingView.startAnimating()
+        view.addSubview(loadingView)
+
+        Task {
+            do {
+                // Compress image
+                guard let imageData = image.jpegData(compressionQuality: 0.7) else {
+                    throw NSError(domain: "ProfileImage", code: 0, userInfo: [
+                        NSLocalizedDescriptionKey: "Failed to compress image"
+                    ])
+                }
+
+                // Get current user ID for unique path
+                guard let userId = await AuthManager.shared.currentUserId else {
+                    throw NSError(domain: "ProfileImage", code: 401, userInfo: [
+                        NSLocalizedDescriptionKey: "User not authenticated"
+                    ])
+                }
+
+                // Create unique file path
+                let fileName = "\(userId.uuidString)_\(Int(Date().timeIntervalSince1970)).jpg"
+                let filePath = "profile-images/\(fileName)"
+
+                // Upload to Supabase storage
+                do {
+                    try await SupabaseManager.shared.client.storage
+                        .from("product-images")
+                        .upload(filePath, data: imageData, options: .init(upsert: true))
+                } catch {
+                    // Handle Supabase iOS SDK bug workaround (empty response considered error)
+                    let nsError = error as NSError
+                    if nsError.domain != NSURLErrorDomain || nsError.code != -1017 {
+                        throw error
+                    }
+                }
+
+                // Get public URL
+                let publicURL = try SupabaseManager.shared.client.storage
+                    .from("product-images")
+                    .getPublicURL(path: filePath)
+
+                let imageURLString = publicURL.absoluteString
+
+                // Update user profile with new image URL
+                try await userRepository.updateProfileImageURL(imageURLString)
+
+                // Update local currentUser
+                await MainActor.run {
+                    loadingView.stopAnimating()
+                    loadingView.removeFromSuperview()
+                    self.currentUser?.profile_image_url = imageURLString
+                    print("✅ Profile image uploaded successfully: \(imageURLString)")
+                }
+
+            } catch {
+                print("❌ Failed to upload profile image: \(error)")
+                await MainActor.run {
+                    loadingView.stopAnimating()
+                    loadingView.removeFromSuperview()
+                    // Revert to previous image or placeholder
+                    if let existingURL = self.currentUser?.profile_image_url,
+                       let url = URL(string: existingURL) {
+                        self.loadProfileImage(from: url)
+                    } else {
+                        self.profileImageView.image = UIImage(systemName: "person.circle.fill")
+                        self.profileImageView.tintColor = UIColor.systemGray3
+                    }
+                    self.showAlert(title: "Upload Failed", message: "Failed to upload profile picture. Please try again.")
+                }
+            }
         }
     }
 }
