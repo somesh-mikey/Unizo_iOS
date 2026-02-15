@@ -801,15 +801,76 @@ class ItemDetailsViewController: UIViewController {
 
     /// Navigate to chat with the seller
     @objc private func chatWithSellerTapped() {
-        guard let product else { return }
+        guard let product = product,
+              let sellerId = product.sellerId else {
+            return
+        }
 
         HapticFeedback.selection()
 
-        let chatVC = ChatDetailViewController()
-        chatVC.chatTitle = product.sellerName
-        chatVC.isSeller = false  // Current user is buyer, chatting with seller
+        // Show loading indicator
+        let loadingAlert = UIAlertController(title: nil, message: "Opening chat...", preferredStyle: .alert)
+        let loadingIndicator = UIActivityIndicatorView(style: .medium)
+        loadingIndicator.translatesAutoresizingMaskIntoConstraints = false
+        loadingIndicator.startAnimating()
+        loadingAlert.view.addSubview(loadingIndicator)
 
-        navigationController?.pushViewController(chatVC, animated: true)
+        NSLayoutConstraint.activate([
+            loadingIndicator.centerXAnchor.constraint(equalTo: loadingAlert.view.centerXAnchor),
+            loadingIndicator.bottomAnchor.constraint(equalTo: loadingAlert.view.bottomAnchor, constant: -20)
+        ])
+
+        present(loadingAlert, animated: true)
+
+        Task {
+            do {
+                // Get or create conversation for this product
+                let conversation = try await ChatManager.shared.getOrCreateConversation(
+                    productId: product.id,
+                    sellerId: sellerId
+                )
+
+                await MainActor.run {
+                    loadingAlert.dismiss(animated: true) { [weak self] in
+                        let chatVC = ChatDetailViewController()
+                        chatVC.conversationId = conversation.id
+                        chatVC.chatTitle = product.name
+                        chatVC.otherUserName = product.sellerName
+                        chatVC.isSeller = false  // Current user is buyer, chatting with seller
+
+                        self?.navigationController?.pushViewController(chatVC, animated: true)
+                    }
+                }
+
+            } catch ChatError.cannotChatWithSelf {
+                await MainActor.run {
+                    loadingAlert.dismiss(animated: true) { [weak self] in
+                        let alert = UIAlertController(
+                            title: "Cannot Chat",
+                            message: "You cannot chat with yourself about your own listing.",
+                            preferredStyle: .alert
+                        )
+                        alert.addAction(UIAlertAction(title: "OK", style: .default))
+                        self?.present(alert, animated: true)
+                    }
+                }
+
+            } catch {
+                print("❌ Failed to open chat: \(error)")
+                await MainActor.run {
+                    loadingAlert.dismiss(animated: true) { [weak self] in
+                        let alert = UIAlertController(
+                            title: "Error",
+                            message: "Could not open chat. Please try again.",
+                            preferredStyle: .alert
+                        )
+                        alert.addAction(UIAlertAction(title: "OK", style: .default))
+                        self?.present(alert, animated: true)
+                    }
+                    HapticFeedback.error()
+                }
+            }
+        }
     }
 
     /// Navigate to Deal flow (same as previous Buy Now)

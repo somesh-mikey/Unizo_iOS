@@ -140,6 +140,11 @@ enum HapticFeedback {
         medium()
     }
 
+    /// Send message action
+    static func send() {
+        light()
+    }
+
     /// Error occurred
     static func errorOccurred() {
         error()

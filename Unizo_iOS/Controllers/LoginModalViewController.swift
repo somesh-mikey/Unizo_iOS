@@ -96,6 +96,9 @@ final class LoginModalViewController: UIViewController {
         return btn
     }()
 
+    // MARK: - Keyboard Handling
+    private var cardBottomConstraint: NSLayoutConstraint!
+
     // MARK: - Lifecycle
     override func viewDidLoad() {
         super.viewDidLoad()
@@ -104,6 +107,62 @@ final class LoginModalViewController: UIViewController {
         layoutUI()
         setupActions()
         addPasswordEye()
+        setupKeyboardObservers()
+    }
+
+    override func viewWillDisappear(_ animated: Bool) {
+        super.viewWillDisappear(animated)
+        NotificationCenter.default.removeObserver(self)
+    }
+
+    // MARK: - Keyboard Observers
+    private func setupKeyboardObservers() {
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(keyboardWillShow(_:)),
+            name: UIResponder.keyboardWillShowNotification,
+            object: nil
+        )
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(keyboardWillHide(_:)),
+            name: UIResponder.keyboardWillHideNotification,
+            object: nil
+        )
+
+        // Dismiss keyboard on tap outside fields
+        let tap = UITapGestureRecognizer(target: self, action: #selector(dismissKeyboard))
+        tap.cancelsTouchesInView = false
+        cardView.addGestureRecognizer(tap)
+    }
+
+    @objc private func dismissKeyboard() {
+        view.endEditing(true)
+    }
+
+    @objc private func keyboardWillShow(_ notification: Notification) {
+        guard let keyboardFrame = notification.userInfo?[UIResponder.keyboardFrameEndUserInfoKey] as? CGRect,
+              let duration = notification.userInfo?[UIResponder.keyboardAnimationDurationUserInfoKey] as? Double else {
+            return
+        }
+
+        let keyboardHeight = keyboardFrame.height
+
+        UIView.animate(withDuration: duration) {
+            self.cardBottomConstraint.constant = -keyboardHeight
+            self.view.layoutIfNeeded()
+        }
+    }
+
+    @objc private func keyboardWillHide(_ notification: Notification) {
+        guard let duration = notification.userInfo?[UIResponder.keyboardAnimationDurationUserInfoKey] as? Double else {
+            return
+        }
+
+        UIView.animate(withDuration: duration) {
+            self.cardBottomConstraint.constant = 0
+            self.view.layoutIfNeeded()
+        }
     }
 
     // MARK: - Base Styling
@@ -150,10 +209,12 @@ final class LoginModalViewController: UIViewController {
     private func layoutUI() {
 
         cardView.translatesAutoresizingMaskIntoConstraints = false
+        cardBottomConstraint = cardView.bottomAnchor.constraint(equalTo: view.bottomAnchor)
+
         NSLayoutConstraint.activate([
             cardView.leadingAnchor.constraint(equalTo: view.leadingAnchor),
             cardView.trailingAnchor.constraint(equalTo: view.trailingAnchor),
-            cardView.bottomAnchor.constraint(equalTo: view.bottomAnchor),
+            cardBottomConstraint,
             cardView.heightAnchor.constraint(equalTo: view.heightAnchor, multiplier: 0.42)
         ])
 

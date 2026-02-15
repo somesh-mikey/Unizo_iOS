@@ -357,7 +357,7 @@ class LandingScreenViewController: UIViewController {
             homeLabel.leadingAnchor.constraint(equalTo: navBarView.leadingAnchor, constant: 20),
             homeLabel.centerYAnchor.constraint(equalTo: menuButton.centerYAnchor)
         ])
-        
+
         // --- Search Bar ---
         //topContainer.addSubview(searchBar)
         navBarView.addSubview(searchBar)
@@ -1072,7 +1072,7 @@ extension LandingScreenViewController: UICollectionViewDataSource, UICollectionV
     }
 
 extension LandingScreenViewController: UISearchBarDelegate {
-    
+
     func searchBarTextDidBeginEditing(_ searchBar: UISearchBar) {
 
         let vc = SearchResultsViewController(
