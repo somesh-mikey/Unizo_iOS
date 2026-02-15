@@ -16,7 +16,7 @@ final class PostItemViewController: UIViewController,
     private let supabase = SupabaseManager.shared.client
 
     // MARK: - Scroll
-    private let scrollView = UIScrollView()
+    private let scrollView = TouchPassThroughScrollView()
     private let contentView = UIView()
 
     // MARK: - Header
@@ -195,6 +195,10 @@ final class PostItemViewController: UIViewController,
 
         view.addSubview(scrollView)
         scrollView.addSubview(contentView)
+
+        // Enable scrolling even when touch starts on text fields
+        scrollView.delaysContentTouches = true
+        scrollView.canCancelContentTouches = true
 
         NSLayoutConstraint.activate([
             scrollView.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor),
@@ -782,5 +786,16 @@ extension PostItemViewController: UITextFieldDelegate {
     func textFieldDidBeginEditing(_ textField: UITextField) {
         activePickerField = textField
         pickerView.reloadAllComponents()
+    }
+}
+
+// MARK: - Custom ScrollView that allows scrolling over text fields
+class TouchPassThroughScrollView: UIScrollView {
+    override func touchesShouldCancel(in view: UIView) -> Bool {
+        // Allow scrolling to cancel touches in text fields
+        if view is UITextField {
+            return true
+        }
+        return super.touchesShouldCancel(in: view)
     }
 }
