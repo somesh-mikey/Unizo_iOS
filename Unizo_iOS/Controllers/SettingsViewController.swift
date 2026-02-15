@@ -170,27 +170,50 @@ final class SettingsViewController: UIViewController {
     // MARK: - Cards Content
     private func makePreferencesCard() -> UIView {
         let card = buildCard()
+
+        let languageRow = makeArrowRow(icon: "globe", title: "Language")
+        let languageTap = UITapGestureRecognizer(target: self, action: #selector(languageTapped))
+        languageRow.addGestureRecognizer(languageTap)
+        languageRow.isUserInteractionEnabled = true
+
         stackRows(card, rows: [
             makeSwitchRow(icon: "bell", title: "Push Notifications", selector: #selector(togglePush)),
             makeSwitchRow(icon: "envelope", title: "Email Marketing", selector: #selector(toggleEmail)),
-            makeArrowRow(icon: "globe", title: "Language")
+            languageRow
         ])
         return card
     }
 
     private func makeSupportCard() -> UIView {
         let card = buildCard()
+
+        let contactRow = makeArrowRow(icon: "phone", title: "Contact Us")
+        let contactTap = UITapGestureRecognizer(target: self, action: #selector(contactUsTapped))
+        contactRow.addGestureRecognizer(contactTap)
+        contactRow.isUserInteractionEnabled = true
+
+        let rateRow = makeArrowRow(icon: "star", title: "Rate Our App")
+        let rateTap = UITapGestureRecognizer(target: self, action: #selector(rateAppTapped))
+        rateRow.addGestureRecognizer(rateTap)
+        rateRow.isUserInteractionEnabled = true
+
         stackRows(card, rows: [
-            makeArrowRow(icon: "phone", title: "Contact Us"),
-            makeArrowRow(icon: "star", title: "Rate Our App")
+            contactRow,
+            rateRow
         ])
         return card
     }
 
     private func makeSecurityCard() -> UIView {
         let card = buildCard()
+
+        let passwordRow = makeArrowRow(icon: "key", title: "Change Password")
+        let passwordTap = UITapGestureRecognizer(target: self, action: #selector(changePasswordTapped))
+        passwordRow.addGestureRecognizer(passwordTap)
+        passwordRow.isUserInteractionEnabled = true
+
         stackRows(card, rows: [
-            makeArrowRow(icon: "key", title: "Change Password"),
+            passwordRow,
             makeSwitchRow(icon: "touchid", title: "Biometric Login", selector: #selector(toggleBiometric))
         ])
         return card
@@ -354,6 +377,33 @@ final class SettingsViewController: UIViewController {
 
     @objc private func toggleBiometric(_ sender: UISwitch) {
         print("Biometric Login:", sender.isOn)
+    }
+
+    // MARK: - Navigation Actions
+    @objc private func languageTapped() {
+        print("Language Screen pushed.")
+        let vc = LanguageViewController()
+        navigationController?.pushViewController(vc, animated: true)
+    }
+
+    @objc private func contactUsTapped() {
+        print("Contact Us screen pushed.")
+        let vc = ContactUsViewController()
+        navigationController?.pushViewController(vc, animated: true)
+    }
+
+    @objc private func changePasswordTapped() {
+        print("Change Password screen pushed.")
+        let vc = ChangePasswordViewController()
+        navigationController?.pushViewController(vc, animated: true)
+    }
+
+    @objc private func rateAppTapped() {
+        print("Rate Our App tapped.")
+        // Open App Store for rating
+        if let url = URL(string: "itms-apps://itunes.apple.com/app/idYOUR_APP_ID?action=write-review") {
+            UIApplication.shared.open(url)
+        }
     }
 
     // MARK: - Sign Out
