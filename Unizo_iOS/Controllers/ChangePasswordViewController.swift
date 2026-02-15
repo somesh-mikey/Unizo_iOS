@@ -30,6 +30,24 @@ class ChangePasswordViewController: UIViewController {
         super.viewDidLoad()
         setupUI()
         setupConstraints()
+        setupKeyboardHandling()
+    }
+
+    override func viewWillDisappear(_ animated: Bool) {
+        super.viewWillDisappear(animated)
+        NotificationCenter.default.removeObserver(self)
+    }
+
+    // MARK: - Keyboard Handling
+    private func setupKeyboardHandling() {
+        // Dismiss keyboard on tap
+        let tap = UITapGestureRecognizer(target: self, action: #selector(dismissKeyboard))
+        tap.cancelsTouchesInView = false
+        view.addGestureRecognizer(tap)
+    }
+
+    @objc private func dismissKeyboard() {
+        view.endEditing(true)
     }
 
     // MARK: - UI Setup

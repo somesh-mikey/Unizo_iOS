@@ -2,32 +2,25 @@
 //  ChatViewController.swift
 //  Unizo_iOS
 //
-//  Programmatic Chat screen (modified — removed fake top tab, made rows tappable,
-//  tightened spacing above search, ensured segmented selected pill is rounded + shadow).
-//
-//  Paste/replace this entire file in your Controllers folder.
+//  Real-time chat list screen with Supabase integration
 //
 
 import UIKit
-
-// MARK: - Model
-private struct ChatItem {
-    enum Role { case seller, buyer }
-    let role: Role
-    let title: String
-    let time: String
-    let unreadCount: Int
-}
+import Supabase
 
 // MARK: - Chat Cell
 private final class ChatCell: UITableViewCell {
 
     static let reuseId = "ChatCell"
 
+    // Large circular avatar
     private let avatarView = UIView()
-    private let avatarImageView = UIImageView(image: UIImage(systemName: "person.fill"))
-    private let roleLabel = UILabel()
-    private let titleLabel = UILabel()
+    private let avatarImageView = UIImageView()
+
+    // Labels
+    private let userNameLabel = UILabel()
+    private let productNameLabel = UILabel()
+    private let lastMessageLabel = UILabel()
     private let timeLabel = UILabel()
     private let unreadBadge = UILabel()
     private let bottomSeparator = UIView()
@@ -45,31 +38,45 @@ private final class ChatCell: UITableViewCell {
     required init?(coder: NSCoder) { fatalError() }
 
     private func setupUI() {
-        avatarView.backgroundColor = UIColor(white: 0.92, alpha: 1)
-        avatarView.layer.cornerRadius = 22
+        // Large circular avatar - Teal color
+        avatarView.backgroundColor = UIColor(red: 0.02, green: 0.34, blue: 0.46, alpha: 1.0)
+        avatarView.layer.cornerRadius = 28
+        avatarView.clipsToBounds = true
 
-        avatarImageView.tintColor = .systemGray
-        avatarImageView.contentMode = .scaleAspectFit
+        avatarImageView.image = UIImage(systemName: "person.fill")
+        avatarImageView.tintColor = .white
+        avatarImageView.contentMode = .scaleAspectFill
+        avatarImageView.clipsToBounds = true
 
-        roleLabel.font = .systemFont(ofSize: 11)
-        roleLabel.textColor = .systemGray
+        // User name - main title in teal
+        userNameLabel.font = .systemFont(ofSize: 17, weight: .semibold)
+        userNameLabel.textColor = UIColor(red: 0.02, green: 0.34, blue: 0.46, alpha: 1.0)
 
-        titleLabel.font = .systemFont(ofSize: 16, weight: .semibold)
+        // Product name - secondary
+        productNameLabel.font = .systemFont(ofSize: 14)
+        productNameLabel.textColor = .label
 
-        timeLabel.font = .systemFont(ofSize: 12)
-        timeLabel.textColor = .systemGray
+        // Last message
+        lastMessageLabel.font = .systemFont(ofSize: 14)
+        lastMessageLabel.textColor = .secondaryLabel
+        lastMessageLabel.numberOfLines = 1
+
+        // Time
+        timeLabel.font = .systemFont(ofSize: 14)
+        timeLabel.textColor = .secondaryLabel
         timeLabel.textAlignment = .right
 
+        // Unread badge - Teal color
         unreadBadge.font = .systemFont(ofSize: 12, weight: .semibold)
         unreadBadge.textColor = .white
-        unreadBadge.backgroundColor = UIColor(red: 0.02, green: 0.55, blue: 0.65, alpha: 1)
-        unreadBadge.layer.cornerRadius = 12
+        unreadBadge.backgroundColor = UIColor(red: 0.02, green: 0.34, blue: 0.46, alpha: 1.0)
+        unreadBadge.layer.cornerRadius = 10
         unreadBadge.clipsToBounds = true
         unreadBadge.textAlignment = .center
 
-        bottomSeparator.backgroundColor = UIColor(white: 0.88, alpha: 1)
+        bottomSeparator.backgroundColor = UIColor.separator
 
-        [avatarView, roleLabel, titleLabel, timeLabel, unreadBadge, bottomSeparator].forEach {
+        [avatarView, userNameLabel, productNameLabel, lastMessageLabel, timeLabel, unreadBadge, bottomSeparator].forEach {
             $0.translatesAutoresizingMaskIntoConstraints = false
             contentView.addSubview($0)
         }
@@ -80,45 +87,108 @@ private final class ChatCell: UITableViewCell {
 
     private func setupConstraints() {
         NSLayoutConstraint.activate([
+            // Large circular avatar
             avatarView.leadingAnchor.constraint(equalTo: contentView.leadingAnchor, constant: 16),
-            avatarView.topAnchor.constraint(equalTo: contentView.topAnchor, constant: 12),
-            avatarView.widthAnchor.constraint(equalToConstant: 44),
-            avatarView.heightAnchor.constraint(equalToConstant: 44),
+            avatarView.centerYAnchor.constraint(equalTo: contentView.centerYAnchor),
+            avatarView.widthAnchor.constraint(equalToConstant: 56),
+            avatarView.heightAnchor.constraint(equalToConstant: 56),
 
             avatarImageView.centerXAnchor.constraint(equalTo: avatarView.centerXAnchor),
             avatarImageView.centerYAnchor.constraint(equalTo: avatarView.centerYAnchor),
-            avatarImageView.widthAnchor.constraint(equalToConstant: 24),
-            avatarImageView.heightAnchor.constraint(equalToConstant: 24),
+            avatarImageView.widthAnchor.constraint(equalToConstant: 28),
+            avatarImageView.heightAnchor.constraint(equalToConstant: 28),
 
+            // Time label (top right)
             timeLabel.trailingAnchor.constraint(equalTo: contentView.trailingAnchor, constant: -36),
-            timeLabel.centerYAnchor.constraint(equalTo: roleLabel.centerYAnchor),
+            timeLabel.topAnchor.constraint(equalTo: contentView.topAnchor, constant: 16),
 
-            unreadBadge.trailingAnchor.constraint(equalTo: timeLabel.trailingAnchor),
-                unreadBadge.topAnchor.constraint(equalTo: timeLabel.bottomAnchor, constant: 2),
-                unreadBadge.widthAnchor.constraint(greaterThanOrEqualToConstant: 24),
-                unreadBadge.heightAnchor.constraint(equalToConstant: 24),
+            // User name (main title)
+            userNameLabel.leadingAnchor.constraint(equalTo: avatarView.trailingAnchor, constant: 12),
+            userNameLabel.topAnchor.constraint(equalTo: contentView.topAnchor, constant: 14),
+            userNameLabel.trailingAnchor.constraint(equalTo: timeLabel.leadingAnchor, constant: -8),
 
-            roleLabel.leadingAnchor.constraint(equalTo: avatarView.trailingAnchor, constant: 12),
-            roleLabel.topAnchor.constraint(equalTo: contentView.topAnchor, constant: 14),
+            // Product name (secondary)
+            productNameLabel.leadingAnchor.constraint(equalTo: userNameLabel.leadingAnchor),
+            productNameLabel.topAnchor.constraint(equalTo: userNameLabel.bottomAnchor, constant: 2),
+            productNameLabel.trailingAnchor.constraint(equalTo: timeLabel.leadingAnchor, constant: -8),
 
-            titleLabel.leadingAnchor.constraint(equalTo: roleLabel.leadingAnchor),
-            titleLabel.topAnchor.constraint(equalTo: roleLabel.bottomAnchor, constant: 2),
-            titleLabel.trailingAnchor.constraint(equalTo: contentView.trailingAnchor, constant: -44),
+            // Last message preview
+            lastMessageLabel.leadingAnchor.constraint(equalTo: userNameLabel.leadingAnchor),
+            lastMessageLabel.topAnchor.constraint(equalTo: productNameLabel.bottomAnchor, constant: 2),
+            lastMessageLabel.trailingAnchor.constraint(equalTo: timeLabel.leadingAnchor, constant: -8),
 
-            bottomSeparator.leadingAnchor.constraint(equalTo: titleLabel.leadingAnchor),
-            bottomSeparator.trailingAnchor.constraint(equalTo: contentView.trailingAnchor, constant: -16),
-            bottomSeparator.heightAnchor.constraint(equalToConstant: 1),
-            bottomSeparator.topAnchor.constraint(equalTo: titleLabel.bottomAnchor, constant: 12),
-            bottomSeparator.bottomAnchor.constraint(equalTo: contentView.bottomAnchor, constant: -2)
+            // Unread badge
+            unreadBadge.trailingAnchor.constraint(equalTo: contentView.trailingAnchor, constant: -36),
+            unreadBadge.topAnchor.constraint(equalTo: timeLabel.bottomAnchor, constant: 6),
+            unreadBadge.widthAnchor.constraint(greaterThanOrEqualToConstant: 20),
+            unreadBadge.heightAnchor.constraint(equalToConstant: 20),
+
+            // Bottom separator
+            bottomSeparator.leadingAnchor.constraint(equalTo: userNameLabel.leadingAnchor),
+            bottomSeparator.trailingAnchor.constraint(equalTo: contentView.trailingAnchor),
+            bottomSeparator.heightAnchor.constraint(equalToConstant: 0.5),
+            bottomSeparator.topAnchor.constraint(equalTo: lastMessageLabel.bottomAnchor, constant: 14),
+            bottomSeparator.bottomAnchor.constraint(equalTo: contentView.bottomAnchor)
         ])
     }
 
-    func configure(with item: ChatItem) {
-        roleLabel.text = item.role == .seller ? "Seller" : "Buyer"
-        titleLabel.text = item.title
-        timeLabel.text = item.time
-        unreadBadge.isHidden = item.unreadCount == 0
-        unreadBadge.text = "\(item.unreadCount)"
+    func configure(with conversation: ConversationUIModel) {
+        // User name as main title
+        let rolePrefix = conversation.isSeller ? "Buyer: " : "Seller: "
+        userNameLabel.text = rolePrefix + conversation.otherUserName
+
+        // Product name secondary
+        productNameLabel.text = conversation.productTitle
+
+        // Last message
+        lastMessageLabel.text = conversation.lastMessage.isEmpty ? "Start a conversation" : conversation.lastMessage
+        timeLabel.text = conversation.formattedTime
+
+        // Unread badge
+        if conversation.unreadCount > 0 {
+            unreadBadge.isHidden = false
+            unreadBadge.text = conversation.unreadCount > 99 ? "99+" : "\(conversation.unreadCount)"
+        } else {
+            unreadBadge.isHidden = true
+        }
+
+        // Load user avatar
+        if let avatarURL = conversation.otherUserImageURL, !avatarURL.isEmpty {
+            Task {
+                if let url = URL(string: avatarURL),
+                   let (data, _) = try? await URLSession.shared.data(from: url),
+                   let image = UIImage(data: data) {
+                    await MainActor.run {
+                        self.avatarImageView.image = image
+                        self.avatarImageView.layer.cornerRadius = 28
+                        self.avatarImageView.layer.masksToBounds = true
+                        // Fill the entire avatar view with the image
+                        self.avatarImageView.constraints.forEach { $0.isActive = false }
+                        NSLayoutConstraint.activate([
+                            self.avatarImageView.topAnchor.constraint(equalTo: self.avatarView.topAnchor),
+                            self.avatarImageView.bottomAnchor.constraint(equalTo: self.avatarView.bottomAnchor),
+                            self.avatarImageView.leadingAnchor.constraint(equalTo: self.avatarView.leadingAnchor),
+                            self.avatarImageView.trailingAnchor.constraint(equalTo: self.avatarView.trailingAnchor)
+                        ])
+                    }
+                }
+            }
+        } else {
+            avatarImageView.image = UIImage(systemName: "person.fill")
+        }
+    }
+
+    override func prepareForReuse() {
+        super.prepareForReuse()
+        avatarImageView.image = UIImage(systemName: "person.fill")
+        avatarImageView.constraints.forEach { $0.isActive = false }
+        NSLayoutConstraint.activate([
+            avatarImageView.centerXAnchor.constraint(equalTo: avatarView.centerXAnchor),
+            avatarImageView.centerYAnchor.constraint(equalTo: avatarView.centerYAnchor),
+            avatarImageView.widthAnchor.constraint(equalToConstant: 28),
+            avatarImageView.heightAnchor.constraint(equalToConstant: 28)
+        ])
+        unreadBadge.isHidden = true
     }
 }
 
@@ -127,7 +197,7 @@ final class ChatViewController: UIViewController {
 
     private enum Segment { case all, selling, buying }
 
-    // MARK: UI
+    // MARK: - UI
     private let titleLabel: UILabel = {
         let l = UILabel()
         l.text = "Chat"
@@ -145,29 +215,82 @@ final class ChatViewController: UIViewController {
     }()
 
     private let tableView = UITableView(frame: .zero, style: .plain)
+    private let refreshControl = UIRefreshControl()
 
-    // MARK: Data
+    // Empty state
+    private let emptyStateView: UIView = {
+        let v = UIView()
+        v.isHidden = true
+        v.translatesAutoresizingMaskIntoConstraints = false
+        return v
+    }()
+
+    private let emptyStateImageView: UIImageView = {
+        let iv = UIImageView()
+        iv.image = UIImage(systemName: "bubble.left.and.bubble.right")
+        iv.tintColor = .tertiaryLabel
+        iv.contentMode = .scaleAspectFit
+        iv.translatesAutoresizingMaskIntoConstraints = false
+        return iv
+    }()
+
+    private let emptyStateLabel: UILabel = {
+        let l = UILabel()
+        l.text = "No conversations yet"
+        l.font = .systemFont(ofSize: 17, weight: .medium)
+        l.textColor = .secondaryLabel
+        l.textAlignment = .center
+        l.translatesAutoresizingMaskIntoConstraints = false
+        return l
+    }()
+
+    private let emptyStateSubtitle: UILabel = {
+        let l = UILabel()
+        l.text = "Start chatting with sellers\nby tapping Chat on a product"
+        l.font = .systemFont(ofSize: 14)
+        l.textColor = .tertiaryLabel
+        l.textAlignment = .center
+        l.numberOfLines = 2
+        l.translatesAutoresizingMaskIntoConstraints = false
+        return l
+    }()
+
+    // Loading indicator
+    private let loadingIndicator: UIActivityIndicatorView = {
+        let indicator = UIActivityIndicatorView(style: .medium)
+        indicator.hidesWhenStopped = true
+        indicator.translatesAutoresizingMaskIntoConstraints = false
+        return indicator
+    }()
+
+    // MARK: - Data
     private var activeSegment: Segment = .all
-    private var allItems: [ChatItem] = [
-        .init(role: .seller, title: "Under Armour Cap", time: "16:04", unreadCount: 8),
-        .init(role: .buyer, title: "Pink Bicycle", time: "13:02", unreadCount: 1),
-        .init(role: .seller, title: "Cricket Bat", time: "12:56", unreadCount: 0)
-    ]
+    private var allConversations: [ConversationUIModel] = []
+    private var filteredConversations: [ConversationUIModel] = []
+    private var currentUserId: UUID?
 
-    private var filteredItems: [ChatItem] = []
-
-    // MARK: Lifecycle
+    // MARK: - Lifecycle
     override func viewDidLoad() {
         super.viewDidLoad()
         view.backgroundColor = .systemGray6
         setupUI()
         setupTable()
-        refreshData()
+        setupEmptyState()
+        setupNotifications()
     }
 
-    // MARK: Setup
+    override func viewWillAppear(_ animated: Bool) {
+        super.viewWillAppear(animated)
+        fetchConversations()
+    }
+
+    deinit {
+        NotificationCenter.default.removeObserver(self)
+    }
+
+    // MARK: - Setup
     private func setupUI() {
-        [titleLabel, searchContainer, segmentedControl, tableView].forEach {
+        [titleLabel, searchContainer, segmentedControl, tableView, loadingIndicator].forEach {
             $0.translatesAutoresizingMaskIntoConstraints = false
             view.addSubview($0)
         }
@@ -185,6 +308,9 @@ final class ChatViewController: UIViewController {
         NSLayoutConstraint.activate([
             titleLabel.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 20),
             titleLabel.topAnchor.constraint(equalTo: view.topAnchor, constant: 75),
+
+            loadingIndicator.centerYAnchor.constraint(equalTo: titleLabel.centerYAnchor),
+            loadingIndicator.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -20),
 
             searchContainer.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 16),
             searchContainer.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -16),
@@ -213,32 +339,161 @@ final class ChatViewController: UIViewController {
         tableView.backgroundColor = .clear
         tableView.dataSource = self
         tableView.delegate = self
+
+        refreshControl.addTarget(self, action: #selector(handleRefresh), for: .valueChanged)
+        tableView.refreshControl = refreshControl
     }
 
-    // MARK: Actions
+    private func setupEmptyState() {
+        view.addSubview(emptyStateView)
+        emptyStateView.addSubview(emptyStateImageView)
+        emptyStateView.addSubview(emptyStateLabel)
+        emptyStateView.addSubview(emptyStateSubtitle)
+
+        NSLayoutConstraint.activate([
+            emptyStateView.centerXAnchor.constraint(equalTo: view.centerXAnchor),
+            emptyStateView.centerYAnchor.constraint(equalTo: view.centerYAnchor),
+
+            emptyStateImageView.topAnchor.constraint(equalTo: emptyStateView.topAnchor),
+            emptyStateImageView.centerXAnchor.constraint(equalTo: emptyStateView.centerXAnchor),
+            emptyStateImageView.widthAnchor.constraint(equalToConstant: 60),
+            emptyStateImageView.heightAnchor.constraint(equalToConstant: 60),
+
+            emptyStateLabel.topAnchor.constraint(equalTo: emptyStateImageView.bottomAnchor, constant: 16),
+            emptyStateLabel.centerXAnchor.constraint(equalTo: emptyStateView.centerXAnchor),
+
+            emptyStateSubtitle.topAnchor.constraint(equalTo: emptyStateLabel.bottomAnchor, constant: 8),
+            emptyStateSubtitle.centerXAnchor.constraint(equalTo: emptyStateView.centerXAnchor),
+            emptyStateSubtitle.bottomAnchor.constraint(equalTo: emptyStateView.bottomAnchor)
+        ])
+    }
+
+    private func setupNotifications() {
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(handleNewMessage(_:)),
+            name: .newChatMessageReceived,
+            object: nil
+        )
+    }
+
+    // MARK: - Fetch Conversations
+    private func fetchConversations() {
+        loadingIndicator.startAnimating()
+
+        Task {
+            do {
+                // Get current user ID
+                guard let userId = await AuthManager.shared.currentUserId else {
+                    await MainActor.run {
+                        self.loadingIndicator.stopAnimating()
+                        self.refreshControl.endRefreshing()
+                    }
+                    return
+                }
+
+                self.currentUserId = userId
+
+                let conversations = try await ChatManager.shared.fetchConversations()
+
+                // Convert to UI models
+                var uiModels: [ConversationUIModel] = []
+
+                for conv in conversations {
+                    let isSeller = conv.seller_id == userId
+                    let otherUser = isSeller ? conv.buyer : conv.seller
+
+                    // Get unread count for this conversation
+                    let unreadCount = try await ChatRepository().getUnreadCount(conversationId: conv.id)
+
+                    let uiModel = ConversationUIModel(
+                        id: conv.id,
+                        productId: conv.product_id,
+                        productTitle: conv.product?.title ?? "Product",
+                        productImageURL: conv.product?.image_url,
+                        otherUserId: otherUser?.id ?? UUID(),
+                        otherUserName: otherUser?.displayName ?? "User",
+                        otherUserImageURL: otherUser?.profile_image_url,
+                        lastMessage: conv.last_message?.previewText ?? "",
+                        lastMessageTime: conv.last_message?.created_at,
+                        unreadCount: unreadCount,
+                        isSeller: isSeller
+                    )
+                    uiModels.append(uiModel)
+                }
+
+                // Sort by last message time
+                uiModels.sort { ($0.lastMessageTime ?? Date.distantPast) > ($1.lastMessageTime ?? Date.distantPast) }
+
+                await MainActor.run {
+                    self.allConversations = uiModels
+                    self.applyFilters()
+                    self.loadingIndicator.stopAnimating()
+                    self.refreshControl.endRefreshing()
+                }
+
+            } catch {
+                print("❌ Failed to fetch conversations: \(error)")
+                await MainActor.run {
+                    self.loadingIndicator.stopAnimating()
+                    self.refreshControl.endRefreshing()
+                }
+            }
+        }
+    }
+
+    // MARK: - Actions
     @objc private func segmentChanged() {
         activeSegment = segmentedControl.selectedSegmentIndex == 1 ? .selling :
                         segmentedControl.selectedSegmentIndex == 2 ? .buying : .all
-        refreshData()
+        applyFilters()
     }
 
     @objc private func searchChanged() {
-        refreshData()
+        applyFilters()
     }
 
-    private func refreshData() {
-        let base: [ChatItem]
+    @objc private func handleRefresh() {
+        HapticFeedback.pullToRefresh()
+        fetchConversations()
+    }
+
+    @objc private func handleNewMessage(_ notification: Notification) {
+        // Refresh conversation list when new message arrives
+        fetchConversations()
+    }
+
+    private func applyFilters() {
+        var result = allConversations
+
+        // Filter by segment
         switch activeSegment {
-        case .all: base = allItems
-        case .selling: base = allItems.filter { $0.role == .seller }
-        case .buying: base = allItems.filter { $0.role == .buyer }
+        case .all:
+            break
+        case .selling:
+            result = result.filter { $0.isSeller }
+        case .buying:
+            result = result.filter { !$0.isSeller }
         }
 
+        // Filter by search
         let query = searchField.text ?? ""
-        filteredItems = query.isEmpty ? base : base.filter {
-            $0.title.localizedCaseInsensitiveContains(query)
+        if !query.isEmpty {
+            result = result.filter {
+                $0.productTitle.localizedCaseInsensitiveContains(query) ||
+                $0.otherUserName.localizedCaseInsensitiveContains(query)
+            }
         }
+
+        filteredConversations = result
         tableView.reloadData()
+        updateEmptyState()
+    }
+
+    private func updateEmptyState() {
+        let isEmpty = filteredConversations.isEmpty
+        emptyStateView.isHidden = !isEmpty
+        tableView.isHidden = isEmpty
     }
 }
 
@@ -246,7 +501,7 @@ final class ChatViewController: UIViewController {
 extension ChatViewController: UITableViewDataSource, UITableViewDelegate {
 
     func tableView(_ tableView: UITableView, numberOfRowsInSection section: Int) -> Int {
-        filteredItems.count
+        filteredConversations.count
     }
 
     func tableView(_ tableView: UITableView,
@@ -255,16 +510,19 @@ extension ChatViewController: UITableViewDataSource, UITableViewDelegate {
             withIdentifier: ChatCell.reuseId,
             for: indexPath
         ) as! ChatCell
-        cell.configure(with: filteredItems[indexPath.row])
+        cell.configure(with: filteredConversations[indexPath.row])
         return cell
     }
 
     func tableView(_ tableView: UITableView, didSelectRowAt indexPath: IndexPath) {
-        let item = filteredItems[indexPath.row]
+        let conversation = filteredConversations[indexPath.row]
+
         let detailVC = ChatDetailViewController()
-        detailVC.chatTitle = item.title
-        detailVC.isSeller = (item.role == .seller)
+        detailVC.conversationId = conversation.id
+        detailVC.chatTitle = conversation.productTitle
+        detailVC.otherUserName = conversation.otherUserName
+        detailVC.isSeller = conversation.isSeller
+
         navigationController?.pushViewController(detailVC, animated: true)
     }
 }
-//Chat view controller updated

@@ -40,6 +40,19 @@ final class EditAddressViewController: UIViewController {
         setupNavBar()
         setupForm()
         populateFields()
+        setupKeyboardHandling()
+    }
+
+    // MARK: - Keyboard Handling
+    private func setupKeyboardHandling() {
+        // Dismiss keyboard on tap
+        let tap = UITapGestureRecognizer(target: self, action: #selector(dismissKeyboard))
+        tap.cancelsTouchesInView = false
+        view.addGestureRecognizer(tap)
+    }
+
+    @objc private func dismissKeyboard() {
+        view.endEditing(true)
     }
     override func viewWillAppear(_ animated: Bool) {
         super.viewWillAppear(animated)
