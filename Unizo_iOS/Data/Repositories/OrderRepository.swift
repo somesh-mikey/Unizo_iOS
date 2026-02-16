@@ -168,7 +168,9 @@ final class OrderRepository {
                 total_amount,
                 payment_method,
                 instructions,
-                created_at
+                created_at,
+                handoff_code,
+                handoff_code_generated_at
             """)
             .eq("id", value: id.uuidString)
             .single()
@@ -191,6 +193,8 @@ final class OrderRepository {
                 payment_method,
                 instructions,
                 created_at,
+                handoff_code,
+                handoff_code_generated_at,
                 items:order_items(
                     id,
                     order_id,
@@ -251,7 +255,9 @@ final class OrderRepository {
                 total_amount,
                 payment_method,
                 instructions,
-                created_at
+                created_at,
+                handoff_code,
+                handoff_code_generated_at
             """)
             .eq("user_id", value: userId.uuidString)
             .order("created_at", ascending: false)
@@ -312,6 +318,8 @@ final class OrderRepository {
                 payment_method,
                 instructions,
                 created_at,
+                handoff_code,
+                handoff_code_generated_at,
                 items:order_items(
                     id,
                     order_id,
@@ -366,5 +374,51 @@ final class OrderRepository {
         // Verify the update
         let updatedOrder = try await fetchOrder(id: orderId)
         print("🔍 Verification - Order status in DB: \(updatedOrder.status)")
+    }
+
+    // MARK: - Mark Ready for Handoff (Seller Action)
+    func markReadyForHandoff(orderId: UUID, handoffCode: String) async throws {
+        struct HandoffUpdate: Encodable {
+            let status: String
+            let handoff_code: String
+            let handoff_code_generated_at: String
+        }
+
+        let now = ISO8601DateFormatter().string(from: Date())
+
+        print("🤝 Marking order ready for handoff:")
+        print("   - Order ID: \(orderId.uuidString)")
+        print("   - Handoff Code: \(handoffCode)")
+
+        try await client
+            .from("orders")
+            .update(HandoffUpdate(
+                status: OrderStatus.shipped.rawValue,
+                handoff_code: handoffCode,
+                handoff_code_generated_at: now
+            ))
+            .eq("id", value: orderId.uuidString)
+            .execute()
+
+        print("✅ Order marked ready for handoff")
+    }
+
+    // MARK: - Verify Handoff Code (Seller Action)
+    func verifyHandoffCode(orderId: UUID, enteredCode: String) async throws -> Bool {
+        let order = try await fetchOrder(id: orderId)
+
+        guard let storedCode = order.handoff_code else {
+            print("❌ No handoff code found for order: \(orderId.uuidString)")
+            return false
+        }
+
+        if storedCode == enteredCode {
+            print("✅ Handoff code verified - marking as delivered")
+            try await updateOrderStatus(orderId: orderId, status: .delivered)
+            return true
+        } else {
+            print("❌ Handoff code mismatch: entered '\(enteredCode)' vs stored '\(storedCode)'")
+            return false
+        }
     }
 }

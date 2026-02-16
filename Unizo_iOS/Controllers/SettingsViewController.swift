@@ -425,8 +425,9 @@ final class SettingsViewController: UIViewController {
     private func performSignOut() {
         Task {
             do {
-                // Stop notification listener first
+                // Stop realtime listeners first
                 await NotificationManager.shared.stopListening()
+                await OrderRealtimeManager.shared.unsubscribeAll()
 
                 // Sign out from Supabase
                 try await AuthManager.shared.signOut()
@@ -471,8 +472,9 @@ final class SettingsViewController: UIViewController {
     private func performDeleteAccount() {
         Task {
             do {
-                // Stop notification listener first
+                // Stop realtime listeners first
                 await NotificationManager.shared.stopListening()
+                await OrderRealtimeManager.shared.unsubscribeAll()
 
                 // Delete user account from Supabase
                 try await AuthManager.shared.deleteAccount()
