@@ -26,6 +26,8 @@ struct OrderDTO: Codable {
     let payment_method: String
     let instructions: String?
     let created_at: String
+    let handoff_code: String?
+    let handoff_code_generated_at: String?
 
     // Joined data (optional, for fetching with relations)
     var items: [OrderItemDTO]?
@@ -78,6 +80,7 @@ struct OrderUIModel {
     let createdAt: Date
     let items: [OrderItemUIModel]
     let address: AddressDTO?
+    let handoffCode: String?
 }
 
 struct OrderItemUIModel {

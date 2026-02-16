@@ -4,6 +4,7 @@
 //
 
 import UIKit
+import Supabase
 
 class OrderDetailsViewController: UIViewController {
 
@@ -16,7 +17,13 @@ class OrderDetailsViewController: UIViewController {
 
     // MARK: - Fetched Data
     private var orderItems: [OrderItemDTO] = []
+    private var handoffCode: String?
     private let orderRepository = OrderRepository()
+    private let notificationRepository = NotificationRepository()
+
+    // MARK: - Role Detection
+    private var currentUserId: UUID?
+    private var currentUserIsSeller: Bool = false
 
     // MARK: - Colors
     private let bgColor = UIColor(red: 0.96, green: 0.97, blue: 1.00, alpha: 1.0)
@@ -67,10 +74,22 @@ class OrderDetailsViewController: UIViewController {
     private let rateButton = UIButton(type: .system)
     private let helpButton = UIButton(type: .system)
 
+    // MARK: - Handoff UI
+    private let handoffCard = UIView()
+    private let handoffCodeLabel = UILabel()
+    private let handoffInstructionLabel = UILabel()
+    private let codeTextField = UITextField()
+    private let codeErrorLabel = UILabel()
+    private let loadingSpinner = UIActivityIndicatorView(style: .medium)
+    private var handoffCardHeightConstraint: NSLayoutConstraint?
+
     // MARK: - Lifecycle
     override func viewDidLoad() {
         super.viewDidLoad()
         view.backgroundColor = bgColor
+
+        // Get current user ID for role detection
+        currentUserId = AuthManager.shared.currentUserIdSync
 
         setupTopBar()
         setupScrollHierarchy()
@@ -79,7 +98,16 @@ class OrderDetailsViewController: UIViewController {
         setupItemsSection()
         setupDeliveryInfo()
         setupOrderSummary()
+        setupHandoffCard()
         setupBottomButtons()
+
+        // Listen for realtime order status changes
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(handleRealtimeOrderUpdate(_:)),
+            name: .orderStatusDidChange,
+            object: nil
+        )
 
         // If we have minimal data (from notification), fetch full order details
         if orderAddress == nil && orderId != nil {
@@ -91,14 +119,22 @@ class OrderDetailsViewController: UIViewController {
         }
     }
 
+    deinit {
+        NotificationCenter.default.removeObserver(self, name: .orderStatusDidChange, object: nil)
+    }
+
     // MARK: - Hide Nav + Tab Bar
     override func viewWillAppear(_ animated: Bool) {
         super.viewWillAppear(animated)
         navigationController?.setNavigationBarHidden(true, animated: false)
         tabBarController?.tabBar.isHidden = true
 
-        // Always refresh order status when view appears (in case seller accepted/rejected)
-        if orderId != nil {
+        // Subscribe to realtime updates for this order
+        if let id = orderId {
+            Task {
+                await OrderRealtimeManager.shared.subscribeToOrder(id)
+            }
+            // Also do a one-time refresh in case status changed while away
             refreshOrderStatus()
         }
     }
@@ -115,6 +151,10 @@ class OrderDetailsViewController: UIViewController {
                 await MainActor.run {
                     print("🔄 Fetched order status: \(order.status)")
 
+                    self.handoffCode = order.handoff_code
+                    self.orderItems = order.items ?? self.orderItems
+                    self.detectUserRole()
+
                     // Only update if status changed
                     if self.orderStatus != order.status {
                         print("🔄 Status changed from '\(self.orderStatus)' to '\(order.status)' - updating UI")
@@ -123,6 +163,8 @@ class OrderDetailsViewController: UIViewController {
                     } else {
                         print("🔄 Status unchanged: \(self.orderStatus)")
                     }
+
+                    self.updateHandoffUI()
                 }
             } catch {
                 print("❌ Failed to refresh order status: \(error)")
@@ -134,6 +176,41 @@ class OrderDetailsViewController: UIViewController {
         super.viewWillDisappear(animated)
         tabBarController?.tabBar.isHidden = false
         navigationController?.setNavigationBarHidden(false, animated: false)
+
+        // Unsubscribe from realtime updates when leaving
+        if let id = orderId {
+            Task {
+                await OrderRealtimeManager.shared.unsubscribeFromOrder(id)
+            }
+        }
+    }
+
+    // MARK: - Realtime Order Update Handler
+    @objc private func handleRealtimeOrderUpdate(_ notification: Notification) {
+        guard let userInfo = notification.userInfo,
+              let updatedOrderId = userInfo["orderId"] as? UUID,
+              updatedOrderId == orderId,
+              let newStatus = userInfo["newStatus"] as? String else {
+            return
+        }
+
+        let newHandoffCode = userInfo["handoffCode"] as? String
+
+        print("⚡ Realtime update: order \(updatedOrderId.uuidString.prefix(8)) → \(newStatus)")
+
+        // Update local state and UI
+        if self.orderStatus != newStatus {
+            self.orderStatus = newStatus
+            if let code = newHandoffCode {
+                self.handoffCode = code
+            }
+            self.updateTimelineForStatus()
+        }
+        // Always refresh handoff UI (handoff code may have changed)
+        if let code = newHandoffCode, code != self.handoffCode {
+            self.handoffCode = code
+        }
+        self.updateHandoffUI()
     }
 
     // MARK: - Update UI with Order Data
@@ -173,11 +250,16 @@ class OrderDetailsViewController: UIViewController {
                     self.orderCreatedAt = order.created_at
                     self.orderStatus = order.status
                     self.orderItems = order.items ?? []
+                    self.handoffCode = order.handoff_code
+
+                    // Detect if current user is the seller
+                    self.detectUserRole()
 
                     // Update UI with real data
                     self.updateUIWithOrderData()
                     self.updateItemsUI()
                     self.updateTimelineForStatus()
+                    self.updateHandoffUI()
                 }
             } catch {
                 print("❌ Failed to fetch order details:", error)
@@ -194,7 +276,9 @@ class OrderDetailsViewController: UIViewController {
                 let items = try await orderRepository.fetchOrderItems(orderId: id)
                 await MainActor.run {
                     self.orderItems = items
+                    self.detectUserRole()
                     self.updateItemsUI()
+                    self.updateHandoffUI()
                 }
             } catch {
                 print("❌ Failed to fetch order items:", error)
@@ -499,9 +583,14 @@ class OrderDetailsViewController: UIViewController {
             timelineStack.addArrangedSubview(makeTimelineRow(title: "Order Confirmed", subtitle: orderTime, completed: true))
             timelineStack.addArrangedSubview(makeTimelineRow(title: "Order Placed", subtitle: orderTime, completed: true))
 
-        case .confirmed, .shipped:
-            // Confirmed state (shipped is treated same as confirmed for 3-state timeline)
-            timelineStack.addArrangedSubview(makeTimelineRow(title: "Order Delivered", subtitle: "Pending", completed: false))
+        case .confirmed:
+            timelineStack.addArrangedSubview(makeTimelineRow(title: "Order Delivered", subtitle: "Awaiting handoff", completed: false))
+            timelineStack.addArrangedSubview(makeTimelineRow(title: "Order Confirmed", subtitle: orderTime, completed: true))
+            timelineStack.addArrangedSubview(makeTimelineRow(title: "Order Placed", subtitle: orderTime, completed: true))
+
+        case .shipped:
+            let deliverySubtitle = currentUserIsSeller ? "Enter handoff code" : "Share code with seller"
+            timelineStack.addArrangedSubview(makeTimelineRow(title: "Order Delivered", subtitle: deliverySubtitle, completed: false))
             timelineStack.addArrangedSubview(makeTimelineRow(title: "Order Confirmed", subtitle: orderTime, completed: true))
             timelineStack.addArrangedSubview(makeTimelineRow(title: "Order Placed", subtitle: orderTime, completed: true))
 
@@ -532,10 +621,15 @@ class OrderDetailsViewController: UIViewController {
             statusCircle.backgroundColor = darkTeal
             statusCheck.image = UIImage(systemName: "checkmark")
 
-        case .shipped, .confirmed:
+        case .confirmed:
             statusTitleLabel.text = "Order Confirmed"
             statusCircle.backgroundColor = darkTeal
             statusCheck.image = UIImage(systemName: "checkmark")
+
+        case .shipped:
+            statusTitleLabel.text = "Ready for Handoff"
+            statusCircle.backgroundColor = UIColor(red: 0.0, green: 0.62, blue: 0.71, alpha: 1.0)
+            statusCheck.image = UIImage(systemName: "hand.raised.fill")
 
         case .pending:
             statusTitleLabel.text = "Order Placed"
@@ -823,6 +917,100 @@ class OrderDetailsViewController: UIViewController {
         ])
     }
 
+    // MARK: - Handoff Card (hidden by default, shown based on status + role)
+    private var instructionTopToBuyerCode: NSLayoutConstraint?
+    private var instructionTopToSellerField: NSLayoutConstraint?
+
+    private func setupHandoffCard() {
+        handoffCard.translatesAutoresizingMaskIntoConstraints = false
+        handoffCard.backgroundColor = .white
+        handoffCard.layer.cornerRadius = 14
+        handoffCard.clipsToBounds = true
+        handoffCard.isHidden = true
+        contentView.addSubview(handoffCard)
+
+        // Large code display (for buyer)
+        handoffCodeLabel.translatesAutoresizingMaskIntoConstraints = false
+        handoffCodeLabel.font = UIFont.monospacedDigitSystemFont(ofSize: 36, weight: .bold)
+        handoffCodeLabel.textAlignment = .center
+        handoffCodeLabel.textColor = darkTeal
+        handoffCodeLabel.isHidden = true
+        handoffCard.addSubview(handoffCodeLabel)
+
+        // Code input field (for seller)
+        codeTextField.translatesAutoresizingMaskIntoConstraints = false
+        codeTextField.placeholder = "Enter 6-digit code"
+        codeTextField.font = UIFont.monospacedDigitSystemFont(ofSize: 24, weight: .semibold)
+        codeTextField.textAlignment = .center
+        codeTextField.keyboardType = .numberPad
+        codeTextField.layer.cornerRadius = 12
+        codeTextField.layer.borderWidth = 2
+        codeTextField.layer.borderColor = UIColor(white: 0.85, alpha: 1.0).cgColor
+        codeTextField.isHidden = true
+        handoffCard.addSubview(codeTextField)
+
+        // Instruction text
+        handoffInstructionLabel.translatesAutoresizingMaskIntoConstraints = false
+        handoffInstructionLabel.font = .systemFont(ofSize: 14)
+        handoffInstructionLabel.textColor = .gray
+        handoffInstructionLabel.textAlignment = .center
+        handoffInstructionLabel.numberOfLines = 0
+        handoffInstructionLabel.isHidden = true
+        handoffCard.addSubview(handoffInstructionLabel)
+
+        // Error label
+        codeErrorLabel.translatesAutoresizingMaskIntoConstraints = false
+        codeErrorLabel.font = .systemFont(ofSize: 13)
+        codeErrorLabel.textColor = .systemRed
+        codeErrorLabel.textAlignment = .center
+        codeErrorLabel.isHidden = true
+        handoffCard.addSubview(codeErrorLabel)
+
+        // Loading spinner
+        loadingSpinner.translatesAutoresizingMaskIntoConstraints = false
+        loadingSpinner.hidesWhenStopped = true
+        handoffCard.addSubview(loadingSpinner)
+
+        // Two alternate top constraints for instruction label
+        instructionTopToBuyerCode = handoffInstructionLabel.topAnchor.constraint(equalTo: handoffCodeLabel.bottomAnchor, constant: 10)
+        instructionTopToSellerField = handoffInstructionLabel.topAnchor.constraint(equalTo: codeTextField.bottomAnchor, constant: 10)
+
+        NSLayoutConstraint.activate([
+            handoffCard.topAnchor.constraint(equalTo: summaryCard.bottomAnchor, constant: 18),
+            handoffCard.leadingAnchor.constraint(equalTo: contentView.leadingAnchor, constant: 16),
+            handoffCard.trailingAnchor.constraint(equalTo: contentView.trailingAnchor, constant: -16),
+
+            // Buyer code label
+            handoffCodeLabel.topAnchor.constraint(equalTo: handoffCard.topAnchor, constant: 20),
+            handoffCodeLabel.leadingAnchor.constraint(equalTo: handoffCard.leadingAnchor, constant: 16),
+            handoffCodeLabel.trailingAnchor.constraint(equalTo: handoffCard.trailingAnchor, constant: -16),
+
+            // Seller code text field
+            codeTextField.topAnchor.constraint(equalTo: handoffCard.topAnchor, constant: 20),
+            codeTextField.leadingAnchor.constraint(equalTo: handoffCard.leadingAnchor, constant: 32),
+            codeTextField.trailingAnchor.constraint(equalTo: handoffCard.trailingAnchor, constant: -32),
+            codeTextField.heightAnchor.constraint(equalToConstant: 52),
+
+            // Instruction label (horizontal only; top set dynamically)
+            handoffInstructionLabel.leadingAnchor.constraint(equalTo: handoffCard.leadingAnchor, constant: 16),
+            handoffInstructionLabel.trailingAnchor.constraint(equalTo: handoffCard.trailingAnchor, constant: -16),
+            handoffInstructionLabel.bottomAnchor.constraint(equalTo: handoffCard.bottomAnchor, constant: -20),
+
+            // Error label
+            codeErrorLabel.topAnchor.constraint(equalTo: codeTextField.bottomAnchor, constant: 6),
+            codeErrorLabel.leadingAnchor.constraint(equalTo: handoffCard.leadingAnchor, constant: 16),
+            codeErrorLabel.trailingAnchor.constraint(equalTo: handoffCard.trailingAnchor, constant: -16),
+
+            // Loading spinner
+            loadingSpinner.centerXAnchor.constraint(equalTo: handoffCard.centerXAnchor),
+            loadingSpinner.topAnchor.constraint(equalTo: handoffInstructionLabel.bottomAnchor, constant: 8)
+        ])
+
+        // Zero-height constraint for when card is hidden
+        handoffCardHeightConstraint = handoffCard.heightAnchor.constraint(equalToConstant: 0)
+        handoffCardHeightConstraint?.isActive = true
+    }
+
     // MARK: - Bottom Buttons
     private func setupBottomButtons() {
         bottomButtonsContainer.axis = .horizontal
@@ -851,13 +1039,138 @@ class OrderDetailsViewController: UIViewController {
         bottomButtonsContainer.addArrangedSubview(helpButton)
 
         NSLayoutConstraint.activate([
-            bottomButtonsContainer.topAnchor.constraint(equalTo: summaryCard.bottomAnchor, constant: 18),
+            bottomButtonsContainer.topAnchor.constraint(equalTo: handoffCard.bottomAnchor, constant: 18),
             bottomButtonsContainer.leadingAnchor.constraint(equalTo: contentView.leadingAnchor, constant: 16),
             bottomButtonsContainer.trailingAnchor.constraint(equalTo: contentView.trailingAnchor, constant: -16),
             bottomButtonsContainer.heightAnchor.constraint(equalToConstant: 54),
 
             contentView.bottomAnchor.constraint(equalTo: bottomButtonsContainer.bottomAnchor, constant: 24)
         ])
+    }
+
+    // MARK: - Detect User Role
+    private func detectUserRole() {
+        guard let userId = currentUserId else {
+            currentUserIsSeller = false
+            return
+        }
+
+        // Check if current user is the seller of any item in this order
+        for item in orderItems {
+            if let sellerId = item.product?.seller?.id, sellerId == userId {
+                currentUserIsSeller = true
+                return
+            }
+        }
+        currentUserIsSeller = false
+    }
+
+    // MARK: - Update Handoff UI
+    private func hideHandoffCard() {
+        handoffCard.isHidden = true
+        handoffCardHeightConstraint?.isActive = true
+        handoffCodeLabel.isHidden = true
+        codeTextField.isHidden = true
+        handoffInstructionLabel.isHidden = true
+        codeErrorLabel.isHidden = true
+        instructionTopToBuyerCode?.isActive = false
+        instructionTopToSellerField?.isActive = false
+    }
+
+    private func resetHelpButton() {
+        helpButton.setTitle("Get Help", for: .normal)
+        helpButton.setTitleColor(darkTeal, for: .normal)
+        helpButton.backgroundColor = .clear
+        helpButton.layer.borderWidth = 2
+        helpButton.layer.borderColor = darkTeal.cgColor
+        helpButton.removeTarget(nil, action: nil, for: .touchUpInside)
+        helpButton.addTarget(self, action: #selector(helpTapped), for: .touchUpInside)
+    }
+
+    private func updateHandoffUI() {
+        let status = OrderStatus(rawValue: orderStatus) ?? .pending
+
+        switch status {
+        case .confirmed where currentUserIsSeller:
+            // Seller sees "Ready to Meet" button replacing "Get Help"
+            hideHandoffCard()
+            helpButton.setTitle("Ready to Meet", for: .normal)
+            helpButton.setTitleColor(.white, for: .normal)
+            helpButton.backgroundColor = darkTeal
+            helpButton.layer.borderWidth = 0
+            helpButton.removeTarget(nil, action: nil, for: .touchUpInside)
+            helpButton.addTarget(self, action: #selector(readyToMeetTapped), for: .touchUpInside)
+            rateButton.isEnabled = false
+            rateButton.alpha = 0.4
+
+        case .shipped where !currentUserIsSeller:
+            // Buyer sees the handoff code
+            handoffCard.isHidden = false
+            handoffCardHeightConstraint?.isActive = false
+
+            // Show buyer code, hide seller field
+            handoffCodeLabel.isHidden = false
+            codeTextField.isHidden = true
+            codeErrorLabel.isHidden = true
+            handoffInstructionLabel.isHidden = false
+
+            // Anchor instruction below code label
+            instructionTopToSellerField?.isActive = false
+            instructionTopToBuyerCode?.isActive = true
+
+            let codeText = handoffCode ?? "------"
+            handoffCodeLabel.attributedText = NSAttributedString(
+                string: codeText,
+                attributes: [.kern: 8]
+            )
+            handoffInstructionLabel.text = "Show this code to the seller when you meet to confirm delivery."
+
+            resetHelpButton()
+            rateButton.isEnabled = false
+            rateButton.alpha = 0.4
+
+        case .shipped where currentUserIsSeller:
+            // Seller sees code input
+            handoffCard.isHidden = false
+            handoffCardHeightConstraint?.isActive = false
+
+            // Show seller field, hide buyer code
+            handoffCodeLabel.isHidden = true
+            codeTextField.isHidden = false
+            handoffInstructionLabel.isHidden = false
+            codeErrorLabel.isHidden = true
+
+            // Anchor instruction below text field
+            instructionTopToBuyerCode?.isActive = false
+            instructionTopToSellerField?.isActive = true
+
+            handoffInstructionLabel.text = "Enter the code the buyer shows you to confirm delivery."
+
+            helpButton.setTitle("Verify Code", for: .normal)
+            helpButton.setTitleColor(.white, for: .normal)
+            helpButton.backgroundColor = darkTeal
+            helpButton.layer.borderWidth = 0
+            helpButton.removeTarget(nil, action: nil, for: .touchUpInside)
+            helpButton.addTarget(self, action: #selector(verifyCodeTapped), for: .touchUpInside)
+            rateButton.isEnabled = false
+            rateButton.alpha = 0.4
+
+        case .delivered:
+            // Both see original buttons
+            hideHandoffCard()
+            resetHelpButton()
+            rateButton.isEnabled = true
+            rateButton.alpha = 1.0
+
+        default:
+            // pending, cancelled, or confirmed (buyer) -- keep defaults
+            hideHandoffCard()
+            resetHelpButton()
+            rateButton.isEnabled = true
+            rateButton.alpha = 1.0
+        }
+
+        view.layoutIfNeeded()
     }
 
     // MARK: - Actions
@@ -867,6 +1180,191 @@ class OrderDetailsViewController: UIViewController {
 
     @objc private func helpTapped() {
         print("Help tapped")
+    }
+
+    // MARK: - Ready to Meet (Seller generates handoff code)
+    @objc private func readyToMeetTapped() {
+        guard let orderId = orderId else { return }
+
+        helpButton.isEnabled = false
+        loadingSpinner.startAnimating()
+
+        // Generate 6-digit code
+        let code = String(format: "%06d", Int.random(in: 0...999999))
+
+        Task {
+            do {
+                // Save to DB
+                try await orderRepository.markReadyForHandoff(orderId: orderId, handoffCode: code)
+
+                // Send notification to buyer
+                if let currentUserId = currentUserId {
+                    let sellerName = try await fetchSellerDisplayName()
+                    let order = try await orderRepository.fetchOrder(id: orderId)
+
+                    let deeplinkPayload = DeeplinkPayload(
+                        route: "order_details",
+                        orderId: orderId,
+                        sellerId: currentUserId
+                    )
+
+                    try await notificationRepository.createNotification(
+                        recipientId: order.user_id,
+                        senderId: currentUserId,
+                        orderId: orderId,
+                        type: .orderShipped,
+                        title: sellerName,
+                        message: "is ready to hand off your order. Your handoff code: \(code)",
+                        deeplinkPayload: deeplinkPayload
+                    )
+                }
+
+                await MainActor.run {
+                    self.loadingSpinner.stopAnimating()
+                    self.helpButton.isEnabled = true
+                    self.orderStatus = OrderStatus.shipped.rawValue
+                    self.handoffCode = code
+                    self.updateTimelineForStatus()
+                    self.updateHandoffUI()
+                }
+            } catch {
+                print("❌ Failed to mark ready for handoff: \(error)")
+                await MainActor.run {
+                    self.loadingSpinner.stopAnimating()
+                    self.helpButton.isEnabled = true
+                }
+            }
+        }
+    }
+
+    // MARK: - Verify Handoff Code (Seller enters buyer's code)
+    @objc private func verifyCodeTapped() {
+        guard let orderId = orderId else { return }
+        let enteredCode = codeTextField.text?.trimmingCharacters(in: .whitespaces) ?? ""
+
+        guard enteredCode.count == 6 else {
+            codeErrorLabel.text = "Please enter the full 6-digit code."
+            codeErrorLabel.isHidden = false
+            return
+        }
+
+        codeErrorLabel.isHidden = true
+        helpButton.isEnabled = false
+        loadingSpinner.startAnimating()
+
+        Task {
+            do {
+                let isValid = try await orderRepository.verifyHandoffCode(orderId: orderId, enteredCode: enteredCode)
+
+                if isValid {
+                    // Send delivery notifications to both parties
+                    if let currentUserId = currentUserId {
+                        let sellerName = try await fetchSellerDisplayName()
+                        let order = try await orderRepository.fetchOrder(id: orderId)
+                        let buyerName = try await fetchBuyerName(buyerId: order.user_id)
+
+                        let deeplinkPayload = DeeplinkPayload(
+                            route: "order_details",
+                            orderId: orderId,
+                            sellerId: currentUserId
+                        )
+
+                        // Notify buyer
+                        try await notificationRepository.createNotification(
+                            recipientId: order.user_id,
+                            senderId: currentUserId,
+                            orderId: orderId,
+                            type: .orderDelivered,
+                            title: sellerName,
+                            message: "has delivered your order. Enjoy!",
+                            deeplinkPayload: deeplinkPayload
+                        )
+
+                        // Notify seller (self)
+                        try await notificationRepository.createNotification(
+                            recipientId: currentUserId,
+                            senderId: order.user_id,
+                            orderId: orderId,
+                            type: .orderDelivered,
+                            title: buyerName,
+                            message: "confirmed receiving the order. Delivery complete!",
+                            deeplinkPayload: deeplinkPayload
+                        )
+                    }
+
+                    await MainActor.run {
+                        self.loadingSpinner.stopAnimating()
+                        self.helpButton.isEnabled = true
+                        self.orderStatus = OrderStatus.delivered.rawValue
+                        self.updateTimelineForStatus()
+                        self.updateHandoffUI()
+                        self.codeTextField.resignFirstResponder()
+                    }
+                } else {
+                    await MainActor.run {
+                        self.loadingSpinner.stopAnimating()
+                        self.helpButton.isEnabled = true
+                        self.codeErrorLabel.text = "Incorrect code. Please try again."
+                        self.codeErrorLabel.isHidden = false
+                        self.codeTextField.layer.borderColor = UIColor.systemRed.cgColor
+                    }
+                }
+            } catch {
+                print("❌ Failed to verify handoff code: \(error)")
+                await MainActor.run {
+                    self.loadingSpinner.stopAnimating()
+                    self.helpButton.isEnabled = true
+                    self.codeErrorLabel.text = "Something went wrong. Please try again."
+                    self.codeErrorLabel.isHidden = false
+                }
+            }
+        }
+    }
+
+    // MARK: - Helper: Fetch Seller Display Name
+    private func fetchSellerDisplayName() async throws -> String {
+        guard let userId = currentUserId else { return "Seller" }
+
+        struct UserName: Codable {
+            let first_name: String?
+            let last_name: String?
+        }
+
+        let user: UserName = try await SupabaseManager.shared.client
+            .from("users")
+            .select("first_name, last_name")
+            .eq("id", value: userId.uuidString)
+            .single()
+            .execute()
+            .value
+
+        let name = [user.first_name, user.last_name]
+            .compactMap { $0 }
+            .joined(separator: " ")
+            .trimmingCharacters(in: .whitespaces)
+        return name.isEmpty ? "Seller" : name
+    }
+
+    // MARK: - Helper: Fetch Buyer Name
+    private func fetchBuyerName(buyerId: UUID) async throws -> String {
+        struct UserName: Codable {
+            let first_name: String?
+            let last_name: String?
+        }
+
+        let user: UserName = try await SupabaseManager.shared.client
+            .from("users")
+            .select("first_name, last_name")
+            .eq("id", value: buyerId.uuidString)
+            .single()
+            .execute()
+            .value
+
+        let name = [user.first_name, user.last_name]
+            .compactMap { $0 }
+            .joined(separator: " ")
+            .trimmingCharacters(in: .whitespaces)
+        return name.isEmpty ? "Buyer" : name
     }
 
     // FINAL → ALWAYS GO TO HOME TAB
