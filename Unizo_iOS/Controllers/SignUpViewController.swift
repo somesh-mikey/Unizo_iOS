@@ -35,7 +35,7 @@ final class SignUpViewController: UIViewController {
 
     private let titleLabel: UILabel = {
         let l = UILabel()
-        l.text = "Set Up Your Profile"
+        l.text = "Set Up Your Profile".localized
         l.font = UIFont.systemFont(ofSize: 20, weight: .bold)
         l.textColor = .black
         return l
@@ -75,7 +75,7 @@ final class SignUpViewController: UIViewController {
     // Sign up button ENABLED ONLY WHEN CHECKBOX IS TICKED
     private let signUpButton: UIButton = {
         let b = UIButton(type: .system)
-        b.setTitle("Sign Up", for: .normal)
+        b.setTitle("Sign Up".localized, for: .normal)
         b.setTitleColor(.white, for: .normal)
         b.backgroundColor = UIColor(red: 0/255, green: 76/255, blue: 97/255, alpha: 1)
         b.layer.cornerRadius = 14
@@ -192,13 +192,13 @@ final class SignUpViewController: UIViewController {
     }
 
     private func setupFields() {
-        firstNameTF        = makeField(placeholder: "First Name")
-        lastNameTF         = makeField(placeholder: "Last Name")
-        regTF              = makeField(placeholder: "College Registration Number")
-        emailTF            = makeField(placeholder: "College Email")
-        phoneTF            = makeField(placeholder: "Your Phone Number")
-        createPasswordTF   = makeField(placeholder: "Create Password", secure: true)
-        confirmPasswordTF  = makeField(placeholder: "Confirm Password", secure: true)
+        firstNameTF        = makeField(placeholder: "First Name".localized)
+        lastNameTF         = makeField(placeholder: "Last Name".localized)
+        regTF              = makeField(placeholder: "College Registration Number".localized)
+        emailTF            = makeField(placeholder: "College Email".localized)
+        phoneTF            = makeField(placeholder: "Your Phone Number".localized)
+        createPasswordTF   = makeField(placeholder: "Create Password".localized, secure: true)
+        confirmPasswordTF  = makeField(placeholder: "Confirm Password".localized, secure: true)
 
         separators = (0..<6).map { _ in makeSeparator() }
 
@@ -284,7 +284,7 @@ final class SignUpViewController: UIViewController {
               let phoneRaw = phoneTF.text, !phoneRaw.isEmpty,
               let passwordRaw = createPasswordTF.text, !passwordRaw.isEmpty,
               let confirmPasswordRaw = confirmPasswordTF.text, !confirmPasswordRaw.isEmpty else {
-            showAlert(message: "Please fill in all fields")
+            showAlert(message: "Please fill in all fields".localized)
             return
         }
 
@@ -298,13 +298,13 @@ final class SignUpViewController: UIViewController {
 
         // Validate password match
         guard password == confirmPassword else {
-            showAlert(message: "Passwords do not match")
+            showAlert(message: "Passwords do not match".localized)
             return
         }
 
         // Show loading state
         signUpButton.isEnabled = false
-        signUpButton.setTitle("Creating account...", for: .normal)
+        signUpButton.setTitle("Creating account...".localized, for: .normal)
 
         // Sign up with Supabase
         Task {
@@ -368,16 +368,16 @@ final class SignUpViewController: UIViewController {
                 print("❌ Sign up failed:", error)
                 await MainActor.run {
                     signUpButton.isEnabled = true
-                    signUpButton.setTitle("Sign Up", for: .normal)
-                    showAlert(message: "Sign up failed: \(error.localizedDescription)")
+                    signUpButton.setTitle("Sign Up".localized, for: .normal)
+                    showAlert(message: "\("Sign up failed".localized): \(error.localizedDescription)")
                 }
             }
         }
     }
 
     private func showAlert(message: String) {
-        let alert = UIAlertController(title: "Error", message: message, preferredStyle: .alert)
-        alert.addAction(UIAlertAction(title: "OK", style: .default))
+        let alert = UIAlertController(title: "Error".localized, message: message, preferredStyle: .alert)
+        alert.addAction(UIAlertAction(title: "OK".localized, style: .default))
         present(alert, animated: true)
     }
 
@@ -385,9 +385,7 @@ final class SignUpViewController: UIViewController {
 
     private func setupTermsLabel() {
         let fullText =
-"""
-By clicking sign up, I hereby agree and consent to the Terms & Conditions. I confirm that I have read the Privacy Policy, and I certify that I am 18 years or older.
-"""
+"By clicking sign up, I hereby agree and consent to the Terms & Conditions. I confirm that I have read the Privacy Policy, and I certify that I am 18 years or older.".localized
 
         let attributed = NSMutableAttributedString(string: fullText)
 
@@ -548,7 +546,7 @@ extension UITapGestureRecognizer {
 extension UIViewController {
     func addDismissButton() {
         let btn = UIButton(type: .system)
-        btn.setTitle("← Back", for: .normal)
+        btn.setTitle("← Back".localized, for: .normal)
         btn.titleLabel?.font = UIFont.systemFont(ofSize: 18, weight: .medium)
         btn.tintColor = .black
         btn.frame = CGRect(x: 16, y: 50, width: 80, height: 40)

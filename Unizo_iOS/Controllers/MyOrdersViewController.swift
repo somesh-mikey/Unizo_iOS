@@ -46,14 +46,14 @@ class MyOrdersViewController: UIViewController {
 
     private let titleLabel: UILabel = {
         let lbl = UILabel()
-        lbl.text = "My Orders"
+        lbl.text = "My Orders".localized
         lbl.font = .systemFont(ofSize: 20, weight: .semibold)
         lbl.textAlignment = .center
         return lbl
     }()
 
     private let segmentedControl: UISegmentedControl = {
-        let sc = UISegmentedControl(items: ["All", "Processing", "Delivered"])
+        let sc = UISegmentedControl(items: ["All".localized, "Processing".localized, "Delivered".localized])
 
         // Initial Selection
         sc.selectedSegmentIndex = 0
@@ -91,7 +91,7 @@ class MyOrdersViewController: UIViewController {
 
     private let emptyStateLabel: UILabel = {
         let lbl = UILabel()
-        lbl.text = "No orders yet"
+        lbl.text = "No orders yet".localized
         lbl.font = .systemFont(ofSize: 16)
         lbl.textColor = .secondaryLabel
         lbl.textAlignment = .center
@@ -227,7 +227,7 @@ class MyOrdersViewController: UIViewController {
                 await MainActor.run {
                     self.isLoading = false
                     self.loadingIndicator.stopAnimating()
-                    self.emptyStateLabel.text = "Failed to load orders"
+                    self.emptyStateLabel.text = "Failed to load orders".localized
                     self.emptyStateLabel.isHidden = false
                     print("❌ Error fetching orders: \(error)")
                 }
@@ -259,7 +259,7 @@ class MyOrdersViewController: UIViewController {
 
         // Show empty state if no orders
         if filteredOrders.isEmpty {
-            emptyStateLabel.text = filter == "All" ? "No orders yet" : "No \(filter.lowercased()) orders"
+            emptyStateLabel.text = filter == "All" ? "No orders yet".localized : "No \(filter.lowercased()) orders"
             emptyStateLabel.isHidden = false
             return
         }

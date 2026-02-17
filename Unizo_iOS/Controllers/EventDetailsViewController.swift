@@ -96,7 +96,7 @@ class EventDetailsViewController: UIViewController {
 
     private let descriptionHeaderLabel: UILabel = {
         let lbl = UILabel()
-        lbl.text = "About this Event"
+        lbl.text = "About this Event".localized
         lbl.font = UIFont.systemFont(ofSize: 18, weight: .semibold)
         lbl.textColor = .label
         lbl.translatesAutoresizingMaskIntoConstraints = false
@@ -122,7 +122,7 @@ class EventDetailsViewController: UIViewController {
 
     private let bookButton: UIButton = {
         let btn = UIButton(type: .system)
-        btn.setTitle("Book Now", for: .normal)
+        btn.setTitle("Book Now".localized, for: .normal)
         btn.titleLabel?.font = UIFont.systemFont(ofSize: 18, weight: .semibold)
         btn.backgroundColor = UIColor(red: 4/255, green: 68/255, blue: 95/255, alpha: 1)
         btn.setTitleColor(.white, for: .normal)
@@ -157,7 +157,7 @@ class EventDetailsViewController: UIViewController {
     // MARK: - Navigation Bar
 
     private func setupNavBar() {
-        title = "Event Details"
+        title = "Event Details".localized
         navigationController?.navigationBar.prefersLargeTitles = false
 
         // Add back button
@@ -284,11 +284,11 @@ class EventDetailsViewController: UIViewController {
         dateLabel.text = event.formattedDate
         timeLabel.text = event.event_time
         venueLabel.text = event.venue
-        descriptionLabel.text = event.description ?? "No description available."
+        descriptionLabel.text = event.description ?? "No description available.".localized
         priceLabel.text = event.priceDisplay
 
         // Update button title based on free/paid
-        bookButton.setTitle(event.is_free ? "Register" : "Book Now", for: .normal)
+        bookButton.setTitle(event.is_free ? "Register".localized : "Book Now".localized, for: .normal)
 
         // Load image
         if let imageURL = event.image_url, !imageURL.isEmpty {
@@ -305,11 +305,11 @@ class EventDetailsViewController: UIViewController {
     @objc private func bookButtonTapped() {
         // TODO: Implement booking/registration flow
         let alert = UIAlertController(
-            title: event.is_free ? "Registration" : "Booking",
-            message: event.is_free ? "You have successfully registered for this event!" : "Proceed to payment for this event.",
+            title: event.is_free ? "Registration".localized : "Booking".localized,
+            message: event.is_free ? "You have successfully registered for this event!".localized : "Proceed to payment for this event.".localized,
             preferredStyle: .alert
         )
-        alert.addAction(UIAlertAction(title: "OK", style: .default))
+        alert.addAction(UIAlertAction(title: "OK".localized, style: .default))
         present(alert, animated: true)
     }
 }

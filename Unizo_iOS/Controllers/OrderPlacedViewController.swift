@@ -285,13 +285,13 @@ class OrderPlacedViewController: UIViewController {
     // ===========================================================
     private func setupTitleSection() {
         let title = UILabel()
-        title.text = "Order Placed!"
+        title.text = "Order Placed!".localized
         title.font = UIFont.systemFont(ofSize: 22, weight: .semibold)
         title.textAlignment = .center
         title.translatesAutoresizingMaskIntoConstraints = false
 
         let subtitle = UILabel()
-        subtitle.text = "Your order has been successfully processed and its on its way to you soon"
+        subtitle.text = "Your order has been successfully processed and its on its way to you soon".localized
         subtitle.font = UIFont.systemFont(ofSize: 14)
         subtitle.textColor = .gray
         subtitle.numberOfLines = 2
@@ -318,13 +318,13 @@ class OrderPlacedViewController: UIViewController {
         myOrderDetailButton = UIButton(type: .system)
         myOrderDetailButton.backgroundColor = primaryTeal
         myOrderDetailButton.layer.cornerRadius = 25
-        myOrderDetailButton.setTitle("My Order Detail", for: .normal)
+        myOrderDetailButton.setTitle("My Order Detail".localized, for: .normal)
         myOrderDetailButton.setTitleColor(.white, for: .normal)
         myOrderDetailButton.translatesAutoresizingMaskIntoConstraints = false
         myOrderDetailButton.addTarget(self, action: #selector(myOrderDetailTapped), for: .touchUpInside)
 
         continueShoppingButton = UIButton(type: .system)
-        continueShoppingButton.setTitle("Continue Shopping", for: .normal)
+        continueShoppingButton.setTitle("Continue Shopping".localized, for: .normal)
         continueShoppingButton.setTitleColor(primaryTeal, for: .normal)
         continueShoppingButton.layer.borderWidth = 2
         continueShoppingButton.layer.cornerRadius = 25
@@ -353,7 +353,7 @@ class OrderPlacedViewController: UIViewController {
     // ===========================================================
     private func setupSuggestedTitle() {
         let label = UILabel()
-        label.text = "Products You Might Like"
+        label.text = "Products You Might Like".localized
         label.font = UIFont.systemFont(ofSize: 18, weight: .semibold)
         label.translatesAutoresizingMaskIntoConstraints = false
 
@@ -434,7 +434,7 @@ class OrderPlacedViewController: UIViewController {
         name.numberOfLines = 2
         name.translatesAutoresizingMaskIntoConstraints = false
 
-        let negotiableText = product.negotiable ? "Negotiable" : "Non - Negotiable"
+        let negotiableText = product.negotiable ? "Negotiable".localized : "Non - Negotiable".localized
         let details = UILabel()
         details.text = "★ \(String(format: "%.1f", product.rating))  |  \(negotiableText)"
         details.font = UIFont.systemFont(ofSize: 11)

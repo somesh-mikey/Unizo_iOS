@@ -30,7 +30,7 @@ final class LoginModalViewController: UIViewController {
     // MARK: - Title
     private let titleLabel: UILabel = {
         let lbl = UILabel()
-        lbl.text = "Login To Your Account"
+        lbl.text = "Login To Your Account".localized
         lbl.font = UIFont.systemFont(ofSize: 20, weight: .bold)
         lbl.textAlignment = .center
         lbl.textColor = .black
@@ -64,9 +64,9 @@ final class LoginModalViewController: UIViewController {
         return tf
     }
 
-    private lazy var collegeEmailField = styledField("College Email")
+    private lazy var collegeEmailField = styledField("College Email".localized)
 
-    private lazy var passwordField: UITextField = styledField("Password", secure: true)
+    private lazy var passwordField: UITextField = styledField("Password".localized, secure: true)
 
     // MARK: - Dividers
     private func divider() -> UIView {
@@ -79,7 +79,7 @@ final class LoginModalViewController: UIViewController {
     // MARK: - Forgot Password
     private let forgotPasswordButton: UIButton = {
         let btn = UIButton(type: .system)
-        btn.setTitle("Forgot Password?", for: .normal)
+        btn.setTitle("Forgot Password?".localized, for: .normal)
         btn.setTitleColor(.systemBlue, for: .normal)
         btn.titleLabel?.font = UIFont.systemFont(ofSize: 14, weight: .regular)
         return btn
@@ -88,7 +88,7 @@ final class LoginModalViewController: UIViewController {
     // MARK: - Login Button
     private let loginButton: UIButton = {
         let btn = UIButton(type: .system)
-        btn.setTitle("Login", for: .normal)
+        btn.setTitle("Login".localized, for: .normal)
         btn.backgroundColor = UIColor(red: 0/255, green: 76/255, blue: 97/255, alpha: 1)
         btn.setTitleColor(.white, for: .normal)
         btn.layer.cornerRadius = 12
@@ -284,7 +284,7 @@ final class LoginModalViewController: UIViewController {
         // Get login credentials - use email field for authentication
         guard let emailRaw = collegeEmailField.text, !emailRaw.isEmpty,
               let passwordRaw = passwordField.text, !passwordRaw.isEmpty else {
-            showAlert(message: "Please enter email and password")
+            showAlert(message: "Please enter email and password".localized)
             return
         }
 
@@ -294,7 +294,7 @@ final class LoginModalViewController: UIViewController {
 
         // Show loading state
         loginButton.isEnabled = false
-        loginButton.setTitle("Logging in...", for: .normal)
+        loginButton.setTitle("Logging in...".localized, for: .normal)
 
         // Authenticate with Supabase
         Task {
@@ -336,16 +336,16 @@ final class LoginModalViewController: UIViewController {
                 print("❌ Login failed:", error)
                 await MainActor.run {
                     loginButton.isEnabled = true
-                    loginButton.setTitle("Login", for: .normal)
-                    showAlert(message: "Login failed: \(error.localizedDescription)")
+                    loginButton.setTitle("Login".localized, for: .normal)
+                    showAlert(message: "\("Login failed".localized): \(error.localizedDescription)")
                 }
             }
         }
     }
 
     private func showAlert(message: String) {
-        let alert = UIAlertController(title: "Error", message: message, preferredStyle: .alert)
-        alert.addAction(UIAlertAction(title: "OK", style: .default))
+        let alert = UIAlertController(title: "Error".localized, message: message, preferredStyle: .alert)
+        alert.addAction(UIAlertAction(title: "OK".localized, style: .default))
         present(alert, animated: true)
     }
 

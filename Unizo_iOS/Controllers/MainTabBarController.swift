@@ -54,31 +54,31 @@ class MainTabBarController: UITabBarController, UITabBarControllerDelegate {
         let accountVC   = UINavigationController(rootViewController: AccountViewController())
 
         homeVC.tabBarItem = UITabBarItem(
-            title: "Home",
+            title: "Home".localized,
             image: UIImage(systemName: "house.fill"),
             tag: 0
         )
 
         chatVC.tabBarItem = UITabBarItem(
-            title: "Chat",
+            title: "Chat".localized,
             image: UIImage(systemName: "bubble.left.and.bubble.right.fill"),
             tag: 1
         )
 
         postVC.tabBarItem = UITabBarItem(
-            title: "Post",
+            title: "Sell".localized,
             image: UIImage(systemName: "square.and.arrow.up.fill"),
             tag: 2
         )
 
         listingsVC.tabBarItem = UITabBarItem(
-            title: "Listings",
+            title: "My Listings".localized,
             image: UIImage(systemName: "list.bullet.rectangle.portrait"),
             tag: 3
         )
 
         accountVC.tabBarItem = UITabBarItem(
-            title: "Account",
+            title: "Account".localized,
             image: UIImage(systemName: "person.crop.circle.fill"),
             tag: 4
         )

@@ -162,7 +162,7 @@ class ConfirmOrderViewController: UIViewController {
         backButton.layer.shadowOffset = CGSize(width: 0, height: 2)
         backButton.translatesAutoresizingMaskIntoConstraints = false
 
-        titleLabel.text = "Confirm Your Order"
+        titleLabel.text = "Confirm Your Order".localized
         titleLabel.font = UIFont.systemFont(ofSize: 17, weight: .semibold)
         titleLabel.textColor = .black
         titleLabel.translatesAutoresizingMaskIntoConstraints = false
@@ -217,7 +217,7 @@ class ConfirmOrderViewController: UIViewController {
         ])
 
         let step1Label = UILabel()
-        step1Label.text = "Set Hotspot"
+        step1Label.text = "Set Hotspot".localized
         step1Label.font = UIFont.systemFont(ofSize: 14, weight: .semibold)
         step1Label.textColor = .black
 
@@ -253,7 +253,7 @@ class ConfirmOrderViewController: UIViewController {
         ])
 
         let step2Label = UILabel()
-        step2Label.text = "Confirm Order"
+        step2Label.text = "Confirm Order".localized
         step2Label.font = UIFont.systemFont(ofSize: 14, weight: .semibold)
         step2Label.textColor = UIColor.black
 
@@ -292,7 +292,7 @@ class ConfirmOrderViewController: UIViewController {
 
         // Use actual address data
         let address = selectedAddress
-        addressTitleLabel.text = "\(address?.name ?? "No Name")  \(address?.phone ?? "")"
+        addressTitleLabel.text = "\(address?.name ?? "No Name".localized)  \(address?.phone ?? "")"
         addressTitleLabel.font = UIFont.systemFont(ofSize: 14, weight: .semibold)
 
         addressSubtitleLabel.text = "\(address?.line1 ?? ""),\n\(address?.city ?? ""), \(address?.state ?? "") \(address?.postal_code ?? "")"
@@ -358,7 +358,7 @@ class ConfirmOrderViewController: UIViewController {
         }
 
         let sectionTitle = UILabel()
-        sectionTitle.text = "Item Detail (\(items.count) items)"
+        sectionTitle.text = "\("Item Detail".localized) (\(items.count) \("items".localized))"
         sectionTitle.font = UIFont.systemFont(ofSize: 15, weight: .semibold)
         sectionTitle.translatesAutoresizingMaskIntoConstraints = false
         itemDetailContainer.addSubview(sectionTitle)
@@ -383,7 +383,7 @@ class ConfirmOrderViewController: UIViewController {
         itemDetailContainer.addSubview(subtotalBar)
 
         let subtotalLabel = UILabel()
-        subtotalLabel.text = "Subtotal"
+        subtotalLabel.text = "Subtotal".localized
         subtotalLabel.font = UIFont.systemFont(ofSize: 13)
         subtotalLabel.textColor = .darkGray
 
@@ -495,9 +495,9 @@ class ConfirmOrderViewController: UIViewController {
             return l
         }
 
-        let colourLabel = teal("Colour")
-        let sizeLabel = teal("Size")
-        let qtyLabel = teal("Quantity")
+        let colourLabel = teal("Colour".localized)
+        let sizeLabel = teal("Size".localized)
+        let qtyLabel = teal("Quantity".localized)
 
         // RIGHT SIDE VALUES
         func value(_ text: String) -> UILabel {
@@ -564,7 +564,7 @@ class ConfirmOrderViewController: UIViewController {
 
     private func setupPlaceOrderButton() {
         placeOrderButton.backgroundColor = primaryTeal
-        placeOrderButton.setTitle("Place Order", for: .normal)
+        placeOrderButton.setTitle("Place Order".localized, for: .normal)
         placeOrderButton.setTitleColor(.white, for: .normal)
         placeOrderButton.layer.cornerRadius = 24
         placeOrderButton.titleLabel?.font = UIFont.systemFont(ofSize: 16, weight: .semibold)
@@ -574,12 +574,12 @@ class ConfirmOrderViewController: UIViewController {
 
     @objc private func placeOrderTapped() {
         guard let address = selectedAddress else {
-            showAlert(title: "Error", message: "Please select a delivery hotspot")
+            showAlert(title: "Error".localized, message: "Please select a delivery hotspot".localized)
             return
         }
 
         guard !orderItems.isEmpty else {
-            showAlert(title: "Error", message: "No items to order")
+            showAlert(title: "Error".localized, message: "No items to order".localized)
             return
         }
 
@@ -619,7 +619,7 @@ class ConfirmOrderViewController: UIViewController {
                 print("❌ Failed to create order:", error)
                 await MainActor.run {
                     self.placeOrderButton.isEnabled = true
-                    self.showAlert(title: "Error", message: "Failed to place order: \(error.localizedDescription)")
+                    self.showAlert(title: "Error".localized, message: "\("Failed to place order".localized): \(error.localizedDescription)")
                 }
             }
         }
@@ -627,7 +627,7 @@ class ConfirmOrderViewController: UIViewController {
 
     private func showAlert(title: String, message: String) {
         let alert = UIAlertController(title: title, message: message, preferredStyle: .alert)
-        alert.addAction(UIAlertAction(title: "OK", style: .default))
+        alert.addAction(UIAlertAction(title: "OK".localized, style: .default))
         present(alert, animated: true)
     }
     

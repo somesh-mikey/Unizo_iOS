@@ -22,7 +22,7 @@ final class PostItemViewController: UIViewController,
     // MARK: - Header
     private let titleLabel: UILabel = {
         let l = UILabel()
-        l.text = "Post Item"
+        l.text = "Post Item".localized
         l.font = .systemFont(ofSize: 35, weight: .bold)
         return l
     }()
@@ -52,13 +52,13 @@ final class PostItemViewController: UIViewController,
     private let productCard = UIView()
 
     private let fieldTitles = [
-        "Product Name",
-        "Price (in Rupees)",
-        "Colour",
-        "Category",
-        "Size",
-        "Condition",
-        "Description"
+        "Product Name".localized,
+        "Price (in Rupees)".localized,
+        "Colour".localized,
+        "Category".localized,
+        "Size".localized,
+        "Condition".localized,
+        "Description".localized
     ]
     private var fields: [UITextField] = []
 
@@ -174,11 +174,11 @@ final class PostItemViewController: UIViewController,
                 print("❌ User not authenticated")
                 await MainActor.run {
                     let alert = UIAlertController(
-                        title: "Authentication Required",
-                        message: "Please log in to post items",
+                        title: "Authentication Required".localized,
+                        message: "Please log in to post items".localized,
                         preferredStyle: .alert
                     )
-                    alert.addAction(UIAlertAction(title: "OK", style: .default) { _ in
+                    alert.addAction(UIAlertAction(title: "OK".localized, style: .default) { _ in
                         self.navigationController?.popViewController(animated: true)
                     })
                     present(alert, animated: true)
@@ -232,7 +232,7 @@ final class PostItemViewController: UIViewController,
 
         toolbar.items = [
             UIBarButtonItem(barButtonSystemItem: .flexibleSpace, target: nil, action: nil),
-            UIBarButtonItem(title: "Done", style: .done, target: self, action: #selector(donePicking))
+            UIBarButtonItem(title: "Done".localized, style: .done, target: self, action: #selector(donePicking))
         ]
         return toolbar
     }
@@ -256,12 +256,12 @@ final class PostItemViewController: UIViewController,
         galleryCollectionView.register(ImageGalleryCell.self, forCellWithReuseIdentifier: "ImageGalleryCell")
         galleryCollectionView.register(AddImageCell.self, forCellWithReuseIdentifier: "AddImageCell")
 
-        sizeLabel.text = "Add up to \(maxImages) photos (Max 2 MB each)"
+        sizeLabel.text = "Add up to \(maxImages) photos (Max 2 MB each)".localized
         sizeLabel.font = .systemFont(ofSize: 12)
         sizeLabel.textAlignment = .center
         sizeLabel.textColor = .gray
 
-        uploadButton.setTitle("Upload Photos", for: .normal)
+        uploadButton.setTitle("Upload Photos".localized, for: .normal)
         uploadButton.backgroundColor = UIColor(red: 0.07, green: 0.33, blue: 0.42, alpha: 1)
         uploadButton.setTitleColor(.white, for: .normal)
         uploadButton.layer.cornerRadius = 22
@@ -300,7 +300,7 @@ final class PostItemViewController: UIViewController,
 
     // MARK: - Product Details
     private func setupProductDetails() {
-        productDetailsLabel.text = "Product Details"
+        productDetailsLabel.text = "Product Details".localized
         productDetailsLabel.font = .systemFont(ofSize: 16, weight: .semibold)
         productDetailsLabel.translatesAutoresizingMaskIntoConstraints = false
 
@@ -329,7 +329,7 @@ final class PostItemViewController: UIViewController,
             field.setLeftPaddingPoints(18)
             field.translatesAutoresizingMaskIntoConstraints = false
 
-            if title == "Category" || title == "Condition" {
+            if title == "Category".localized || title == "Condition".localized {
                 field.delegate = self
                 field.inputView = pickerView
                 field.inputAccessoryView = makePickerToolbar()
@@ -361,8 +361,8 @@ final class PostItemViewController: UIViewController,
         setupRadio(negButton)
         setupRadio(nonNegButton)
 
-        negLabel.text = "Negotiable"
-        nonNegLabel.text = "Non - Negotiable"
+        negLabel.text = "Negotiable".localized
+        nonNegLabel.text = "Non - Negotiable".localized
 
         let left = UIStackView(arrangedSubviews: [negButton, negLabel])
         let right = UIStackView(arrangedSubviews: [nonNegButton, nonNegLabel])
@@ -402,7 +402,7 @@ final class PostItemViewController: UIViewController,
 
     // MARK: - Final Button
     private func setupFinalButton() {
-        finalUploadButton.setTitle("Upload Product", for: .normal)
+        finalUploadButton.setTitle("Upload Product".localized, for: .normal)
         finalUploadButton.backgroundColor = UIColor(red: 0.07, green: 0.33, blue: 0.42, alpha: 1)
         finalUploadButton.setTitleColor(.white, for: .normal)
         finalUploadButton.layer.cornerRadius = 22
@@ -444,11 +444,11 @@ final class PostItemViewController: UIViewController,
         else {
             print("❌ Validation failed")
             let alert = UIAlertController(
-                title: "Missing Information",
-                message: "Please fill in all fields and upload at least one photo",
+                title: "Missing Information".localized,
+                message: "Please fill in all fields and upload at least one photo".localized,
                 preferredStyle: .alert
             )
-            alert.addAction(UIAlertAction(title: "OK", style: .default))
+            alert.addAction(UIAlertAction(title: "OK".localized, style: .default))
             present(alert, animated: true)
             return
         }
@@ -501,11 +501,11 @@ final class PostItemViewController: UIViewController,
                     self.finalUploadButton.isEnabled = true
 
                     let alert = UIAlertController(
-                        title: "Success",
-                        message: "Your product has been uploaded successfully!",
+                        title: "Success".localized,
+                        message: "Your product has been uploaded successfully!".localized,
                         preferredStyle: .alert
                     )
-                    alert.addAction(UIAlertAction(title: "OK", style: .default) { _ in
+                    alert.addAction(UIAlertAction(title: "OK".localized, style: .default) { _ in
                         let productPostedVC = ProductPostedViewController()
                         self.navigationController?.pushViewController(productPostedVC, animated: true)
                     })
@@ -519,11 +519,11 @@ final class PostItemViewController: UIViewController,
                     self.finalUploadButton.isEnabled = true
 
                     let alert = UIAlertController(
-                        title: "Upload Failed",
+                        title: "Upload Failed".localized,
                         message: error.localizedDescription,
                         preferredStyle: .alert
                     )
-                    alert.addAction(UIAlertAction(title: "OK", style: .default))
+                    alert.addAction(UIAlertAction(title: "OK".localized, style: .default))
                     self.present(alert, animated: true)
                 }
             }
@@ -569,11 +569,11 @@ final class PostItemViewController: UIViewController,
         let remainingSlots = maxImages - selectedImages.count
         guard remainingSlots > 0 else {
             let alert = UIAlertController(
-                title: "Maximum Images",
-                message: "You can only upload up to \(maxImages) images",
+                title: "Maximum Images".localized,
+                message: "You can only upload up to \(maxImages) images".localized,
                 preferredStyle: .alert
             )
-            alert.addAction(UIAlertAction(title: "OK", style: .default))
+            alert.addAction(UIAlertAction(title: "OK".localized, style: .default))
             present(alert, animated: true)
             return
         }
@@ -621,9 +621,9 @@ final class PostItemViewController: UIViewController,
 
     private func updateUploadButtonTitle() {
         if selectedImages.isEmpty {
-            uploadButton.setTitle("Upload Photos", for: .normal)
+            uploadButton.setTitle("Upload Photos".localized, for: .normal)
         } else {
-            uploadButton.setTitle("Add More (\(selectedImages.count)/\(maxImages))", for: .normal)
+            uploadButton.setTitle("Add More (\(selectedImages.count)/\(maxImages))".localized, for: .normal)
         }
     }
 
@@ -770,14 +770,14 @@ private class AddImageCell: UICollectionViewCell {
 extension PostItemViewController: UIPickerViewDelegate, UIPickerViewDataSource {
     func numberOfComponents(in pickerView: UIPickerView) -> Int { 1 }
     func pickerView(_ pickerView: UIPickerView, numberOfRowsInComponent component: Int) -> Int {
-        activePickerField?.placeholder == "Category" ? categories.count : conditions.count
+        activePickerField?.placeholder == "Category".localized ? categories.count : conditions.count
     }
     func pickerView(_ pickerView: UIPickerView, titleForRow row: Int, forComponent component: Int) -> String? {
-        activePickerField?.placeholder == "Category" ? categories[row] : conditions[row]
+        activePickerField?.placeholder == "Category".localized ? categories[row] : conditions[row]
     }
     func pickerView(_ pickerView: UIPickerView, didSelectRow row: Int, inComponent component: Int) {
         activePickerField?.text =
-            activePickerField?.placeholder == "Category" ? categories[row] : conditions[row]
+            activePickerField?.placeholder == "Category".localized ? categories[row] : conditions[row]
     }
 }
 

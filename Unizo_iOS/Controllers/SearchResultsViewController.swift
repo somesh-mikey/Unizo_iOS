@@ -130,7 +130,7 @@ final class SearchResultsViewController: UIViewController {
         ])
 
         searchBar.searchBarStyle = .minimal
-        searchBar.placeholder = "Search"
+        searchBar.placeholder = "Search".localized
         searchBar.delegate = self
         navBar.addSubview(searchBar)
         searchBar.translatesAutoresizingMaskIntoConstraints = false
@@ -225,7 +225,7 @@ final class SearchResultsViewController: UIViewController {
 
     // MARK: - Empty State
     private func setupEmptyState() {
-        emptyStateLabel.text = "No results found"
+        emptyStateLabel.text = "No results found".localized
         emptyStateLabel.font = UIFont.boldSystemFont(ofSize: 20)
         emptyStateLabel.textAlignment = .center
         emptyStateLabel.textColor = .darkGray

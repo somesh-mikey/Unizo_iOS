@@ -33,7 +33,7 @@ class OrderRejectedViewController: UIViewController {
 
         // Update subtitle with real buyer name if available
         if let name = buyerName, !name.isEmpty {
-            subtitleLabel.text = "\(name)'s order has been successfully\nrejected."
+            subtitleLabel.text = String(format: "%@'s order has been successfully\nrejected.".localized, name)
         }
     }
     
@@ -113,7 +113,7 @@ class OrderRejectedViewController: UIViewController {
         // TITLE LABEL
         // ----------------------------------------------------
         let titleLabel = UILabel()
-        titleLabel.text = "Order Rejected!"
+        titleLabel.text = "Order Rejected!".localized
         titleLabel.font = UIFont.systemFont(ofSize: 20, weight: .semibold)
         titleLabel.textAlignment = .center
         titleLabel.translatesAutoresizingMaskIntoConstraints = false
@@ -127,7 +127,7 @@ class OrderRejectedViewController: UIViewController {
         // ----------------------------------------------------
         // SUBTITLE LABEL
         // ----------------------------------------------------
-        subtitleLabel.text = "The order has been successfully\nrejected."
+        subtitleLabel.text = "The order has been successfully\nrejected.".localized
         subtitleLabel.font = UIFont.systemFont(ofSize: 14)
         subtitleLabel.textColor = .gray
         subtitleLabel.numberOfLines = 0
@@ -144,7 +144,7 @@ class OrderRejectedViewController: UIViewController {
         // DISABLED ORDER DETAIL BUTTON
         // ----------------------------------------------------
         let disabledButton = UIButton(type: .system)
-        disabledButton.setTitle("View Order Detail", for: .normal)
+        disabledButton.setTitle("View Order Detail".localized, for: .normal)
         disabledButton.setTitleColor(.white, for: .normal)
         disabledButton.backgroundColor = UIColor(white: 0.9, alpha: 1.0)
         disabledButton.layer.cornerRadius = 25
@@ -170,7 +170,7 @@ class OrderRejectedViewController: UIViewController {
 //        viewListingsButton.layer.cornerRadius = 25
 //        viewListingsButton.translatesAutoresizingMaskIntoConstraints = false
         viewListingsButton.translatesAutoresizingMaskIntoConstraints = false
-        viewListingsButton.setTitle("View Listings", for: .normal)
+        viewListingsButton.setTitle("View Listings".localized, for: .normal)
         viewListingsButton.setTitleColor(primaryTeal, for: .normal)
         viewListingsButton.layer.borderWidth = 2
         viewListingsButton.layer.borderColor = primaryTeal.cgColor

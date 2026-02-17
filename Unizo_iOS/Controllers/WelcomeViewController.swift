@@ -52,18 +52,18 @@ class WelcomeViewController: UIViewController {
            bottomCardView.clipsToBounds = true
 
            // --- LABELS ---
-           getStartedLabel.text = "Get Started Today"
+           getStartedLabel.text = "Get Started Today".localized
            getStartedLabel.textAlignment = .center
            getStartedLabel.font = UIFont.systemFont(ofSize: 20, weight: .bold)
            getStartedLabel.textColor = .black
 
-           accountLabel.text = "Don’t have an account?"
+           accountLabel.text = "Don't have an account?".localized
            accountLabel.textAlignment = .center
            accountLabel.font = UIFont.systemFont(ofSize: 13, weight: .regular)
            accountLabel.textColor = .lightGray
 
            // --- LOGIN BUTTON ---
-           loginButton.setTitle("Login", for: .normal)
+           loginButton.setTitle("Login".localized, for: .normal)
            loginButton.backgroundColor = UIColor(red: 0/255, green: 76/255, blue: 97/255, alpha: 1)
            loginButton.setTitleColor(.white, for: .normal)
            loginButton.titleLabel?.font = UIFont.systemFont(ofSize: 16, weight: .semibold)
@@ -71,12 +71,12 @@ class WelcomeViewController: UIViewController {
 
            // --- SIGN-UP BUTTONS ---
         setupOutlinedButton(emailSignUpButton,
-                            title: "Sign Up with Email",
+                            title: "Sign Up with Email".localized,
                             iconName: "envelope.fill",
                             tintColor: UIColor(red: 0/255, green: 76/255, blue: 97/255, alpha: 1))
 
         setupOutlinedButton(appleSignUpButton,
-                            title: "Sign Up with Google",
+                            title: "Sign Up with Google".localized,
                             iconName: "google_logo",   // ⭐️ Your asset name
                             tintColor: UIColor(red: 0/255, green: 76/255, blue: 97/255, alpha: 1))
 

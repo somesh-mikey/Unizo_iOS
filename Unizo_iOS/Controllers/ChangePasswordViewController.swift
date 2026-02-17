@@ -11,16 +11,16 @@ class ChangePasswordViewController: UIViewController {
 
     // MARK: - UI Elements
 
-    private let titleLabel = UILabel()
-
     private let oldPasswordLabel = UILabel()
     private let oldPasswordField = UITextField()
 
     private let newPasswordLabel = UILabel()
     private let newPasswordField = UITextField()
 
+    private let errorLabel = UILabel()
     private let forgotPasswordButton = UIButton(type: .system)
     private let saveButton = UIButton(type: .system)
+    private let loadingSpinner = UIActivityIndicatorView(style: .medium)
 
     // MARK: - Colors
     private let primaryButtonColor = UIColor(red: 0.12, green: 0.28, blue: 0.35, alpha: 1.0)
@@ -46,7 +46,6 @@ class ChangePasswordViewController: UIViewController {
 
     // MARK: - Keyboard Handling
     private func setupKeyboardHandling() {
-        // Dismiss keyboard on tap
         let tap = UITapGestureRecognizer(target: self, action: #selector(dismissKeyboard))
         tap.cancelsTouchesInView = false
         view.addGestureRecognizer(tap)
@@ -61,7 +60,7 @@ class ChangePasswordViewController: UIViewController {
         view.backgroundColor = screenBackground
 
         // Navigation
-        navigationItem.title = "Change Password"
+        navigationItem.title = "Change Password".localized
         navigationItem.leftBarButtonItem = UIBarButtonItem(
             image: UIImage(systemName: "chevron.left"),
             style: .plain,
@@ -69,36 +68,46 @@ class ChangePasswordViewController: UIViewController {
             action: #selector(backTapped)
         )
 
-        // Title
-        titleLabel.text = "Change Password"
-        titleLabel.font = .systemFont(ofSize: 17, weight: .semibold)
-        titleLabel.textAlignment = .center
-
         // Labels
-        oldPasswordLabel.text = "Enter old password:"
+        oldPasswordLabel.text = "Enter old password:".localized
         oldPasswordLabel.font = .systemFont(ofSize: 15, weight: .medium)
 
-        newPasswordLabel.text = "Enter new password:"
+        newPasswordLabel.text = "Enter new password:".localized
         newPasswordLabel.font = .systemFont(ofSize: 15, weight: .medium)
 
         // TextFields
-        configureTextField(oldPasswordField, placeholder: "Old Password")
-        configureTextField(newPasswordField, placeholder: "New Password")
+        configureTextField(oldPasswordField, placeholder: "Old Password".localized)
+        configureTextField(newPasswordField, placeholder: "New Password".localized)
 
         oldPasswordField.isSecureTextEntry = true
         newPasswordField.isSecureTextEntry = true
+        oldPasswordField.textContentType = .password
+        newPasswordField.textContentType = .newPassword
+
+        // Error label (hidden by default)
+        errorLabel.font = .systemFont(ofSize: 13)
+        errorLabel.textColor = .systemRed
+        errorLabel.textAlignment = .center
+        errorLabel.numberOfLines = 0
+        errorLabel.isHidden = true
 
         // Forgot password
-        forgotPasswordButton.setTitle("Forgot Password?", for: .normal)
+        forgotPasswordButton.setTitle("Forgot Password?".localized, for: .normal)
         forgotPasswordButton.setTitleColor(.systemBlue, for: .normal)
         forgotPasswordButton.titleLabel?.font = .systemFont(ofSize: 14)
+        forgotPasswordButton.addTarget(self, action: #selector(forgotPasswordTapped), for: .touchUpInside)
 
         // Save Button
-        saveButton.setTitle("Save", for: .normal)
+        saveButton.setTitle("Save".localized, for: .normal)
         saveButton.setTitleColor(.white, for: .normal)
         saveButton.titleLabel?.font = .systemFont(ofSize: 17, weight: .semibold)
         saveButton.backgroundColor = primaryButtonColor
         saveButton.layer.cornerRadius = 28
+        saveButton.addTarget(self, action: #selector(saveTapped), for: .touchUpInside)
+
+        // Loading spinner
+        loadingSpinner.hidesWhenStopped = true
+        loadingSpinner.color = .white
 
         // Add subviews
         [
@@ -106,8 +115,10 @@ class ChangePasswordViewController: UIViewController {
             oldPasswordField,
             newPasswordLabel,
             newPasswordField,
+            errorLabel,
             forgotPasswordButton,
-            saveButton
+            saveButton,
+            loadingSpinner
         ].forEach {
             $0.translatesAutoresizingMaskIntoConstraints = false
             view.addSubview($0)
@@ -148,15 +159,24 @@ class ChangePasswordViewController: UIViewController {
             newPasswordField.trailingAnchor.constraint(equalTo: oldPasswordLabel.trailingAnchor),
             newPasswordField.heightAnchor.constraint(equalToConstant: 52),
 
+            // Error label
+            errorLabel.topAnchor.constraint(equalTo: newPasswordField.bottomAnchor, constant: 12),
+            errorLabel.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 16),
+            errorLabel.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -16),
+
             // Forgot password
-            forgotPasswordButton.topAnchor.constraint(equalTo: newPasswordField.bottomAnchor, constant: 16),
+            forgotPasswordButton.topAnchor.constraint(equalTo: errorLabel.bottomAnchor, constant: 8),
             forgotPasswordButton.centerXAnchor.constraint(equalTo: view.centerXAnchor),
 
             // Save button
             saveButton.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 16),
             saveButton.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -16),
             saveButton.bottomAnchor.constraint(equalTo: view.safeAreaLayoutGuide.bottomAnchor, constant: -16),
-            saveButton.heightAnchor.constraint(equalToConstant: 56)
+            saveButton.heightAnchor.constraint(equalToConstant: 56),
+
+            // Loading spinner (centered on save button)
+            loadingSpinner.centerXAnchor.constraint(equalTo: saveButton.centerXAnchor),
+            loadingSpinner.centerYAnchor.constraint(equalTo: saveButton.centerYAnchor)
         ])
     }
 
@@ -164,15 +184,92 @@ class ChangePasswordViewController: UIViewController {
     @objc private func backTapped() {
         navigationController?.popViewController(animated: true)
     }
-}
 
-// MARK: - UITextField Padding Extension
-//private extension UITextField {
-//    func setLeftPadding(_ amount: CGFloat) {
-//        let paddingView = UIView(
-//            frame: CGRect(x: 0, y: 0, width: amount, height: frame.height)
-//        )
-//        leftView = paddingView
-//        leftViewMode = .always
-//    }
-//}
+    @objc private func saveTapped() {
+        dismissKeyboard()
+        errorLabel.isHidden = true
+
+        let oldPassword = oldPasswordField.text?.trimmingCharacters(in: .whitespaces) ?? ""
+        let newPassword = newPasswordField.text?.trimmingCharacters(in: .whitespaces) ?? ""
+
+        // Validation
+        guard !oldPassword.isEmpty else {
+            showError("Please enter your old password.")
+            return
+        }
+        guard !newPassword.isEmpty else {
+            showError("Please enter a new password.")
+            return
+        }
+        guard newPassword.count >= 6 else {
+            showError("New password must be at least 6 characters.")
+            return
+        }
+        guard oldPassword != newPassword else {
+            showError("New password must be different from old password.")
+            return
+        }
+
+        setLoading(true)
+
+        Task {
+            do {
+                try await AuthManager.shared.changePassword(
+                    oldPassword: oldPassword,
+                    newPassword: newPassword
+                )
+
+                await MainActor.run {
+                    self.setLoading(false)
+                    self.showSuccessAndPop()
+                }
+            } catch {
+                await MainActor.run {
+                    self.setLoading(false)
+                    self.showError(error.localizedDescription)
+                }
+            }
+        }
+    }
+
+    @objc private func forgotPasswordTapped() {
+        let resetVC = ResetPasswordViewController()
+        resetVC.modalPresentationStyle = .overFullScreen
+        resetVC.modalTransitionStyle = .coverVertical
+        present(resetVC, animated: true)
+    }
+
+    // MARK: - Helpers
+    private func showError(_ message: String) {
+        errorLabel.text = message
+        errorLabel.isHidden = false
+    }
+
+    private func setLoading(_ loading: Bool) {
+        if loading {
+            saveButton.setTitle("", for: .normal)
+            loadingSpinner.startAnimating()
+            saveButton.isEnabled = false
+            oldPasswordField.isEnabled = false
+            newPasswordField.isEnabled = false
+        } else {
+            saveButton.setTitle("Save".localized, for: .normal)
+            loadingSpinner.stopAnimating()
+            saveButton.isEnabled = true
+            oldPasswordField.isEnabled = true
+            newPasswordField.isEnabled = true
+        }
+    }
+
+    private func showSuccessAndPop() {
+        let alert = UIAlertController(
+            title: "Password Changed",
+            message: "Your password has been updated successfully.",
+            preferredStyle: .alert
+        )
+        alert.addAction(UIAlertAction(title: "OK", style: .default) { [weak self] _ in
+            self?.navigationController?.popViewController(animated: true)
+        })
+        present(alert, animated: true)
+    }
+}

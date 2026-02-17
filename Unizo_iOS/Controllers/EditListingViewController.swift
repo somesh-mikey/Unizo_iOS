@@ -25,7 +25,7 @@ final class EditListingViewController: UIViewController,
     // MARK: - Header
     private let titleLabel: UILabel = {
         let l = UILabel()
-        l.text = "Edit Listing"
+        l.text = "Edit Listing".localized
         l.font = .systemFont(ofSize: 28, weight: .bold)
         l.textAlignment = .center
         return l
@@ -58,24 +58,24 @@ final class EditListingViewController: UIViewController,
     private let productCard = UIView()
 
     private let fieldTitles = [
-        "Product Name",
-        "Price (in Rupees)",
-        "Colour",
-        "Category",
-        "Size",
-        "Condition",
-        "Description"
+        "Product Name".localized,
+        "Price (in Rupees)".localized,
+        "Colour".localized,
+        "Category".localized,
+        "Size".localized,
+        "Condition".localized,
+        "Description".localized
     ]
     private var fields: [UITextField] = []
 
     // MARK: - Picker Data
     private let categories = [
-        "Electronics", "Clothing", "Books",
-        "Furniture", "Sports", "Hostel Essentials"
+        "Electronics".localized, "Clothing".localized, "Books".localized,
+        "Furniture".localized, "Sports".localized, "Hostel Essentials".localized
     ]
 
     private let conditions = [
-        "New", "Like New", "Good", "Fair", "Used"
+        "New".localized, "Like New".localized, "Good".localized, "Fair".localized, "Used".localized
     ]
 
     private let pickerView = UIPickerView()
@@ -236,12 +236,12 @@ final class EditListingViewController: UIViewController,
         uploadImageView.contentMode = .scaleAspectFit
         uploadImageView.clipsToBounds = true
 
-        sizeLabel.text = "Size: 2 MB"
+        sizeLabel.text = "Size: 2 MB".localized
         sizeLabel.font = .systemFont(ofSize: 12)
         sizeLabel.textAlignment = .center
         sizeLabel.textColor = .gray
 
-        uploadButton.setTitle("Upload Photo", for: .normal)
+        uploadButton.setTitle("Upload Photo".localized, for: .normal)
         uploadButton.backgroundColor = UIColor(red: 0.07, green: 0.33, blue: 0.42, alpha: 1)
         uploadButton.setTitleColor(.white, for: .normal)
         uploadButton.layer.cornerRadius = 22
@@ -280,7 +280,7 @@ final class EditListingViewController: UIViewController,
 
     // MARK: - Product Details
     private func setupProductDetails() {
-        productDetailsLabel.text = "Product Details"
+        productDetailsLabel.text = "Product Details".localized
         productDetailsLabel.font = .systemFont(ofSize: 16, weight: .semibold)
         productDetailsLabel.translatesAutoresizingMaskIntoConstraints = false
 
@@ -359,7 +359,7 @@ final class EditListingViewController: UIViewController,
         left.axis = .horizontal
         left.spacing = 8
         setupRadio(negButton)
-        negLabel.text = "Negotiable"
+        negLabel.text = "Negotiable".localized
         negLabel.font = .systemFont(ofSize: 14)
         left.addArrangedSubview(negButton)
         left.addArrangedSubview(negLabel)
@@ -368,7 +368,7 @@ final class EditListingViewController: UIViewController,
         right.axis = .horizontal
         right.spacing = 8
         setupRadio(nonNegButton)
-        nonNegLabel.text = "Non - Negotiable"
+        nonNegLabel.text = "Non - Negotiable".localized
         nonNegLabel.font = .systemFont(ofSize: 14)
         right.addArrangedSubview(nonNegButton)
         right.addArrangedSubview(nonNegLabel)
@@ -409,7 +409,7 @@ final class EditListingViewController: UIViewController,
 
     // MARK: - Save Button
     private func setupSaveButton() {
-        saveButton.setTitle("Save", for: .normal)
+        saveButton.setTitle("Save".localized, for: .normal)
         saveButton.backgroundColor = UIColor(red: 0.07, green: 0.33, blue: 0.42, alpha: 1)
         saveButton.setTitleColor(.white, for: .normal)
         saveButton.layer.cornerRadius = 22
@@ -531,11 +531,11 @@ final class EditListingViewController: UIViewController,
                     saveButton.alpha = 1.0
 
                     let alert = UIAlertController(
-                        title: "Success",
-                        message: "Product updated successfully!",
+                        title: "Success".localized,
+                        message: "Product updated successfully!".localized,
                         preferredStyle: .alert
                     )
-                    alert.addAction(UIAlertAction(title: "OK", style: .default) { _ in
+                    alert.addAction(UIAlertAction(title: "OK".localized, style: .default) { _ in
                         self.navigationController?.popViewController(animated: true)
                     })
                     present(alert, animated: true)
@@ -549,11 +549,11 @@ final class EditListingViewController: UIViewController,
                     saveButton.alpha = 1.0
 
                     let alert = UIAlertController(
-                        title: "Error",
-                        message: "Failed to update product: \(error.localizedDescription)",
+                        title: "Error".localized,
+                        message: "\("Failed to update product:".localized) \(error.localizedDescription)",
                         preferredStyle: .alert
                     )
-                    alert.addAction(UIAlertAction(title: "OK", style: .default))
+                    alert.addAction(UIAlertAction(title: "OK".localized, style: .default))
                     present(alert, animated: true)
                 }
             }

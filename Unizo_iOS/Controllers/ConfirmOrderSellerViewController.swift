@@ -50,7 +50,7 @@ class ConfirmOrderSellerViewController: UIViewController {
 
     private let titleLabel: UILabel = {
         let lbl = UILabel()
-        lbl.text = "Confirm Order"
+        lbl.text = "Confirm Order".localized
         lbl.font = UIFont.systemFont(ofSize: 20, weight: .semibold)
         lbl.textAlignment = .center
         return lbl
@@ -97,7 +97,7 @@ class ConfirmOrderSellerViewController: UIViewController {
 
     private let categoryLabel: UILabel = {
         let lbl = UILabel()
-        lbl.text = "Loading..."
+        lbl.text = "Loading...".localized
         lbl.font = .systemFont(ofSize: 15)
         lbl.textColor = .systemGray
         lbl.translatesAutoresizingMaskIntoConstraints = false
@@ -107,7 +107,7 @@ class ConfirmOrderSellerViewController: UIViewController {
     // Product title and price
     private let titleText: UILabel = {
         let lbl = UILabel()
-        lbl.text = "Loading..."
+        lbl.text = "Loading...".localized
         lbl.font = UIFont.systemFont(ofSize: 22, weight: .bold)
         lbl.translatesAutoresizingMaskIntoConstraints = false
         return lbl
@@ -142,9 +142,9 @@ class ConfirmOrderSellerViewController: UIViewController {
         return lbl
     }
 
-    private lazy var colourTitleLabel = makeTitleLabel("Colour")
-    private lazy var sizeTitleLabel = makeTitleLabel("Size")
-    private lazy var conditionTitleLabel = makeTitleLabel("Condition")
+    private lazy var colourTitleLabel = makeTitleLabel("Colour".localized)
+    private lazy var sizeTitleLabel = makeTitleLabel("Size".localized)
+    private lazy var conditionTitleLabel = makeTitleLabel("Condition".localized)
 
     private lazy var colourValueLabel = makeValueLabel("—")
     private lazy var sizeValueLabel = makeValueLabel("—")
@@ -163,7 +163,7 @@ class ConfirmOrderSellerViewController: UIViewController {
 
     private let buyerTitleLabel: UILabel = {
         let lbl = UILabel()
-        lbl.text = "Buyer"
+        lbl.text = "Buyer".localized
         lbl.font = UIFont.systemFont(ofSize: 15, weight: .semibold)
         lbl.translatesAutoresizingMaskIntoConstraints = false
         return lbl
@@ -171,7 +171,7 @@ class ConfirmOrderSellerViewController: UIViewController {
 
     private let buyerNameLabel: UILabel = {
         let lbl = UILabel()
-        lbl.text = "Loading..."
+        lbl.text = "Loading...".localized
         lbl.font = UIFont.systemFont(ofSize: 18, weight: .semibold)
         lbl.translatesAutoresizingMaskIntoConstraints = false
         return lbl
@@ -179,7 +179,7 @@ class ConfirmOrderSellerViewController: UIViewController {
 
     private let buyerAddressLabel: UILabel = {
         let lbl = UILabel()
-        lbl.text = "Loading address..."
+        lbl.text = "Loading address...".localized
         lbl.font = UIFont.systemFont(ofSize: 14)
         lbl.textColor = .systemGray
         lbl.numberOfLines = 0
@@ -189,7 +189,7 @@ class ConfirmOrderSellerViewController: UIViewController {
 
     private let qtyTitleLabel: UILabel = {
         let lbl = UILabel()
-        lbl.text = "Qty"
+        lbl.text = "Qty".localized
         lbl.font = UIFont.systemFont(ofSize: 15, weight: .semibold)
         lbl.textAlignment = .center
         lbl.translatesAutoresizingMaskIntoConstraints = false
@@ -209,7 +209,7 @@ class ConfirmOrderSellerViewController: UIViewController {
     // MARK: - Message Field
     private let messageField: UITextField = {
         let tf = UITextField()
-        tf.placeholder = "Send a message"
+        tf.placeholder = "Send a message".localized
         tf.backgroundColor = .white
         tf.layer.cornerRadius = 25
         tf.layer.borderWidth = 1
@@ -223,7 +223,7 @@ class ConfirmOrderSellerViewController: UIViewController {
     // MARK: - Bottom Buttons (now in contentView)
     private let rejectButton: UIButton = {
         let btn = UIButton(type: .system)
-        btn.setTitle("Decline", for: .normal)
+        btn.setTitle("Decline".localized, for: .normal)
         btn.backgroundColor = UIColor(red: 0.95, green: 0.45, blue: 0.45, alpha: 1.0) // Softer red
         btn.setTitleColor(.white, for: .normal)
         btn.titleLabel?.font = .systemFont(ofSize: 18, weight: .semibold)
@@ -234,7 +234,7 @@ class ConfirmOrderSellerViewController: UIViewController {
 
     private let acceptButton: UIButton = {
         let btn = UIButton(type: .system)
-        btn.setTitle("Accept", for: .normal)
+        btn.setTitle("Accept".localized, for: .normal)
         btn.backgroundColor = UIColor(red: 0.02, green: 0.27, blue: 0.37, alpha: 1.0) // #04445F
         btn.setTitleColor(.white, for: .normal)
         btn.titleLabel?.font = .systemFont(ofSize: 18, weight: .semibold)
@@ -248,7 +248,7 @@ class ConfirmOrderSellerViewController: UIViewController {
         super.viewDidLoad()
         setupUI()
         setupLoadingIndicator()
-        self.title = "Confirm Order"
+        self.title = "Confirm Order".localized
         navigationItem.backButtonTitle = ""
 //        navigationItem.rightBarButtonItem = UIBarButtonItem(
 //            image: UIImage(systemName: "heart"),
@@ -292,7 +292,7 @@ class ConfirmOrderSellerViewController: UIViewController {
                     await MainActor.run {
                         self.isLoading = false
                         self.loadingIndicator.stopAnimating()
-                        self.showErrorAlert(message: "Not authenticated")
+                        self.showErrorAlert(message: "Not authenticated".localized)
                     }
                     return
                 }
@@ -312,7 +312,7 @@ class ConfirmOrderSellerViewController: UIViewController {
                 await MainActor.run {
                     self.isLoading = false
                     self.loadingIndicator.stopAnimating()
-                    self.showErrorAlert(message: "Failed to load order details")
+                    self.showErrorAlert(message: "Failed to load order details".localized)
                 }
             }
         }
@@ -332,7 +332,7 @@ class ConfirmOrderSellerViewController: UIViewController {
         if let firstItem = sellerItems.first, let product = firstItem.product {
             titleText.text = product.title
             priceLabel.text = "₹\(Int(firstItem.price_at_purchase))"
-            categoryLabel.text = product.category ?? "General"
+            categoryLabel.text = product.category ?? "General".localized
             colourValueLabel.text = firstItem.colour ?? "-"
             sizeValueLabel.text = firstItem.size ?? "-"
             conditionValueLabel.text = product.condition ?? "-"
@@ -344,11 +344,11 @@ class ConfirmOrderSellerViewController: UIViewController {
 
             // Show quantity
             if sellerItems.count == 1 {
-                qtyTitleLabel.text = "Qty"
+                qtyTitleLabel.text = "Qty".localized
                 qtyValueLabel.text = "\(firstItem.quantity)"
             } else {
                 let totalQty = sellerItems.reduce(0) { $0 + $1.quantity }
-                qtyTitleLabel.text = "Items"
+                qtyTitleLabel.text = "Items".localized
                 qtyValueLabel.text = "\(totalQty)"
             }
         }
@@ -356,8 +356,8 @@ class ConfirmOrderSellerViewController: UIViewController {
 
     // MARK: - Show Error Alert
     private func showErrorAlert(message: String) {
-        let alert = UIAlertController(title: "Error", message: message, preferredStyle: .alert)
-        alert.addAction(UIAlertAction(title: "OK", style: .default))
+        let alert = UIAlertController(title: "Error".localized, message: message, preferredStyle: .alert)
+        alert.addAction(UIAlertAction(title: "OK".localized, style: .default))
         present(alert, animated: true)
     }
 
@@ -372,10 +372,10 @@ class ConfirmOrderSellerViewController: UIViewController {
                 return fullName
             }
             if let email = seller.email, !email.isEmpty {
-                return email.components(separatedBy: "@").first ?? "Seller"
+                return email.components(separatedBy: "@").first ?? "Seller".localized
             }
         }
-        return "Seller"
+        return "Seller".localized
     }
     override func viewWillAppear(_ animated: Bool) {
         super.viewWillAppear(animated)
@@ -665,7 +665,7 @@ private extension ConfirmOrderSellerViewController {
                     let sellerName = await getSellerDisplayName()
 
                     // Get product name for message
-                    let productName = sellerItems.first?.product?.title ?? "your item"
+                    let productName = sellerItems.first?.product?.title ?? "your item".localized
 
                     // Create notification for buyer
                     let deeplinkPayload = DeeplinkPayload(
@@ -680,7 +680,7 @@ private extension ConfirmOrderSellerViewController {
                         orderId: orderId,
                         type: .orderAccepted,
                         title: sellerName,
-                        message: "accepted your order for \(productName).",
+                        message: "accepted your order for".localized + " \(productName).",
                         deeplinkPayload: deeplinkPayload
                     )
                 }
@@ -703,7 +703,7 @@ private extension ConfirmOrderSellerViewController {
                     self.loadingIndicator.stopAnimating()
                     self.acceptButton.isEnabled = true
                     self.rejectButton.isEnabled = true
-                    self.showErrorAlert(message: "Failed to accept order")
+                    self.showErrorAlert(message: "Failed to accept order".localized)
                 }
             }
         }
@@ -740,7 +740,7 @@ private extension ConfirmOrderSellerViewController {
                     let sellerName = await getSellerDisplayName()
 
                     // Get product name for message
-                    let productName = sellerItems.first?.product?.title ?? "your item"
+                    let productName = sellerItems.first?.product?.title ?? "your item".localized
 
                     // Create notification for buyer
                     let deeplinkPayload = DeeplinkPayload(
@@ -755,7 +755,7 @@ private extension ConfirmOrderSellerViewController {
                         orderId: orderId,
                         type: .orderRejected,
                         title: sellerName,
-                        message: "rejected your order for \(productName).",
+                        message: "rejected your order for".localized + " \(productName).",
                         deeplinkPayload: deeplinkPayload
                     )
                 }
@@ -777,7 +777,7 @@ private extension ConfirmOrderSellerViewController {
                     self.loadingIndicator.stopAnimating()
                     self.acceptButton.isEnabled = true
                     self.rejectButton.isEnabled = true
-                    self.showErrorAlert(message: "Failed to reject order")
+                    self.showErrorAlert(message: "Failed to reject order".localized)
                 }
             }
         }

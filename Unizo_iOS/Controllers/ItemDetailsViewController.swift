@@ -77,7 +77,7 @@ class ItemDetailsViewController: UIViewController {
 
     private let descriptionHeaderLabel: UILabel = {
         let l = UILabel()
-        l.text = "Description"
+        l.text = "Description".localized
         l.font = UIFont.preferredFont(forTextStyle: .headline)
         l.adjustsFontForContentSizeCategory = true
         l.textColor = .secondaryLabel
@@ -95,7 +95,7 @@ class ItemDetailsViewController: UIViewController {
 
     private let featuresHeaderLabel: UILabel = {
         let l = UILabel()
-        l.text = "Features"
+        l.text = "Features".localized
         l.font = UIFont.preferredFont(forTextStyle: .headline)
         l.adjustsFontForContentSizeCategory = true
         l.textColor = .secondaryLabel
@@ -112,13 +112,13 @@ class ItemDetailsViewController: UIViewController {
     }()
 
     // Colour / Size / Condition rows
-    private let colourTitleLabel = ItemDetailsViewController.makeSmallGrayTitle("Colour")
+    private let colourTitleLabel = ItemDetailsViewController.makeSmallGrayTitle("Colour".localized)
     private let colourValueLabel = ItemDetailsViewController.makeValueLabel("White")
 
-    private let sizeTitleLabel = ItemDetailsViewController.makeSmallGrayTitle("Size")
+    private let sizeTitleLabel = ItemDetailsViewController.makeSmallGrayTitle("Size".localized)
     private let sizeValueLabel = ItemDetailsViewController.makeValueLabel("Large")
 
-    private let conditionTitleLabel = ItemDetailsViewController.makeSmallGrayTitle("Condition")
+    private let conditionTitleLabel = ItemDetailsViewController.makeSmallGrayTitle("Condition".localized)
     private let conditionValueLabel = ItemDetailsViewController.makeValueLabel("New")
 
     // Seller card
@@ -137,7 +137,7 @@ class ItemDetailsViewController: UIViewController {
 
     private let sellerTitleLabel: UILabel = {
         let l = UILabel()
-        l.text = "Seller"
+        l.text = "Seller".localized
         l.font = UIFont.preferredFont(forTextStyle: .headline)
         l.adjustsFontForContentSizeCategory = true
         l.textColor = .label
@@ -197,8 +197,8 @@ class ItemDetailsViewController: UIViewController {
         setupProgrammaticUI()   // add programmatic labels & layout
         populateData()
         // Update button titles
-        addToCartButton.setTitle("Chat", for: .normal)
-        buyNowButton.setTitle("Deal", for: .normal)
+        addToCartButton.setTitle("Chat".localized, for: .normal)
+        buyNowButton.setTitle("Deal".localized, for: .normal)
 
         addToCartButton.addTarget(self, action: #selector(chatWithSellerTapped), for: .touchUpInside)
         buyNowButton.addTarget(self, action: #selector(dealTapped), for: .touchUpInside)
@@ -241,18 +241,18 @@ class ItemDetailsViewController: UIViewController {
         if !product.isAvailable {
             // Product is sold or out of stock - disable Deal button but keep Chat enabled
             buyNowButton.isEnabled = false
-            buyNowButton.setTitle("Sold", for: .normal)
+            buyNowButton.setTitle("Sold".localized, for: .normal)
             buyNowButton.backgroundColor = .systemGray3
         }
     }
 
     private func showUnavailableAlert() {
         let alert = UIAlertController(
-            title: "Item Unavailable",
-            message: "Sorry, this item is no longer available for purchase.",
+            title: "Item Unavailable".localized,
+            message: "Sorry, this item is no longer available for purchase.".localized,
             preferredStyle: .alert
         )
-        alert.addAction(UIAlertAction(title: "OK", style: .default))
+        alert.addAction(UIAlertAction(title: "OK".localized, style: .default))
         present(alert, animated: true)
 
         // Update button states
@@ -291,11 +291,11 @@ class ItemDetailsViewController: UIViewController {
         // Hide the old IBOutlet image view (we're using the carousel now)
         productImageView.isHidden = true
 
-        categoryLabel.text = p.category ?? "General"
+        categoryLabel.text = p.category ?? "General".localized
 
         // Description
         descriptionBodyLabel.text =
-            ((p.description?.isEmpty == false) ? p.description : "No description available.")
+            ((p.description?.isEmpty == false) ? p.description : "No description available.".localized)
 
         // Attributes
         colourValueLabel.text = p.colour ?? "—"
@@ -553,7 +553,7 @@ class ItemDetailsViewController: UIViewController {
 
     // MARK: - Navigation bar setup
     private func setupNavigationBar() {
-        title = "Item Details"
+        title = "Item Details".localized
         navigationController?.navigationBar.prefersLargeTitles = false
 
         let heartButton = UIBarButtonItem(
@@ -575,8 +575,8 @@ class ItemDetailsViewController: UIViewController {
         moreButton.tintColor = .label
 
         // Accessibility for more button
-        moreButton.accessibilityLabel = "More options"
-        moreButton.accessibilityHint = "Double tap to report or block this listing"
+        moreButton.accessibilityLabel = "More options".localized
+        moreButton.accessibilityHint = "Double tap to report or block this listing".localized
 
         navigationItem.rightBarButtonItems = [moreButton, heartButton]
     }
@@ -591,7 +591,7 @@ class ItemDetailsViewController: UIViewController {
 
         // Report Listing action
         actionSheet.addAction(UIAlertAction(
-            title: "Report Listing",
+            title: "Report Listing".localized,
             style: .destructive,
             handler: { [weak self] _ in
                 self?.showReportOptions()
@@ -600,7 +600,7 @@ class ItemDetailsViewController: UIViewController {
 
         // Block Seller action
         actionSheet.addAction(UIAlertAction(
-            title: "Block Seller",
+            title: "Block Seller".localized,
             style: .destructive,
             handler: { [weak self] _ in
                 self?.blockSeller()
@@ -609,7 +609,7 @@ class ItemDetailsViewController: UIViewController {
 
         // Cancel
         actionSheet.addAction(UIAlertAction(
-            title: "Cancel",
+            title: "Cancel".localized,
             style: .cancel
         ))
 
@@ -623,18 +623,18 @@ class ItemDetailsViewController: UIViewController {
 
     private func showReportOptions() {
         let reportSheet = UIAlertController(
-            title: "Report Listing",
-            message: "Why are you reporting this listing?",
+            title: "Report Listing".localized,
+            message: "Why are you reporting this listing?".localized,
             preferredStyle: .actionSheet
         )
 
         let reportReasons = [
-            "Inappropriate content",
-            "Misleading or scam",
-            "Prohibited item",
-            "Incorrect category",
-            "Spam",
-            "Other"
+            "Inappropriate content".localized,
+            "Misleading or scam".localized,
+            "Prohibited item".localized,
+            "Incorrect category".localized,
+            "Spam".localized,
+            "Other".localized
         ]
 
         for reason in reportReasons {
@@ -647,7 +647,7 @@ class ItemDetailsViewController: UIViewController {
             ))
         }
 
-        reportSheet.addAction(UIAlertAction(title: "Cancel", style: .cancel))
+        reportSheet.addAction(UIAlertAction(title: "Cancel".localized, style: .cancel))
 
         // For iPad
         if let popover = reportSheet.popoverPresentationController {
@@ -665,7 +665,7 @@ class ItemDetailsViewController: UIViewController {
         Task {
             do {
                 guard let userId = await AuthManager.shared.currentUserId else {
-                    showAlert(title: "Error", message: "Please log in to report listings")
+                    showAlert(title: "Error".localized, message: "Please log in to report listings".localized)
                     return
                 }
 
@@ -684,16 +684,16 @@ class ItemDetailsViewController: UIViewController {
 
                 await MainActor.run {
                     self.showAlert(
-                        title: "Report Submitted",
-                        message: "Thank you for helping keep Unizo safe. Our team will review this listing."
+                        title: "Report Submitted".localized,
+                        message: "Thank you for helping keep Unizo safe. Our team will review this listing.".localized
                     )
                 }
             } catch {
                 print("❌ Failed to submit report: \(error)")
                 await MainActor.run {
                     self.showAlert(
-                        title: "Report Submitted",
-                        message: "Thank you for helping keep Unizo safe. Our team will review this listing."
+                        title: "Report Submitted".localized,
+                        message: "Thank you for helping keep Unizo safe. Our team will review this listing.".localized
                     )
                 }
             }
@@ -703,18 +703,18 @@ class ItemDetailsViewController: UIViewController {
     private func blockSeller() {
         guard let product = product,
               let sellerId = product.sellerId else {
-            showAlert(title: "Error", message: "Unable to block this seller")
+            showAlert(title: "Error".localized, message: "Unable to block this seller".localized)
             return
         }
 
         let confirmAlert = UIAlertController(
-            title: "Block Seller",
-            message: "You won't see listings from \(product.sellerName) anymore. This action can be undone in Settings.",
+            title: "Block Seller".localized,
+            message: String(format: "You won't see listings from %@ anymore. This action can be undone in Settings.".localized, product.sellerName),
             preferredStyle: .alert
         )
 
-        confirmAlert.addAction(UIAlertAction(title: "Cancel", style: .cancel))
-        confirmAlert.addAction(UIAlertAction(title: "Block", style: .destructive) { [weak self] _ in
+        confirmAlert.addAction(UIAlertAction(title: "Cancel".localized, style: .cancel))
+        confirmAlert.addAction(UIAlertAction(title: "Block".localized, style: .destructive) { [weak self] _ in
             self?.performBlockSeller(sellerId: sellerId, sellerName: product.sellerName)
         })
 
@@ -725,7 +725,7 @@ class ItemDetailsViewController: UIViewController {
         Task {
             do {
                 guard let userId = await AuthManager.shared.currentUserId else {
-                    showAlert(title: "Error", message: "Please log in to block sellers")
+                    showAlert(title: "Error".localized, message: "Please log in to block sellers".localized)
                     return
                 }
 
@@ -741,8 +741,8 @@ class ItemDetailsViewController: UIViewController {
 
                 await MainActor.run {
                     self.showAlert(
-                        title: "Seller Blocked",
-                        message: "You won't see listings from \(sellerName) anymore."
+                        title: "Seller Blocked".localized,
+                        message: String(format: "You won't see listings from %@ anymore.".localized, sellerName)
                     ) { [weak self] in
                         // Go back after blocking
                         self?.navigationController?.popViewController(animated: true)
@@ -754,8 +754,8 @@ class ItemDetailsViewController: UIViewController {
                     // Still show success for MVP (local blocking)
                     BlockedUsersStore.add(sellerId.uuidString)
                     self.showAlert(
-                        title: "Seller Blocked",
-                        message: "You won't see listings from \(sellerName) anymore."
+                        title: "Seller Blocked".localized,
+                        message: String(format: "You won't see listings from %@ anymore.".localized, sellerName)
                     ) { [weak self] in
                         self?.navigationController?.popViewController(animated: true)
                     }
@@ -766,7 +766,7 @@ class ItemDetailsViewController: UIViewController {
 
     private func showAlert(title: String, message: String, completion: (() -> Void)? = nil) {
         let alert = UIAlertController(title: title, message: message, preferredStyle: .alert)
-        alert.addAction(UIAlertAction(title: "OK", style: .default) { _ in
+        alert.addAction(UIAlertAction(title: "OK".localized, style: .default) { _ in
             completion?()
         })
         present(alert, animated: true)
@@ -809,7 +809,7 @@ class ItemDetailsViewController: UIViewController {
         HapticFeedback.selection()
 
         // Show loading indicator
-        let loadingAlert = UIAlertController(title: nil, message: "Opening chat...", preferredStyle: .alert)
+        let loadingAlert = UIAlertController(title: nil, message: "Opening chat...".localized, preferredStyle: .alert)
         let loadingIndicator = UIActivityIndicatorView(style: .medium)
         loadingIndicator.translatesAutoresizingMaskIntoConstraints = false
         loadingIndicator.startAnimating()
@@ -846,11 +846,11 @@ class ItemDetailsViewController: UIViewController {
                 await MainActor.run {
                     loadingAlert.dismiss(animated: true) { [weak self] in
                         let alert = UIAlertController(
-                            title: "Cannot Chat",
-                            message: "You cannot chat with yourself about your own listing.",
+                            title: "Cannot Chat".localized,
+                            message: "You cannot chat with yourself about your own listing.".localized,
                             preferredStyle: .alert
                         )
-                        alert.addAction(UIAlertAction(title: "OK", style: .default))
+                        alert.addAction(UIAlertAction(title: "OK".localized, style: .default))
                         self?.present(alert, animated: true)
                     }
                 }
@@ -860,11 +860,11 @@ class ItemDetailsViewController: UIViewController {
                 await MainActor.run {
                     loadingAlert.dismiss(animated: true) { [weak self] in
                         let alert = UIAlertController(
-                            title: "Error",
-                            message: "Could not open chat. Please try again.",
+                            title: "Error".localized,
+                            message: "Could not open chat. Please try again.".localized,
                             preferredStyle: .alert
                         )
-                        alert.addAction(UIAlertAction(title: "OK", style: .default))
+                        alert.addAction(UIAlertAction(title: "OK".localized, style: .default))
                         self?.present(alert, animated: true)
                     }
                     HapticFeedback.error()

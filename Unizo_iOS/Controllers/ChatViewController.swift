@@ -141,7 +141,7 @@ private final class ChatCell: UITableViewCell {
         productNameLabel.text = conversation.productTitle
 
         // Last message
-        lastMessageLabel.text = conversation.lastMessage.isEmpty ? "Start a conversation" : conversation.lastMessage
+        lastMessageLabel.text = conversation.lastMessage.isEmpty ? "Start a conversation".localized : conversation.lastMessage
         timeLabel.text = conversation.formattedTime
 
         // Unread badge
@@ -200,7 +200,7 @@ final class ChatViewController: UIViewController {
     // MARK: - UI
     private let titleLabel: UILabel = {
         let l = UILabel()
-        l.text = "Chat"
+        l.text = "Chat".localized
         l.font = .systemFont(ofSize: 35, weight: .bold)
         return l
     }()
@@ -209,7 +209,7 @@ final class ChatViewController: UIViewController {
     private let searchField = UITextField()
 
     private let segmentedControl: UISegmentedControl = {
-        let sc = UISegmentedControl(items: ["All", "Selling", "Buying"])
+        let sc = UISegmentedControl(items: ["All".localized, "Selling".localized, "Buying".localized])
         sc.applyPrimarySegmentStyle()
         return sc
     }()
@@ -236,7 +236,7 @@ final class ChatViewController: UIViewController {
 
     private let emptyStateLabel: UILabel = {
         let l = UILabel()
-        l.text = "No conversations yet"
+        l.text = "No conversations yet".localized
         l.font = .systemFont(ofSize: 17, weight: .medium)
         l.textColor = .secondaryLabel
         l.textAlignment = .center
@@ -246,7 +246,7 @@ final class ChatViewController: UIViewController {
 
     private let emptyStateSubtitle: UILabel = {
         let l = UILabel()
-        l.text = "Start chatting with sellers\nby tapping Chat on a product"
+        l.text = "Start chatting with sellers\nby tapping Chat on a product".localized
         l.font = .systemFont(ofSize: 14)
         l.textColor = .tertiaryLabel
         l.textAlignment = .center
@@ -298,7 +298,7 @@ final class ChatViewController: UIViewController {
         searchContainer.backgroundColor = .white
         searchContainer.layer.cornerRadius = 20
 
-        searchField.placeholder = "Search"
+        searchField.placeholder = "Search".localized
         searchField.translatesAutoresizingMaskIntoConstraints = false
         searchContainer.addSubview(searchField)
 

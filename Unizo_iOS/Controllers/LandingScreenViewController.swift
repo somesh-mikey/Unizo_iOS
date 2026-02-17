@@ -36,7 +36,7 @@ class LandingScreenViewController: UIViewController {
     }()
     private let searchBar: UISearchBar = {
         let sb = UISearchBar()
-        sb.placeholder = "Search"
+        sb.placeholder = "Search".localized
         sb.searchBarStyle = .minimal
         return sb
     }()
@@ -48,7 +48,7 @@ class LandingScreenViewController: UIViewController {
 
     private let carouselScrollView = UIScrollView()
     private let pageControl = UIPageControl()
-    private let segmentedControl = UISegmentedControl(items: ["All", "Most Popular", "Negotiable"])
+    private let segmentedControl = UISegmentedControl(items: ["All".localized, "Most Popular".localized, "Negotiable".localized])
 
     // MARK: Data
     private var banners: [BannerUIModel] = []
@@ -344,7 +344,7 @@ class LandingScreenViewController: UIViewController {
         ])
 
         // --- Home title ---
-        homeLabel.text = "Home"
+        homeLabel.text = "Home".localized
         homeLabel.textColor = .white
         homeLabel.font = UIFont.systemFont(ofSize: 35, weight: .bold)
         homeLabel.isUserInteractionEnabled = false
@@ -363,7 +363,7 @@ class LandingScreenViewController: UIViewController {
         navBarView.addSubview(searchBar)
         searchBar.translatesAutoresizingMaskIntoConstraints = false
         searchBar.searchBarStyle = .minimal
-        searchBar.placeholder = "Search"
+        searchBar.placeholder = "Search".localized
         NSLayoutConstraint.activate([
             searchBar.topAnchor.constraint(equalTo: menuButton.bottomAnchor, constant: Spacing.md),
             searchBar.leadingAnchor.constraint(equalTo: navBarView.leadingAnchor, constant: 20),
@@ -436,7 +436,7 @@ class LandingScreenViewController: UIViewController {
         ])
 
         // --- Trending Label ---
-        trendingLabel.text = "Trending Categories"
+        trendingLabel.text = "Trending Categories".localized
         trendingLabel.font = UIFont.boldSystemFont(ofSize: 17)
         trendingLabel.textColor = .black
         trendingCategoriesbg.addSubview(trendingLabel)
@@ -465,11 +465,11 @@ class LandingScreenViewController: UIViewController {
 
         // --- Categories ---
         let categories = [
-            ("cart", "Hostel Essentials"),
-            ("tablecells", "Furniture"),
-            ("tshirt", "Fashion"),
-            ("sportscourt", "Sports"),
-            ("headphones", "Gadgets")
+            ("cart", "Hostel Essentials".localized),
+            ("tablecells", "Furniture".localized),
+            ("tshirt", "Fashion".localized),
+            ("sportscourt", "Sports".localized),
+            ("headphones", "Gadgets".localized)
         ]
 
         for i in 0..<categories.count {
@@ -822,7 +822,7 @@ class LandingScreenViewController: UIViewController {
         let alert = UIAlertController(title: nil, message: nil, preferredStyle: .actionSheet)
 
         // --- WISHLIST ---
-        alert.addAction(UIAlertAction(title: "Wishlist", style: .default, handler: { _ in
+        alert.addAction(UIAlertAction(title: "Wishlist".localized, style: .default, handler: { _ in
             // Add your Wishlist VC here later
             let vc = WishlistViewController()
                 if let nav = self.navigationController {
@@ -835,7 +835,7 @@ class LandingScreenViewController: UIViewController {
         }))
 
         // --- NOTIFICATIONS ---
-        alert.addAction(UIAlertAction(title: "Notifications", style: .default, handler: { _ in
+        alert.addAction(UIAlertAction(title: "Notifications".localized, style: .default, handler: { _ in
             let vc = NotificationsViewController()
 
                     // CASE 1 — If inside a NavigationController
@@ -850,7 +850,7 @@ class LandingScreenViewController: UIViewController {
                     self.present(vc, animated: true)
         }))
 
-        alert.addAction(UIAlertAction(title: "Cancel", style: .cancel))
+        alert.addAction(UIAlertAction(title: "Cancel".localized, style: .cancel))
 
         if let popover = alert.popoverPresentationController {
             popover.sourceView = menuButton

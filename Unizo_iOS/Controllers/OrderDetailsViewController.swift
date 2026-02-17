@@ -337,9 +337,9 @@ class OrderDetailsViewController: UIViewController {
         priceValue.font = .systemFont(ofSize: 15, weight: .semibold)
         priceValue.textColor = .black
 
-        let colourLabel = smallTeal(text: "Colour")
-        let sizeLabel = smallTeal(text: "Size")
-        let qtyLabel = smallTeal(text: "Quantity")
+        let colourLabel = smallTeal(text: "Colour".localized)
+        let sizeLabel = smallTeal(text: "Size".localized)
+        let qtyLabel = smallTeal(text: "Quantity".localized)
 
         let colourValue = smallValue(text: item.colour ?? "—")
         let sizeValue = smallValue(text: item.size ?? "—")
@@ -410,7 +410,7 @@ class OrderDetailsViewController: UIViewController {
         heartButton.layer.shadowOffset = CGSize(width: 0, height: 2)
         heartButton.translatesAutoresizingMaskIntoConstraints = false
 
-        navTitleLabel.text = "Order Details"
+        navTitleLabel.text = "Order Details".localized
         navTitleLabel.font = UIFont.systemFont(ofSize: 17, weight: .semibold)
         navTitleLabel.translatesAutoresizingMaskIntoConstraints = false
 
@@ -480,7 +480,7 @@ class OrderDetailsViewController: UIViewController {
 
         statusCircle.addSubview(statusCheck)
 
-        statusTitleLabel.text = "Order Confirmed"
+        statusTitleLabel.text = "Order Confirmed".localized
         statusTitleLabel.textColor = .white
         statusTitleLabel.font = .systemFont(ofSize: 16, weight: .semibold)
         statusTitleLabel.translatesAutoresizingMaskIntoConstraints = false
@@ -536,7 +536,7 @@ class OrderDetailsViewController: UIViewController {
 
     // MARK: - Timeline
     private func setupTimeline() {
-        timelineLabel.text = "Order Timeline"
+        timelineLabel.text = "Order Timeline".localized
         timelineLabel.font = .systemFont(ofSize: 18, weight: .semibold)
         timelineLabel.translatesAutoresizingMaskIntoConstraints = false
         contentView.addSubview(timelineLabel)
@@ -574,31 +574,31 @@ class OrderDetailsViewController: UIViewController {
         switch status {
         case .cancelled:
             // Declined flow: Order Placed ✓ then Order Declined ✗
-            timelineStack.addArrangedSubview(makeTimelineRow(title: "Order Declined", subtitle: orderTime, completed: false, isDeclined: true))
-            timelineStack.addArrangedSubview(makeTimelineRow(title: "Order Placed", subtitle: orderTime, completed: true))
+            timelineStack.addArrangedSubview(makeTimelineRow(title: "Order Declined".localized, subtitle: orderTime, completed: false, isDeclined: true))
+            timelineStack.addArrangedSubview(makeTimelineRow(title: "Order Placed".localized, subtitle: orderTime, completed: true))
 
         case .delivered:
             // All 3 states completed
-            timelineStack.addArrangedSubview(makeTimelineRow(title: "Order Delivered", subtitle: orderTime, completed: true))
-            timelineStack.addArrangedSubview(makeTimelineRow(title: "Order Confirmed", subtitle: orderTime, completed: true))
-            timelineStack.addArrangedSubview(makeTimelineRow(title: "Order Placed", subtitle: orderTime, completed: true))
+            timelineStack.addArrangedSubview(makeTimelineRow(title: "Order Delivered".localized, subtitle: orderTime, completed: true))
+            timelineStack.addArrangedSubview(makeTimelineRow(title: "Order Confirmed".localized, subtitle: orderTime, completed: true))
+            timelineStack.addArrangedSubview(makeTimelineRow(title: "Order Placed".localized, subtitle: orderTime, completed: true))
 
         case .confirmed:
-            timelineStack.addArrangedSubview(makeTimelineRow(title: "Order Delivered", subtitle: "Awaiting handoff", completed: false))
-            timelineStack.addArrangedSubview(makeTimelineRow(title: "Order Confirmed", subtitle: orderTime, completed: true))
-            timelineStack.addArrangedSubview(makeTimelineRow(title: "Order Placed", subtitle: orderTime, completed: true))
+            timelineStack.addArrangedSubview(makeTimelineRow(title: "Order Delivered".localized, subtitle: "Awaiting handoff".localized, completed: false))
+            timelineStack.addArrangedSubview(makeTimelineRow(title: "Order Confirmed".localized, subtitle: orderTime, completed: true))
+            timelineStack.addArrangedSubview(makeTimelineRow(title: "Order Placed".localized, subtitle: orderTime, completed: true))
 
         case .shipped:
-            let deliverySubtitle = currentUserIsSeller ? "Enter handoff code" : "Share code with seller"
-            timelineStack.addArrangedSubview(makeTimelineRow(title: "Order Delivered", subtitle: deliverySubtitle, completed: false))
-            timelineStack.addArrangedSubview(makeTimelineRow(title: "Order Confirmed", subtitle: orderTime, completed: true))
-            timelineStack.addArrangedSubview(makeTimelineRow(title: "Order Placed", subtitle: orderTime, completed: true))
+            let deliverySubtitle = currentUserIsSeller ? "Enter handoff code".localized : "Share code with seller".localized
+            timelineStack.addArrangedSubview(makeTimelineRow(title: "Order Delivered".localized, subtitle: deliverySubtitle, completed: false))
+            timelineStack.addArrangedSubview(makeTimelineRow(title: "Order Confirmed".localized, subtitle: orderTime, completed: true))
+            timelineStack.addArrangedSubview(makeTimelineRow(title: "Order Placed".localized, subtitle: orderTime, completed: true))
 
         case .pending:
             // Order placed, awaiting seller confirmation
-            timelineStack.addArrangedSubview(makeTimelineRow(title: "Order Delivered", subtitle: "Pending", completed: false))
-            timelineStack.addArrangedSubview(makeTimelineRow(title: "Order Confirmed", subtitle: "Awaiting seller", completed: false))
-            timelineStack.addArrangedSubview(makeTimelineRow(title: "Order Placed", subtitle: orderTime, completed: true))
+            timelineStack.addArrangedSubview(makeTimelineRow(title: "Order Delivered".localized, subtitle: "Pending".localized, completed: false))
+            timelineStack.addArrangedSubview(makeTimelineRow(title: "Order Confirmed".localized, subtitle: "Awaiting seller".localized, completed: false))
+            timelineStack.addArrangedSubview(makeTimelineRow(title: "Order Placed".localized, subtitle: orderTime, completed: true))
         }
     }
 
@@ -612,27 +612,27 @@ class OrderDetailsViewController: UIViewController {
 
         switch status {
         case .cancelled:
-            statusTitleLabel.text = "Order Declined"
+            statusTitleLabel.text = "Order Declined".localized
             statusCircle.backgroundColor = .systemRed
             statusCheck.image = UIImage(systemName: "xmark")
 
         case .delivered:
-            statusTitleLabel.text = "Order Delivered"
+            statusTitleLabel.text = "Order Delivered".localized
             statusCircle.backgroundColor = darkTeal
             statusCheck.image = UIImage(systemName: "checkmark")
 
         case .confirmed:
-            statusTitleLabel.text = "Order Confirmed"
+            statusTitleLabel.text = "Order Confirmed".localized
             statusCircle.backgroundColor = darkTeal
             statusCheck.image = UIImage(systemName: "checkmark")
 
         case .shipped:
-            statusTitleLabel.text = "Ready for Handoff"
+            statusTitleLabel.text = "Ready for Handoff".localized
             statusCircle.backgroundColor = UIColor(red: 0.0, green: 0.62, blue: 0.71, alpha: 1.0)
             statusCheck.image = UIImage(systemName: "hand.raised.fill")
 
         case .pending:
-            statusTitleLabel.text = "Order Placed"
+            statusTitleLabel.text = "Order Placed".localized
             statusCircle.backgroundColor = UIColor(red: 1.0, green: 0.6, blue: 0.0, alpha: 1.0) // Orange for pending
             statusCheck.image = UIImage(systemName: "clock")
         }
@@ -733,7 +733,7 @@ class OrderDetailsViewController: UIViewController {
 
     // MARK: - Items Section
     private func setupItemsSection() {
-        orderItemsTitle.text = "Order Items"
+        orderItemsTitle.text = "Order Items".localized
         orderItemsTitle.font = .systemFont(ofSize: 18, weight: .semibold)
         orderItemsTitle.translatesAutoresizingMaskIntoConstraints = false
         contentView.addSubview(orderItemsTitle)
@@ -767,7 +767,7 @@ class OrderDetailsViewController: UIViewController {
         card.layer.shadowOffset = CGSize(width: 0, height: 2)
 
         let loadingLabel = UILabel()
-        loadingLabel.text = "Loading order items..."
+        loadingLabel.text = "Loading order items...".localized
         loadingLabel.textColor = .gray
         loadingLabel.font = .systemFont(ofSize: 14)
         loadingLabel.textAlignment = .center
@@ -802,7 +802,7 @@ class OrderDetailsViewController: UIViewController {
 
     // MARK: - Delivery Info
     private func setupDeliveryInfo() {
-        deliveryTitle.text = "Delivery Information"
+        deliveryTitle.text = "Delivery Information".localized
         deliveryTitle.font = .systemFont(ofSize: 18, weight: .semibold)
         deliveryTitle.translatesAutoresizingMaskIntoConstraints = false
         contentView.addSubview(deliveryTitle)
@@ -836,7 +836,7 @@ class OrderDetailsViewController: UIViewController {
 
     // MARK: - Order Summary
     private func setupOrderSummary() {
-        orderSummaryTitle.text = "Order Summary"
+        orderSummaryTitle.text = "Order Summary".localized
         orderSummaryTitle.font = .systemFont(ofSize: 18, weight: .semibold)
         orderSummaryTitle.translatesAutoresizingMaskIntoConstraints = false
         contentView.addSubview(orderSummaryTitle)
@@ -855,14 +855,14 @@ class OrderDetailsViewController: UIViewController {
         contentView.addSubview(summaryCard)
 
         let subLabel = UILabel()
-        subLabel.text = "Subtotal"
+        subLabel.text = "Subtotal".localized
         subLabel.font = UIFont.systemFont(ofSize: 14)
 
         summarySubtotalValue.text = "₹\(Int(orderTotal))"
         summarySubtotalValue.font = UIFont.systemFont(ofSize: 14, weight: .semibold)
 
         let negotiLabel = UILabel()
-        negotiLabel.text = "Negotiation Discount"
+        negotiLabel.text = "Negotiation Discount".localized
         negotiLabel.font = UIFont.systemFont(ofSize: 14)
 
         let negotiValue = UILabel()
@@ -875,7 +875,7 @@ class OrderDetailsViewController: UIViewController {
         divider.translatesAutoresizingMaskIntoConstraints = false
 
         let totalLabel = UILabel()
-        totalLabel.text = "Total"
+        totalLabel.text = "Total".localized
         totalLabel.font = UIFont.systemFont(ofSize: 16, weight: .semibold)
 
         summaryTotalValue.text = "₹\(Int(orderTotal))"
@@ -939,7 +939,7 @@ class OrderDetailsViewController: UIViewController {
 
         // Code input field (for seller)
         codeTextField.translatesAutoresizingMaskIntoConstraints = false
-        codeTextField.placeholder = "Enter 6-digit code"
+        codeTextField.placeholder = "Enter 6-digit code".localized
         codeTextField.font = UIFont.monospacedDigitSystemFont(ofSize: 24, weight: .semibold)
         codeTextField.textAlignment = .center
         codeTextField.keyboardType = .numberPad
@@ -1019,7 +1019,7 @@ class OrderDetailsViewController: UIViewController {
         bottomButtonsContainer.translatesAutoresizingMaskIntoConstraints = false
         contentView.addSubview(bottomButtonsContainer)
 
-        rateButton.setTitle("Rate Order", for: .normal)
+        rateButton.setTitle("Rate Order".localized, for: .normal)
         rateButton.setTitleColor(darkTeal, for: .normal)
         rateButton.layer.cornerRadius = 12
         rateButton.layer.borderWidth = 2
@@ -1027,7 +1027,7 @@ class OrderDetailsViewController: UIViewController {
         rateButton.titleLabel?.font = UIFont.systemFont(ofSize: 16, weight: .semibold)
         rateButton.addTarget(self, action: #selector(rateTapped), for: .touchUpInside)
 
-        helpButton.setTitle("Get Help", for: .normal)
+        helpButton.setTitle("Get Help".localized, for: .normal)
         helpButton.setTitleColor(darkTeal, for: .normal)
         helpButton.layer.cornerRadius = 12
         helpButton.layer.borderWidth = 2
@@ -1078,7 +1078,7 @@ class OrderDetailsViewController: UIViewController {
     }
 
     private func resetHelpButton() {
-        helpButton.setTitle("Get Help", for: .normal)
+        helpButton.setTitle("Get Help".localized, for: .normal)
         helpButton.setTitleColor(darkTeal, for: .normal)
         helpButton.backgroundColor = .clear
         helpButton.layer.borderWidth = 2
@@ -1094,7 +1094,7 @@ class OrderDetailsViewController: UIViewController {
         case .confirmed where currentUserIsSeller:
             // Seller sees "Ready to Meet" button replacing "Get Help"
             hideHandoffCard()
-            helpButton.setTitle("Ready to Meet", for: .normal)
+            helpButton.setTitle("Ready to Meet".localized, for: .normal)
             helpButton.setTitleColor(.white, for: .normal)
             helpButton.backgroundColor = darkTeal
             helpButton.layer.borderWidth = 0
@@ -1123,7 +1123,7 @@ class OrderDetailsViewController: UIViewController {
                 string: codeText,
                 attributes: [.kern: 8]
             )
-            handoffInstructionLabel.text = "Show this code to the seller when you meet to confirm delivery."
+            handoffInstructionLabel.text = "Show this code to the seller when you meet to confirm delivery.".localized
 
             resetHelpButton()
             rateButton.isEnabled = false
@@ -1144,9 +1144,9 @@ class OrderDetailsViewController: UIViewController {
             instructionTopToBuyerCode?.isActive = false
             instructionTopToSellerField?.isActive = true
 
-            handoffInstructionLabel.text = "Enter the code the buyer shows you to confirm delivery."
+            handoffInstructionLabel.text = "Enter the code the buyer shows you to confirm delivery.".localized
 
-            helpButton.setTitle("Verify Code", for: .normal)
+            helpButton.setTitle("Verify Code".localized, for: .normal)
             helpButton.setTitleColor(.white, for: .normal)
             helpButton.backgroundColor = darkTeal
             helpButton.layer.borderWidth = 0
@@ -1243,7 +1243,7 @@ class OrderDetailsViewController: UIViewController {
         let enteredCode = codeTextField.text?.trimmingCharacters(in: .whitespaces) ?? ""
 
         guard enteredCode.count == 6 else {
-            codeErrorLabel.text = "Please enter the full 6-digit code."
+            codeErrorLabel.text = "Please enter the full 6-digit code.".localized
             codeErrorLabel.isHidden = false
             return
         }
@@ -1304,7 +1304,7 @@ class OrderDetailsViewController: UIViewController {
                     await MainActor.run {
                         self.loadingSpinner.stopAnimating()
                         self.helpButton.isEnabled = true
-                        self.codeErrorLabel.text = "Incorrect code. Please try again."
+                        self.codeErrorLabel.text = "Incorrect code. Please try again.".localized
                         self.codeErrorLabel.isHidden = false
                         self.codeTextField.layer.borderColor = UIColor.systemRed.cgColor
                     }
@@ -1314,7 +1314,7 @@ class OrderDetailsViewController: UIViewController {
                 await MainActor.run {
                     self.loadingSpinner.stopAnimating()
                     self.helpButton.isEnabled = true
-                    self.codeErrorLabel.text = "Something went wrong. Please try again."
+                    self.codeErrorLabel.text = "Something went wrong. Please try again.".localized
                     self.codeErrorLabel.isHidden = false
                 }
             }
