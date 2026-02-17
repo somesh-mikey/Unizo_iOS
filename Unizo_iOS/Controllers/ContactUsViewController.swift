@@ -19,7 +19,7 @@ class ContactUsViewController: UIViewController {
     private let explainLabel = UILabel()
 
     // MARK: - Controls
-    private let contactSegment = UISegmentedControl(items: ["Email", "Phone"])
+    private let contactSegment = UISegmentedControl(items: ["Email".localized, "Phone".localized])
     private let contactField = UITextField()
 
     // Subject row
@@ -102,7 +102,7 @@ class ContactUsViewController: UIViewController {
     private func setupUI() {
         view.backgroundColor = .systemGroupedBackground
 
-        navigationItem.title = "Contact Us"
+        navigationItem.title = "Contact Us".localized
         navigationItem.leftBarButtonItem = UIBarButtonItem(
             image: UIImage(systemName: "chevron.left"),
             style: .plain,
@@ -114,13 +114,13 @@ class ContactUsViewController: UIViewController {
         scrollView.addSubview(contentView)
 
         // Labels
-        reachLabel.text = "How Can We Reach You?"
+        reachLabel.text = "How Can We Reach You?".localized
         reachLabel.font = .systemFont(ofSize: 17, weight: .semibold)
 
-        helpLabel.text = "What Can We Help You With?"
+        helpLabel.text = "What Can We Help You With?".localized
         helpLabel.font = .systemFont(ofSize: 17, weight: .semibold)
 
-        explainLabel.text = "Briefly Explain What’s Going On"
+        explainLabel.text = "Briefly Explain What's Going On".localized
         explainLabel.font = .systemFont(ofSize: 17, weight: .semibold)
 
         // Segment
@@ -131,18 +131,18 @@ class ContactUsViewController: UIViewController {
 
         // Contact field
         configureTextField(contactField)
-        contactField.placeholder = "Email Address"
+        contactField.placeholder = "Email Address".localized
         contactField.keyboardType = .emailAddress
 
         // Subject container
         subjectContainer.backgroundColor = .white
         subjectContainer.layer.cornerRadius = 14
 
-        subjectLeftLabel.text = "Subject"
+        subjectLeftLabel.text = "Subject".localized
         subjectLeftLabel.font = .systemFont(ofSize: 16, weight: .medium)
         subjectLeftLabel.textColor = .label
 
-        subjectField.placeholder = "Help"
+        subjectField.placeholder = "Help".localized
         subjectField.font = .systemFont(ofSize: 16)
         subjectField.tintColor = .clear
 
@@ -156,7 +156,7 @@ class ContactUsViewController: UIViewController {
         subjectField.inputView = pickerView
 
         // Message
-        messageTextView.text = "Write your message here..."
+        messageTextView.text = "Write your message here...".localized
         messageTextView.textColor = .tertiaryLabel
         messageTextView.font = .systemFont(ofSize: 16)
         messageTextView.backgroundColor = .white
@@ -164,7 +164,7 @@ class ContactUsViewController: UIViewController {
         messageTextView.textContainerInset = UIEdgeInsets(top: 14, left: 12, bottom: 14, right: 12)
 
         // Submit
-        submitButton.setTitle("Submit", for: .normal)
+        submitButton.setTitle("Submit".localized, for: .normal)
         submitButton.setTitleColor(.white, for: .normal)
         submitButton.titleLabel?.font = .systemFont(ofSize: 17, weight: .semibold)
         submitButton.backgroundColor = primaryColor
@@ -206,10 +206,10 @@ class ContactUsViewController: UIViewController {
 
     private func updateContactField() {
         if contactSegment.selectedSegmentIndex == 0 {
-            contactField.placeholder = "Email Address"
+            contactField.placeholder = "Email Address".localized
             contactField.keyboardType = .emailAddress
         } else {
-            contactField.placeholder = "Phone Number"
+            contactField.placeholder = "Phone Number".localized
             contactField.keyboardType = .numberPad
         }
         contactField.reloadInputViews()

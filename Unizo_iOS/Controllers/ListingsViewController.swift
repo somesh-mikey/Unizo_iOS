@@ -17,7 +17,7 @@ class ListingsViewController: UIViewController {
     // MARK: - UI Components
     private let titleLabel: UILabel = {
         let label = UILabel()
-        label.text = "My Listings"
+        label.text = "My Listings".localized
         label.font = .systemFont(ofSize: 35, weight: .bold)
         label.textColor = .label
         label.translatesAutoresizingMaskIntoConstraints = false
@@ -35,14 +35,14 @@ class ListingsViewController: UIViewController {
 
     private let searchBar: UISearchBar = {
         let sb = UISearchBar()
-        sb.placeholder = "Search listings..."
+        sb.placeholder = "Search listings...".localized
         sb.searchBarStyle = .minimal
         sb.translatesAutoresizingMaskIntoConstraints = false
         return sb
     }()
 
     private let filterSegmentedControl: UISegmentedControl = {
-        let items = ["All", "Available", "Pending", "Sold"]
+        let items = ["All".localized, "Available".localized, "Pending".localized, "Sold".localized]
         let sc = UISegmentedControl(items: items)
         sc.selectedSegmentIndex = 0
         sc.translatesAutoresizingMaskIntoConstraints = false
@@ -101,7 +101,7 @@ class ListingsViewController: UIViewController {
 
     private let emptyStateLabel: UILabel = {
         let l = UILabel()
-        l.text = "No listings yet"
+        l.text = "No listings yet".localized
         l.font = UIFont.preferredFont(forTextStyle: .title3)
         l.adjustsFontForContentSizeCategory = true
         l.textColor = .secondaryLabel
@@ -112,7 +112,7 @@ class ListingsViewController: UIViewController {
 
     private let emptyStateSubtitle: UILabel = {
         let l = UILabel()
-        l.text = "Start selling by posting\nyour first item"
+        l.text = "Start selling by posting\nyour first item".localized
         l.font = UIFont.preferredFont(forTextStyle: .subheadline)
         l.adjustsFontForContentSizeCategory = true
         l.textColor = .tertiaryLabel
@@ -256,16 +256,16 @@ class ListingsViewController: UIViewController {
 
         if isEmpty {
             if !currentSearchText.isEmpty {
-                emptyStateLabel.text = "No results found"
-                emptyStateSubtitle.text = "Try a different search term"
+                emptyStateLabel.text = "No results found".localized
+                emptyStateSubtitle.text = "Try a different search term".localized
                 emptyStateImageView.image = UIImage(systemName: "magnifyingglass")
             } else if currentFilter != "All" {
                 emptyStateLabel.text = "No \(currentFilter.lowercased()) listings"
-                emptyStateSubtitle.text = "Items with this status\nwill appear here"
+                emptyStateSubtitle.text = "Items with this status\nwill appear here".localized
                 emptyStateImageView.image = UIImage(systemName: "tray")
             } else {
-                emptyStateLabel.text = "No listings yet"
-                emptyStateSubtitle.text = "Start selling by posting\nyour first item"
+                emptyStateLabel.text = "No listings yet".localized
+                emptyStateSubtitle.text = "Start selling by posting\nyour first item".localized
                 emptyStateImageView.image = UIImage(systemName: "tray")
             }
         }
@@ -439,11 +439,11 @@ extension ListingsViewController: EnhancedListingCellDelegate {
         if product.status == .sold {
             HapticFeedback.warning()
             let alert = UIAlertController(
-                title: "Cannot Edit",
-                message: "Once sold, listing cannot be edited.",
+                title: "Cannot Edit".localized,
+                message: "Once sold, listing cannot be edited.".localized,
                 preferredStyle: .alert
             )
-            alert.addAction(UIAlertAction(title: "OK", style: .default))
+            alert.addAction(UIAlertAction(title: "OK".localized, style: .default))
             present(alert, animated: true)
             return
         }
@@ -460,13 +460,13 @@ extension ListingsViewController: EnhancedListingCellDelegate {
         guard let product = products.first(where: { $0.id == listing.productId }) else { return }
 
         let alert = UIAlertController(
-            title: "Delete Listing",
+            title: "Delete Listing".localized,
             message: "Are you sure you want to delete \"\(product.title)\"?",
             preferredStyle: .alert
         )
 
-        alert.addAction(UIAlertAction(title: "Cancel", style: .cancel))
-        alert.addAction(UIAlertAction(title: "Delete", style: .destructive) { [weak self] _ in
+        alert.addAction(UIAlertAction(title: "Cancel".localized, style: .cancel))
+        alert.addAction(UIAlertAction(title: "Delete".localized, style: .destructive) { [weak self] _ in
             self?.deleteProduct(product, listing: listing)
         })
 

@@ -35,7 +35,7 @@ class BrowseEventsViewController: UIViewController {
 
     private let sectionTitleLabel: UILabel = {
         let lbl = UILabel()
-        lbl.text = "Featured Events"
+        lbl.text = "Featured Events".localized
         lbl.font = UIFont.systemFont(ofSize: 20, weight: .semibold)
         lbl.textColor = .label
         lbl.translatesAutoresizingMaskIntoConstraints = false
@@ -77,7 +77,7 @@ class BrowseEventsViewController: UIViewController {
     // MARK: - Navigation Bar
 
     private func setupNavBar() {
-        title = "Browse Events"
+        title = "Browse Events".localized
         navigationController?.navigationBar.prefersLargeTitles = false
 
         // Add back button
@@ -160,7 +160,7 @@ class BrowseEventsViewController: UIViewController {
                 time: event.event_time,
                 date: event.formattedDate,
                 price: event.priceDisplay,
-                buttonTitle: event.is_free ? "Register" : "Book Now"
+                buttonTitle: event.is_free ? "Register".localized : "Book Now".localized
             )
 
             // Set tap handler to navigate to event details
@@ -184,7 +184,7 @@ class BrowseEventsViewController: UIViewController {
 
     private func showEmptyState() {
         let emptyLabel = UILabel()
-        emptyLabel.text = "No events available at the moment"
+        emptyLabel.text = "No events available at the moment".localized
         emptyLabel.textColor = .secondaryLabel
         emptyLabel.textAlignment = .center
         emptyLabel.font = .systemFont(ofSize: 16)

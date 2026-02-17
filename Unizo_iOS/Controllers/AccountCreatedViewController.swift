@@ -43,7 +43,7 @@ class AccountCreatedViewController: UIViewController {
     
     private let titleLabel: UILabel = {
         let label = UILabel()
-        label.text = "Your Account has Been Set Up!"
+        label.text = "Your Account has Been Set Up!".localized
         label.font = UIFont.systemFont(ofSize: 18, weight: .semibold)
         label.textColor = .white
         label.textAlignment = .center
@@ -52,7 +52,7 @@ class AccountCreatedViewController: UIViewController {
     
     private let subtitleLabel: UILabel = {
         let label = UILabel()
-        label.text = "Your new go-to place for affordable finds and quick deals, right within your campus."
+        label.text = "Your new go-to place for affordable finds and quick deals, right within your campus.".localized
         label.font = UIFont.systemFont(ofSize: 14, weight: .regular)
         label.textColor = UIColor.white.withAlphaComponent(0.85)
         label.numberOfLines = 3
@@ -62,7 +62,7 @@ class AccountCreatedViewController: UIViewController {
     
     private let getStartedButton: UIButton = {
         let button = UIButton(type: .system)
-        button.setTitle("Get Started", for: .normal)
+        button.setTitle("Get Started".localized, for: .normal)
         button.backgroundColor = UIColor(red: 0/255, green: 76/255, blue: 97/255, alpha: 1)  
         button.setTitleColor(.white, for: .normal)
         button.layer.cornerRadius = 20

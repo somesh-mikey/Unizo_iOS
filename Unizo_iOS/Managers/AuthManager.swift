@@ -63,6 +63,46 @@ final class AuthManager {
         currentUserIdSync != nil
     }
 
+    // MARK: - Change Password
+    /// Re-authenticates with the old password then updates to the new password.
+    func changePassword(oldPassword: String, newPassword: String) async throws {
+        // 1. Re-authenticate by signing in with the current email + old password
+        guard let email = try? await supabase.auth.session.user.email else {
+            throw NSError(domain: "AuthManager", code: 401, userInfo: [
+                NSLocalizedDescriptionKey: "Unable to retrieve your email. Please try again."
+            ])
+        }
+
+        do {
+            _ = try await supabase.auth.signIn(email: email, password: oldPassword)
+        } catch {
+            throw NSError(domain: "AuthManager", code: 401, userInfo: [
+                NSLocalizedDescriptionKey: "Old password is incorrect."
+            ])
+        }
+
+        // 2. Update to the new password
+        _ = try await supabase.auth.update(user: UserAttributes(password: newPassword))
+    }
+
+    // MARK: - Reset Password (send email link)
+    func sendPasswordResetEmail(to email: String) async throws {
+        print("📧 [AuthManager] resetPasswordForEmail called with email: \(email)")
+        do {
+            try await supabase.auth.resetPasswordForEmail(email)
+            print("✅ [AuthManager] resetPasswordForEmail returned successfully (no error thrown)")
+        } catch {
+            print("❌ [AuthManager] resetPasswordForEmail threw error: \(error)")
+            print("❌ [AuthManager] Error type: \(type(of: error))")
+            throw error
+        }
+    }
+
+    // MARK: - Update Password (for logged-in user, no old password needed)
+    func updatePassword(newPassword: String) async throws {
+        _ = try await supabase.auth.update(user: UserAttributes(password: newPassword))
+    }
+
     // MARK: - Sign Out
     func signOut() async throws {
         try await supabase.auth.signOut()

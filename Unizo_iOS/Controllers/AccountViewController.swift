@@ -82,13 +82,13 @@ final class AccountViewController: UIViewController {
     private let otherCard = AccountViewController.makeCard()
 
     // MARK: - Rows
-    private lazy var rowProfile = makeRow("My Profile", icon: "person", action: #selector(openProfile))
-    private lazy var rowAddress = makeRow("My Hotspots", icon: "mappin.and.ellipse", action: #selector(openAddress))
-    private lazy var rowNotifications = makeRow("Notifications", icon: "bell", action: #selector(openNotifications))
+    private lazy var rowProfile = makeRow("Edit Profile".localized, icon: "person", action: #selector(openProfile))
+    private lazy var rowAddress = makeRow("My Addresses".localized, icon: "mappin.and.ellipse", action: #selector(openAddress))
+    private lazy var rowNotifications = makeRow("Notifications".localized, icon: "bell", action: #selector(openNotifications))
 
-    private lazy var rowTerms = makeRow("Terms & Conditions", icon: "doc.text", action: #selector(openTerms))
-    private lazy var rowPrivacy = makeRow("Privacy Policy", icon: "doc.text", action: #selector(openPrivacy))
-    private lazy var rowSettings = makeRow("Settings", icon: "gearshape", action: #selector(openSettings))
+    private lazy var rowTerms = makeRow("Terms & Conditions".localized, icon: "doc.text", action: #selector(openTerms))
+    private lazy var rowPrivacy = makeRow("Privacy Policy".localized, icon: "doc.text", action: #selector(openPrivacy))
+    private lazy var rowSettings = makeRow("Settings".localized, icon: "gearshape", action: #selector(openSettings))
 
     // MARK: - Lifecycle
     override func viewDidLoad() {
@@ -179,7 +179,7 @@ final class AccountViewController: UIViewController {
         featureContainer.addSubview(featureStack)
         featureStack.translatesAutoresizingMaskIntoConstraints = false
 
-        featureStack.addArrangedSubview(makeFeatureItem("shippingbox", "Orders", #selector(openOrders)))
+        featureStack.addArrangedSubview(makeFeatureItem("shippingbox", "My Orders".localized, #selector(openOrders)))
         featureStack.addArrangedSubview(makeFeatureItem("ticket", "Event Tickets", #selector(openEvents)))
         featureStack.addArrangedSubview(makeFeatureItem("chart.bar", "Seller Dashboard", #selector(openSellerDashboard)))
 

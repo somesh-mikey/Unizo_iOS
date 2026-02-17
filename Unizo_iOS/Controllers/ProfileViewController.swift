@@ -65,13 +65,13 @@ final class ProfileViewController: UIViewController {
     }()
 
     // MARK: - Gender Picker
-    private let genderOptions = ["Male", "Female", "Neutral"]
+    private let genderOptions = ["Male".localized, "Female".localized, "Neutral".localized]
     private let genderPicker = UIPickerView()
 
     // MARK: - Section Titles
-    private let personalInfoTitle = ProfileViewController.makeSectionLabel("Personal Information")
-    private let addressInfoTitle = ProfileViewController.makeSectionLabel("Hotspot Information")
-    private let preferencesTitle = ProfileViewController.makeSectionLabel("Preferences")
+    private let personalInfoTitle = ProfileViewController.makeSectionLabel("Personal Information".localized)
+    private let addressInfoTitle = ProfileViewController.makeSectionLabel("Hotspot Information".localized)
+    private let preferencesTitle = ProfileViewController.makeSectionLabel("Preferences".localized)
 
     // MARK: - Containers
     private let personalContainer = ProfileViewController.makeSectionContainer()
@@ -79,18 +79,18 @@ final class ProfileViewController: UIViewController {
     private let preferencesContainer = ProfileViewController.makeSectionContainer()
 
     // MARK: - Personal Info Fields (all start non-editable until Edit is tapped)
-    private let firstNameTF = ProfileViewController.makeFormTextField(placeholder: "First Name", isEditable: false)
-    private let lastNameTF = ProfileViewController.makeFormTextField(placeholder: "Last Name", isEditable: false)
-    private let emailTF = ProfileViewController.makeFormTextField(placeholder: "Email", isEditable: false) // Email tied to auth, never editable
-    private let phoneTF = ProfileViewController.makeFormTextField(placeholder: "Phone", isEditable: false)
-    private let dobTF = ProfileViewController.makeFormTextField(placeholder: "Date of Birth", isEditable: false)
-    private let genderTF = ProfileViewController.makeFormTextField(placeholder: "Gender", isEditable: false)
+    private let firstNameTF = ProfileViewController.makeFormTextField(placeholder: "First Name".localized, isEditable: false)
+    private let lastNameTF = ProfileViewController.makeFormTextField(placeholder: "Last Name".localized, isEditable: false)
+    private let emailTF = ProfileViewController.makeFormTextField(placeholder: "Email".localized, isEditable: false) // Email tied to auth, never editable
+    private let phoneTF = ProfileViewController.makeFormTextField(placeholder: "Phone".localized, isEditable: false)
+    private let dobTF = ProfileViewController.makeFormTextField(placeholder: "Date of Birth".localized, isEditable: false)
+    private let genderTF = ProfileViewController.makeFormTextField(placeholder: "Gender".localized, isEditable: false)
 
     // MARK: - Address Fields
-    private let addressTF = ProfileViewController.makeFormTextField(placeholder: "Address", isEditable: false)
-    private let cityTF = ProfileViewController.makeFormTextField(placeholder: "City", isEditable: false)
-    private let stateTF = ProfileViewController.makeFormTextField(placeholder: "State", isEditable: false)
-    private let zipTF = ProfileViewController.makeFormTextField(placeholder: "ZIP Code", isEditable: false)
+    private let addressTF = ProfileViewController.makeFormTextField(placeholder: "Address".localized, isEditable: false)
+    private let cityTF = ProfileViewController.makeFormTextField(placeholder: "City".localized, isEditable: false)
+    private let stateTF = ProfileViewController.makeFormTextField(placeholder: "State".localized, isEditable: false)
+    private let zipTF = ProfileViewController.makeFormTextField(placeholder: "ZIP Code".localized, isEditable: false)
 
     // MARK: - Preferences
     private let emailSwitch: UISwitch = {
@@ -107,7 +107,7 @@ final class ProfileViewController: UIViewController {
     // MARK: - Save Button
     private let saveButton: UIButton = {
         let btn = UIButton(type: .system)
-        btn.setTitle("Save Changes", for: .normal)
+        btn.setTitle("Save Changes".localized, for: .normal)
         btn.backgroundColor = UIColor(red: 0/255, green: 76/255, blue: 97/255, alpha: 1)
         btn.setTitleColor(.white, for: .normal)
         btn.layer.cornerRadius = 12
@@ -123,7 +123,7 @@ final class ProfileViewController: UIViewController {
     override func viewDidLoad() {
         super.viewDidLoad()
         view.backgroundColor = .systemGroupedBackground
-        navigationItem.title = "Profile"
+        navigationItem.title = "Profile".localized
 
         setupNavigationBar()
         setupHierarchy()
@@ -148,7 +148,7 @@ final class ProfileViewController: UIViewController {
 
         // Edit button
         navigationItem.rightBarButtonItem = UIBarButtonItem(
-            title: "Edit",
+            title: "Edit".localized,
             style: .plain,
             target: self,
             action: #selector(editButtonTapped)
@@ -159,14 +159,14 @@ final class ProfileViewController: UIViewController {
         // If in edit mode, ask to discard changes
         if isEditMode {
             let alert = UIAlertController(
-                title: "Discard Changes?",
-                message: "You have unsaved changes. Are you sure you want to go back?",
+                title: "Discard Changes?".localized,
+                message: "You have unsaved changes. Are you sure you want to go back?".localized,
                 preferredStyle: .alert
             )
-            alert.addAction(UIAlertAction(title: "Discard", style: .destructive) { [weak self] _ in
+            alert.addAction(UIAlertAction(title: "Discard".localized, style: .destructive) { [weak self] _ in
                 self?.navigationController?.popViewController(animated: true)
             })
-            alert.addAction(UIAlertAction(title: "Cancel", style: .cancel))
+            alert.addAction(UIAlertAction(title: "Cancel".localized, style: .cancel))
             present(alert, animated: true)
         } else {
             navigationController?.popViewController(animated: true)
@@ -201,7 +201,7 @@ final class ProfileViewController: UIViewController {
             navigationItem.rightBarButtonItem = checkmarkButton
         } else {
             navigationItem.rightBarButtonItem = UIBarButtonItem(
-                title: "Edit",
+                title: "Edit".localized,
                 style: .plain,
                 target: self,
                 action: #selector(editButtonTapped)
@@ -313,28 +313,28 @@ final class ProfileViewController: UIViewController {
 
         // MARK: Personal Stack
         let personalStack = makeFormStack(rows: [
-            makeLabelledRow(title: "First Name", field: firstNameTF),
-            makeLabelledRow(title: "Last Name", field: lastNameTF),
-            makeLabelledRow(title: "Email", field: emailTF),
-            makeLabelledRow(title: "Phone", field: phoneTF),
-            makeLabelledRow(title: "Date of Birth", field: dobTF),
-            makeLabelledRow(title: "Gender", field: genderTF)
+            makeLabelledRow(title: "First Name".localized, field: firstNameTF),
+            makeLabelledRow(title: "Last Name".localized, field: lastNameTF),
+            makeLabelledRow(title: "Email".localized, field: emailTF),
+            makeLabelledRow(title: "Phone".localized, field: phoneTF),
+            makeLabelledRow(title: "Date of Birth".localized, field: dobTF),
+            makeLabelledRow(title: "Gender".localized, field: genderTF)
         ])
         personalContainer.addSubview(personalStack)
 
         // MARK: Address Stack
         let addressStack = makeFormStack(rows: [
-            makeLabelledRow(title: "Address", field: addressTF),
-            makeLabelledRow(title: "City", field: cityTF),
-            makeLabelledRow(title: "State", field: stateTF),
-            makeLabelledRow(title: "ZIP Code", field: zipTF)
+            makeLabelledRow(title: "Address".localized, field: addressTF),
+            makeLabelledRow(title: "City".localized, field: cityTF),
+            makeLabelledRow(title: "State".localized, field: stateTF),
+            makeLabelledRow(title: "ZIP Code".localized, field: zipTF)
         ])
         addressContainer.addSubview(addressStack)
 
         // MARK: Preferences Stack
         let preferencesStack = UIStackView(arrangedSubviews: [
-            makeLabelledSwitchRow(title: "Email Notifications", sw: emailSwitch),
-            makeLabelledSwitchRow(title: "SMS Notifications", sw: smsSwitch)
+            makeLabelledSwitchRow(title: "Email Notifications".localized, sw: emailSwitch),
+            makeLabelledSwitchRow(title: "SMS Notifications".localized, sw: smsSwitch)
         ])
         preferencesStack.axis = .vertical
         preferencesStack.spacing = 12
@@ -556,7 +556,7 @@ final class ProfileViewController: UIViewController {
 
         // Show loading state
         saveButton.isEnabled = false
-        saveButton.setTitle("Saving...", for: .normal)
+        saveButton.setTitle("Saving...".localized, for: .normal)
 
         // Temporarily disable the checkmark button during save
         navigationItem.rightBarButtonItem?.isEnabled = false
@@ -584,7 +584,7 @@ final class ProfileViewController: UIViewController {
 
                     // Reset button state
                     saveButton.isEnabled = true
-                    saveButton.setTitle("Save Changes", for: .normal)
+                    saveButton.setTitle("Save Changes".localized, for: .normal)
                     navigationItem.rightBarButtonItem?.isEnabled = true
 
                     // Exit edit mode after successful save
@@ -597,9 +597,9 @@ final class ProfileViewController: UIViewController {
                 print("Failed to save profile:", error)
                 await MainActor.run {
                     saveButton.isEnabled = true
-                    saveButton.setTitle("Save Changes", for: .normal)
+                    saveButton.setTitle("Save Changes".localized, for: .normal)
                     navigationItem.rightBarButtonItem?.isEnabled = true
-                    showAlert(title: "Error", message: "Failed to save profile: \(error.localizedDescription)")
+                    showAlert(title: "Error".localized, message: "\("Failed to save profile:".localized) \(error.localizedDescription)")
                 }
             }
         }
@@ -607,7 +607,7 @@ final class ProfileViewController: UIViewController {
 
     private func showAlert(title: String, message: String) {
         let alert = UIAlertController(title: title, message: message, preferredStyle: .alert)
-        alert.addAction(UIAlertAction(title: "OK", style: .default))
+        alert.addAction(UIAlertAction(title: "OK".localized, style: .default))
         present(alert, animated: true)
     }
 
@@ -628,9 +628,9 @@ final class ProfileViewController: UIViewController {
         let toolbar = UIToolbar()
         toolbar.sizeToFit()
 
-        let cancel = UIBarButtonItem(title: "Cancel", style: .plain, target: self, action: #selector(cancelDOBPicker))
+        let cancel = UIBarButtonItem(title: "Cancel".localized, style: .plain, target: self, action: #selector(cancelDOBPicker))
         let space = UIBarButtonItem(systemItem: .flexibleSpace)
-        let done = UIBarButtonItem(title: "Done", style: .done, target: self, action: #selector(doneDOBPicker))
+        let done = UIBarButtonItem(title: "Done".localized, style: .done, target: self, action: #selector(doneDOBPicker))
 
         toolbar.setItems([cancel, space, done], animated: false)
 
@@ -657,9 +657,9 @@ final class ProfileViewController: UIViewController {
         let toolbar = UIToolbar()
         toolbar.sizeToFit()
 
-        let cancel = UIBarButtonItem(title: "Cancel", style: .plain, target: self, action: #selector(cancelGenderPicker))
+        let cancel = UIBarButtonItem(title: "Cancel".localized, style: .plain, target: self, action: #selector(cancelGenderPicker))
         let space = UIBarButtonItem(systemItem: .flexibleSpace)
-        let done = UIBarButtonItem(title: "Done", style: .done, target: self, action: #selector(doneGenderPicker))
+        let done = UIBarButtonItem(title: "Done".localized, style: .done, target: self, action: #selector(doneGenderPicker))
 
         toolbar.setItems([cancel, space, done], animated: false)
 
@@ -791,7 +791,7 @@ extension ProfileViewController: UIImagePickerControllerDelegate, UINavigationCo
                         self.profileImageView.image = UIImage(systemName: "person.circle.fill")
                         self.profileImageView.tintColor = UIColor.systemGray3
                     }
-                    self.showAlert(title: "Upload Failed", message: "Failed to upload profile picture. Please try again.")
+                    self.showAlert(title: "Upload Failed".localized, message: "Failed to upload profile picture. Please try again.".localized)
                 }
             }
         }

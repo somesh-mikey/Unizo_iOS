@@ -47,7 +47,7 @@ class WishlistViewController: UIViewController {
         backButton.layer.shadowOffset = CGSize(width: 0, height: 2)
 
         // Title with Dynamic Type
-        titleLabel.text = "My Wishlist"
+        titleLabel.text = "My Wishlist".localized
         titleLabel.font = UIFont.preferredFont(forTextStyle: .title3)
         titleLabel.adjustsFontForContentSizeCategory = true
         titleLabel.textColor = .label

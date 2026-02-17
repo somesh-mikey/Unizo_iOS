@@ -32,7 +32,7 @@ final class SettingsViewController: UIViewController {
 
     // MARK: - Navigation Bar
     private func setupNavBar() {
-        title = "Settings"
+        title = "Settings".localized
         navigationController?.navigationBar.prefersLargeTitles = false
 
         navigationItem.leftBarButtonItem = UIBarButtonItem(
@@ -77,7 +77,7 @@ final class SettingsViewController: UIViewController {
         let sectionSpacing: CGFloat = 28
 
         // Preferences
-        let prefLabel = makeHeader("Preferences")
+        let prefLabel = makeHeader("Preferences".localized)
         contentView.addSubview(prefLabel)
         NSLayoutConstraint.activate([
             prefLabel.topAnchor.constraint(equalTo: lastBottom, constant: 25),
@@ -95,7 +95,7 @@ final class SettingsViewController: UIViewController {
         lastBottom = prefCard.bottomAnchor
 
         // Support
-        let supportLabel = makeHeader("Support")
+        let supportLabel = makeHeader("Support".localized)
         contentView.addSubview(supportLabel)
         NSLayoutConstraint.activate([
             supportLabel.topAnchor.constraint(equalTo: lastBottom, constant: sectionSpacing),
@@ -113,7 +113,7 @@ final class SettingsViewController: UIViewController {
         lastBottom = supportCard.bottomAnchor
 
         // Security
-        let securityLabel = makeHeader("Security")
+        let securityLabel = makeHeader("Security".localized)
         contentView.addSubview(securityLabel)
         NSLayoutConstraint.activate([
             securityLabel.topAnchor.constraint(equalTo: lastBottom, constant: sectionSpacing),
@@ -131,7 +131,7 @@ final class SettingsViewController: UIViewController {
         lastBottom = securityCard.bottomAnchor
 
         // Account Actions
-        let accountLabel = makeHeader("Account Actions")
+        let accountLabel = makeHeader("Account Actions".localized)
         contentView.addSubview(accountLabel)
         NSLayoutConstraint.activate([
             accountLabel.topAnchor.constraint(equalTo: lastBottom, constant: sectionSpacing),
@@ -171,14 +171,14 @@ final class SettingsViewController: UIViewController {
     private func makePreferencesCard() -> UIView {
         let card = buildCard()
 
-        let languageRow = makeArrowRow(icon: "globe", title: "Language")
+        let languageRow = makeArrowRow(icon: "globe", title: "Language".localized)
         let languageTap = UITapGestureRecognizer(target: self, action: #selector(languageTapped))
         languageRow.addGestureRecognizer(languageTap)
         languageRow.isUserInteractionEnabled = true
 
         stackRows(card, rows: [
-            makeSwitchRow(icon: "bell", title: "Push Notifications", selector: #selector(togglePush)),
-            makeSwitchRow(icon: "envelope", title: "Email Marketing", selector: #selector(toggleEmail)),
+            makeSwitchRow(icon: "bell", title: "Push Notifications".localized, selector: #selector(togglePush)),
+            makeSwitchRow(icon: "envelope", title: "Email Marketing".localized, selector: #selector(toggleEmail)),
             languageRow
         ])
         return card
@@ -187,12 +187,12 @@ final class SettingsViewController: UIViewController {
     private func makeSupportCard() -> UIView {
         let card = buildCard()
 
-        let contactRow = makeArrowRow(icon: "phone", title: "Contact Us")
+        let contactRow = makeArrowRow(icon: "phone", title: "Contact Us".localized)
         let contactTap = UITapGestureRecognizer(target: self, action: #selector(contactUsTapped))
         contactRow.addGestureRecognizer(contactTap)
         contactRow.isUserInteractionEnabled = true
 
-        let rateRow = makeArrowRow(icon: "star", title: "Rate Our App")
+        let rateRow = makeArrowRow(icon: "star", title: "Rate Our App".localized)
         let rateTap = UITapGestureRecognizer(target: self, action: #selector(rateAppTapped))
         rateRow.addGestureRecognizer(rateTap)
         rateRow.isUserInteractionEnabled = true
@@ -207,14 +207,14 @@ final class SettingsViewController: UIViewController {
     private func makeSecurityCard() -> UIView {
         let card = buildCard()
 
-        let passwordRow = makeArrowRow(icon: "key", title: "Change Password")
+        let passwordRow = makeArrowRow(icon: "key", title: "Change Password".localized)
         let passwordTap = UITapGestureRecognizer(target: self, action: #selector(changePasswordTapped))
         passwordRow.addGestureRecognizer(passwordTap)
         passwordRow.isUserInteractionEnabled = true
 
         stackRows(card, rows: [
             passwordRow,
-            makeSwitchRow(icon: "touchid", title: "Biometric Login", selector: #selector(toggleBiometric))
+            makeSwitchRow(icon: "touchid", title: "Biometric Login".localized, selector: #selector(toggleBiometric))
         ])
         return card
     }
@@ -222,12 +222,12 @@ final class SettingsViewController: UIViewController {
     private func makeAccountCard() -> UIView {
         let card = buildCard()
 
-        let signOutRow = makeArrowRow(icon: "arrow.right.square", title: "Sign Out")
+        let signOutRow = makeArrowRow(icon: "arrow.right.square", title: "Sign Out".localized)
         let signOutTap = UITapGestureRecognizer(target: self, action: #selector(signOutTapped))
         signOutRow.addGestureRecognizer(signOutTap)
         signOutRow.isUserInteractionEnabled = true
 
-        let deleteAccountRow = makeArrowRow(icon: "trash", title: "Delete Account")
+        let deleteAccountRow = makeArrowRow(icon: "trash", title: "Delete Account".localized)
         let deleteAccountTap = UITapGestureRecognizer(target: self, action: #selector(deleteAccountTapped))
         deleteAccountRow.addGestureRecognizer(deleteAccountTap)
         deleteAccountRow.isUserInteractionEnabled = true
@@ -399,23 +399,32 @@ final class SettingsViewController: UIViewController {
     }
 
     @objc private func rateAppTapped() {
-        print("Rate Our App tapped.")
-        // Open App Store for rating
-        if let url = URL(string: "itms-apps://itunes.apple.com/app/idYOUR_APP_ID?action=write-review") {
-            UIApplication.shared.open(url)
-        }
+        let alert = UIAlertController(
+            title: "Rate Unizo".localized,
+            message: "You'll be redirected to our app page on the App Store where you can leave a rating and review.".localized,
+            preferredStyle: .alert
+        )
+
+        alert.addAction(UIAlertAction(title: "Continue".localized, style: .default) { _ in
+            if let url = URL(string: "itms-apps://itunes.apple.com/app/idYOUR_APP_ID?action=write-review") {
+                UIApplication.shared.open(url)
+            }
+        })
+        alert.addAction(UIAlertAction(title: "Cancel".localized, style: .cancel))
+
+        present(alert, animated: true)
     }
 
     // MARK: - Sign Out
     @objc private func signOutTapped() {
         let alert = UIAlertController(
-            title: "Sign Out",
-            message: "Are you sure you want to sign out?",
+            title: "Sign Out".localized,
+            message: "Are you sure you want to sign out?".localized,
             preferredStyle: .alert
         )
 
-        alert.addAction(UIAlertAction(title: "Cancel", style: .cancel))
-        alert.addAction(UIAlertAction(title: "Sign Out", style: .destructive) { [weak self] _ in
+        alert.addAction(UIAlertAction(title: "Cancel".localized, style: .cancel))
+        alert.addAction(UIAlertAction(title: "Sign Out".localized, style: .destructive) { [weak self] _ in
             self?.performSignOut()
         })
 

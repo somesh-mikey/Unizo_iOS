@@ -46,7 +46,7 @@ class OrderAcceptedViewController: UIViewController {
 
         // Update subtitle with real buyer name if available
         if let name = buyerName, !name.isEmpty {
-            subtitleLabel.text = "\(name)'s order has been successfully\naccepted."
+            subtitleLabel.text = String(format: "%@'s order has been successfully\naccepted.".localized, name)
         }
     }
 
@@ -158,13 +158,13 @@ class OrderAcceptedViewController: UIViewController {
     // MARK: - Labels
     private func setupLabels() {
         titleLabel.translatesAutoresizingMaskIntoConstraints = false
-        titleLabel.text = "Order Accepted!"
+        titleLabel.text = "Order Accepted!".localized
         titleLabel.font = UIFont.systemFont(ofSize: 22, weight: .semibold)
         titleLabel.textAlignment = .center
 
         subtitleLabel.translatesAutoresizingMaskIntoConstraints = false
         // Will be updated with real buyer name in viewDidLoad
-        subtitleLabel.text = "The order has been successfully\naccepted."
+        subtitleLabel.text = "The order has been successfully\naccepted.".localized
         subtitleLabel.font = UIFont.systemFont(ofSize: 14)
         subtitleLabel.textColor = .gray
         subtitleLabel.numberOfLines = 0
@@ -186,14 +186,14 @@ class OrderAcceptedViewController: UIViewController {
     private func setupButtons() {
 
         viewOrderButton.translatesAutoresizingMaskIntoConstraints = false
-        viewOrderButton.setTitle("View Order Detail", for: .normal)
+        viewOrderButton.setTitle("View Order Detail".localized, for: .normal)
         viewOrderButton.backgroundColor = primaryTeal
         viewOrderButton.setTitleColor(.white, for: .normal)
         viewOrderButton.layer.cornerRadius = 26
         viewOrderButton.titleLabel?.font = UIFont.systemFont(ofSize: 16, weight: .semibold)
 
         viewListingsButton.translatesAutoresizingMaskIntoConstraints = false
-        viewListingsButton.setTitle("View Listings", for: .normal)
+        viewListingsButton.setTitle("View Listings".localized, for: .normal)
         viewListingsButton.setTitleColor(primaryTeal, for: .normal)
         viewListingsButton.layer.borderWidth = 2
         viewListingsButton.layer.borderColor = primaryTeal.cgColor

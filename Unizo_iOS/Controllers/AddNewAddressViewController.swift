@@ -98,45 +98,45 @@ class AddNewAddressViewController: UIViewController {
     }
     private func validate() -> Bool {
         guard let name = nameField.text?.trimmingCharacters(in: .whitespaces), !name.isEmpty else {
-            showError("Name is required")
+            showError("Name is required".localized)
             return false
         }
         // Extract only digits from phone number (ignores +91, spaces, etc.)
         let phoneDigits = phoneField.text?.filter { $0.isNumber } ?? ""
         if phoneDigits.count < 10 {
-            showError("Phone must have at least 10 digits")
+            showError("Phone must have at least 10 digits".localized)
             return false
         }
         guard let address1 = address1Field.text?.trimmingCharacters(in: .whitespaces), !address1.isEmpty else {
-            showError("Address Line 1 is required")
+            showError("Address Line 1 is required".localized)
             return false
         }
         guard let city = cityField.text?.trimmingCharacters(in: .whitespaces), !city.isEmpty else {
-            showError("City is required")
+            showError("City is required".localized)
             return false
         }
         guard let state = stateField.text?.trimmingCharacters(in: .whitespaces), !state.isEmpty else {
-            showError("State is required")
+            showError("State is required".localized)
             return false
         }
         let pincodeDigits = pincodeField.text?.filter { $0.isNumber } ?? ""
         if pincodeDigits.count != 6 {
-            showError("Pincode must be 6 digits")
+            showError("Pincode must be 6 digits".localized)
             return false
         }
         return true
     }
 
     private func showError(_ message: String) {
-        let alert = UIAlertController(title: "Error", message: message, preferredStyle: .alert)
-        alert.addAction(UIAlertAction(title: "OK", style: .default))
+        let alert = UIAlertController(title: "Error".localized, message: message, preferredStyle: .alert)
+        alert.addAction(UIAlertAction(title: "OK".localized, style: .default))
         present(alert, animated: true)
     }
 
 
     // MARK: - Navigation Bar
     private func setupNavBar() {
-        title = "Add New Hotspot"
+        title = "Add New Hotspot".localized
 
         navigationItem.leftBarButtonItem = UIBarButtonItem(
             image: UIImage(systemName: "chevron.left"),
@@ -175,7 +175,7 @@ class AddNewAddressViewController: UIViewController {
 
     // MARK: Section Label
     private func setupSection() {
-        sectionLabel.text = "Hotspot Details"
+        sectionLabel.text = "Hotspot Details".localized
         sectionLabel.font = UIFont.systemFont(ofSize: 16, weight: .semibold)
         sectionLabel.translatesAutoresizingMaskIntoConstraints = false
         contentView.addSubview(sectionLabel)
@@ -204,13 +204,13 @@ class AddNewAddressViewController: UIViewController {
     private func setupFields() {
 
         let fields = [
-            (nameField, "Name"),
-            (phoneField, "Phone Number"),
-            (address1Field, "Address Line 1"),
-            (address2Field, "Address Line 2 (Optional)"),
-            (cityField, "City"),
-            (stateField, "State"),
-            (pincodeField, "Pincode")
+            (nameField, "Name".localized),
+            (phoneField, "Phone Number".localized),
+            (address1Field, "Address Line 1".localized),
+            (address2Field, "Address Line 2 (Optional)".localized),
+            (cityField, "City".localized),
+            (stateField, "State".localized),
+            (pincodeField, "Pincode".localized)
         ]
 
         var last: UIView? = nil
@@ -260,7 +260,7 @@ class AddNewAddressViewController: UIViewController {
     // MARK: Save Button
     private func setupSaveButton() {
 
-        saveButton.setTitle("Save", for: .normal)
+        saveButton.setTitle("Save".localized, for: .normal)
         saveButton.backgroundColor = UIColor(red: 0.02, green: 0.34, blue: 0.46, alpha: 1)
         saveButton.layer.cornerRadius = 25
         saveButton.setTitleColor(.white, for: .normal)
@@ -296,7 +296,7 @@ class AddNewAddressViewController: UIViewController {
             saveButton.setTitle("", for: .normal)
             loadingIndicator.startAnimating()
         } else {
-            saveButton.setTitle("Save", for: .normal)
+            saveButton.setTitle("Save".localized, for: .normal)
             loadingIndicator.stopAnimating()
         }
     }
@@ -314,7 +314,7 @@ class AddNewAddressViewController: UIViewController {
                 guard let userId = await AuthManager.shared.currentUserId else {
                     await MainActor.run {
                         self.setLoading(false)
-                        self.showError("You must be logged in to add a hotspot")
+                        self.showError("You must be logged in to add a hotspot".localized)
                     }
                     return
                 }
@@ -340,7 +340,7 @@ class AddNewAddressViewController: UIViewController {
                 if isDuplicate {
                     await MainActor.run {
                         self.setLoading(false)
-                        self.showAlert(title: "Duplicate Address", message: "Hotspot already added")
+                        self.showAlert(title: "Duplicate Address".localized, message: "Hotspot already added".localized)
                     }
                     return
                 }
@@ -377,7 +377,7 @@ class AddNewAddressViewController: UIViewController {
 
     private func showAlert(title: String, message: String) {
         let alert = UIAlertController(title: title, message: message, preferredStyle: .alert)
-        alert.addAction(UIAlertAction(title: "OK", style: .default))
+        alert.addAction(UIAlertAction(title: "OK".localized, style: .default))
         present(alert, animated: true)
     }
 }

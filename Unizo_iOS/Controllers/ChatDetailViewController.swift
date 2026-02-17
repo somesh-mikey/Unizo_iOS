@@ -103,7 +103,7 @@ class ChatDetailViewController: UIViewController {
 
     private let inputField: UITextField = {
         let tf = UITextField()
-        tf.placeholder = "Type a message..."
+        tf.placeholder = "Type a message...".localized
         tf.font = UIFont.systemFont(ofSize: 15)
         tf.backgroundColor = .white
         tf.layer.cornerRadius = 20
@@ -147,7 +147,7 @@ class ChatDetailViewController: UIViewController {
         sendButton.addTarget(self, action: #selector(sendTapped), for: .touchUpInside)
 
         titleLabel.text = chatTitle
-        roleLabel.text = isSeller ? "Buyer" : "Seller"
+        roleLabel.text = isSeller ? "Buyer".localized : "Seller".localized
 
         // Fetch current user and messages
         fetchCurrentUser()
@@ -536,7 +536,7 @@ class ChatDetailViewController: UIViewController {
         }
 
         // Show loading state
-        let loadingAlert = UIAlertController(title: nil, message: "Sending photo...", preferredStyle: .alert)
+        let loadingAlert = UIAlertController(title: nil, message: "Sending photo...".localized, preferredStyle: .alert)
         let loadingIndicator = UIActivityIndicatorView(style: .medium)
         loadingIndicator.translatesAutoresizingMaskIntoConstraints = false
         loadingIndicator.startAnimating()
@@ -574,11 +574,11 @@ class ChatDetailViewController: UIViewController {
                 await MainActor.run {
                     loadingAlert.dismiss(animated: true) {
                         let alert = UIAlertController(
-                            title: "Failed to Send",
-                            message: "Could not send the photo. Please try again.",
+                            title: "Failed to Send".localized,
+                            message: "Could not send the photo. Please try again.".localized,
                             preferredStyle: .alert
                         )
-                        alert.addAction(UIAlertAction(title: "OK", style: .default))
+                        alert.addAction(UIAlertAction(title: "OK".localized, style: .default))
                         self.present(alert, animated: true)
                     }
                     HapticFeedback.error()

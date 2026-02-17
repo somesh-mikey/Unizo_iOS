@@ -10,8 +10,8 @@ import UIKit
 class LanguageViewController: UIViewController {
 
     // MARK: - Data
-    private let languages = ["English", "Hindi", "Spanish", "French", "German"]
-    private var selectedLanguages: Set<String> = ["English"]
+    private let languages = AppLanguage.allCases
+    private var selectedLanguage: AppLanguage = AppLanguageManager.shared.current
 
     // MARK: - Scroll
     private let scrollView = UIScrollView()
@@ -27,6 +27,9 @@ class LanguageViewController: UIViewController {
     // MARK: - Cards
     private let selectedCard = UIView()
     private let allLanguagesCard = UIView()
+
+    // MARK: - Save Button
+    private let saveButton = UIButton(type: .system)
 
     // MARK: - Colors
     private let tickColor = UIColor(red: 0.12, green: 0.28, blue: 0.35, alpha: 1.0)
@@ -52,7 +55,7 @@ class LanguageViewController: UIViewController {
     private func setupUI() {
         view.backgroundColor = .systemGroupedBackground
 
-        navigationItem.title = "Language"
+        navigationItem.title = "Language".localized
         navigationItem.leftBarButtonItem = UIBarButtonItem(
             image: UIImage(systemName: "chevron.left"),
             style: .plain,
@@ -63,24 +66,32 @@ class LanguageViewController: UIViewController {
         view.addSubview(scrollView)
         scrollView.addSubview(contentView)
 
-        titleLabel.text = "Choose the language"
+        titleLabel.text = "Choose the language".localized
         titleLabel.font = .systemFont(ofSize: 22, weight: .semibold)
 
-        subtitleLabel.text = "Select your preferred language below. This helps us serve you better."
+        subtitleLabel.text = "Select your preferred language below. This helps us serve you better.".localized
         subtitleLabel.font = .systemFont(ofSize: 14)
         subtitleLabel.textColor = .secondaryLabel
         subtitleLabel.numberOfLines = 0
 
-        youSelectedLabel.text = "You Selected"
+        youSelectedLabel.text = "You Selected".localized
         youSelectedLabel.font = .systemFont(ofSize: 15, weight: .semibold)
         youSelectedLabel.textColor = .label
 
-        allLanguagesLabel.text = "All Languages"
+        allLanguagesLabel.text = "All Languages".localized
         allLanguagesLabel.font = .systemFont(ofSize: 15, weight: .semibold)
         allLanguagesLabel.textColor = .label
 
         configureCard(selectedCard)
         configureCard(allLanguagesCard)
+
+        // Save button
+        saveButton.setTitle("Save".localized, for: .normal)
+        saveButton.setTitleColor(.white, for: .normal)
+        saveButton.titleLabel?.font = .systemFont(ofSize: 17, weight: .semibold)
+        saveButton.backgroundColor = tickColor
+        saveButton.layer.cornerRadius = 28
+        saveButton.addTarget(self, action: #selector(saveTapped), for: .touchUpInside)
 
         [
             titleLabel,
@@ -88,7 +99,8 @@ class LanguageViewController: UIViewController {
             youSelectedLabel,
             selectedCard,
             allLanguagesLabel,
-            allLanguagesCard
+            allLanguagesCard,
+            saveButton
         ].forEach {
             $0.translatesAutoresizingMaskIntoConstraints = false
             contentView.addSubview($0)
@@ -106,27 +118,19 @@ class LanguageViewController: UIViewController {
     private func refreshSelectedCard() {
         selectedCard.subviews.forEach { $0.removeFromSuperview() }
 
-        var previous: UIView?
+        let row = languageRow(
+            title: selectedLanguage.rawValue,
+            selected: true,
+            showSeparator: false
+        )
+        selectedCard.addSubview(row)
 
-        for (index, lang) in selectedLanguages.enumerated() {
-            let row = languageRow(
-                title: lang,
-                selected: true,
-                showSeparator: index != selectedLanguages.count - 1
-            )
-            selectedCard.addSubview(row)
-
-            NSLayoutConstraint.activate([
-                row.leadingAnchor.constraint(equalTo: selectedCard.leadingAnchor),
-                row.trailingAnchor.constraint(equalTo: selectedCard.trailingAnchor),
-                row.topAnchor.constraint(equalTo: previous?.bottomAnchor ?? selectedCard.topAnchor,
-                                         constant: index == 0 ? 8 : 0)
-            ])
-
-            previous = row
-        }
-
-        previous?.bottomAnchor.constraint(equalTo: selectedCard.bottomAnchor, constant: -8).isActive = true
+        NSLayoutConstraint.activate([
+            row.leadingAnchor.constraint(equalTo: selectedCard.leadingAnchor),
+            row.trailingAnchor.constraint(equalTo: selectedCard.trailingAnchor),
+            row.topAnchor.constraint(equalTo: selectedCard.topAnchor, constant: 8),
+            row.bottomAnchor.constraint(equalTo: selectedCard.bottomAnchor, constant: -8)
+        ])
     }
 
     // MARK: - All Languages Card
@@ -137,8 +141,8 @@ class LanguageViewController: UIViewController {
 
         for (index, lang) in languages.enumerated() {
             let row = languageRow(
-                title: lang,
-                selected: selectedLanguages.contains(lang),
+                title: lang.rawValue,
+                selected: lang == selectedLanguage,
                 showSeparator: index != languages.count - 1
             )
             row.tag = index
@@ -167,11 +171,12 @@ class LanguageViewController: UIViewController {
         container.translatesAutoresizingMaskIntoConstraints = false
         container.heightAnchor.constraint(equalToConstant: 52).isActive = true
 
-        let checkbox = UIView()
-        checkbox.layer.cornerRadius = 11
-        checkbox.layer.borderWidth = selected ? 0 : 1.5
-        checkbox.layer.borderColor = UIColor.systemGray4.cgColor
-        checkbox.backgroundColor = selected ? tickColor : .clear
+        // Radio button style (circle)
+        let radio = UIView()
+        radio.layer.cornerRadius = 11
+        radio.layer.borderWidth = selected ? 0 : 1.5
+        radio.layer.borderColor = UIColor.systemGray4.cgColor
+        radio.backgroundColor = selected ? tickColor : .clear
 
         let tick = UIImageView(image: UIImage(systemName: "checkmark"))
         tick.tintColor = .white
@@ -180,26 +185,27 @@ class LanguageViewController: UIViewController {
         let label = UILabel()
         label.text = title
         label.font = .systemFont(ofSize: 16)
+        label.textColor = selected ? tickColor : .label
 
         let separator = UIView()
         separator.backgroundColor = .systemGray5
         separator.isHidden = !showSeparator
 
-        [checkbox, tick, label, separator].forEach {
+        [radio, tick, label, separator].forEach {
             $0.translatesAutoresizingMaskIntoConstraints = false
             container.addSubview($0)
         }
 
         NSLayoutConstraint.activate([
-            checkbox.leadingAnchor.constraint(equalTo: container.leadingAnchor, constant: 16),
-            checkbox.centerYAnchor.constraint(equalTo: container.centerYAnchor),
-            checkbox.widthAnchor.constraint(equalToConstant: 22),
-            checkbox.heightAnchor.constraint(equalToConstant: 22),
+            radio.leadingAnchor.constraint(equalTo: container.leadingAnchor, constant: 16),
+            radio.centerYAnchor.constraint(equalTo: container.centerYAnchor),
+            radio.widthAnchor.constraint(equalToConstant: 22),
+            radio.heightAnchor.constraint(equalToConstant: 22),
 
-            tick.centerXAnchor.constraint(equalTo: checkbox.centerXAnchor),
-            tick.centerYAnchor.constraint(equalTo: checkbox.centerYAnchor),
+            tick.centerXAnchor.constraint(equalTo: radio.centerXAnchor),
+            tick.centerYAnchor.constraint(equalTo: radio.centerYAnchor),
 
-            label.leadingAnchor.constraint(equalTo: checkbox.trailingAnchor, constant: 12),
+            label.leadingAnchor.constraint(equalTo: radio.trailingAnchor, constant: 12),
             label.centerYAnchor.constraint(equalTo: container.centerYAnchor),
 
             separator.leadingAnchor.constraint(equalTo: label.leadingAnchor),
@@ -214,16 +220,40 @@ class LanguageViewController: UIViewController {
     // MARK: - Actions
     @objc private func languageTapped(_ sender: UITapGestureRecognizer) {
         guard let index = sender.view?.tag else { return }
-        let lang = languages[index]
-
-        if selectedLanguages.contains(lang) {
-            selectedLanguages.remove(lang)
-        } else {
-            selectedLanguages.insert(lang)
-        }
-
+        selectedLanguage = languages[index]
         buildAllLanguagesCard()
         refreshSelectedCard()
+    }
+
+    @objc private func saveTapped() {
+        let previousLanguage = AppLanguageManager.shared.current
+
+        guard selectedLanguage != previousLanguage else {
+            // No change — just go back
+            navigationController?.popViewController(animated: true)
+            return
+        }
+
+        // Persist the language change
+        AppLanguageManager.shared.setLanguage(selectedLanguage)
+
+        // Notify all screens to refresh
+        NotificationCenter.default.post(name: .appLanguageDidChange, object: nil)
+
+        // Restart the app UI from root so all screens pick up the new language
+        guard let scene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
+              let window = scene.windows.first else {
+            navigationController?.popViewController(animated: true)
+            return
+        }
+
+        let tab = MainTabBarController()
+        // Navigate to Account tab (index 4) → Settings will need to be re-entered
+        tab.selectedIndex = 4
+        window.rootViewController = tab
+        window.makeKeyAndVisible()
+
+        UIView.transition(with: window, duration: 0.3, options: .transitionCrossDissolve, animations: nil)
     }
 
     @objc private func backTapped() {
@@ -268,7 +298,12 @@ class LanguageViewController: UIViewController {
             allLanguagesCard.topAnchor.constraint(equalTo: allLanguagesLabel.bottomAnchor, constant: 8),
             allLanguagesCard.leadingAnchor.constraint(equalTo: selectedCard.leadingAnchor),
             allLanguagesCard.trailingAnchor.constraint(equalTo: selectedCard.trailingAnchor),
-            allLanguagesCard.bottomAnchor.constraint(equalTo: contentView.bottomAnchor, constant: -32)
+
+            saveButton.topAnchor.constraint(equalTo: allLanguagesCard.bottomAnchor, constant: 32),
+            saveButton.leadingAnchor.constraint(equalTo: contentView.leadingAnchor, constant: 16),
+            saveButton.trailingAnchor.constraint(equalTo: contentView.trailingAnchor, constant: -16),
+            saveButton.heightAnchor.constraint(equalToConstant: 56),
+            saveButton.bottomAnchor.constraint(equalTo: contentView.bottomAnchor, constant: -32)
         ])
     }
 }

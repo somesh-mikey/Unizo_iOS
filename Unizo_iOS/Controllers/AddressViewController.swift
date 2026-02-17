@@ -47,7 +47,7 @@ class AddressViewController: UIViewController {
     // Empty state
     private let emptyStateLabel: UILabel = {
         let lbl = UILabel()
-        lbl.text = "No hotspots added"
+        lbl.text = "No hotspots added".localized
         lbl.font = .systemFont(ofSize: 16)
         lbl.textColor = .secondaryLabel
         lbl.textAlignment = .center
@@ -115,7 +115,7 @@ class AddressViewController: UIViewController {
         backButton.addTarget(self, action: #selector(backTapped), for: .touchUpInside)
 
         // Title - different based on flow
-        titleLabel.text = (flowSource == .fromAccount) ? "My Hotspots" : "Select Hotspot"
+        titleLabel.text = (flowSource == .fromAccount) ? "My Hotspots".localized : "Select Hotspot".localized
         titleLabel.font = UIFont.systemFont(ofSize: 18, weight: .semibold)
         titleLabel.textColor = .black
         titleLabel.translatesAutoresizingMaskIntoConstraints = false
@@ -193,7 +193,7 @@ class AddressViewController: UIViewController {
         ])
 
         let step1Text = UILabel()
-        step1Text.text = "Set Hotspot"
+        step1Text.text = "Set Hotspot".localized
         step1Text.font = UIFont.systemFont(ofSize: 14, weight: .semibold)
         step1Text.textColor = .black
 
@@ -230,7 +230,7 @@ class AddressViewController: UIViewController {
         ])
 
         let step2Text = UILabel()
-        step2Text.text = "Confirm Order"
+        step2Text.text = "Confirm Order".localized
         step2Text.font = UIFont.systemFont(ofSize: 14, weight: .semibold)
         step2Text.textColor = .gray
 
@@ -428,26 +428,26 @@ class AddressViewController: UIViewController {
         // Double-check if address can be deleted
         guard addressRepository.canDeleteAddress(address, totalAddressCount: addresses.count) else {
             let errorAlert = UIAlertController(
-                title: "Cannot Delete",
+                title: "Cannot Delete".localized,
                 message: address.is_default
-                    ? "The default hotspot cannot be deleted. Please set another hotspot as default first."
-                    : "You must have at least one hotspot.",
+                    ? "The default hotspot cannot be deleted. Please set another hotspot as default first.".localized
+                    : "You must have at least one hotspot.".localized,
                 preferredStyle: .alert
             )
-            errorAlert.addAction(UIAlertAction(title: "OK", style: .default))
+            errorAlert.addAction(UIAlertAction(title: "OK".localized, style: .default))
             present(errorAlert, animated: true)
             return
         }
 
         let alert = UIAlertController(
-            title: "Delete Hotspot?",
-            message: "This action cannot be undone.",
+            title: "Delete Hotspot?".localized,
+            message: "This action cannot be undone.".localized,
             preferredStyle: .alert
         )
 
-        alert.addAction(UIAlertAction(title: "Cancel", style: .cancel))
+        alert.addAction(UIAlertAction(title: "Cancel".localized, style: .cancel))
 
-        alert.addAction(UIAlertAction(title: "Delete", style: .destructive) { _ in
+        alert.addAction(UIAlertAction(title: "Delete".localized, style: .destructive) { _ in
             Task {
                 do {
                     try await self.addressRepository.deleteAddress(id: address.id)
@@ -456,22 +456,22 @@ class AddressViewController: UIViewController {
                 } catch let error as AddressError {
                     await MainActor.run {
                         let errorAlert = UIAlertController(
-                            title: "Cannot Delete",
+                            title: "Cannot Delete".localized,
                             message: error.errorDescription,
                             preferredStyle: .alert
                         )
-                        errorAlert.addAction(UIAlertAction(title: "OK", style: .default))
+                        errorAlert.addAction(UIAlertAction(title: "OK".localized, style: .default))
                         self.present(errorAlert, animated: true)
                     }
                 } catch {
                     print("❌ Failed to delete hotspot:", error)
                     await MainActor.run {
                         let errorAlert = UIAlertController(
-                            title: "Error",
-                            message: "Failed to delete hotspot. Please try again.",
+                            title: "Error".localized,
+                            message: "Failed to delete hotspot. Please try again.".localized,
                             preferredStyle: .alert
                         )
-                        errorAlert.addAction(UIAlertAction(title: "OK", style: .default))
+                        errorAlert.addAction(UIAlertAction(title: "OK".localized, style: .default))
                         self.present(errorAlert, animated: true)
                     }
                 }
@@ -512,7 +512,7 @@ class AddressViewController: UIViewController {
 
     // MARK: - ADD NEW HOTSPOT BUTTON
     private func setupAddNewAddressButton() {
-        addNewAddressButton.setTitle("Add New Hotspot", for: .normal)
+        addNewAddressButton.setTitle("Add New Hotspot".localized, for: .normal)
         addNewAddressButton.setTitleColor(primaryTeal, for: .normal)
         addNewAddressButton.titleLabel?.font = UIFont.systemFont(ofSize: 14, weight: .semibold)
         addNewAddressButton.backgroundColor = .white
@@ -550,7 +550,7 @@ class AddressViewController: UIViewController {
 
     // MARK: - CONTINUE BUTTON
     private func setupContinueButton() {
-        continueButton.setTitle("Continue", for: .normal)
+        continueButton.setTitle("Continue".localized, for: .normal)
         continueButton.setTitleColor(.white, for: .normal)
         continueButton.backgroundColor = primaryTeal
         continueButton.layer.cornerRadius = 24

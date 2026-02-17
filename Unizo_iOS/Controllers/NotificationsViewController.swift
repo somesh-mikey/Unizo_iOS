@@ -35,7 +35,7 @@ final class NotificationsViewController: UIViewController {
 
     private let titleLabel: UILabel = {
         let lbl = UILabel()
-        lbl.text = "Notifications"
+        lbl.text = "Notifications".localized
         lbl.font = UIFont.systemFont(ofSize: 24, weight: .bold)
         lbl.translatesAutoresizingMaskIntoConstraints = false
         return lbl
@@ -51,7 +51,7 @@ final class NotificationsViewController: UIViewController {
     }()
 
     private let segmentedControl: UISegmentedControl = {
-        let sc = UISegmentedControl(items: ["All", "Buying", "Selling"])
+        let sc = UISegmentedControl(items: ["All".localized, "Buying".localized, "Selling".localized])
         sc.translatesAutoresizingMaskIntoConstraints = false
         sc.applyPrimarySegmentStyle()
         return sc
@@ -78,7 +78,7 @@ final class NotificationsViewController: UIViewController {
 
     private let emptyStateLabel: UILabel = {
         let lbl = UILabel()
-        lbl.text = "No notifications yet"
+        lbl.text = "No notifications yet".localized
         lbl.font = .systemFont(ofSize: 16)
         lbl.textColor = .secondaryLabel
         lbl.textAlignment = .center
@@ -204,7 +204,7 @@ final class NotificationsViewController: UIViewController {
                     self.refreshControl.endRefreshing()
                     self.loadingIndicator.stopAnimating()
                     self.isLoading = false
-                    self.emptyStateLabel.text = "Failed to load notifications"
+                    self.emptyStateLabel.text = "Failed to load notifications".localized
                     self.emptyStateLabel.isHidden = false
                 }
             }

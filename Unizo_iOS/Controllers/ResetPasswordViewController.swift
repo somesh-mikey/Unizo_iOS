@@ -9,19 +9,29 @@ import UIKit
 
 class ResetPasswordViewController: UIViewController {
 
+    // MARK: - Mode
+    /// When true, the user is already logged in and can set a new password directly.
+    /// When false (default), the user is on the login screen and needs an email reset link.
+    var isLoggedInMode: Bool = false
+
     // MARK: - UI Elements
     private let cardView = UIView()
 
     private let titleLabel = UILabel()
     private let subtitleLabel = UILabel()
 
+    // Email mode
     private let emailField = UITextField()
-    private let phoneField = UITextField()
 
-    private let orLabel = UILabel()
+    // Logged-in mode (set new password directly)
+    private let newPasswordField = UITextField()
+    private let confirmPasswordField = UITextField()
+
+    private let errorLabel = UILabel()
 
     private let backToLoginButton = UIButton(type: .system)
-    private let sendResetButton = UIButton(type: .system)
+    private let actionButton = UIButton(type: .system)
+    private let loadingSpinner = UIActivityIndicatorView(style: .medium)
 
     // MARK: - Keyboard Handling
     private var cardBottomConstraint: NSLayoutConstraint!
@@ -29,6 +39,10 @@ class ResetPasswordViewController: UIViewController {
     // MARK: - Lifecycle
     override func viewDidLoad() {
         super.viewDidLoad()
+
+        // Detect if user is logged in
+        isLoggedInMode = AuthManager.shared.isLoggedInSync
+
         setupUI()
         setupConstraints()
         setupKeyboardObservers()
@@ -59,7 +73,6 @@ class ResetPasswordViewController: UIViewController {
             object: nil
         )
 
-        // Dismiss keyboard on tap inside card
         let cardTap = UITapGestureRecognizer(target: self, action: #selector(dismissKeyboard))
         cardTap.cancelsTouchesInView = false
         cardView.addGestureRecognizer(cardTap)
@@ -75,10 +88,8 @@ class ResetPasswordViewController: UIViewController {
             return
         }
 
-        let keyboardHeight = keyboardFrame.height
-
         UIView.animate(withDuration: duration) {
-            self.cardBottomConstraint.constant = -keyboardHeight
+            self.cardBottomConstraint.constant = -keyboardFrame.height
             self.view.layoutIfNeeded()
         }
     }
@@ -103,57 +114,82 @@ class ResetPasswordViewController: UIViewController {
 
     // MARK: - UI Setup
     private func setupUI() {
-
-        // Background dim
         view.backgroundColor = UIColor.black.withAlphaComponent(0.4)
 
-        // --- Card View ---
         cardView.backgroundColor = .white
         cardView.layer.cornerRadius = 40
-        //cardView.layer.borderWidth = 3
-        //cardView.layer.borderColor = UIColor(red: 68/255, green: 130/255, blue: 255/255, alpha: 1).cgColor
         cardView.layer.maskedCorners = [.layerMinXMinYCorner, .layerMaxXMinYCorner]
         cardView.clipsToBounds = true
         view.addSubview(cardView)
 
-        // --- Title ---
-        titleLabel.text = "Reset Your Password"
+        let tealColor = UIColor(red: 0/255, green: 76/255, blue: 97/255, alpha: 1)
+
+        if isLoggedInMode {
+            // --- Logged-in: Set new password directly ---
+            titleLabel.text = "Set New Password"
+            subtitleLabel.text = "Enter and confirm your new password below."
+
+            setupTextField(newPasswordField, placeholder: "New Password")
+            newPasswordField.isSecureTextEntry = true
+            newPasswordField.textContentType = .newPassword
+
+            setupTextField(confirmPasswordField, placeholder: "Confirm Password")
+            confirmPasswordField.isSecureTextEntry = true
+            confirmPasswordField.textContentType = .newPassword
+
+            actionButton.setTitle("Update Password", for: .normal)
+
+            // Hide email field
+            emailField.isHidden = true
+
+            backToLoginButton.setTitle("Cancel", for: .normal)
+        } else {
+            // --- Not logged-in: Email reset link ---
+            titleLabel.text = "Reset Your Password"
+            subtitleLabel.text = "Don't worry! Enter your email address and we'll send\nyou a link to reset your password."
+
+            setupTextField(emailField, placeholder: "College Email")
+            emailField.keyboardType = .emailAddress
+            emailField.autocapitalizationType = .none
+            emailField.autocorrectionType = .no
+
+            actionButton.setTitle("Send Reset Link", for: .normal)
+
+            // Hide password fields
+            newPasswordField.isHidden = true
+            confirmPasswordField.isHidden = true
+
+            backToLoginButton.setTitle("Back to Login.", for: .normal)
+        }
+
         titleLabel.font = UIFont.systemFont(ofSize: 20, weight: .bold)
         titleLabel.textColor = .black
 
-        // --- Subtitle ---
-        subtitleLabel.text = "Don’t worry! Enter your email address and we’ll send\nyou a link to reset your password."
         subtitleLabel.font = UIFont.systemFont(ofSize: 13)
         subtitleLabel.textColor = .gray
         subtitleLabel.numberOfLines = 0
         subtitleLabel.textAlignment = .left
 
-        // --- Fields ---
-        setupTextField(emailField, placeholder: "College Email")
-        setupTextField(phoneField, placeholder: "Your Phone Number")
+        errorLabel.font = .systemFont(ofSize: 13)
+        errorLabel.textColor = .systemRed
+        errorLabel.textAlignment = .center
+        errorLabel.numberOfLines = 0
+        errorLabel.isHidden = true
 
-        // OR Label
-        orLabel.text = "OR"
-        orLabel.font = UIFont.systemFont(ofSize: 13, weight: .medium)
-        orLabel.textColor = .gray
-        orLabel.textAlignment = .center
-
-        // Back To Login
-        backToLoginButton.setTitle("Back to Login.", for: .normal)
         backToLoginButton.setTitleColor(.systemBlue, for: .normal)
         backToLoginButton.titleLabel?.font = UIFont.systemFont(ofSize: 12)
         backToLoginButton.addTarget(self, action: #selector(backTapped), for: .touchUpInside)
 
-        // Send Reset Button
-        sendResetButton.setTitle("Send Reset Link", for: .normal)
-        sendResetButton.backgroundColor = UIColor(red: 0/255, green: 76/255, blue: 97/255, alpha: 1)
-        sendResetButton.setTitleColor(.white, for: .normal)
-        sendResetButton.layer.cornerRadius = 14
-        sendResetButton.titleLabel?.font = UIFont.systemFont(ofSize: 16, weight: .semibold)
-        sendResetButton.addTarget(self, action: #selector(sendResetTapped), for: .touchUpInside)
+        actionButton.backgroundColor = tealColor
+        actionButton.setTitleColor(.white, for: .normal)
+        actionButton.layer.cornerRadius = 14
+        actionButton.titleLabel?.font = UIFont.systemFont(ofSize: 16, weight: .semibold)
+        actionButton.addTarget(self, action: #selector(actionTapped), for: .touchUpInside)
 
-        // Add Subviews
-        [titleLabel, subtitleLabel, emailField, orLabel, phoneField, backToLoginButton, sendResetButton]
+        loadingSpinner.hidesWhenStopped = true
+        loadingSpinner.color = .white
+
+        [titleLabel, subtitleLabel, emailField, newPasswordField, confirmPasswordField, errorLabel, backToLoginButton, actionButton, loadingSpinner]
             .forEach { cardView.addSubview($0) }
     }
 
@@ -171,60 +207,81 @@ class ResetPasswordViewController: UIViewController {
 
     // MARK: - Constraints
     private func setupConstraints() {
-
-        cardView.translatesAutoresizingMaskIntoConstraints = false
-        titleLabel.translatesAutoresizingMaskIntoConstraints = false
-        subtitleLabel.translatesAutoresizingMaskIntoConstraints = false
-        emailField.translatesAutoresizingMaskIntoConstraints = false
-        orLabel.translatesAutoresizingMaskIntoConstraints = false
-        phoneField.translatesAutoresizingMaskIntoConstraints = false
-        backToLoginButton.translatesAutoresizingMaskIntoConstraints = false
-        sendResetButton.translatesAutoresizingMaskIntoConstraints = false
+        [cardView, titleLabel, subtitleLabel, emailField, newPasswordField, confirmPasswordField,
+         errorLabel, backToLoginButton, actionButton, loadingSpinner].forEach {
+            $0.translatesAutoresizingMaskIntoConstraints = false
+        }
 
         cardBottomConstraint = cardView.bottomAnchor.constraint(equalTo: view.bottomAnchor)
 
-        NSLayoutConstraint.activate([
-
-            // Card View
+        // Common constraints
+        var constraints: [NSLayoutConstraint] = [
             cardView.leadingAnchor.constraint(equalTo: view.leadingAnchor),
             cardView.trailingAnchor.constraint(equalTo: view.trailingAnchor),
             cardBottomConstraint,
-            cardView.heightAnchor.constraint(equalTo: view.heightAnchor, multiplier: 0.45),
 
-            // Title
             titleLabel.topAnchor.constraint(equalTo: cardView.topAnchor, constant: 20),
             titleLabel.leadingAnchor.constraint(equalTo: cardView.leadingAnchor, constant: 32),
 
-            // Subtitle
             subtitleLabel.topAnchor.constraint(equalTo: titleLabel.bottomAnchor, constant: 6),
             subtitleLabel.leadingAnchor.constraint(equalTo: titleLabel.leadingAnchor),
+            subtitleLabel.trailingAnchor.constraint(equalTo: cardView.trailingAnchor, constant: -32),
 
-            // Email Field
-            emailField.topAnchor.constraint(equalTo: subtitleLabel.bottomAnchor, constant: 22),
-            emailField.leadingAnchor.constraint(equalTo: titleLabel.leadingAnchor),
-            emailField.trailingAnchor.constraint(equalTo: cardView.trailingAnchor, constant: -32),
-            emailField.heightAnchor.constraint(equalToConstant: 44),
+            loadingSpinner.centerXAnchor.constraint(equalTo: actionButton.centerXAnchor),
+            loadingSpinner.centerYAnchor.constraint(equalTo: actionButton.centerYAnchor)
+        ]
 
-            // OR Label
-            orLabel.topAnchor.constraint(equalTo: emailField.bottomAnchor, constant: 12),
-            orLabel.centerXAnchor.constraint(equalTo: cardView.centerXAnchor),
+        if isLoggedInMode {
+            // Card is taller for two fields
+            constraints += [
+                cardView.heightAnchor.constraint(equalTo: view.heightAnchor, multiplier: 0.42),
 
-            // Phone Field
-            phoneField.topAnchor.constraint(equalTo: orLabel.bottomAnchor, constant: 6),
-            phoneField.leadingAnchor.constraint(equalTo: emailField.leadingAnchor),
-            phoneField.trailingAnchor.constraint(equalTo: emailField.trailingAnchor),
-            phoneField.heightAnchor.constraint(equalToConstant: 44),
+                newPasswordField.topAnchor.constraint(equalTo: subtitleLabel.bottomAnchor, constant: 22),
+                newPasswordField.leadingAnchor.constraint(equalTo: titleLabel.leadingAnchor),
+                newPasswordField.trailingAnchor.constraint(equalTo: cardView.trailingAnchor, constant: -32),
+                newPasswordField.heightAnchor.constraint(equalToConstant: 44),
 
-            // Back To Login
-            backToLoginButton.topAnchor.constraint(equalTo: phoneField.bottomAnchor, constant: 8),
-            backToLoginButton.centerXAnchor.constraint(equalTo: cardView.centerXAnchor),
+                confirmPasswordField.topAnchor.constraint(equalTo: newPasswordField.bottomAnchor, constant: 12),
+                confirmPasswordField.leadingAnchor.constraint(equalTo: titleLabel.leadingAnchor),
+                confirmPasswordField.trailingAnchor.constraint(equalTo: cardView.trailingAnchor, constant: -32),
+                confirmPasswordField.heightAnchor.constraint(equalToConstant: 44),
 
-            // Send Reset Button
-            sendResetButton.topAnchor.constraint(equalTo: backToLoginButton.bottomAnchor, constant: 22),
-            sendResetButton.leadingAnchor.constraint(equalTo: emailField.leadingAnchor),
-            sendResetButton.trailingAnchor.constraint(equalTo: emailField.trailingAnchor),
-            sendResetButton.heightAnchor.constraint(equalToConstant: 50)
-        ])
+                errorLabel.topAnchor.constraint(equalTo: confirmPasswordField.bottomAnchor, constant: 8),
+                errorLabel.leadingAnchor.constraint(equalTo: titleLabel.leadingAnchor),
+                errorLabel.trailingAnchor.constraint(equalTo: cardView.trailingAnchor, constant: -32),
+
+                backToLoginButton.topAnchor.constraint(equalTo: errorLabel.bottomAnchor, constant: 4),
+                backToLoginButton.centerXAnchor.constraint(equalTo: cardView.centerXAnchor),
+
+                actionButton.topAnchor.constraint(equalTo: backToLoginButton.bottomAnchor, constant: 18),
+                actionButton.leadingAnchor.constraint(equalTo: titleLabel.leadingAnchor),
+                actionButton.trailingAnchor.constraint(equalTo: cardView.trailingAnchor, constant: -32),
+                actionButton.heightAnchor.constraint(equalToConstant: 50)
+            ]
+        } else {
+            constraints += [
+                cardView.heightAnchor.constraint(equalTo: view.heightAnchor, multiplier: 0.38),
+
+                emailField.topAnchor.constraint(equalTo: subtitleLabel.bottomAnchor, constant: 22),
+                emailField.leadingAnchor.constraint(equalTo: titleLabel.leadingAnchor),
+                emailField.trailingAnchor.constraint(equalTo: cardView.trailingAnchor, constant: -32),
+                emailField.heightAnchor.constraint(equalToConstant: 44),
+
+                errorLabel.topAnchor.constraint(equalTo: emailField.bottomAnchor, constant: 8),
+                errorLabel.leadingAnchor.constraint(equalTo: titleLabel.leadingAnchor),
+                errorLabel.trailingAnchor.constraint(equalTo: cardView.trailingAnchor, constant: -32),
+
+                backToLoginButton.topAnchor.constraint(equalTo: errorLabel.bottomAnchor, constant: 4),
+                backToLoginButton.centerXAnchor.constraint(equalTo: cardView.centerXAnchor),
+
+                actionButton.topAnchor.constraint(equalTo: backToLoginButton.bottomAnchor, constant: 22),
+                actionButton.leadingAnchor.constraint(equalTo: titleLabel.leadingAnchor),
+                actionButton.trailingAnchor.constraint(equalTo: cardView.trailingAnchor, constant: -32),
+                actionButton.heightAnchor.constraint(equalToConstant: 50)
+            ]
+        }
+
+        NSLayoutConstraint.activate(constraints)
     }
 
     // MARK: - Actions
@@ -232,8 +289,139 @@ class ResetPasswordViewController: UIViewController {
         dismiss(animated: true)
     }
 
-    @objc private func sendResetTapped() {
-        dismiss(animated: true)
+    @objc private func actionTapped() {
+        if isLoggedInMode {
+            handleUpdatePassword()
+        } else {
+            handleSendResetLink()
+        }
+    }
+
+    // MARK: - Logged-in: Update Password Directly
+    private func handleUpdatePassword() {
+        view.endEditing(true)
+        errorLabel.isHidden = true
+
+        let newPassword = newPasswordField.text?.trimmingCharacters(in: .whitespaces) ?? ""
+        let confirmPassword = confirmPasswordField.text?.trimmingCharacters(in: .whitespaces) ?? ""
+
+        guard !newPassword.isEmpty else {
+            showError("Please enter a new password.")
+            return
+        }
+        guard newPassword.count >= 6 else {
+            showError("Password must be at least 6 characters.")
+            return
+        }
+        guard newPassword == confirmPassword else {
+            showError("Passwords do not match.")
+            return
+        }
+
+        setLoading(true)
+
+        Task {
+            do {
+                try await AuthManager.shared.updatePassword(newPassword: newPassword)
+
+                print("✅ [ResetPassword] Password updated successfully")
+
+                await MainActor.run {
+                    self.setLoading(false)
+                    let alert = UIAlertController(
+                        title: "Password Updated",
+                        message: "Your password has been changed successfully.",
+                        preferredStyle: .alert
+                    )
+                    alert.addAction(UIAlertAction(title: "OK", style: .default) { [weak self] _ in
+                        self?.dismiss(animated: true)
+                    })
+                    self.present(alert, animated: true)
+                }
+            } catch {
+                print("❌ [ResetPassword] Password update failed: \(error)")
+
+                await MainActor.run {
+                    self.setLoading(false)
+                    self.showError("Failed to update password: \(error.localizedDescription)")
+                }
+            }
+        }
+    }
+
+    // MARK: - Not logged-in: Send Reset Email
+    private func handleSendResetLink() {
+        view.endEditing(true)
+        errorLabel.isHidden = true
+
+        let email = emailField.text?.trimmingCharacters(in: .whitespaces) ?? ""
+
+        print("📧 [ResetPassword] Send Reset tapped. Email: '\(email)'")
+
+        guard !email.isEmpty else {
+            showError("Please enter your college email address.")
+            return
+        }
+
+        guard email.contains("@") && email.contains(".") else {
+            showError("Please enter a valid email address.")
+            return
+        }
+
+        print("📧 [ResetPassword] Validation passed. Calling AuthManager...")
+        setLoading(true)
+
+        Task {
+            do {
+                try await AuthManager.shared.sendPasswordResetEmail(to: email)
+
+                print("✅ [ResetPassword] Reset email sent successfully for: \(email)")
+
+                await MainActor.run {
+                    self.setLoading(false)
+                    let alert = UIAlertController(
+                        title: "Reset Link Sent",
+                        message: "We've sent a password reset link to \(email). Please check your inbox and spam folder.",
+                        preferredStyle: .alert
+                    )
+                    alert.addAction(UIAlertAction(title: "OK", style: .default) { [weak self] _ in
+                        self?.dismiss(animated: true)
+                    })
+                    self.present(alert, animated: true)
+                }
+            } catch {
+                print("❌ [ResetPassword] Reset email failed: \(error)")
+                print("❌ [ResetPassword] Error: \(error.localizedDescription)")
+
+                await MainActor.run {
+                    self.setLoading(false)
+                    self.showError("Failed to send reset link: \(error.localizedDescription)")
+                }
+            }
+        }
+    }
+
+    // MARK: - Helpers
+    private func showError(_ message: String) {
+        errorLabel.text = message
+        errorLabel.isHidden = false
+    }
+
+    private func setLoading(_ loading: Bool) {
+        if loading {
+            actionButton.setTitle("", for: .normal)
+            loadingSpinner.startAnimating()
+            actionButton.isEnabled = false
+            emailField.isEnabled = false
+            newPasswordField.isEnabled = false
+            confirmPasswordField.isEnabled = false
+        } else {
+            actionButton.setTitle(isLoggedInMode ? "Update Password" : "Send Reset Link", for: .normal)
+            loadingSpinner.stopAnimating()
+            actionButton.isEnabled = true
+            emailField.isEnabled = true
+            newPasswordField.isEnabled = true
+            confirmPasswordField.isEnabled = true
+        }
     }
 }
-
