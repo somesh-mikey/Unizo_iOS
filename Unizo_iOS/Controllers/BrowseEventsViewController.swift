@@ -163,8 +163,21 @@ class BrowseEventsViewController: UIViewController {
                 buttonTitle: event.is_free ? "Register" : "Book Now"
             )
 
+            // Set tap handler to navigate to event details
+            card.onBookTapped = { [weak self] in
+                self?.navigateToEventDetails(event: event)
+            }
+
             contentStack.addArrangedSubview(card)
         }
+    }
+
+    // MARK: - Navigation
+
+    private func navigateToEventDetails(event: EventDTO) {
+        let vc = EventDetailsViewController()
+        vc.event = event
+        navigationController?.pushViewController(vc, animated: true)
     }
 
     // MARK: - Empty State

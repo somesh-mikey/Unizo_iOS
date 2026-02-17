@@ -3,6 +3,9 @@ import Supabase
 
 final class ProfileViewController: UIViewController {
 
+    // MARK: - Edit Mode State
+    private var isEditMode = false
+
     // MARK: - Data
     private let userRepository = UserRepository()
     private let addressRepository = AddressRepository()
@@ -75,13 +78,13 @@ final class ProfileViewController: UIViewController {
     private let addressContainer = ProfileViewController.makeSectionContainer()
     private let preferencesContainer = ProfileViewController.makeSectionContainer()
 
-    // MARK: - Personal Info Fields
-    private let firstNameTF = ProfileViewController.makeFormTextField(placeholder: "First Name", isEditable: true)
-    private let lastNameTF = ProfileViewController.makeFormTextField(placeholder: "Last Name", isEditable: true)
-    private let emailTF = ProfileViewController.makeFormTextField(placeholder: "Email", isEditable: false) // Email tied to auth, not editable
-    private let phoneTF = ProfileViewController.makeFormTextField(placeholder: "Phone", isEditable: true)
-    private let dobTF = ProfileViewController.makeFormTextField(placeholder: "Date of Birth", isEditable: true)
-    private let genderTF = ProfileViewController.makeFormTextField(placeholder: "Gender", isEditable: true)
+    // MARK: - Personal Info Fields (all start non-editable until Edit is tapped)
+    private let firstNameTF = ProfileViewController.makeFormTextField(placeholder: "First Name", isEditable: false)
+    private let lastNameTF = ProfileViewController.makeFormTextField(placeholder: "Last Name", isEditable: false)
+    private let emailTF = ProfileViewController.makeFormTextField(placeholder: "Email", isEditable: false) // Email tied to auth, never editable
+    private let phoneTF = ProfileViewController.makeFormTextField(placeholder: "Phone", isEditable: false)
+    private let dobTF = ProfileViewController.makeFormTextField(placeholder: "Date of Birth", isEditable: false)
+    private let genderTF = ProfileViewController.makeFormTextField(placeholder: "Gender", isEditable: false)
 
     // MARK: - Address Fields
     private let addressTF = ProfileViewController.makeFormTextField(placeholder: "Address", isEditable: false)
@@ -122,6 +125,7 @@ final class ProfileViewController: UIViewController {
         view.backgroundColor = .systemGroupedBackground
         navigationItem.title = "Profile"
 
+        setupNavigationBar()
         setupHierarchy()
         setupConstraints()
         configureInteractions()
@@ -129,6 +133,110 @@ final class ProfileViewController: UIViewController {
         setupGenderPicker()
         setupKeyboardHandling()
         loadUserData()
+        setEditMode(false) // Start in view-only mode
+    }
+
+    // MARK: - Navigation Bar Setup
+    private func setupNavigationBar() {
+        // Back button
+        navigationItem.leftBarButtonItem = UIBarButtonItem(
+            image: UIImage(systemName: "chevron.left"),
+            style: .plain,
+            target: self,
+            action: #selector(backTapped)
+        )
+
+        // Edit button
+        navigationItem.rightBarButtonItem = UIBarButtonItem(
+            title: "Edit",
+            style: .plain,
+            target: self,
+            action: #selector(editButtonTapped)
+        )
+    }
+
+    @objc private func backTapped() {
+        // If in edit mode, ask to discard changes
+        if isEditMode {
+            let alert = UIAlertController(
+                title: "Discard Changes?",
+                message: "You have unsaved changes. Are you sure you want to go back?",
+                preferredStyle: .alert
+            )
+            alert.addAction(UIAlertAction(title: "Discard", style: .destructive) { [weak self] _ in
+                self?.navigationController?.popViewController(animated: true)
+            })
+            alert.addAction(UIAlertAction(title: "Cancel", style: .cancel))
+            present(alert, animated: true)
+        } else {
+            navigationController?.popViewController(animated: true)
+        }
+    }
+
+    @objc private func editButtonTapped() {
+        if isEditMode {
+            // Save and exit edit mode
+            saveProfileTapped()
+        } else {
+            // Enter edit mode
+            setEditMode(true)
+        }
+    }
+
+    // MARK: - Edit Mode Toggle
+    private func setEditMode(_ editing: Bool) {
+        isEditMode = editing
+
+        // Update navigation button with proper SF Symbol
+        if editing {
+            let config = UIImage.SymbolConfiguration(pointSize: 18, weight: .medium)
+            let checkmarkImage = UIImage(systemName: "checkmark", withConfiguration: config)?.withRenderingMode(.alwaysTemplate)
+            let checkmarkButton = UIBarButtonItem(
+                image: checkmarkImage,
+                style: .plain,
+                target: self,
+                action: #selector(editButtonTapped)
+            )
+            checkmarkButton.tintColor = .black
+            navigationItem.rightBarButtonItem = checkmarkButton
+        } else {
+            navigationItem.rightBarButtonItem = UIBarButtonItem(
+                title: "Edit",
+                style: .plain,
+                target: self,
+                action: #selector(editButtonTapped)
+            )
+        }
+
+        // Toggle personal info field editability (except email which is never editable)
+        let personalEditableFields = [firstNameTF, lastNameTF, phoneTF, dobTF, genderTF]
+        for field in personalEditableFields {
+            field.isUserInteractionEnabled = editing
+            field.textColor = editing ? .systemBlue : .label
+        }
+
+        // Email is never editable (tied to authentication)
+        emailTF.isUserInteractionEnabled = false
+        emailTF.textColor = .label
+
+        // Toggle address/hotspot field editability
+        let addressEditableFields = [addressTF, cityTF, stateTF, zipTF]
+        for field in addressEditableFields {
+            field.isUserInteractionEnabled = editing
+            field.textColor = editing ? .systemBlue : .label
+        }
+
+        // Camera button visibility
+        cameraButton.isHidden = !editing
+
+        // Save button visibility
+        saveButton.isHidden = !editing
+
+        // Animate the transition
+        UIView.animate(withDuration: 0.25) {
+            self.cameraButton.alpha = editing ? 1 : 0
+            self.saveButton.alpha = editing ? 1 : 0
+        }
     }
 
     // MARK: - Keyboard Handling
@@ -450,6 +558,9 @@ final class ProfileViewController: UIViewController {
         saveButton.isEnabled = false
         saveButton.setTitle("Saving...", for: .normal)
 
+        // Temporarily disable the checkmark button during save
+        navigationItem.rightBarButtonItem?.isEnabled = false
+
         let profileUpdate = UserProfileUpdate(
             first_name: firstNameTF.text?.trimmingCharacters(in: .whitespacesAndNewlines),
             last_name: lastNameTF.text?.trimmingCharacters(in: .whitespacesAndNewlines),
@@ -474,15 +585,20 @@ final class ProfileViewController: UIViewController {
                     // Reset button state
                     saveButton.isEnabled = true
                     saveButton.setTitle("Save Changes", for: .normal)
+                    navigationItem.rightBarButtonItem?.isEnabled = true
 
-                    // Show success alert
-                    showAlert(title: "Success", message: "Profile updated successfully")
+                    // Exit edit mode after successful save
+                    setEditMode(false)
+
+                    // Show success feedback (brief toast or just visual change)
+                    print("✅ Profile updated successfully")
                 }
             } catch {
                 print("Failed to save profile:", error)
                 await MainActor.run {
                     saveButton.isEnabled = true
                     saveButton.setTitle("Save Changes", for: .normal)
+                    navigationItem.rightBarButtonItem?.isEnabled = true
                     showAlert(title: "Error", message: "Failed to save profile: \(error.localizedDescription)")
                 }
             }

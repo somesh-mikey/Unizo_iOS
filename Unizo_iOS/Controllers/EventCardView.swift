@@ -73,6 +73,9 @@ final class EventCardView: UIView {
         return btn
     }()
 
+    // MARK: - Tap Handler
+    var onBookTapped: (() -> Void)?
+
 
     // MARK: - Initializer
 
@@ -152,6 +155,13 @@ final class EventCardView: UIView {
         addSubview(dateLabel)
         addSubview(priceLabel)
         addSubview(bookButton)
+
+        // Add tap action for book button
+        bookButton.addTarget(self, action: #selector(bookButtonTapped), for: .touchUpInside)
+    }
+
+    @objc private func bookButtonTapped() {
+        onBookTapped?()
     }
 
 
