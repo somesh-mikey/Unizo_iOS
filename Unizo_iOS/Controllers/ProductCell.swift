@@ -68,7 +68,8 @@ final class ProductCell: UICollectionViewCell {
         // Name - Dynamic Type support
         nameLabel.font = UIFont.preferredFont(forTextStyle: .subheadline)
         nameLabel.adjustsFontForContentSizeCategory = true
-        nameLabel.numberOfLines = 2
+        nameLabel.numberOfLines = 1
+        nameLabel.lineBreakMode = .byTruncatingTail
         nameLabel.textColor = .label
 
         // Star
@@ -154,11 +155,13 @@ final class ProductCell: UICollectionViewCell {
     // MARK: - Configure
     func configure(with product: ProductUIModel) {
 
-        nameLabel.text = product.name
+        // Truncate name if longer than 25 characters for display
+        let displayName = product.name.count > 25 ? String(product.name.prefix(25)) + "..." : product.name
+        nameLabel.text = displayName
         priceLabel.text = "₹\(Int(product.price))"
         ratingLabel.text = String(format: "%.1f", product.rating)
 
-        negotiableLabel.text = product.negotiable ? "Negotiable" : "Non-Negotiable"
+        negotiableLabel.text = product.negotiable ? "Negotiable".localized : "Non-Negotiable".localized
         negotiableLabel.textColor = product.negotiable ? .systemGreen : .systemRed
 
         productImageView.image = UIImage(named: "placeholder")

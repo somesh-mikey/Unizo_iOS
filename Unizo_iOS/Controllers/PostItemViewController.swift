@@ -329,6 +329,11 @@ final class PostItemViewController: UIViewController,
             field.setLeftPaddingPoints(18)
             field.translatesAutoresizingMaskIntoConstraints = false
 
+            // Product Name field - add character limit
+            if title == "Product Name".localized {
+                field.delegate = self
+            }
+
             if title == "Category".localized || title == "Condition".localized {
                 field.delegate = self
                 field.inputView = pickerView
@@ -500,6 +505,9 @@ final class PostItemViewController: UIViewController,
                     self.loadingIndicator.stopAnimating()
                     self.finalUploadButton.isEnabled = true
 
+                    // Clear all form data after successful upload
+                    self.clearFormData()
+
                     let alert = UIAlertController(
                         title: "Success".localized,
                         message: "Your product has been uploaded successfully!".localized,
@@ -561,8 +569,22 @@ final class PostItemViewController: UIViewController,
         return publicURL.absoluteString
     }
 
+    // MARK: - Clear Form Data
+    private func clearFormData() {
+        // Clear all text fields
+        for field in fields {
+            field.text = ""
+        }
 
+        // Clear selected images
+        selectedImages.removeAll()
+        galleryCollectionView.reloadData()
+        updateUploadButtonTitle()
 
+        // Reset negotiable to default (true)
+        isNegotiable = true
+        updateNegotiableButtons()
+    }
 
     // MARK: - Image Picker
     @objc private func openGallery() {
@@ -786,6 +808,21 @@ extension PostItemViewController: UITextFieldDelegate {
     func textFieldDidBeginEditing(_ textField: UITextField) {
         activePickerField = textField
         pickerView.reloadAllComponents()
+    }
+
+    func textField(_ textField: UITextField, shouldChangeCharactersIn range: NSRange, replacementString string: String) -> Bool {
+        // Check if this is the Product Name field (first field, index 0)
+        guard let index = fields.firstIndex(of: textField) else { return true }
+
+        // Product Name field has 30 character limit
+        if index == 0 {
+            let currentText = textField.text ?? ""
+            guard let stringRange = Range(range, in: currentText) else { return false }
+            let updatedText = currentText.replacingCharacters(in: stringRange, with: string)
+            return updatedText.count <= 30
+        }
+
+        return true
     }
 }
 
