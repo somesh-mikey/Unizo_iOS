@@ -60,6 +60,7 @@ class BrowseEventsViewController: UIViewController {
     
     override func viewWillAppear(_ animated: Bool) {
         super.viewWillAppear(animated)
+        navigationController?.setNavigationBarHidden(false, animated: animated)
         (tabBarController as? MainTabBarController)?.hideFloatingTabBar()
         self.tabBarController?.tabBar.isHidden = true
     }
@@ -78,6 +79,18 @@ class BrowseEventsViewController: UIViewController {
     private func setupNavBar() {
         title = "Browse Events"
         navigationController?.navigationBar.prefersLargeTitles = false
+
+        // Add back button
+        navigationItem.leftBarButtonItem = UIBarButtonItem(
+            image: UIImage(systemName: "chevron.left"),
+            style: .plain,
+            target: self,
+            action: #selector(backTapped)
+        )
+    }
+
+    @objc private func backTapped() {
+        navigationController?.popViewController(animated: true)
     }
 
 

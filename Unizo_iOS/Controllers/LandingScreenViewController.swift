@@ -512,6 +512,8 @@ class LandingScreenViewController: UIViewController {
         carouselScrollView.isPagingEnabled = true
         carouselScrollView.delegate = self
         carouselScrollView.showsHorizontalScrollIndicator = false
+        carouselScrollView.delaysContentTouches = false
+        carouselScrollView.canCancelContentTouches = true
         carouselScrollView.translatesAutoresizingMaskIntoConstraints = false
         NSLayoutConstraint.activate([
             // Start carousel below trending categories
@@ -881,11 +883,18 @@ class LandingScreenViewController: UIViewController {
             wrapper.layer.shadowRadius = 6
             wrapper.layer.shadowOffset = CGSize(width: 0, height: 3)
 
+            // Make wrapper tappable
+            wrapper.tag = index
+            wrapper.isUserInteractionEnabled = true
+            let tapGesture = UITapGestureRecognizer(target: self, action: #selector(carouselBannerTapped(_:)))
+            wrapper.addGestureRecognizer(tapGesture)
+
             let imageView = UIImageView()
             imageView.clipsToBounds = true
             imageView.layer.cornerRadius = 16
             imageView.contentMode = .scaleAspectFill
             imageView.frame = wrapper.bounds
+            imageView.isUserInteractionEnabled = false // Let wrapper handle taps
 
             ImageLoader.shared.load(
                 banner.imageURL,
@@ -903,6 +912,18 @@ class LandingScreenViewController: UIViewController {
 
         pageControl.numberOfPages = banners.count
         pageControl.currentPage = 0
+    }
+
+    @objc private func carouselBannerTapped(_ sender: UITapGestureRecognizer) {
+        let vc = BrowseEventsViewController()
+
+        if let nav = navigationController {
+            nav.pushViewController(vc, animated: true)
+        } else {
+            vc.modalPresentationStyle = .fullScreen
+            vc.modalTransitionStyle = .coverVertical
+            present(vc, animated: true)
+        }
     }
 
 
