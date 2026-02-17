@@ -116,6 +116,33 @@ final class EnhancedListingCell: UICollectionViewCell {
         return lbl
     }()
 
+    // Interested buyers indicator
+    private let interestedBuyersContainer: UIView = {
+        let v = UIView()
+        v.backgroundColor = .systemOrange.withAlphaComponent(0.12)
+        v.layer.cornerRadius = 12
+        v.translatesAutoresizingMaskIntoConstraints = false
+        v.isHidden = true
+        return v
+    }()
+
+    private let interestedBuyersIcon: UIImageView = {
+        let iv = UIImageView()
+        iv.image = UIImage(systemName: "person.2.fill")
+        iv.tintColor = .systemOrange
+        iv.contentMode = .scaleAspectFit
+        iv.translatesAutoresizingMaskIntoConstraints = false
+        return iv
+    }()
+
+    private let interestedBuyersLabel: UILabel = {
+        let lbl = UILabel()
+        lbl.font = UIFont.systemFont(ofSize: 12, weight: .semibold)
+        lbl.textColor = .systemOrange
+        lbl.translatesAutoresizingMaskIntoConstraints = false
+        return lbl
+    }()
+
     // Buyer info section (shown for sold/pending items)
     private let buyerContainerView: UIView = {
         let v = UIView()
@@ -185,9 +212,14 @@ final class EnhancedListingCell: UICollectionViewCell {
         contentView.addSubview(nameLabel)
         contentView.addSubview(priceLabel)
         contentView.addSubview(statsStackView)
+        contentView.addSubview(interestedBuyersContainer)
         contentView.addSubview(buyerContainerView)
         contentView.addSubview(editButton)
         contentView.addSubview(deleteButton)
+
+        // Interested buyers container
+        interestedBuyersContainer.addSubview(interestedBuyersIcon)
+        interestedBuyersContainer.addSubview(interestedBuyersLabel)
 
         // Stats stack
         let viewsStack = UIStackView(arrangedSubviews: [viewsIcon, viewsLabel])
@@ -241,6 +273,20 @@ final class EnhancedListingCell: UICollectionViewCell {
             viewsIcon.heightAnchor.constraint(equalToConstant: 14),
             quantityIcon.widthAnchor.constraint(equalToConstant: 14),
             quantityIcon.heightAnchor.constraint(equalToConstant: 14),
+
+            // Interested buyers container (shown for available items with interested buyers)
+            interestedBuyersContainer.leadingAnchor.constraint(equalTo: productImageView.trailingAnchor, constant: Spacing.md),
+            interestedBuyersContainer.bottomAnchor.constraint(equalTo: contentView.bottomAnchor, constant: -Spacing.md),
+            interestedBuyersContainer.heightAnchor.constraint(equalToConstant: 24),
+
+            interestedBuyersIcon.leadingAnchor.constraint(equalTo: interestedBuyersContainer.leadingAnchor, constant: 8),
+            interestedBuyersIcon.centerYAnchor.constraint(equalTo: interestedBuyersContainer.centerYAnchor),
+            interestedBuyersIcon.widthAnchor.constraint(equalToConstant: 16),
+            interestedBuyersIcon.heightAnchor.constraint(equalToConstant: 14),
+
+            interestedBuyersLabel.leadingAnchor.constraint(equalTo: interestedBuyersIcon.trailingAnchor, constant: 4),
+            interestedBuyersLabel.trailingAnchor.constraint(equalTo: interestedBuyersContainer.trailingAnchor, constant: -10),
+            interestedBuyersLabel.centerYAnchor.constraint(equalTo: interestedBuyersContainer.centerYAnchor),
 
             // Buyer container
             buyerContainerView.leadingAnchor.constraint(equalTo: productImageView.trailingAnchor, constant: Spacing.md),
@@ -326,9 +372,19 @@ final class EnhancedListingCell: UICollectionViewCell {
         // Buyer info (show for sold/pending)
         if let buyerName = listing.buyerName, listing.status != "Available" {
             buyerContainerView.isHidden = false
+            interestedBuyersContainer.isHidden = true
             buyerLabel.text = "Buyer: \(buyerName)"
         } else {
             buyerContainerView.isHidden = true
+
+            // Show interested buyers count for available items
+            if listing.status == "Available" && listing.interestedBuyersCount > 0 {
+                interestedBuyersContainer.isHidden = false
+                let buyerText = listing.interestedBuyersCount == 1 ? "1 interested buyer".localized : "\(listing.interestedBuyersCount) " + "interested buyers".localized
+                interestedBuyersLabel.text = buyerText
+            } else {
+                interestedBuyersContainer.isHidden = true
+            }
         }
 
         // Load image
@@ -344,7 +400,7 @@ final class EnhancedListingCell: UICollectionViewCell {
 
     private func setupAccessibility(for listing: ListingsViewController.Listing) {
         isAccessibilityElement = false
-        accessibilityElements = [productImageView, nameLabel, priceLabel, statusBadge, editButton, deleteButton]
+        accessibilityElements = [productImageView, nameLabel, priceLabel, statusBadge, interestedBuyersContainer, editButton, deleteButton]
 
         productImageView.isAccessibilityElement = true
         productImageView.accessibilityLabel = "Product image for \(listing.name)"
@@ -362,6 +418,14 @@ final class EnhancedListingCell: UICollectionViewCell {
         statusBadge.accessibilityLabel = "Status: \(listing.status)"
         statusBadge.accessibilityTraits = .staticText
 
+        // Interested buyers accessibility
+        interestedBuyersContainer.isAccessibilityElement = true
+        if listing.interestedBuyersCount > 0 {
+            let buyerText = listing.interestedBuyersCount == 1 ? "1 interested buyer" : "\(listing.interestedBuyersCount) interested buyers"
+            interestedBuyersContainer.accessibilityLabel = buyerText
+        }
+        interestedBuyersContainer.accessibilityTraits = .staticText
+
         editButton.isAccessibilityElement = true
         editButton.accessibilityLabel = "Edit listing"
         editButton.accessibilityHint = "Double tap to edit this listing"
@@ -372,7 +436,12 @@ final class EnhancedListingCell: UICollectionViewCell {
         deleteButton.accessibilityHint = "Double tap to delete this listing"
         deleteButton.accessibilityTraits = .button
 
-        accessibilityLabel = "\(listing.name), \(listing.category), \(listing.price), \(listing.status)"
+        var fullAccessibilityLabel = "\(listing.name), \(listing.category), \(listing.price), \(listing.status)"
+        if listing.interestedBuyersCount > 0 {
+            let buyerText = listing.interestedBuyersCount == 1 ? "1 interested buyer" : "\(listing.interestedBuyersCount) interested buyers"
+            fullAccessibilityLabel += ", \(buyerText)"
+        }
+        accessibilityLabel = fullAccessibilityLabel
         accessibilityHint = "Double tap to view details"
     }
 
@@ -403,6 +472,7 @@ final class EnhancedListingCell: UICollectionViewCell {
         super.prepareForReuse()
         productImageView.image = nil
         buyerContainerView.isHidden = true
+        interestedBuyersContainer.isHidden = true
         editButton.isHidden = false
     }
 }

@@ -136,6 +136,7 @@ class ListingsViewController: UIViewController {
         let quantity: Int
         let buyerName: String?
         let orderStatus: String?
+        let interestedBuyersCount: Int  // Number of buyers who started a conversation/deal
     }
 
     // MARK: - Listings Data
@@ -177,6 +178,36 @@ class ListingsViewController: UIViewController {
 
                 let fetchedProducts = try JSONDecoder().decode([ProductDTO].self, from: response.data)
 
+                // Fetch interested buyers count for each product (conversations where user is seller)
+                let conversationsResponse = try await supabase
+                    .from("conversations")
+                    .select("product_id, buyer_id")
+                    .eq("seller_id", value: userId)
+                    .execute()
+
+                // Parse conversations and count unique buyers per product
+                struct ConversationCount: Decodable {
+                    let product_id: UUID
+                    let buyer_id: UUID
+                }
+
+                let conversations = try JSONDecoder().decode([ConversationCount].self, from: conversationsResponse.data)
+
+                // Group by product_id and count unique buyers
+                var interestedBuyersMap: [UUID: Int] = [:]
+                var productBuyersSet: [UUID: Set<UUID>] = [:]
+
+                for conv in conversations {
+                    if productBuyersSet[conv.product_id] == nil {
+                        productBuyersSet[conv.product_id] = Set<UUID>()
+                    }
+                    productBuyersSet[conv.product_id]?.insert(conv.buyer_id)
+                }
+
+                for (productId, buyersSet) in productBuyersSet {
+                    interestedBuyersMap[productId] = buyersSet.count
+                }
+
                 let deletedIDs = DeletedListingsStore.all()
 
                 await MainActor.run {
@@ -208,7 +239,8 @@ class ListingsViewController: UIViewController {
                             createdAt: nil,
                             quantity: product.quantity ?? 1,
                             buyerName: nil,
-                            orderStatus: nil
+                            orderStatus: nil,
+                            interestedBuyersCount: interestedBuyersMap[product.id] ?? 0
                         )
                     }
 
