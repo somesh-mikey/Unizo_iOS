@@ -1,298 +1,191 @@
-Unizo iOS Application - Updated README
-Overview
-Unizo is a fully native iOS application built with UIKit that provides a comprehensive campus marketplace experience. The app enables users to browse products, manage orders, handle authentication, post items as sellers, interact via real-time chat, and receive push notifications. Built with modern Swift concurrency patterns and integrated with Supabase backend.
-Total Swift Files: 90
-Platform: iOS 15+
-Architecture: MVC with Repository Pattern
-Backend: Supabase (PostgreSQL + Real-time API + Storage)
+# Unizo iOS
 
-Features
-Marketplace & Browsing
+Unizo is a native iOS marketplace app built with UIKit and Supabase for authentication, data storage, real-time updates, and media handling.
 
-Product listings with images, prices, ratings, and seller information
-Product detail screen with descriptions, features, specifications
-Paginated fetching (20 items per page)
-Full-text search across titles, descriptions, and categories
-Category filtering: Electronics, Clothing, Furniture, Sports, Hostel Essentials
-Popular products sorting (by views_count)
-Negotiable products filter
-SF Symbol-based rating icons and modern UI sections
+## Project Snapshot
 
-Seller Features
+| Metric | Value |
+|---|---|
+| Platform | iOS 15+ |
+| Language | Swift 5+ |
+| Architecture | MVC + Repository Pattern |
+| UI | UIKit (Programmatic + XIB) |
+| Backend | Supabase (PostgreSQL + Realtime + Storage) |
+| Swift Files | ~90 |
 
-Post Item: Create listings with image upload, negotiable toggle, full product details
-Seller Dashboard: View pending orders and sales statistics
-Confirm Order: Accept/reject incoming buyer orders with notifications
-Listings Management: View, edit, and delete active listings
-Product status tracking: Available, Pending, Sold
-Inventory management with quantity tracking
+## Architecture
 
-Buyer Features
+### Core Layers
 
-Shopping Cart: Add/remove items with quantity management and validation
-Cart Validation: Checks product availability before checkout
-Wishlist: Save products for later
-Orders: Place orders with address selection and payment method
-My Orders: View order history with status tracking
-Order Details: Full timeline with status progression
+- **Controllers**: Screen-level UI and interaction handling
+- **Views (XIB + UIKit Views)**: Layout and reusable UI
+- **Managers**: Centralized domain services (auth, chat, notifications, realtime, language)
+- **Data/Models**: DTOs and feature data contracts
+- **Data/Repositories**: Data access and business operations
+- **Mappers**: DTO to UI model transformation
+- **Core**: Shared constants, enums, extensions, utilities, error types
 
-Order System
+### Main Design Patterns
 
-Order Status Flow: Pending → Confirmed → Shipped → Delivered
-Order Timeline: Visual timeline of order status changes
-Multi-seller Orders: Automatic grouping by seller
-Seller Notifications: Automatic notifications when buyers place orders
-Declined Flow: Separate UI for rejected orders
+- MVC for screen composition and navigation
+- Repository Pattern for data access abstraction
+- DTO ↔ UI mapping via dedicated mappers
+- Singleton managers for session/realtime cross-cutting concerns
+- Delegate usage for callback-driven feature flows
 
-Real-time Notifications
+## High-Level Structure
 
-Real-time notifications using Supabase Realtime V2
-Notification Types: NewOrder, OrderAccepted, OrderRejected, OrderShipped, OrderDelivered
-In-app toast banner with auto-dismiss
-Deeplink navigation to relevant order screens
-Unread count tracking with live badge updates
-Notification center with read/unread status
-
-Chat System
-
-Tabbed interface showing seller and buyer conversations
-Private messaging between buyer and seller
-Unread message badges
-Role indicators distinguishing seller vs buyer
-
-Authentication
-
-Supabase Auth with email/password
-Modal-based login/signup flows
-Session management with JWT tokens
-Password reset functionality
-Account management and preferences
-
-Events
-
-Browse campus events with scrollable cards
-Event details: image, venue, date, price, action buttons
-Custom EventCardView component
-
-Additional Features
-
-Address management (add, edit, save multiple addresses)
-User profile editing
-Settings: Change password, notification preferences, language
-Privacy Policy and Terms & Conditions screens
-Blocked users filtering
-
-
-Technology Stack
-
-Language: Swift 5+
-UI Framework: UIKit (Hybrid: Programmatic + XIB)
-Concurrency: Swift async/await
-Layout: Auto Layout
-Icons: SF Symbols
-Backend: Supabase
-
-PostgreSQL database
-Real-time subscriptions
-Authentication
-Storage (image uploads)
-
-
-Package Manager: Swift Package Manager (SPM)
-
-
-Project Structure
+```text
 Unizo_iOS/
-├── Controllers/              # 48 ViewControllers
-│   ├── Authentication/       # Login, Signup, Password Reset
-│   ├── Marketplace/          # Landing, ItemDetails, Category, Search
-│   ├── Seller/               # PostItem, Dashboard, Listings, ConfirmOrder
-│   ├── Buyer/                # Cart, Payments, Orders, Wishlist
-│   ├── Chat/                 # ChatVC, ChatDetailVC
-│   ├── Notifications/        # NotificationsVC
-│   ├── Account/              # Profile, Settings, Address
-│   └── Navigation/           # MainTabBarController
-│
+├── Controllers/
+│   ├── Authentication/
+│   ├── Marketplace/
+│   ├── Seller/
+│   ├── Buyer/
+│   ├── Chat/
+│   ├── Account/
+│   └── UIExtensions/
+├── Views/
+├── Managers/
 ├── Data/
-│   ├── Models/               # DTOs and UI Models
-│   │   ├── ProductDTO.swift
-│   │   ├── OrderDTO.swift
-│   │   ├── OrderItemDTO.swift
-│   │   ├── NotificationDTO.swift
-│   │   ├── UserDTO.swift
-│   │   ├── AddressDTO.swift
-│   │   └── CartItem.swift
-│   ├── Repositories/         # 7 Data Access Repositories
-│   │   ├── ProductRepository.swift
-│   │   ├── OrderRepository.swift
-│   │   ├── NotificationRepository.swift
-│   │   ├── AddressRepository.swift
-│   │   ├── UserRepository.swift
-│   │   ├── WishlistRepository.swift
-│   │   └── EventRepository.swift
-│   └── Store/                # In-memory stores
-│
-├── Managers/                 # 4 Singleton Managers
-│   ├── AuthManager.swift
-│   ├── CartManager.swift
-│   ├── NotificationManager.swift
-│   └── SupabaseManager.swift
-│
+│   ├── Models/
+│   └── Repositories/
 ├── Mappers/
-│   ├── ProductMapper.swift
-│   └── AddressMapper.swift
-│
 ├── Core/
-│   ├── Session/
-│   ├── Storage/
-│   ├── Constants/
-│   ├── Extensions/
-│   └── Utilities/
-│
-├── Views/                    # 40+ Custom Views
-│   ├── XIB Files/
-│   ├── InAppNotificationBanner.swift
-│   ├── EventCardView.swift
-│   ├── OrderCardView.swift
-│   ├── ProductCell.swift
-│   ├── ListingCell.swift
-│   └── ...
-│
-├── Assets.xcassets/          # Images, Colors, App Icons
-└── Supporting Files/
+└── Assets.xcassets/
+```
 
-Architecture
-Design Patterns
+## Key Managers
 
-Singleton: Managers (AuthManager, CartManager, NotificationManager, SupabaseManager)
-Repository Pattern: All data access through dedicated repositories
-DTO Pattern: Data transfer between backend and UI layers
-Mapper Pattern: Converting DTOs to UI models
-MVC: View Controllers + Models + Custom Views
-Delegate Pattern: For navigation and notifications
-Observer Pattern: NotificationCenter for cross-app communication
-Async/Await: Modern Swift concurrency throughout
+- `SupabaseManager.swift`: Shared Supabase client bootstrap
+- `AuthManager.swift`: Session state, password reset/change, sign-out
+- `NotificationManager.swift`: Realtime notification subscriptions + unread state
+- `ChatManager.swift`: Conversation/message realtime lifecycle + unread state
+- `OrderRealtimeManager.swift`: Order-level status subscriptions
+- `AppLanguageManager.swift`: Runtime language switching and localization lookup
 
-Data Layer
-DTO (Backend) → Mapper → UIModel (Frontend)
-     ↑
-Repository (Supabase Client)
-Key Managers
+## Feature Coverage
 
-AuthManager: Session state, user ID, sign-in/out
-CartManager: Shopping cart state, validation, totals
-NotificationManager: Real-time subscriptions, unread counts, banners
-SupabaseManager: Centralized Supabase client
+### Authentication
 
+- Email/password auth with Supabase Auth
+- JWT session lifecycle through centralized auth manager
+- Password reset via email link flow
 
-Installation and Setup
+### Marketplace
 
-Clone the repository:
+- Product browsing with pagination (20 items/page)
+- Search across title/description/category
+- Category filtering and popularity sorting by view count
+- Product details with ratings, metadata, and negotiable indicators
 
-bash   git clone https://github.com/<your-username>/Unizo_iOS.git
-   cd Unizo_iOS
+### Seller
 
-Open the project:
+- Post listings with multi-image upload (up to 5)
+- Seller dashboard metrics and pending orders
+- Listing management (view/edit/delete)
+- Order confirmation flow (accept/reject)
 
-bash   open Unizo_iOS.xcodeproj
+### Buyer
 
-Configure Supabase (if needed):
+- Cart and checkout flow
+- Address management and selection
+- Wishlist support
+- Orders list and order detail timeline
 
-Update Supabase URL and anon key in configuration
-Ensure database tables and RLS policies are set up
+### Realtime Chat & Notifications
 
+- Supabase Realtime V2-based listeners
+- Buyer/seller conversation segmentation
+- Unread badge tracking
+- In-app notification banners and deep-link payload navigation
 
-Build and run:
+### Localization
 
-Select iOS Simulator (iPhone 14 or later recommended)
-Build and run (⌘+R)
+- Runtime language switching with persistence
+- Supported: English, Hindi, Spanish, French, German
 
+## Data Layer Overview
 
+### Representative Models
 
-Dependencies are managed via SPM and will resolve automatically.
+- `UserDTO`, `ProductDTO`, `OrderDTO`, `AddressDTO`
+- `MessageDTO`, `ConversationDTO`, `NotificationDTO`
+- Feature UI models such as `BannerUIModel`
 
-Database Schema
-Core Tables
+### Representative Repositories
 
-users: User profiles (name, email, phone, preferences)
-products: Product listings with inventory
-orders: Order records with status tracking
-order_items: Line items for each order
-addresses: User delivery addresses
-notifications: Order notifications with deeplink payloads
-banners: Marketing banners
-wishlist: User's saved products
+- `OrderRepository`: create/fetch/update order lifecycle
+- `ChatRepository`: conversations, messages, send operations
+- `AddressRepository`: address CRUD
+- `WishlistRepository`: add/remove/fetch
+- `SellerDashboardRepository`: profile/products/orders/statistics
+- `NotificationRepository`: fetch/create/mark-as-read
 
-Key Relationships
+## Database Schema (Supabase)
 
-Orders → OrderItems → Products
-Orders → Addresses
-Products → Users (seller)
-Notifications → Orders
+Core domain tables:
 
+- `users`
+- `products`
+- `orders`
+- `order_items`
+- `addresses`
+- `conversations`
+- `messages`
+- `notifications`
 
-Security
+Reference SQL scripts:
 
-Supabase RLS: Row Level Security filters data per user
-Event Key Idempotency: Prevents duplicate notifications
-Status Validation: Products must be active with quantity > 0
-Authentication Checks: All mutations require auth verification
-Blocked Users: Local filtering of products from blocked sellers
+- `Database/chat_tables.sql`
 
+## Setup
 
-Code Style
+### Prerequisites
 
-UIKit-first design with strict separation of concerns
-Reusable components for cards, buttons, labels
-Consistent navigation logic for push vs modal screens
-Tab bar visibility handled explicitly per screen
-Debug logging throughout for development
-Consistent error handling with custom error types
+- Xcode 15+
+- iOS Deployment Target 15.0+
+- Swift 5.5+
 
+### Open and Run
 
-Recent Updates
+```bash
+open Unizo_iOS.xcodeproj
+```
 
-Fixed Listing screen navigation and UI
-Added Chat tab with real-time messaging
-Added Deal flow features
-Implemented order timeline with 3 states
-Added seller accept/reject notification flow
-Fixed banner auto-scroll with manual scroll support
-Added gender picker in profile
-Cart delete button functionality
-Notification unread dot repositioning
+Build and run from Xcode using an iOS 15+ simulator/device.
 
+### Dependencies
 
-Future Enhancements
+- Supabase Swift SDK via Swift Package Manager
+- UIKit, Foundation, PhotosUI (plus Combine where reactive state is used)
 
-Push notifications via APNs
-Real-time chat with WebSockets
-Advanced product filtering and sorting
-Payment gateway integration
-Image gallery for products
-In-app reviews and ratings
-Seller verification system
+### Supabase Configuration
 
+Supabase client is initialized in:
 
-Contributing
+- `Unizo_iOS/Managers/SupabaseManager.swift`
 
-Fork the repository
-Create a feature branch:
+Keep credentials and keys scoped appropriately for environment/security requirements.
 
-bash   git checkout -b feature/my-feature
+## Security Notes
 
-Commit your changes and create a pull request
+- JWT-backed authentication session handling
+- User-scoped querying with Supabase Row-Level Security
+- Password reset via Supabase email workflow
+- Realtime payload deep-links should be validated before navigation
 
+## Screen Flow (Summary)
 
-License
-This project is released under the MIT License.
+- Welcome → Authentication
+- Landing/Marketplace → Product Details
+- Search/Category → Browse
+- Seller Post Item → Product Posted
+- Cart → Checkout → Order Placed
+- My Orders → Order Details timeline
+- Chat → Buyer/Seller conversations
+- Settings → Profile, Address, Language, Security
 
-Statistics
+---
 
-Total Swift Files: 90
-View Controllers: 48
-Repositories: 7
-Data Models: 14+ DTOs/Models
-Managers: 4 Singleton Managers
-Custom Views: 40+ UIView Components
-Lines of Code: ~15,000+
+Last updated: February 2026

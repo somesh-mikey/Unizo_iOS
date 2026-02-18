@@ -58,6 +58,7 @@ final class AppLanguageManager {
             "Home": "होम",
             "Search": "खोजें",
             "Sell": "बेचें",
+            "Post": "पोस्ट",
             "Chat": "चैट",
             "Account": "खाता",
 
@@ -292,6 +293,29 @@ final class AppLanguageManager {
             "Events": "कार्यक्रम",
             "Browse Events": "कार्यक्रम देखें",
 
+            // Post Chooser & Post Event
+            "What would you like to post?": "आप क्या पोस्ट करना चाहेंगे?",
+            "Choose an option below to get started.": "शुरू करने के लिए नीचे एक विकल्प चुनें।",
+            "Post an Item": "आइटम पोस्ट करें",
+            "Post an Event": "इवेंट पोस्ट करें",
+            "List a product for sale on the marketplace.": "मार्केटप्लेस पर बिक्री के लिए उत्पाद सूचीबद्ध करें।",
+            "Create a campus event for others to discover.": "दूसरों के लिए कैंपस इवेंट बनाएं।",
+            "Post Event": "इवेंट पोस्ट करें",
+            "Event Details": "इवेंट विवरण",
+            "Event Title": "इवेंट शीर्षक",
+            "Venue": "स्थान",
+            "Date": "तारीख",
+            "Time": "समय",
+            "Free Event": "मुफ़्त इवेंट",
+            "Tap to add an event image": "इवेंट इमेज जोड़ने के लिए टैप करें",
+            "Describe your event...": "अपने इवेंट का वर्णन करें...",
+            "Your event has been posted successfully!": "आपका इवेंट सफलतापूर्वक पोस्ट हो गया है!",
+            "Your Event has been posted!": "आपका इवेंट पोस्ट हो गया है!",
+            "Users can now discover and register for your event.": "उपयोगकर्ता अब आपके इवेंट को खोज और पंजीकरण कर सकते हैं।",
+            "View Events": "इवेंट देखें",
+            "Please enter a valid price or mark the event as free.": "कृपया एक मान्य कीमत दर्ज करें या इवेंट को मुफ़्त चिह्नित करें।",
+            "Please fill in all required fields.": "कृपया सभी आवश्यक फ़ील्ड भरें।",
+
             // Auth
             "Login": "लॉगिन",
             "Welcome Back": "वापसी पर स्वागत",
@@ -388,9 +412,6 @@ final class AppLanguageManager {
             // Reset Password
             "Don't worry! Enter your email address and we'll send\nyou a link to reset your password.": "चिंता न करें! अपना ईमेल दर्ज करें और हम आपको पासवर्ड रीसेट लिंक भेजेंगे।",
             "We've sent a password reset link to %@. Please check your inbox and spam folder.": "हमने %@ पर पासवर्ड रीसेट लिंक भेजा है। कृपया अपना इनबॉक्स और स्पैम फ़ोल्डर जांचें।",
-
-            // Notifications
-            "Notifications": "सूचनाएं",
         ],
 
         // MARK: Spanish
@@ -398,6 +419,7 @@ final class AppLanguageManager {
             "Home": "Inicio",
             "Search": "Buscar",
             "Sell": "Vender",
+            "Post": "Publicar",
             "Chat": "Chat",
             "Account": "Cuenta",
 
@@ -614,6 +636,29 @@ final class AppLanguageManager {
             "Events": "Eventos",
             "Browse Events": "Explorar Eventos",
 
+            // Post Chooser & Post Event
+            "What would you like to post?": "¿Qué te gustaría publicar?",
+            "Choose an option below to get started.": "Elige una opción a continuación para comenzar.",
+            "Post an Item": "Publicar un Artículo",
+            "Post an Event": "Publicar un Evento",
+            "List a product for sale on the marketplace.": "Publica un producto a la venta en el mercado.",
+            "Create a campus event for others to discover.": "Crea un evento universitario para que otros lo descubran.",
+            "Post Event": "Publicar Evento",
+            "Event Details": "Detalles del Evento",
+            "Event Title": "Título del Evento",
+            "Venue": "Lugar",
+            "Date": "Fecha",
+            "Time": "Hora",
+            "Free Event": "Evento Gratuito",
+            "Tap to add an event image": "Toca para agregar una imagen del evento",
+            "Describe your event...": "Describe tu evento...",
+            "Your event has been posted successfully!": "¡Tu evento se ha publicado exitosamente!",
+            "Your Event has been posted!": "¡Tu Evento ha sido publicado!",
+            "Users can now discover and register for your event.": "Los usuarios ahora pueden descubrir y registrarse en tu evento.",
+            "View Events": "Ver Eventos",
+            "Please enter a valid price or mark the event as free.": "Ingresa un precio válido o marca el evento como gratuito.",
+            "Please fill in all required fields.": "Por favor completa todos los campos requeridos.",
+
             "Login": "Iniciar Sesión",
             "Welcome Back": "Bienvenido de Nuevo",
             "Sign Up": "Registrarse",
@@ -681,7 +726,6 @@ final class AppLanguageManager {
             "No items": "Sin artículos",
             "Don't worry! Enter your email address and we'll send\nyou a link to reset your password.": "¡No te preocupes! Ingresa tu correo electrónico y te enviaremos un enlace para restablecer tu contraseña.",
             "We've sent a password reset link to %@. Please check your inbox and spam folder.": "Hemos enviado un enlace de restablecimiento a %@. Revisa tu bandeja de entrada y carpeta de spam.",
-            "Notifications": "Notificaciones",
         ],
 
         // MARK: French
@@ -689,6 +733,7 @@ final class AppLanguageManager {
             "Home": "Accueil",
             "Search": "Rechercher",
             "Sell": "Vendre",
+            "Post": "Publier",
             "Chat": "Discussion",
             "Account": "Compte",
 
@@ -905,6 +950,29 @@ final class AppLanguageManager {
             "Events": "Événements",
             "Browse Events": "Parcourir les Événements",
 
+            // Post Chooser & Post Event
+            "What would you like to post?": "Que souhaitez-vous publier ?",
+            "Choose an option below to get started.": "Choisissez une option ci-dessous pour commencer.",
+            "Post an Item": "Publier un Article",
+            "Post an Event": "Publier un Événement",
+            "List a product for sale on the marketplace.": "Publiez un produit à vendre sur le marché.",
+            "Create a campus event for others to discover.": "Créez un événement universitaire que d'autres pourront découvrir.",
+            "Post Event": "Publier l'Événement",
+            "Event Details": "Détails de l'Événement",
+            "Event Title": "Titre de l'Événement",
+            "Venue": "Lieu",
+            "Date": "Date",
+            "Time": "Heure",
+            "Free Event": "Événement Gratuit",
+            "Tap to add an event image": "Appuyez pour ajouter une image de l'événement",
+            "Describe your event...": "Décrivez votre événement...",
+            "Your event has been posted successfully!": "Votre événement a été publié avec succès !",
+            "Your Event has been posted!": "Votre Événement a été publié !",
+            "Users can now discover and register for your event.": "Les utilisateurs peuvent maintenant découvrir et s'inscrire à votre événement.",
+            "View Events": "Voir les Événements",
+            "Please enter a valid price or mark the event as free.": "Veuillez entrer un prix valide ou marquer l'événement comme gratuit.",
+            "Please fill in all required fields.": "Veuillez remplir tous les champs obligatoires.",
+
             "Login": "Connexion",
             "Welcome Back": "Bon Retour",
             "Sign Up": "Inscription",
@@ -972,7 +1040,6 @@ final class AppLanguageManager {
             "No items": "Aucun article",
             "Don't worry! Enter your email address and we'll send\nyou a link to reset your password.": "Ne vous inquiétez pas ! Entrez votre adresse e-mail et nous vous enverrons un lien pour réinitialiser votre mot de passe.",
             "We've sent a password reset link to %@. Please check your inbox and spam folder.": "Nous avons envoyé un lien de réinitialisation à %@. Veuillez vérifier votre boîte de réception et votre dossier spam.",
-            "Notifications": "Notifications",
         ],
 
         // MARK: German
@@ -980,6 +1047,7 @@ final class AppLanguageManager {
             "Home": "Startseite",
             "Search": "Suchen",
             "Sell": "Verkaufen",
+            "Post": "Erstellen",
             "Chat": "Chat",
             "Account": "Konto",
 
@@ -1196,6 +1264,29 @@ final class AppLanguageManager {
             "Events": "Veranstaltungen",
             "Browse Events": "Veranstaltungen Durchsuchen",
 
+            // Post Chooser & Post Event
+            "What would you like to post?": "Was möchten Sie veröffentlichen?",
+            "Choose an option below to get started.": "Wählen Sie eine Option unten, um loszulegen.",
+            "Post an Item": "Artikel Veröffentlichen",
+            "Post an Event": "Veranstaltung Erstellen",
+            "List a product for sale on the marketplace.": "Veröffentlichen Sie ein Produkt zum Verkauf auf dem Marktplatz.",
+            "Create a campus event for others to discover.": "Erstellen Sie eine Campus-Veranstaltung, die andere entdecken können.",
+            "Post Event": "Veranstaltung Erstellen",
+            "Event Details": "Veranstaltungsdetails",
+            "Event Title": "Veranstaltungstitel",
+            "Venue": "Veranstaltungsort",
+            "Date": "Datum",
+            "Time": "Uhrzeit",
+            "Free Event": "Kostenlose Veranstaltung",
+            "Tap to add an event image": "Tippen Sie, um ein Veranstaltungsbild hinzuzufügen",
+            "Describe your event...": "Beschreiben Sie Ihre Veranstaltung...",
+            "Your event has been posted successfully!": "Ihre Veranstaltung wurde erfolgreich veröffentlicht!",
+            "Your Event has been posted!": "Ihre Veranstaltung wurde veröffentlicht!",
+            "Users can now discover and register for your event.": "Benutzer können Ihre Veranstaltung jetzt entdecken und sich registrieren.",
+            "View Events": "Veranstaltungen Anzeigen",
+            "Please enter a valid price or mark the event as free.": "Geben Sie einen gültigen Preis ein oder markieren Sie die Veranstaltung als kostenlos.",
+            "Please fill in all required fields.": "Bitte füllen Sie alle Pflichtfelder aus.",
+
             "Login": "Anmelden",
             "Welcome Back": "Willkommen Zurück",
             "Sign Up": "Registrieren",
@@ -1263,7 +1354,6 @@ final class AppLanguageManager {
             "No items": "Keine Artikel",
             "Don't worry! Enter your email address and we'll send\nyou a link to reset your password.": "Keine Sorge! Geben Sie Ihre E-Mail-Adresse ein und wir senden Ihnen einen Link zum Zurücksetzen Ihres Passworts.",
             "We've sent a password reset link to %@. Please check your inbox and spam folder.": "Wir haben einen Link zum Zurücksetzen des Passworts an %@ gesendet. Bitte überprüfen Sie Ihren Posteingang und Spam-Ordner.",
-            "Notifications": "Benachrichtigungen",
         ]
     ]
 }
