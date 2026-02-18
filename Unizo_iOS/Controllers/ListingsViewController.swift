@@ -292,7 +292,7 @@ class ListingsViewController: UIViewController {
                 emptyStateSubtitle.text = "Try a different search term".localized
                 emptyStateImageView.image = UIImage(systemName: "magnifyingglass")
             } else if currentFilter != "All" {
-                emptyStateLabel.text = "No \(currentFilter.lowercased()) listings"
+                emptyStateLabel.text = String(format: "No %@ listings".localized, currentFilter.lowercased())
                 emptyStateSubtitle.text = "Items with this status\nwill appear here".localized
                 emptyStateImageView.image = UIImage(systemName: "tray")
             } else {
@@ -308,7 +308,7 @@ class ListingsViewController: UIViewController {
         let available = allListings.filter { $0.status == "Available" }.count
         let sold = allListings.filter { $0.status == "Sold" }.count
 
-        listingsCountLabel.text = "\(total) listings • \(available) available • \(sold) sold"
+        listingsCountLabel.text = String(format: "%d listings • %d available • %d sold".localized, total, available, sold)
     }
 
     // MARK: - UI Setup
@@ -493,7 +493,7 @@ extension ListingsViewController: EnhancedListingCellDelegate {
 
         let alert = UIAlertController(
             title: "Delete Listing".localized,
-            message: "Are you sure you want to delete \"\(product.title)\"?",
+            message: String(format: "Are you sure you want to delete \"%@\"?".localized, product.title),
             preferredStyle: .alert
         )
 

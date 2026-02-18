@@ -57,7 +57,7 @@ class PaymentsViewController: UIViewController {
         backBtn.addTarget(self, action: #selector(goBack), for: .touchUpInside)
 
         let title = UILabel()
-        title.text = "Payments"
+        title.text = "Payments".localized
         title.font = UIFont.systemFont(ofSize: 18, weight: .semibold)
         title.translatesAutoresizingMaskIntoConstraints = false
 
@@ -104,19 +104,19 @@ class PaymentsViewController: UIViewController {
     // MARK: - Main UI
     private func setupContent() {
         // ----- "Cards" Label -----
-        let cardsLabel = makeSectionTitle("Cards")
+        let cardsLabel = makeSectionTitle("Cards".localized)
         contentView.addSubview(cardsLabel)
 
         // ----- Card Button -----
         let cardRow = makeRow(icon: "creditcard",
-                              title: "Add credit or debit cards",
+                              title: "Add credit or debit cards".localized,
                               showChevron: true,
                               showDivider: false)
 
         contentView.addSubview(cardRow)
 
         // ----- UPI Label -----
-        let upiLabel = makeSectionTitle("UPI")
+        let upiLabel = makeSectionTitle("UPI".localized)
         contentView.addSubview(upiLabel)
 
         // ----- UPI container -----
@@ -127,10 +127,10 @@ class PaymentsViewController: UIViewController {
         contentView.addSubview(upiContainer)
 
         // List items
-        let google = makeUPIRow(title: "Google Pay UPI", showAddButton: false)
-        let phonePe = makeUPIRow(title: "PhonePe UPI", showAddButton: false)
-        let bhim = makeUPIRow(title: "BHIM UPI", showAddButton: false)
-        let addNew = makeUPIRow(title: "Add new UPI ID", showAddButton: true)
+        let google = makeUPIRow(title: "Google Pay UPI".localized, showAddButton: false)
+        let phonePe = makeUPIRow(title: "PhonePe UPI".localized, showAddButton: false)
+        let bhim = makeUPIRow(title: "BHIM UPI".localized, showAddButton: false)
+        let addNew = makeUPIRow(title: "Add new UPI ID".localized, showAddButton: true)
 
         let stack = UIStackView(arrangedSubviews: [google, phonePe, bhim, addNew])
         stack.axis = .vertical
@@ -236,7 +236,7 @@ class PaymentsViewController: UIViewController {
         // ADD button
         if showAddButton {
             let addButton = UIButton(type: .system)
-            addButton.setTitle("Add", for: .normal)
+            addButton.setTitle("Add".localized, for: .normal)
             addButton.setTitleColor(UIColor(red: 0, green: 0.28, blue: 0.39, alpha: 1), for: .normal)
             addButton.translatesAutoresizingMaskIntoConstraints = false
             row.addSubview(addButton)

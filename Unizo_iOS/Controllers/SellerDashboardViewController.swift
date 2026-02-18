@@ -239,7 +239,7 @@ final class SellerDashboardViewController: UIViewController {
 
     private let titleLabel: UILabel = {
         let lbl = UILabel()
-        lbl.text = "Dashboard"
+        lbl.text = "Dashboard".localized
         lbl.font = UIFont.boldSystemFont(ofSize: 18)
         lbl.textAlignment = .center
         lbl.translatesAutoresizingMaskIntoConstraints = false
@@ -265,7 +265,7 @@ final class SellerDashboardViewController: UIViewController {
     // MARK: - Empty State
     private let emptyStateLabel: UILabel = {
         let label = UILabel()
-        label.text = "No orders yet"
+        label.text = "No orders yet".localized
         label.font = .systemFont(ofSize: 16)
         label.textColor = .secondaryLabel
         label.textAlignment = .center
@@ -325,7 +325,7 @@ final class SellerDashboardViewController: UIViewController {
                 await MainActor.run {
                     self.loadingIndicator.stopAnimating()
                     self.scrollView.alpha = 1.0
-                    self.showErrorState(message: "Failed to load dashboard data")
+                    self.showErrorState(message: "Failed to load dashboard data".localized)
                 }
             }
         }
@@ -333,14 +333,14 @@ final class SellerDashboardViewController: UIViewController {
 
     private func showErrorState(message: String) {
         let alert = UIAlertController(
-            title: "Error",
+            title: "Error".localized,
             message: message,
             preferredStyle: .alert
         )
-        alert.addAction(UIAlertAction(title: "Retry", style: .default) { [weak self] _ in
+        alert.addAction(UIAlertAction(title: "Retry".localized, style: .default) { [weak self] _ in
             self?.loadDashboardData()
         })
-        alert.addAction(UIAlertAction(title: "Cancel", style: .cancel))
+        alert.addAction(UIAlertAction(title: "Cancel".localized, style: .cancel))
         present(alert, animated: true)
     }
     override func viewWillAppear(_ animated: Bool) {
@@ -403,7 +403,7 @@ final class SellerDashboardViewController: UIViewController {
 
         // Breakdown
         breakdownTitle.translatesAutoresizingMaskIntoConstraints = false
-        breakdownTitle.text = "Breakdown"
+        breakdownTitle.text = "Breakdown".localized
         breakdownTitle.font = .systemFont(ofSize: 18, weight: .semibold)
         contentView.addSubview(breakdownTitle)
 
@@ -512,7 +512,7 @@ final class SellerDashboardViewController: UIViewController {
             nameLabel.text = user.displayName
             emailLabel.text = user.email ?? ""
         } else {
-            nameLabel.text = "Seller"
+            nameLabel.text = "Seller".localized
             emailLabel.text = ""
         }
 

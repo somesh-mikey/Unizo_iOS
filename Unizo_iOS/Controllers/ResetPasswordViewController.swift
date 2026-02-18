@@ -126,40 +126,40 @@ class ResetPasswordViewController: UIViewController {
 
         if isLoggedInMode {
             // --- Logged-in: Set new password directly ---
-            titleLabel.text = "Set New Password"
-            subtitleLabel.text = "Enter and confirm your new password below."
+            titleLabel.text = "Set New Password".localized
+            subtitleLabel.text = "Enter and confirm your new password below.".localized
 
-            setupTextField(newPasswordField, placeholder: "New Password")
+            setupTextField(newPasswordField, placeholder: "New Password".localized)
             newPasswordField.isSecureTextEntry = true
             newPasswordField.textContentType = .newPassword
 
-            setupTextField(confirmPasswordField, placeholder: "Confirm Password")
+            setupTextField(confirmPasswordField, placeholder: "Confirm Password".localized)
             confirmPasswordField.isSecureTextEntry = true
             confirmPasswordField.textContentType = .newPassword
 
-            actionButton.setTitle("Update Password", for: .normal)
+            actionButton.setTitle("Update Password".localized, for: .normal)
 
             // Hide email field
             emailField.isHidden = true
 
-            backToLoginButton.setTitle("Cancel", for: .normal)
+            backToLoginButton.setTitle("Cancel".localized, for: .normal)
         } else {
             // --- Not logged-in: Email reset link ---
-            titleLabel.text = "Reset Your Password"
-            subtitleLabel.text = "Don't worry! Enter your email address and we'll send\nyou a link to reset your password."
+            titleLabel.text = "Reset Your Password".localized
+            subtitleLabel.text = "Don't worry! Enter your email address and we'll send\nyou a link to reset your password.".localized
 
-            setupTextField(emailField, placeholder: "College Email")
+            setupTextField(emailField, placeholder: "College Email".localized)
             emailField.keyboardType = .emailAddress
             emailField.autocapitalizationType = .none
             emailField.autocorrectionType = .no
 
-            actionButton.setTitle("Send Reset Link", for: .normal)
+            actionButton.setTitle("Send Reset Link".localized, for: .normal)
 
             // Hide password fields
             newPasswordField.isHidden = true
             confirmPasswordField.isHidden = true
 
-            backToLoginButton.setTitle("Back to Login.", for: .normal)
+            backToLoginButton.setTitle("Back to Login.".localized, for: .normal)
         }
 
         titleLabel.font = UIFont.systemFont(ofSize: 20, weight: .bold)
@@ -329,11 +329,11 @@ class ResetPasswordViewController: UIViewController {
                 await MainActor.run {
                     self.setLoading(false)
                     let alert = UIAlertController(
-                        title: "Password Updated",
-                        message: "Your password has been changed successfully.",
+                        title: "Password Updated".localized,
+                        message: "Your password has been changed successfully.".localized,
                         preferredStyle: .alert
                     )
-                    alert.addAction(UIAlertAction(title: "OK", style: .default) { [weak self] _ in
+                    alert.addAction(UIAlertAction(title: "OK".localized, style: .default) { [weak self] _ in
                         self?.dismiss(animated: true)
                     })
                     self.present(alert, animated: true)
@@ -380,11 +380,11 @@ class ResetPasswordViewController: UIViewController {
                 await MainActor.run {
                     self.setLoading(false)
                     let alert = UIAlertController(
-                        title: "Reset Link Sent",
-                        message: "We've sent a password reset link to \(email). Please check your inbox and spam folder.",
+                        title: "Reset Link Sent".localized,
+                        message: String(format: "We've sent a password reset link to %@. Please check your inbox and spam folder.".localized, email),
                         preferredStyle: .alert
                     )
-                    alert.addAction(UIAlertAction(title: "OK", style: .default) { [weak self] _ in
+                    alert.addAction(UIAlertAction(title: "OK".localized, style: .default) { [weak self] _ in
                         self?.dismiss(animated: true)
                     })
                     self.present(alert, animated: true)
@@ -416,7 +416,7 @@ class ResetPasswordViewController: UIViewController {
             newPasswordField.isEnabled = false
             confirmPasswordField.isEnabled = false
         } else {
-            actionButton.setTitle(isLoggedInMode ? "Update Password" : "Send Reset Link", for: .normal)
+            actionButton.setTitle(isLoggedInMode ? "Update Password".localized : "Send Reset Link".localized, for: .normal)
             loadingSpinner.stopAnimating()
             actionButton.isEnabled = true
             emailField.isEnabled = true

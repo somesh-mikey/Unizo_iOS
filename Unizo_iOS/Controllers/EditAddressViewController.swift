@@ -66,7 +66,7 @@ final class EditAddressViewController: UIViewController {
 
     // MARK: - UI
     private func setupNavBar() {
-        title = "Edit Hotspot"
+        title = "Edit Hotspot".localized
         navigationItem.leftBarButtonItem = UIBarButtonItem(
             image: UIImage(systemName: "chevron.left"),
             style: .plain,
@@ -75,7 +75,7 @@ final class EditAddressViewController: UIViewController {
         )
 
         navigationItem.rightBarButtonItem = UIBarButtonItem(
-            title: "Save",
+            title: "Save".localized,
             style: .done,
             target: self,
             action: #selector(savePressed)
@@ -126,7 +126,7 @@ final class EditAddressViewController: UIViewController {
 
     private func defaultRow() -> UIView {
         let label = UILabel()
-        label.text = "Set as default hotspot"
+        label.text = "Set as default hotspot".localized
         label.font = .systemFont(ofSize: 14, weight: .medium)
 
         let row = UIStackView(arrangedSubviews: [label, defaultSwitch])
@@ -197,8 +197,8 @@ final class EditAddressViewController: UIViewController {
     }
 
     private func showError(_ msg: String) {
-        let alert = UIAlertController(title: "Error", message: msg, preferredStyle: .alert)
-        alert.addAction(.init(title: "OK", style: .default))
+        let alert = UIAlertController(title: "Error".localized, message: msg, preferredStyle: .alert)
+        alert.addAction(.init(title: "OK".localized, style: .default))
         present(alert, animated: true)
     }
 }

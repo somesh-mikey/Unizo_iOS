@@ -451,11 +451,11 @@ final class SettingsViewController: UIViewController {
                 print("❌ Sign out failed:", error)
                 await MainActor.run {
                     let alert = UIAlertController(
-                        title: "Error",
-                        message: "Failed to sign out: \(error.localizedDescription)",
+                        title: "Error".localized,
+                        message: String(format: "Failed to sign out: %@".localized, error.localizedDescription),
                         preferredStyle: .alert
                     )
-                    alert.addAction(UIAlertAction(title: "OK", style: .default))
+                    alert.addAction(UIAlertAction(title: "OK".localized, style: .default))
                     self.present(alert, animated: true)
                 }
             }
@@ -465,13 +465,13 @@ final class SettingsViewController: UIViewController {
     // MARK: - Delete Account
     @objc private func deleteAccountTapped() {
         let alert = UIAlertController(
-            title: "Delete Account",
-            message: "Are you sure you want to delete your account? This action cannot be undone and all your data will be permanently removed.",
+            title: "Delete Account".localized,
+            message: "Are you sure you want to delete your account? This action cannot be undone and all your data will be permanently removed.".localized,
             preferredStyle: .alert
         )
 
-        alert.addAction(UIAlertAction(title: "Cancel", style: .cancel))
-        alert.addAction(UIAlertAction(title: "Delete", style: .destructive) { [weak self] _ in
+        alert.addAction(UIAlertAction(title: "Cancel".localized, style: .cancel))
+        alert.addAction(UIAlertAction(title: "Delete".localized, style: .destructive) { [weak self] _ in
             self?.performDeleteAccount()
         })
 
@@ -498,11 +498,11 @@ final class SettingsViewController: UIViewController {
                 print("❌ Delete account failed:", error)
                 await MainActor.run {
                     let alert = UIAlertController(
-                        title: "Error",
-                        message: "Failed to delete account: \(error.localizedDescription)",
+                        title: "Error".localized,
+                        message: String(format: "Failed to delete account: %@".localized, error.localizedDescription),
                         preferredStyle: .alert
                     )
-                    alert.addAction(UIAlertAction(title: "OK", style: .default))
+                    alert.addAction(UIAlertAction(title: "OK".localized, style: .default))
                     self.present(alert, animated: true)
                 }
             }

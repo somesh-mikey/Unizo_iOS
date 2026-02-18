@@ -109,7 +109,7 @@ class SearchViewController: UIViewController, UITableViewDelegate, UITableViewDa
         
         // --- Recent Searches Label ---
         whiteCardView.addSubview(recentSearchesLabel)
-        recentSearchesLabel.text = "Recent Searches"
+        recentSearchesLabel.text = "Recent Searches".localized
         recentSearchesLabel.font = UIFont.boldSystemFont(ofSize: 16)
         recentSearchesLabel.translatesAutoresizingMaskIntoConstraints = false
         NSLayoutConstraint.activate([

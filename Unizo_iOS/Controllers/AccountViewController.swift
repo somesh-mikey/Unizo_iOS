@@ -18,7 +18,7 @@ final class AccountViewController: UIViewController {
     // MARK: - Header
     private let titleLabel: UILabel = {
         let l = UILabel()
-        l.text = "Account"
+        l.text = "Account".localized
         l.font = .systemFont(ofSize: 35, weight: .bold)
         return l
     }()
@@ -37,7 +37,7 @@ final class AccountViewController: UIViewController {
 
     private let nameLabel: UILabel = {
         let l = UILabel()
-        l.text = "Loading..."
+        l.text = "Loading...".localized
         l.font = .systemFont(ofSize: 22, weight: .semibold)
         return l
     }()
@@ -122,8 +122,8 @@ final class AccountViewController: UIViewController {
 
     private func updateUIWithUserData(_ user: UserDTO?) {
         guard let user = user else {
-            nameLabel.text = "Guest"
-            emailLabel.text = "Not signed in"
+            nameLabel.text = "Guest".localized
+            emailLabel.text = "Not signed in".localized
             return
         }
 

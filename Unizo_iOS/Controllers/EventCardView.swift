@@ -55,7 +55,7 @@ final class EventCardView: UIView {
 
     private let bookButton: UIButton = {
         let btn = UIButton(type: .system)
-        btn.setTitle("Book Now", for: .normal)
+        btn.setTitle("Book Now".localized, for: .normal)
 
         btn.titleLabel?.font = UIFont.systemFont(ofSize: 16, weight: .medium)
 

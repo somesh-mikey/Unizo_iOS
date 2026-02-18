@@ -75,7 +75,7 @@ class ProductPostedViewController: UIViewController {
     private func setupText() {
 
         // Title
-        titleLabel.text = "Your Product has been posted!"
+        titleLabel.text = "Your Product has been posted!".localized
         titleLabel.font = UIFont.systemFont(ofSize: 18, weight: .semibold)
         titleLabel.textColor = .white
         titleLabel.textAlignment = .center
@@ -83,7 +83,7 @@ class ProductPostedViewController: UIViewController {
         view.addSubview(titleLabel)
 
         // Subtitle
-        subtitleLabel.text = "We’ll reach out to the best valued customers."
+        subtitleLabel.text = "We'll reach out to the best valued customers.".localized
         subtitleLabel.font = UIFont.systemFont(ofSize: 14, weight: .regular)
         subtitleLabel.textColor = UIColor(white: 1.0, alpha: 0.8)
         subtitleLabel.textAlignment = .center
@@ -102,7 +102,7 @@ class ProductPostedViewController: UIViewController {
     // MARK: Button Setup
     private func setupButton() {
 
-        viewListingsButton.setTitle("View Listings", for: .normal)
+        viewListingsButton.setTitle("View Listings".localized, for: .normal)
         viewListingsButton.backgroundColor = UIColor(red: 0.02, green: 0.34, blue: 0.46, alpha: 1.0)
         viewListingsButton.layer.cornerRadius = 26
         viewListingsButton.titleLabel?.font = UIFont.systemFont(ofSize: 17, weight: .medium)

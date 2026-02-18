@@ -320,6 +320,77 @@ final class AppLanguageManager {
             "Please enter the full 6-digit code.": "कृपया पूरा 6 अंकों का कोड दर्ज करें।",
             "Incorrect code. Please try again.": "गलत कोड। कृपया पुनः प्रयास करें।",
             "Something went wrong. Please try again.": "कुछ गलत हो गया। कृपया पुनः प्रयास करें।",
+
+            // New Localization Keys
+            // Settings Alerts
+            "Failed to sign out: %@": "%@ साइन आउट करने में विफल:",
+            "Are you sure you want to delete your account? This action cannot be undone and all your data will be permanently removed.": "क्या आप वाकई अपना खाता हटाना चाहते हैं? यह क्रिया पूर्ववत नहीं की जा सकती और आपका सारा डेटा स्थायी रूप से हटा दिया जाएगा।",
+            "Failed to delete account: %@": "खाता हटाने में विफल: %@",
+
+            // Account
+            "Guest": "अतिथि",
+            "Not signed in": "साइन इन नहीं है",
+
+            // Edit Address
+            "Edit Hotspot": "हॉटस्पॉट संपादित करें",
+            "Set as default hotspot": "डिफ़ॉल्ट हॉटस्पॉट सेट करें",
+
+            // Product Posted
+            "Your Product has been posted!": "आपका उत्पाद पोस्ट हो गया है!",
+            "We'll reach out to the best valued customers.": "हम सबसे अच्छे ग्राहकों तक पहुंचेंगे।",
+            "View Listings": "लिस्टिंग देखें",
+
+            // Payments
+            "Payments": "भुगतान",
+            "Cards": "कार्ड",
+            "UPI": "UPI",
+            "Add credit or debit cards": "क्रेडिट या डेबिट कार्ड जोड़ें",
+            "Google Pay UPI": "Google Pay UPI",
+            "PhonePe UPI": "PhonePe UPI",
+            "BHIM UPI": "BHIM UPI",
+            "Add new UPI ID": "नई UPI ID जोड़ें",
+            "Add": "जोड़ें",
+
+            // Seller Dashboard
+            "Dashboard": "डैशबोर्ड",
+            "Breakdown": "विवरण",
+            "Failed to load dashboard data": "डैशबोर्ड डेटा लोड करने में विफल",
+            "Retry": "पुनः प्रयास करें",
+
+            // Search
+            "Recent Searches": "हाल की खोजें",
+
+            // Terms
+            "Terms and Conditions": "नियम और शर्तें",
+
+            // Events
+            "Book Now": "अभी बुक करें",
+
+            // Listings
+            "No %@ listings": "कोई %@ लिस्टिंग नहीं",
+            "%d listings • %d available • %d sold": "%d लिस्टिंग • %d उपलब्ध • %d बिके",
+            "Are you sure you want to delete \"%@\"?": "क्या आप \"%@\" को हटाना चाहते हैं?",
+
+            // Enhanced Listing
+            "%d views": "%d दृश्य",
+            "Qty: %d": "मात्रा: %d",
+            "Buyer: %@": "खरीदार: %@",
+
+            // Order Card
+            "Order #%@": "ऑर्डर #%@",
+            "Placed on %@": "%@ को ऑर्डर किया",
+            "Total: ₹%@": "कुल: ₹%@",
+            "Total: ₹%d": "कुल: ₹%d",
+            "+%d more items →": "+%d और आइटम →",
+            "+%d more item →": "+%d और आइटम →",
+            "No items": "कोई आइटम नहीं",
+
+            // Reset Password
+            "Don't worry! Enter your email address and we'll send\nyou a link to reset your password.": "चिंता न करें! अपना ईमेल दर्ज करें और हम आपको पासवर्ड रीसेट लिंक भेजेंगे।",
+            "We've sent a password reset link to %@. Please check your inbox and spam folder.": "हमने %@ पर पासवर्ड रीसेट लिंक भेजा है। कृपया अपना इनबॉक्स और स्पैम फ़ोल्डर जांचें।",
+
+            // Notifications
+            "Notifications": "सूचनाएं",
         ],
 
         // MARK: Spanish
@@ -567,6 +638,50 @@ final class AppLanguageManager {
             "Please enter the full 6-digit code.": "Ingresa el código completo de 6 dígitos.",
             "Incorrect code. Please try again.": "Código incorrecto. Inténtalo de nuevo.",
             "Something went wrong. Please try again.": "Algo salió mal. Inténtalo de nuevo.",
+
+            // New Localization Keys
+            "Failed to sign out: %@": "Error al cerrar sesión: %@",
+            "Are you sure you want to delete your account? This action cannot be undone and all your data will be permanently removed.": "¿Estás seguro de que quieres eliminar tu cuenta? Esta acción no se puede deshacer y todos tus datos se eliminarán permanentemente.",
+            "Failed to delete account: %@": "Error al eliminar la cuenta: %@",
+            "Guest": "Invitado",
+            "Not signed in": "No has iniciado sesión",
+            "Edit Hotspot": "Editar punto de encuentro",
+            "Set as default hotspot": "Establecer como punto predeterminado",
+            "Your Product has been posted!": "¡Tu producto ha sido publicado!",
+            "We'll reach out to the best valued customers.": "Llegaremos a los mejores clientes.",
+            "View Listings": "Ver listados",
+            "Payments": "Pagos",
+            "Cards": "Tarjetas",
+            "UPI": "UPI",
+            "Add credit or debit cards": "Agregar tarjetas de crédito o débito",
+            "Google Pay UPI": "Google Pay UPI",
+            "PhonePe UPI": "PhonePe UPI",
+            "BHIM UPI": "BHIM UPI",
+            "Add new UPI ID": "Agregar nuevo ID UPI",
+            "Add": "Agregar",
+            "Dashboard": "Panel",
+            "Breakdown": "Desglose",
+            "Failed to load dashboard data": "Error al cargar datos del panel",
+            "Retry": "Reintentar",
+            "Recent Searches": "Búsquedas recientes",
+            "Terms and Conditions": "Términos y condiciones",
+            "Book Now": "Reservar ahora",
+            "No %@ listings": "Sin listados %@",
+            "%d listings • %d available • %d sold": "%d listados • %d disponibles • %d vendidos",
+            "Are you sure you want to delete \"%@\"?": "¿Estás seguro de que quieres eliminar \"%@\"?",
+            "%d views": "%d vistas",
+            "Qty: %d": "Cant: %d",
+            "Buyer: %@": "Comprador: %@",
+            "Order #%@": "Pedido #%@",
+            "Placed on %@": "Realizado el %@",
+            "Total: ₹%@": "Total: ₹%@",
+            "Total: ₹%d": "Total: ₹%d",
+            "+%d more items →": "+%d más artículos →",
+            "+%d more item →": "+%d más artículo →",
+            "No items": "Sin artículos",
+            "Don't worry! Enter your email address and we'll send\nyou a link to reset your password.": "¡No te preocupes! Ingresa tu correo electrónico y te enviaremos un enlace para restablecer tu contraseña.",
+            "We've sent a password reset link to %@. Please check your inbox and spam folder.": "Hemos enviado un enlace de restablecimiento a %@. Revisa tu bandeja de entrada y carpeta de spam.",
+            "Notifications": "Notificaciones",
         ],
 
         // MARK: French
@@ -814,6 +929,50 @@ final class AppLanguageManager {
             "Please enter the full 6-digit code.": "Veuillez entrer le code complet à 6 chiffres.",
             "Incorrect code. Please try again.": "Code incorrect. Veuillez réessayer.",
             "Something went wrong. Please try again.": "Quelque chose s'est mal passé. Veuillez réessayer.",
+
+            // New Localization Keys
+            "Failed to sign out: %@": "Échec de la déconnexion : %@",
+            "Are you sure you want to delete your account? This action cannot be undone and all your data will be permanently removed.": "Êtes-vous sûr de vouloir supprimer votre compte ? Cette action est irréversible et toutes vos données seront définitivement supprimées.",
+            "Failed to delete account: %@": "Échec de la suppression du compte : %@",
+            "Guest": "Invité",
+            "Not signed in": "Non connecté",
+            "Edit Hotspot": "Modifier le point de rencontre",
+            "Set as default hotspot": "Définir comme point par défaut",
+            "Your Product has been posted!": "Votre produit a été publié !",
+            "We'll reach out to the best valued customers.": "Nous contacterons les meilleurs clients.",
+            "View Listings": "Voir les annonces",
+            "Payments": "Paiements",
+            "Cards": "Cartes",
+            "UPI": "UPI",
+            "Add credit or debit cards": "Ajouter des cartes de crédit ou débit",
+            "Google Pay UPI": "Google Pay UPI",
+            "PhonePe UPI": "PhonePe UPI",
+            "BHIM UPI": "BHIM UPI",
+            "Add new UPI ID": "Ajouter un nouvel ID UPI",
+            "Add": "Ajouter",
+            "Dashboard": "Tableau de bord",
+            "Breakdown": "Détails",
+            "Failed to load dashboard data": "Échec du chargement des données",
+            "Retry": "Réessayer",
+            "Recent Searches": "Recherches récentes",
+            "Terms and Conditions": "Termes et conditions",
+            "Book Now": "Réserver maintenant",
+            "No %@ listings": "Aucune annonce %@",
+            "%d listings • %d available • %d sold": "%d annonces • %d disponibles • %d vendues",
+            "Are you sure you want to delete \"%@\"?": "Êtes-vous sûr de vouloir supprimer \"%@\" ?",
+            "%d views": "%d vues",
+            "Qty: %d": "Qté : %d",
+            "Buyer: %@": "Acheteur : %@",
+            "Order #%@": "Commande #%@",
+            "Placed on %@": "Passée le %@",
+            "Total: ₹%@": "Total : ₹%@",
+            "Total: ₹%d": "Total : ₹%d",
+            "+%d more items →": "+%d articles de plus →",
+            "+%d more item →": "+%d article de plus →",
+            "No items": "Aucun article",
+            "Don't worry! Enter your email address and we'll send\nyou a link to reset your password.": "Ne vous inquiétez pas ! Entrez votre adresse e-mail et nous vous enverrons un lien pour réinitialiser votre mot de passe.",
+            "We've sent a password reset link to %@. Please check your inbox and spam folder.": "Nous avons envoyé un lien de réinitialisation à %@. Veuillez vérifier votre boîte de réception et votre dossier spam.",
+            "Notifications": "Notifications",
         ],
 
         // MARK: German
@@ -1061,6 +1220,50 @@ final class AppLanguageManager {
             "Please enter the full 6-digit code.": "Bitte geben Sie den vollständigen 6-stelligen Code ein.",
             "Incorrect code. Please try again.": "Falscher Code. Bitte versuchen Sie es erneut.",
             "Something went wrong. Please try again.": "Etwas ist schiefgelaufen. Bitte versuchen Sie es erneut.",
+
+            // New Localization Keys
+            "Failed to sign out: %@": "Abmeldung fehlgeschlagen: %@",
+            "Are you sure you want to delete your account? This action cannot be undone and all your data will be permanently removed.": "Sind Sie sicher, dass Sie Ihr Konto löschen möchten? Diese Aktion kann nicht rückgängig gemacht werden und alle Ihre Daten werden dauerhaft entfernt.",
+            "Failed to delete account: %@": "Konto konnte nicht gelöscht werden: %@",
+            "Guest": "Gast",
+            "Not signed in": "Nicht angemeldet",
+            "Edit Hotspot": "Treffpunkt bearbeiten",
+            "Set as default hotspot": "Als Standard-Treffpunkt festlegen",
+            "Your Product has been posted!": "Ihr Produkt wurde veröffentlicht!",
+            "We'll reach out to the best valued customers.": "Wir erreichen die besten Kunden.",
+            "View Listings": "Angebote ansehen",
+            "Payments": "Zahlungen",
+            "Cards": "Karten",
+            "UPI": "UPI",
+            "Add credit or debit cards": "Kredit- oder Debitkarten hinzufügen",
+            "Google Pay UPI": "Google Pay UPI",
+            "PhonePe UPI": "PhonePe UPI",
+            "BHIM UPI": "BHIM UPI",
+            "Add new UPI ID": "Neue UPI-ID hinzufügen",
+            "Add": "Hinzufügen",
+            "Dashboard": "Dashboard",
+            "Breakdown": "Aufschlüsselung",
+            "Failed to load dashboard data": "Dashboard-Daten konnten nicht geladen werden",
+            "Retry": "Erneut versuchen",
+            "Recent Searches": "Letzte Suchen",
+            "Terms and Conditions": "Geschäftsbedingungen",
+            "Book Now": "Jetzt buchen",
+            "No %@ listings": "Keine %@-Angebote",
+            "%d listings • %d available • %d sold": "%d Angebote • %d verfügbar • %d verkauft",
+            "Are you sure you want to delete \"%@\"?": "Sind Sie sicher, dass Sie \"%@\" löschen möchten?",
+            "%d views": "%d Aufrufe",
+            "Qty: %d": "Menge: %d",
+            "Buyer: %@": "Käufer: %@",
+            "Order #%@": "Bestellung #%@",
+            "Placed on %@": "Bestellt am %@",
+            "Total: ₹%@": "Gesamt: ₹%@",
+            "Total: ₹%d": "Gesamt: ₹%d",
+            "+%d more items →": "+%d weitere Artikel →",
+            "+%d more item →": "+%d weiterer Artikel →",
+            "No items": "Keine Artikel",
+            "Don't worry! Enter your email address and we'll send\nyou a link to reset your password.": "Keine Sorge! Geben Sie Ihre E-Mail-Adresse ein und wir senden Ihnen einen Link zum Zurücksetzen Ihres Passworts.",
+            "We've sent a password reset link to %@. Please check your inbox and spam folder.": "Wir haben einen Link zum Zurücksetzen des Passworts an %@ gesendet. Bitte überprüfen Sie Ihren Posteingang und Spam-Ordner.",
+            "Notifications": "Benachrichtigungen",
         ]
     ]
 }
