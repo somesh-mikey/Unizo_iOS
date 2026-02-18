@@ -16,7 +16,7 @@ class TermsAndConditionsViewController: UIViewController {
         view.backgroundColor = .white
 
         // ✅ Navigation Bar Title
-        self.title = "Terms and Conditions"
+        self.title = "Terms and Conditions".localized
 
         setupTextView()
         setupConstraints()

@@ -263,11 +263,11 @@ class ChangePasswordViewController: UIViewController {
 
     private func showSuccessAndPop() {
         let alert = UIAlertController(
-            title: "Password Changed",
-            message: "Your password has been updated successfully.",
+            title: "Password Changed".localized,
+            message: "Your password has been updated successfully.".localized,
             preferredStyle: .alert
         )
-        alert.addAction(UIAlertAction(title: "OK", style: .default) { [weak self] _ in
+        alert.addAction(UIAlertAction(title: "OK".localized, style: .default) { [weak self] _ in
             self?.navigationController?.popViewController(animated: true)
         })
         present(alert, animated: true)

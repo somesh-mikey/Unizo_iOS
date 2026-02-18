@@ -148,7 +148,7 @@ class CategoryPageViewController: UIViewController, UITabBarDelegate, UIScrollVi
         ])
 
         // Home LABEL - same styling and positioning as LandingVC
-        homeLabel.text = "Home"
+        homeLabel.text = "Home".localized
         homeLabel.textColor = .white
         homeLabel.font = UIFont.systemFont(ofSize: 35, weight: .bold)
         navBarView.addSubview(homeLabel)
@@ -306,7 +306,7 @@ class CategoryPageViewController: UIViewController, UITabBarDelegate, UIScrollVi
         ])
 
         // TRENDING LABEL
-        trendingLabel.text = "Trending Categories"
+        trendingLabel.text = "Trending Categories".localized
         trendingLabel.font = UIFont.boldSystemFont(ofSize: 17)
         trendingCategoriesbg.addSubview(trendingLabel)
         trendingLabel.translatesAutoresizingMaskIntoConstraints = false
@@ -425,7 +425,7 @@ class CategoryPageViewController: UIViewController, UITabBarDelegate, UIScrollVi
         let alert = UIAlertController(title: nil, message: nil, preferredStyle: .actionSheet)
 
         // --- WISHLIST ---
-        alert.addAction(UIAlertAction(title: "Wishlist", style: .default, handler: { _ in
+        alert.addAction(UIAlertAction(title: "Wishlist".localized, style: .default, handler: { _ in
             let vc = WishlistViewController()
             if let nav = self.navigationController {
                 nav.pushViewController(vc, animated: true)
@@ -437,7 +437,7 @@ class CategoryPageViewController: UIViewController, UITabBarDelegate, UIScrollVi
         }))
 
         // --- NOTIFICATIONS ---
-        alert.addAction(UIAlertAction(title: "Notifications", style: .default, handler: { _ in
+        alert.addAction(UIAlertAction(title: "Notifications".localized, style: .default, handler: { _ in
             let vc = NotificationsViewController()
             if let nav = self.navigationController {
                 nav.pushViewController(vc, animated: true)
@@ -448,7 +448,7 @@ class CategoryPageViewController: UIViewController, UITabBarDelegate, UIScrollVi
             self.present(vc, animated: true)
         }))
 
-        alert.addAction(UIAlertAction(title: "Cancel", style: .cancel))
+        alert.addAction(UIAlertAction(title: "Cancel".localized, style: .cancel))
 
         if let popover = alert.popoverPresentationController {
             popover.sourceView = menuButton

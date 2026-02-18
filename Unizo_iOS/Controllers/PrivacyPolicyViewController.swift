@@ -14,7 +14,7 @@ class PrivacyPolicyViewController: UIViewController {
     override func viewDidLoad() {
         super.viewDidLoad()
         view.backgroundColor = .systemBackground
-        title = "Privacy Policy"
+        title = "Privacy Policy".localized
         setupTextView()
     }
     override func viewWillAppear(_ animated: Bool) {

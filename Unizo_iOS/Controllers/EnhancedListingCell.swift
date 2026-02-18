@@ -345,8 +345,8 @@ final class EnhancedListingCell: UICollectionViewCell {
         categoryLabel.text = listing.category
         nameLabel.text = listing.name
         priceLabel.text = listing.price
-        viewsLabel.text = "\(listing.viewsCount) views"
-        quantityLabel.text = "Qty: \(listing.quantity)"
+        viewsLabel.text = String(format: "%d views".localized, listing.viewsCount)
+        quantityLabel.text = String(format: "Qty: %d".localized, listing.quantity)
 
         // Status badge styling
         statusBadge.text = " \(listing.status) "
@@ -373,7 +373,7 @@ final class EnhancedListingCell: UICollectionViewCell {
         if let buyerName = listing.buyerName, listing.status != "Available" {
             buyerContainerView.isHidden = false
             interestedBuyersContainer.isHidden = true
-            buyerLabel.text = "Buyer: \(buyerName)"
+            buyerLabel.text = String(format: "Buyer: %@".localized, buyerName)
         } else {
             buyerContainerView.isHidden = true
 

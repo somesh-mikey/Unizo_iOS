@@ -42,8 +42,8 @@ class OrderCardView: UIView {
 
     // MARK: - Configure (Legacy - for sample data)
     func configure(order: MyOrdersViewController.Order) {
-        orderLabel.text = "Order #\(order.orderID)"
-        dateLabel.text = "Placed on \(order.date)"
+        orderLabel.text = String(format: "Order #%@".localized, order.orderID)
+        dateLabel.text = String(format: "Placed on %@".localized, order.date)
 
         statusLabel.text = order.status
         statusLabel.textColor = order.statusColor
@@ -58,12 +58,12 @@ class OrderCardView: UIView {
         // compute total
         let total = order.items.compactMap { Int($0.price.replacingOccurrences(of: "₹", with: "")) }
             .reduce(0, +)
-        totalLabel.text = "Total: ₹\(total)"
+        totalLabel.text = String(format: "Total: ₹%@".localized, "\(total)")
 
         // More items label
         if order.items.count > 1 {
             let extra = order.items.count - 1
-            moreItemsLabel.text = "+\(extra) more item\(extra > 1 ? "s" : "") →"
+            moreItemsLabel.text = extra > 1 ? String(format: "+%d more items →".localized, extra) : String(format: "+%d more item →".localized, extra)
             moreItemsLabel.isHidden = false
         } else {
             moreItemsLabel.isHidden = true
@@ -77,10 +77,10 @@ class OrderCardView: UIView {
 
         // Format order ID (show last 8 characters of UUID)
         let shortId = String(order.id.uuidString.suffix(8)).uppercased()
-        orderLabel.text = "Order #\(shortId)"
+        orderLabel.text = String(format: "Order #%@".localized, shortId)
 
         // Format date
-        dateLabel.text = "Placed on \(formatDate(order.created_at))"
+        dateLabel.text = String(format: "Placed on %@".localized, formatDate(order.created_at))
 
         // Status with color
         let status = OrderStatus(rawValue: order.status) ?? .pending
@@ -113,7 +113,7 @@ class OrderCardView: UIView {
                 productImage.tintColor = .systemGray3
             }
         } else {
-            productTitle.text = "No items"
+            productTitle.text = "No items".localized
             productDetail.text = ""
             productPrice.text = ""
             productImage.image = UIImage(systemName: "photo")
@@ -121,13 +121,13 @@ class OrderCardView: UIView {
         }
 
         // Total amount
-        totalLabel.text = "Total: ₹\(Int(order.total_amount))"
+        totalLabel.text = String(format: "Total: ₹%d".localized, Int(order.total_amount))
 
         // More items label
         let itemCount = order.items?.count ?? 0
         if itemCount > 1 {
             let extra = itemCount - 1
-            moreItemsLabel.text = "+\(extra) more item\(extra > 1 ? "s" : "") →"
+            moreItemsLabel.text = extra > 1 ? String(format: "+%d more items →".localized, extra) : String(format: "+%d more item →".localized, extra)
             moreItemsLabel.isHidden = false
         } else {
             moreItemsLabel.isHidden = true
