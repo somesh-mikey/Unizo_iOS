@@ -19,14 +19,6 @@ final class PostItemViewController: UIViewController,
     private let scrollView = TouchPassThroughScrollView()
     private let contentView = UIView()
 
-    // MARK: - Header
-    private let titleLabel: UILabel = {
-        let l = UILabel()
-        l.text = "Post Item".localized
-        l.font = .systemFont(ofSize: 35, weight: .bold)
-        return l
-    }()
-
     // MARK: - Image Gallery
     private var selectedImages: [UIImage] = []
     private let maxImages = 5
@@ -103,13 +95,12 @@ final class PostItemViewController: UIViewController,
         super.viewDidLoad()
 
         view.backgroundColor = UIColor(red: 0.96, green: 0.97, blue: 1.0, alpha: 1)
-        navigationController?.navigationBar.isHidden = true
+        setupNavBar()
 
         pickerView.delegate = self
         pickerView.dataSource = self
 
         setupScroll()
-        setupHeader()
         setupUploadCard()
         setupProductDetails()
         setupNegotiableSection()
@@ -120,6 +111,12 @@ final class PostItemViewController: UIViewController,
 
         // Check authentication
         checkAuthentication()
+    }
+
+    private func setupNavBar() {
+        title = "Post Item".localized
+        navigationController?.setNavigationBarHidden(false, animated: false)
+        navigationController?.navigationBar.prefersLargeTitles = false
     }
 
     // MARK: - Keyboard Handling
@@ -214,17 +211,6 @@ final class PostItemViewController: UIViewController,
         ])
     }
 
-    // MARK: - Header
-    private func setupHeader() {
-        titleLabel.translatesAutoresizingMaskIntoConstraints = false
-        contentView.addSubview(titleLabel)
-
-        NSLayoutConstraint.activate([
-            titleLabel.topAnchor.constraint(equalTo: contentView.topAnchor, constant: 20),
-            titleLabel.leadingAnchor.constraint(equalTo: contentView.leadingAnchor, constant: 20)
-        ])
-    }
-
     // MARK: - Picker Toolbar
     private func makePickerToolbar() -> UIToolbar {
         let toolbar = UIToolbar()
@@ -277,7 +263,7 @@ final class PostItemViewController: UIViewController,
         uploadCard.addSubview(uploadButton)
 
         NSLayoutConstraint.activate([
-            uploadCard.topAnchor.constraint(equalTo: titleLabel.bottomAnchor, constant: 20),
+            uploadCard.topAnchor.constraint(equalTo: contentView.topAnchor, constant: 20),
             uploadCard.leadingAnchor.constraint(equalTo: contentView.leadingAnchor, constant: 20),
             uploadCard.trailingAnchor.constraint(equalTo: contentView.trailingAnchor, constant: -20),
 

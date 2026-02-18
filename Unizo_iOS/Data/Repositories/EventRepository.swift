@@ -87,4 +87,12 @@ final class EventRepository {
 
         return response
     }
+
+    // MARK: - Insert Event
+    func insertEvent(_ event: EventInsertDTO) async throws {
+        try await client
+            .from("events")
+            .insert(event)
+            .execute()
+    }
 }

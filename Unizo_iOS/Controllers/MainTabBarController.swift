@@ -49,7 +49,7 @@ class MainTabBarController: UITabBarController, UITabBarControllerDelegate {
 
         let homeVC      = UINavigationController(rootViewController: LandingScreenViewController())
         let chatVC      = UINavigationController(rootViewController: ChatViewController())
-        let postVC      = UINavigationController(rootViewController: PostItemViewController())
+        let postVC      = UINavigationController(rootViewController: PostChooserViewController())
         let listingsVC  = UINavigationController(rootViewController: ListingsViewController())
         let accountVC   = UINavigationController(rootViewController: AccountViewController())
 
@@ -66,8 +66,8 @@ class MainTabBarController: UITabBarController, UITabBarControllerDelegate {
         )
 
         postVC.tabBarItem = UITabBarItem(
-            title: "Sell".localized,
-            image: UIImage(systemName: "square.and.arrow.up.fill"),
+            title: "Post".localized,
+            image: UIImage(systemName: "plus.circle.fill"),
             tag: 2
         )
 
