@@ -14,17 +14,8 @@ final class ChatRepository {
     private let client: SupabaseClient
 
     // Select fields for conversations with joins
-    private let conversationSelectFields = """
-        id,
-        product_id,
-        buyer_id,
-        seller_id,
-        created_at,
-        product:products!product_id(id, title, image_url),
-        buyer:users!buyer_id(id, first_name, last_name, profile_image_url),
-        seller:users!seller_id(id, first_name, last_name, profile_image_url),
-        messages(id, content, message_type, sender_id, created_at)
-    """
+    // Messages are ordered by created_at DESC to get the latest message first
+    private let conversationSelectFields = "id,product_id,buyer_id,seller_id,created_at,product:products!product_id(id,title,image_url),buyer:users!buyer_id(id,first_name,last_name,profile_image_url),seller:users!seller_id(id,first_name,last_name,profile_image_url),messages(id,content,message_type,sender_id,created_at)"
 
     // MARK: - Init
     init(client: SupabaseClient = SupabaseManager.shared.client) {

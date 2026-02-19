@@ -12,6 +12,7 @@ final class NotificationsViewController: UIViewController {
 
     // MARK: - Data
     private let repository = NotificationRepository()
+    private let orderRepository = OrderRepository()
     private var allNotifications: [NotificationUIModel] = []
     private var buyingNotifications: [NotificationUIModel] = []
     private var sellingNotifications: [NotificationUIModel] = []
@@ -39,6 +40,15 @@ final class NotificationsViewController: UIViewController {
         lbl.font = UIFont.systemFont(ofSize: 24, weight: .bold)
         lbl.translatesAutoresizingMaskIntoConstraints = false
         return lbl
+    }()
+
+    private let clearAllButton: UIButton = {
+        let btn = UIButton(type: .system)
+        btn.setTitle("Clear All".localized, for: .normal)
+        btn.titleLabel?.font = UIFont.systemFont(ofSize: 14, weight: .medium)
+        btn.setTitleColor(UIColor(red: 0.96, green: 0.42, blue: 0.42, alpha: 1.0), for: .normal)
+        btn.translatesAutoresizingMaskIntoConstraints = false
+        return btn
     }()
 
     // MARK: - Segmented Control Wrapper
@@ -118,8 +128,10 @@ final class NotificationsViewController: UIViewController {
     private func setupNavigation() {
         view.addSubview(backButton)
         view.addSubview(titleLabel)
+        view.addSubview(clearAllButton)
 
         backButton.addTarget(self, action: #selector(backPressed), for: .touchUpInside)
+        clearAllButton.addTarget(self, action: #selector(clearAllTapped), for: .touchUpInside)
 
         NSLayoutConstraint.activate([
             backButton.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor, constant: 10),
@@ -128,7 +140,10 @@ final class NotificationsViewController: UIViewController {
             backButton.heightAnchor.constraint(equalToConstant: 44),
 
             titleLabel.centerYAnchor.constraint(equalTo: backButton.centerYAnchor),
-            titleLabel.leadingAnchor.constraint(equalTo: backButton.trailingAnchor, constant: 16)
+            titleLabel.leadingAnchor.constraint(equalTo: backButton.trailingAnchor, constant: 16),
+
+            clearAllButton.centerYAnchor.constraint(equalTo: backButton.centerYAnchor),
+            clearAllButton.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -20)
         ])
     }
 
@@ -140,6 +155,44 @@ final class NotificationsViewController: UIViewController {
         Task {
             await NotificationManager.shared.markAllAsRead()
             await loadNotifications()
+        }
+    }
+
+    @objc private func clearAllTapped() {
+        let alert = UIAlertController(
+            title: "Clear All Notifications".localized,
+            message: "Are you sure you want to clear all notifications? This action cannot be undone.".localized,
+            preferredStyle: .alert
+        )
+        alert.addAction(UIAlertAction(title: "Cancel".localized, style: .cancel))
+        alert.addAction(UIAlertAction(title: "Clear All".localized, style: .destructive) { [weak self] _ in
+            self?.performClearAll()
+        })
+        present(alert, animated: true)
+    }
+
+    private func performClearAll() {
+        loadingIndicator.startAnimating()
+        Task {
+            do {
+                try await repository.deleteAllNotifications()
+                await MainActor.run {
+                    self.allNotifications.removeAll()
+                    self.buyingNotifications.removeAll()
+                    self.sellingNotifications.removeAll()
+                    self.currentData.removeAll()
+                    self.tableView.reloadData()
+                    self.loadingIndicator.stopAnimating()
+                    self.emptyStateLabel.isHidden = false
+                    // Reset badge count
+                    NotificationManager.shared.resetUnreadCount()
+                }
+            } catch {
+                print("Failed to clear notifications: \(error)")
+                await MainActor.run {
+                    self.loadingIndicator.stopAnimating()
+                }
+            }
         }
     }
 
@@ -197,6 +250,7 @@ final class NotificationsViewController: UIViewController {
 
                     // Show empty state if needed
                     self.emptyStateLabel.isHidden = !self.currentData.isEmpty
+                    self.clearAllButton.isHidden = self.allNotifications.isEmpty
                 }
             } catch {
                 print("Failed to load notifications: \(error)")
@@ -304,68 +358,55 @@ extension NotificationsViewController: UITableViewDataSource, UITableViewDelegat
 
             // Update local data
             await MainActor.run {
-                if let index = self.allNotifications.firstIndex(where: { $0.id == notification.id }) {
-                    // We can't mutate directly, just reload
-                }
                 tableView.reloadRows(at: [indexPath], with: .automatic)
             }
         }
 
-        // Navigate based on deeplink payload
-        let payload = notification.deeplinkPayload
+        // Determine the order ID from deeplink or notification
+        let orderId = notification.deeplinkPayload.orderId ?? notification.orderId
 
-        switch payload.route {
-        case "confirm_order_seller":
-            // Seller flow: view order to accept/reject
-            guard let orderId = payload.orderId else { return }
-            let vc = ConfirmOrderSellerViewController()
-            vc.orderId = orderId
-
-            if let nav = navigationController {
-                nav.pushViewController(vc, animated: true)
-            } else {
-                vc.modalPresentationStyle = .fullScreen
-                present(vc, animated: true)
+        // For seller "new order" notifications, check current order status
+        // If order is already accepted/rejected, navigate to OrderDetails instead of ConfirmOrder
+        if notification.type == .newOrder || notification.deeplinkPayload.route == "confirm_order_seller" {
+            Task {
+                do {
+                    let order = try await orderRepository.fetchOrder(id: orderId)
+                    await MainActor.run {
+                        if order.status == "pending" {
+                            // Order still pending — seller can accept/reject
+                            let vc = ConfirmOrderSellerViewController()
+                            vc.orderId = orderId
+                            self.pushOrPresent(vc)
+                        } else {
+                            // Order already accepted/rejected — show details only
+                            let vc = OrderDetailsViewController()
+                            vc.orderId = orderId
+                            self.pushOrPresent(vc)
+                        }
+                    }
+                } catch {
+                    // On error, fallback to ConfirmOrderSellerViewController
+                    await MainActor.run {
+                        let vc = ConfirmOrderSellerViewController()
+                        vc.orderId = orderId
+                        self.pushOrPresent(vc)
+                    }
+                }
             }
-
-        case "order_details":
-            // Buyer flow: view order status after seller accepted/rejected
-            guard let orderId = payload.orderId else { return }
+        } else {
+            // Buyer notifications (accepted, rejected, shipped, delivered) → order details
             let vc = OrderDetailsViewController()
             vc.orderId = orderId
+            pushOrPresent(vc)
+        }
+    }
 
-            if let nav = navigationController {
-                nav.pushViewController(vc, animated: true)
-            } else {
-                vc.modalPresentationStyle = .fullScreen
-                present(vc, animated: true)
-            }
-
-        default:
-            // Default navigation based on notification type
-            switch notification.type {
-            case .newOrder:
-                // Seller receives new order notification
-                let vc = ConfirmOrderSellerViewController()
-                vc.orderId = notification.orderId
-                if let nav = navigationController {
-                    nav.pushViewController(vc, animated: true)
-                } else {
-                    vc.modalPresentationStyle = .fullScreen
-                    present(vc, animated: true)
-                }
-
-            case .orderAccepted, .orderRejected, .orderShipped, .orderDelivered:
-                // Buyer receives order status update
-                let vc = OrderDetailsViewController()
-                vc.orderId = notification.orderId
-                if let nav = navigationController {
-                    nav.pushViewController(vc, animated: true)
-                } else {
-                    vc.modalPresentationStyle = .fullScreen
-                    present(vc, animated: true)
-                }
-            }
+    private func pushOrPresent(_ vc: UIViewController) {
+        if let nav = navigationController {
+            nav.pushViewController(vc, animated: true)
+        } else {
+            vc.modalPresentationStyle = .fullScreen
+            present(vc, animated: true)
         }
     }
 }

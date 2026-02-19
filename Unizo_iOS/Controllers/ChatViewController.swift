@@ -499,11 +499,11 @@ final class ChatViewController: UIViewController {
 
 // MARK: - Table Delegate
 extension ChatViewController: UITableViewDataSource, UITableViewDelegate {
-
+    
     func tableView(_ tableView: UITableView, numberOfRowsInSection section: Int) -> Int {
         filteredConversations.count
     }
-
+    
     func tableView(_ tableView: UITableView,
                    cellForRowAt indexPath: IndexPath) -> UITableViewCell {
         let cell = tableView.dequeueReusableCell(
@@ -513,16 +513,37 @@ extension ChatViewController: UITableViewDataSource, UITableViewDelegate {
         cell.configure(with: filteredConversations[indexPath.row])
         return cell
     }
-
+    
     func tableView(_ tableView: UITableView, didSelectRowAt indexPath: IndexPath) {
         let conversation = filteredConversations[indexPath.row]
-
+        
         let detailVC = ChatDetailViewController()
         detailVC.conversationId = conversation.id
         detailVC.chatTitle = conversation.productTitle
         detailVC.otherUserName = conversation.otherUserName
         detailVC.isSeller = conversation.isSeller
-
+        
         navigationController?.pushViewController(detailVC, animated: true)
+    }
+    
+    // MARK: - External Navigation
+    /// Navigate to a specific conversation (called from other controllers like OrderDetailsViewController)
+    func navigateToConversation(id conversationId: UUID) {
+        // Find conversation in all loaded conversations (not just filtered)
+        if let conversation = allConversations.first(where: { $0.id == conversationId }) {
+            let detailVC = ChatDetailViewController()
+            detailVC.conversationId = conversation.id
+            detailVC.chatTitle = conversation.productTitle
+            detailVC.otherUserName = conversation.otherUserName
+            detailVC.isSeller = conversation.isSeller
+            
+            navigationController?.pushViewController(detailVC, animated: true)
+        } else {
+            print("Conversation not found in list, attempting direct load")
+            // If not in the visible list, create detail VC directly
+            let detailVC = ChatDetailViewController()
+            detailVC.conversationId = conversationId
+            navigationController?.pushViewController(detailVC, animated: true)
+        }
     }
 }

@@ -6,7 +6,8 @@
       "Bash(xargs:*)",
       "Bash(grep:*)",
       "Bash(done)",
-      "Bash(wc:*)"
+      "Bash(wc:*)",
+      "Bash(ruby:*)"
     ]
   }
 }

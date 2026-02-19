@@ -154,4 +154,15 @@ final class NotificationRepository {
             .eq("id", value: notificationId.uuidString)
             .execute()
     }
+
+    // MARK: - Delete All Notifications for Current User
+    func deleteAllNotifications() async throws {
+        let userId = try await getCurrentUserId()
+
+        try await client
+            .from("notifications")
+            .delete()
+            .eq("recipient_id", value: userId.uuidString)
+            .execute()
+    }
 }

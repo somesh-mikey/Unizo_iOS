@@ -421,4 +421,195 @@ final class OrderRepository {
             return false
         }
     }
+
+    // MARK: - Submit Order Rating
+    /// Submits a rating for a user after an order is completed
+    /// - Parameters:
+    ///   - orderId: The order ID
+    ///   - ratedUserId: The user being rated
+    ///   - rating: Rating from 1 to 5 stars
+    ///   - review: Optional written review
+    func submitOrderRating(
+        orderId: UUID,
+        ratedUserId: UUID,
+        rating: Int,
+        review: String? = nil
+    ) async throws {
+        guard rating >= 1 && rating <= 5 else {
+            throw NSError(domain: "OrderRepository", code: 400, userInfo: [
+                NSLocalizedDescriptionKey: "Rating must be between 1 and 5"
+            ])
+        }
+
+        let raterId = try await getCurrentUserId()
+
+        let ratingPayload = OrderRatingInsertDTO(
+            order_id: orderId,
+            rater_id: raterId,
+            rated_user_id: ratedUserId,
+            rating: rating,
+            review: review
+        )
+
+        try await client
+            .from("order_ratings")
+            .insert(ratingPayload)
+            .execute()
+
+        print("✅ Rating submitted: \(rating) stars for user \(ratedUserId.uuidString.prefix(8))")
+    }
+
+    // MARK: - Fetch Order Rating (if exists)
+    /// Fetches an existing rating for a given order and rater
+    func fetchOrderRating(orderId: UUID, raterId: UUID) async throws -> OrderRatingDTO? {
+        let response = try await client
+            .from("order_ratings")
+            .select()
+            .eq("order_id", value: orderId.uuidString)
+            .eq("rater_id", value: raterId.uuidString)
+            .single()
+            .execute()
+
+        let data = try JSONDecoder().decode(OrderRatingDTO.self, from: response.data)
+        return data
+    }
+
+    // MARK: - Fetch All Ratings for a User
+    /// Fetches all ratings given to a specific user (seller or buyer)
+    func fetchUserRatings(userId: UUID) async throws -> [OrderRatingDTO] {
+        let response = try await client
+            .from("order_ratings")
+            .select()
+            .eq("rated_user_id", value: userId.uuidString)
+            .order("created_at", ascending: false)
+            .execute()
+
+        let data = try JSONDecoder().decode([OrderRatingDTO].self, from: response.data)
+        return data
+    }
+
+    // MARK: - Fetch User Rating Summary
+    /// Fetches average rating and total ratings count for a user
+    struct UserRatingSummary: Decodable {
+        let average_rating: Double?
+        let total_ratings: Int?
+
+        enum CodingKeys: String, CodingKey {
+            case average_rating
+            case total_ratings
+        }
+    }
+
+    func fetchUserRatingSummary(userId: UUID) async throws -> UserRatingSummary {
+        let response = try await client
+            .from("users")
+            .select("average_rating, total_ratings")
+            .eq("id", value: userId.uuidString)
+            .single()
+            .execute()
+
+        let data = try JSONDecoder().decode(UserRatingSummary.self, from: response.data)
+        return data
+    }
+
+    // MARK: - Update Rating
+    /// Allows updating a rating (only the review and rating itself)
+    func updateOrderRating(
+        ratingId: UUID,
+        newRating: Int,
+        newReview: String? = nil
+    ) async throws {
+        struct RatingUpdate: Encodable {
+            let rating: Int
+            let review: String
+        }
+
+        guard newRating >= 1 && newRating <= 5 else {
+            throw NSError(domain: "OrderRepository", code: 400, userInfo: [
+                NSLocalizedDescriptionKey: "Rating must be between 1 and 5"
+            ])
+        }
+
+        try await client
+            .from("order_ratings")
+            .update(RatingUpdate(
+                rating: newRating,
+                review: newReview ?? ""
+            ))
+            .eq("id", value: ratingId.uuidString)
+            .execute()
+
+        print("✅ Rating updated: \(newRating) stars")
+    }
+
+    // MARK: - Delete Rating
+    /// Allows deleting a rating (only by the user who created it)
+    func deleteOrderRating(ratingId: UUID) async throws {
+        try await client
+            .from("order_ratings")
+            .delete()
+            .eq("id", value: ratingId.uuidString)
+            .execute()
+
+        print("✅ Rating deleted")
+    }
+
+    // MARK: - Check if User Can Rate Order
+    /// Checks if the current user can rate a specific order
+    /// (user must be buyer or seller in the order and order must be delivered)
+    func canRateOrder(_ orderId: UUID) async throws -> Bool {
+        do {
+            let order = try await fetchOrder(id: orderId)
+            
+            // Order must be delivered
+            guard order.status == "delivered" else {
+                return false
+            }
+
+            let currentUserId = try await getCurrentUserId()
+
+            // Check if user is buyer or seller
+            let isBuyer = order.user_id == currentUserId
+            let isSeller = try await isUserSellerInOrder(orderId, userId: currentUserId)
+
+            return isBuyer || isSeller
+        } catch {
+            return false
+        }
+    }
+
+    // MARK: - Helper: Check if user is seller in order
+    private func isUserSellerInOrder(_ orderId: UUID, userId: UUID) async throws -> Bool {
+        let response = try await client
+            .from("order_items")
+            .select("product_id")
+            .eq("order_id", value: orderId.uuidString)
+            .execute()
+
+        struct OrderItem: Decodable {
+            let product_id: UUID
+        }
+
+        let items = try JSONDecoder().decode([OrderItem].self, from: response.data)
+
+        for item in items {
+            let productResponse = try await client
+                .from("products")
+                .select("seller_id")
+                .eq("id", value: item.product_id.uuidString)
+                .single()
+                .execute()
+
+            struct Product: Decodable {
+                let seller_id: UUID
+            }
+
+            let product = try JSONDecoder().decode(Product.self, from: productResponse.data)
+            if product.seller_id == userId {
+                return true
+            }
+        }
+
+        return false
+    }
 }

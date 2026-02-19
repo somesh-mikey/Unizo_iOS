@@ -18,8 +18,10 @@ class OrderDetailsViewController: UIViewController {
     // MARK: - Fetched Data
     private var orderItems: [OrderItemDTO] = []
     private var handoffCode: String?
+    private var orderBuyerId: UUID?
     private let orderRepository = OrderRepository()
     private let notificationRepository = NotificationRepository()
+    private let chatRepository = ChatRepository()
 
     // MARK: - Role Detection
     private var currentUserId: UUID?
@@ -35,7 +37,6 @@ class OrderDetailsViewController: UIViewController {
     private let topBar = UIView()
     private let backButton = UIButton(type: .system)
     private let navTitleLabel = UILabel()
-    private let heartButton = UIButton(type: .system)
 
     // MARK: - Scroll + Content
     private let scrollView = UIScrollView()
@@ -100,6 +101,7 @@ class OrderDetailsViewController: UIViewController {
         setupOrderSummary()
         setupHandoffCard()
         setupBottomButtons()
+        setupKeyboardHandling()
 
         // Listen for realtime order status changes
         NotificationCenter.default.addObserver(
@@ -121,6 +123,8 @@ class OrderDetailsViewController: UIViewController {
 
     deinit {
         NotificationCenter.default.removeObserver(self, name: .orderStatusDidChange, object: nil)
+        NotificationCenter.default.removeObserver(self, name: UIResponder.keyboardWillShowNotification, object: nil)
+        NotificationCenter.default.removeObserver(self, name: UIResponder.keyboardWillHideNotification, object: nil)
     }
 
     // MARK: - Hide Nav + Tab Bar
@@ -151,15 +155,24 @@ class OrderDetailsViewController: UIViewController {
                 await MainActor.run {
                     print("🔄 Fetched order status: \(order.status)")
 
-                    self.handoffCode = order.handoff_code
+                    // Always update handoff code if present
+                    if let code = order.handoff_code {
+                        self.handoffCode = code
+                    }
+                    self.orderBuyerId = order.user_id
                     self.orderItems = order.items ?? self.orderItems
                     self.detectUserRole()
 
-                    // Only update if status changed
-                    if self.orderStatus != order.status {
+                    // Don't downgrade status (due to replication lag)
+                    // Status hierarchy: pending < confirmed < shipped < delivered
+                    let shouldUpdateStatus = self.shouldUpdateStatus(from: self.orderStatus, to: order.status)
+                    
+                    if shouldUpdateStatus {
                         print("🔄 Status changed from '\(self.orderStatus)' to '\(order.status)' - updating UI")
                         self.orderStatus = order.status
                         self.updateTimelineForStatus()
+                    } else if self.orderStatus != order.status {
+                        print("⚠️ Status update blocked: local='\(self.orderStatus)' is later than fetched='\(order.status)'")
                     } else {
                         print("🔄 Status unchanged: \(self.orderStatus)")
                     }
@@ -172,10 +185,85 @@ class OrderDetailsViewController: UIViewController {
         }
     }
 
+    /// Check if we should update from local status to fetched status
+    /// Prevents downgrading status due to database replication lag
+    private func shouldUpdateStatus(from local: String, to fetched: String) -> Bool {
+        let statusHierarchy: [String] = [
+            OrderStatus.pending.rawValue,      // 0
+            OrderStatus.confirmed.rawValue,    // 1
+            OrderStatus.shipped.rawValue,      // 2
+            OrderStatus.delivered.rawValue,    // 3
+            OrderStatus.cancelled.rawValue     // 4 (final state)
+        ]
+        
+        guard let localIndex = statusHierarchy.firstIndex(of: local),
+              let fetchedIndex = statusHierarchy.firstIndex(of: fetched) else {
+            // If we can't find the status, default to updating
+            return local != fetched
+        }
+        
+        // Only update if fetched status is same or later in hierarchy
+        // This prevents overwriting with stale data due to replication lag
+        return fetchedIndex >= localIndex
+    }
+
+    // MARK: - Keyboard Handling
+    private func setupKeyboardHandling() {
+        // Text field delegates
+        codeTextField.delegate = self
+        
+        // Keyboard notifications
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(keyboardWillShow(_:)),
+            name: UIResponder.keyboardWillShowNotification,
+            object: nil
+        )
+        
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(keyboardWillHide(_:)),
+            name: UIResponder.keyboardWillHideNotification,
+            object: nil
+        )
+        
+        // Tap gesture to dismiss keyboard
+        let tapGesture = UITapGestureRecognizer(target: self, action: #selector(dismissKeyboard))
+        tapGesture.cancelsTouchesInView = false
+        scrollView.addGestureRecognizer(tapGesture)
+    }
+    
+    @objc private func keyboardWillShow(_ notification: NSNotification) {
+        guard let keyboardFrame = notification.userInfo?[UIResponder.keyboardFrameEndUserInfoKey] as? CGRect else {
+            return
+        }
+        
+        let keyboardHeight = keyboardFrame.height
+        var inset = scrollView.contentInset
+        inset.bottom = keyboardHeight + 20
+        
+        UIView.animate(withDuration: 0.3) {
+            self.scrollView.contentInset = inset
+            self.scrollView.scrollIndicatorInsets = inset
+        }
+    }
+    
+    @objc private func keyboardWillHide(_ notification: NSNotification) {
+        UIView.animate(withDuration: 0.3) {
+            self.scrollView.contentInset = UIEdgeInsets.zero
+            self.scrollView.scrollIndicatorInsets = UIEdgeInsets.zero
+        }
+    }
+    
+    @objc private func dismissKeyboard() {
+        view.endEditing(true)
+    }
+
     override func viewWillDisappear(_ animated: Bool) {
         super.viewWillDisappear(animated)
         tabBarController?.tabBar.isHidden = false
         navigationController?.setNavigationBarHidden(false, animated: false)
+        dismissKeyboard()
 
         // Unsubscribe from realtime updates when leaving
         if let id = orderId {
@@ -251,6 +339,7 @@ class OrderDetailsViewController: UIViewController {
                     self.orderStatus = order.status
                     self.orderItems = order.items ?? []
                     self.handoffCode = order.handoff_code
+                    self.orderBuyerId = order.user_id
 
                     // Detect if current user is the seller
                     self.detectUserRole()
@@ -400,23 +489,12 @@ class OrderDetailsViewController: UIViewController {
         backButton.translatesAutoresizingMaskIntoConstraints = false
         backButton.addTarget(self, action: #selector(backPressed), for: .touchUpInside)
 
-        heartButton.setImage(UIImage(systemName: "heart"), for: .normal)
-        heartButton.tintColor = .black
-        heartButton.backgroundColor = .white
-        heartButton.layer.cornerRadius = 22
-        heartButton.layer.shadowColor = UIColor.black.cgColor
-        heartButton.layer.shadowOpacity = 0.1
-        heartButton.layer.shadowRadius = 8
-        heartButton.layer.shadowOffset = CGSize(width: 0, height: 2)
-        heartButton.translatesAutoresizingMaskIntoConstraints = false
-
         navTitleLabel.text = "Order Details".localized
         navTitleLabel.font = UIFont.systemFont(ofSize: 17, weight: .semibold)
         navTitleLabel.translatesAutoresizingMaskIntoConstraints = false
 
         topBar.addSubview(backButton)
         topBar.addSubview(navTitleLabel)
-        topBar.addSubview(heartButton)
 
         NSLayoutConstraint.activate([
             topBar.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor),
@@ -428,11 +506,6 @@ class OrderDetailsViewController: UIViewController {
             backButton.centerYAnchor.constraint(equalTo: topBar.centerYAnchor),
             backButton.widthAnchor.constraint(equalToConstant: 44),
             backButton.heightAnchor.constraint(equalToConstant: 44),
-
-            heartButton.trailingAnchor.constraint(equalTo: topBar.trailingAnchor, constant: -16),
-            heartButton.centerYAnchor.constraint(equalTo: topBar.centerYAnchor),
-            heartButton.widthAnchor.constraint(equalToConstant: 44),
-            heartButton.heightAnchor.constraint(equalToConstant: 44),
 
             navTitleLabel.centerXAnchor.constraint(equalTo: topBar.centerXAnchor),
             navTitleLabel.centerYAnchor.constraint(equalTo: topBar.centerYAnchor)
@@ -1027,13 +1100,13 @@ class OrderDetailsViewController: UIViewController {
         rateButton.titleLabel?.font = UIFont.systemFont(ofSize: 16, weight: .semibold)
         rateButton.addTarget(self, action: #selector(rateTapped), for: .touchUpInside)
 
-        helpButton.setTitle("Get Help".localized, for: .normal)
+        helpButton.setTitle("Chat".localized, for: .normal)
         helpButton.setTitleColor(darkTeal, for: .normal)
         helpButton.layer.cornerRadius = 12
         helpButton.layer.borderWidth = 2
         helpButton.layer.borderColor = darkTeal.cgColor
         helpButton.titleLabel?.font = UIFont.systemFont(ofSize: 16, weight: .semibold)
-        helpButton.addTarget(self, action: #selector(helpTapped), for: .touchUpInside)
+        helpButton.addTarget(self, action: #selector(chatTapped), for: .touchUpInside)
 
         bottomButtonsContainer.addArrangedSubview(rateButton)
         bottomButtonsContainer.addArrangedSubview(helpButton)
@@ -1078,13 +1151,13 @@ class OrderDetailsViewController: UIViewController {
     }
 
     private func resetHelpButton() {
-        helpButton.setTitle("Get Help".localized, for: .normal)
+        helpButton.setTitle("Chat".localized, for: .normal)
         helpButton.setTitleColor(darkTeal, for: .normal)
         helpButton.backgroundColor = .clear
         helpButton.layer.borderWidth = 2
         helpButton.layer.borderColor = darkTeal.cgColor
         helpButton.removeTarget(nil, action: nil, for: .touchUpInside)
-        helpButton.addTarget(self, action: #selector(helpTapped), for: .touchUpInside)
+        helpButton.addTarget(self, action: #selector(chatTapped), for: .touchUpInside)
     }
 
     private func updateHandoffUI() {
@@ -1092,9 +1165,9 @@ class OrderDetailsViewController: UIViewController {
 
         switch status {
         case .confirmed where currentUserIsSeller:
-            // Seller sees "Ready to Meet" button replacing "Get Help"
+            // Seller sees "Get Code" button replacing "Chat"
             hideHandoffCard()
-            helpButton.setTitle("Ready to Meet".localized, for: .normal)
+            helpButton.setTitle("Get Code".localized, for: .normal)
             helpButton.setTitleColor(.white, for: .normal)
             helpButton.backgroundColor = darkTeal
             helpButton.layer.borderWidth = 0
@@ -1175,14 +1248,119 @@ class OrderDetailsViewController: UIViewController {
 
     // MARK: - Actions
     @objc private func rateTapped() {
-        print("Rate tapped")
+        let ratingVC = OrderRatingViewController()
+        ratingVC.orderId = self.orderId
+        ratingVC.currentUserId = self.currentUserId
+        ratingVC.ratedUserId = self.currentUserIsSeller ? self.orderBuyerId : (self.orderItems.first?.product?.seller?.id)
+        ratingVC.orderRepository = self.orderRepository
+        ratingVC.onRatingSuccess = { [weak self] in
+            // Dismiss rating and refresh button state
+            self?.rateButton.isEnabled = false
+            self?.rateButton.alpha = 0.5
+            self?.rateButton.setTitle("Rated".localized, for: .normal)
+        }
+        
+        let navController = UINavigationController(rootViewController: ratingVC)
+        navController.modalPresentationStyle = .pageSheet
+        if #available(iOS 15.0, *) {
+            if let sheet = navController.sheetPresentationController {
+                sheet.detents = [.medium()]
+                sheet.prefersGrabberVisible = true
+            }
+        }
+        self.present(navController, animated: true)
     }
 
-    @objc private func helpTapped() {
-        print("Help tapped")
+    @objc private func chatTapped() {
+        // Get the first order item to initiate chat
+        guard let firstItem = orderItems.first,
+              let product = firstItem.product else {
+            print("No product available for chat")
+            return
+        }
+
+        let productId = product.id
+
+        // Determine which user to chat with based on current user's role
+        let otherUserId: UUID?
+        if currentUserIsSeller {
+            // If current user is seller, chat with buyer (who placed the order)
+            otherUserId = orderBuyerId
+        } else {
+            // If current user is buyer, chat with seller
+            otherUserId = product.seller?.id
+        }
+
+        guard let otherUserId = otherUserId else {
+            print("Unable to determine chat partner")
+            return
+        }
+
+        // Disable button to prevent multiple taps
+        helpButton.isEnabled = false
+
+        Task {
+            do {
+                // Get or create conversation
+                let conversation = try await chatRepository.getOrCreateConversation(
+                    productId: productId,
+                    sellerId: product.seller?.id ?? otherUserId
+                )
+
+                // Navigate to Chat tab
+                await navigateToChatConversation(conversationId: conversation.id)
+
+                // Re-enable button
+                DispatchQueue.main.async {
+                    self.helpButton.isEnabled = true
+                }
+            } catch {
+                print("Error initiating chat: \(error)")
+                DispatchQueue.main.async {
+                    self.helpButton.isEnabled = true
+                    // Optionally show error alert
+                    let alert = UIAlertController(
+                        title: "Chat Error".localized,
+                        message: "Unable to start conversation. Please try again.".localized,
+                        preferredStyle: .alert
+                    )
+                    alert.addAction(UIAlertAction(title: "OK".localized, style: .default))
+                    self.present(alert, animated: true)
+                }
+            }
+        }
     }
 
-    // MARK: - Ready to Meet (Seller generates handoff code)
+    private func navigateToChatConversation(conversationId: UUID) async {
+        DispatchQueue.main.async {
+            // Get the main tab bar controller
+            guard let tabBarController = UIApplication.shared.connectedScenes
+                .compactMap({ $0 as? UIWindowScene })
+                .first?
+                .windows
+                .first?
+                .rootViewController as? MainTabBarController else {
+                return
+            }
+
+            // Set Chat tab (index 1) as active
+            tabBarController.selectedIndex = 1
+
+            // Get the Chat navigation controller
+            guard let navController = tabBarController.viewControllers?[1] as? UINavigationController,
+                  let chatVC = navController.viewControllers.first as? ChatViewController else {
+                return
+            }
+
+            // Wait for ChatViewController to load conversations
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                // Find the conversation in the chat list and navigate to detail
+                chatVC.navigateToConversation(id: conversationId)
+            }
+        }
+    }
+
+    // MARK: - Get Code (Seller generates handoff code)
     @objc private func readyToMeetTapped() {
         guard let orderId = orderId else { return }
 
@@ -1388,5 +1566,29 @@ class OrderDetailsViewController: UIViewController {
         tab.selectedIndex = 0
         tab.modalPresentationStyle = .fullScreen
         present(tab, animated: true)
+    }
+}
+
+// MARK: - UITextFieldDelegate
+extension OrderDetailsViewController: UITextFieldDelegate {
+    func textField(_ textField: UITextField, shouldChangeCharactersIn range: NSRange, replacementString string: String) -> Bool {
+        guard textField == codeTextField else { return true }
+        
+        let currentText = (textField.text as NSString?)?.replacingCharacters(in: range, with: string) ?? string
+        let allowedLength = 6
+        
+        // Only allow digits and limit to 6 characters
+        let isNumeric = string.isEmpty || string.allSatisfy { $0.isNumber }
+        let isWithinLimit = currentText.count <= allowedLength
+        
+        return isNumeric && isWithinLimit
+    }
+    
+    func textFieldShouldReturn(_ textField: UITextField) -> Bool {
+        if textField == codeTextField {
+            codeTextField.resignFirstResponder()
+            return true
+        }
+        return false
     }
 }

@@ -45,8 +45,10 @@ struct ConversationDTO: Codable, Identifiable {
         buyer = try container.decodeIfPresent(ConversationUserInfo.self, forKey: .buyer)
         seller = try container.decodeIfPresent(ConversationUserInfo.self, forKey: .seller)
 
-        // Handle last message - it comes as an array, we take the first one
-        let messagesArray = try? container.decode([LastMessageInfo].self, forKey: .last_message)
+        // Handle last message - fetch all messages and sort by created_at descending
+        // to get the most recent message first
+        var messagesArray = try? container.decode([LastMessageInfo].self, forKey: .last_message)
+        messagesArray?.sort { ($0.created_at ?? Date.distantPast) > ($1.created_at ?? Date.distantPast) }
         last_message = messagesArray?.first
     }
 }

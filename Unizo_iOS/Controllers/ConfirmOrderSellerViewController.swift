@@ -6,6 +6,7 @@
 //
 
 import UIKit
+import Supabase
 
 class ConfirmOrderSellerViewController: UIViewController {
 
@@ -15,6 +16,7 @@ class ConfirmOrderSellerViewController: UIViewController {
     // MARK: - Fetched Data
     private let orderRepository = OrderRepository()
     private let notificationRepository = NotificationRepository()
+    private let chatRepository = ChatRepository()
     private let productRepository = ProductRepository(supabase: supabase)
     private var orderDetails: OrderDTO?
     private var sellerItems: [OrderItemDTO] = []
@@ -54,19 +56,6 @@ class ConfirmOrderSellerViewController: UIViewController {
         lbl.font = UIFont.systemFont(ofSize: 20, weight: .semibold)
         lbl.textAlignment = .center
         return lbl
-    }()
-
-    private let heartButton: UIButton = {
-        let btn = UIButton(type: .system)
-        btn.setImage(UIImage(systemName: "heart"), for: .normal)
-        btn.tintColor = .black
-        btn.backgroundColor = .white
-        btn.layer.cornerRadius = 22
-        btn.layer.shadowColor = UIColor.black.cgColor
-        btn.layer.shadowOpacity = 0.1
-        btn.layer.shadowRadius = 8
-        btn.layer.shadowOffset = CGSize(width: 0, height: 2)
-        return btn
     }()
 
     private let toolbarBackground: UIView = {
@@ -206,17 +195,18 @@ class ConfirmOrderSellerViewController: UIViewController {
     }()
 
 
-    // MARK: - Message Field
-    private let messageField: UITextField = {
-        let tf = UITextField()
-        tf.placeholder = "Send a message".localized
-        tf.backgroundColor = .white
-        tf.layer.cornerRadius = 25
-        tf.layer.borderWidth = 1
-        tf.layer.borderColor = UIColor.systemGray4.cgColor
-        tf.setLeftPaddingPoints(16)
-        tf.translatesAutoresizingMaskIntoConstraints = false
-        return tf
+    // MARK: - Chat Button
+    private let chatButton: UIButton = {
+        let btn = UIButton(type: .system)
+        btn.setTitle("Chat with Buyer".localized, for: .normal)
+        btn.backgroundColor = .white
+        btn.setTitleColor(UIColor(red: 0.02, green: 0.27, blue: 0.37, alpha: 1.0), for: .normal)
+        btn.titleLabel?.font = .systemFont(ofSize: 16, weight: .semibold)
+        btn.layer.cornerRadius = 12
+        btn.layer.borderWidth = 2
+        btn.layer.borderColor = UIColor(red: 0.02, green: 0.27, blue: 0.37, alpha: 1.0).cgColor
+        btn.translatesAutoresizingMaskIntoConstraints = false
+        return btn
     }()
 
 
@@ -258,6 +248,7 @@ class ConfirmOrderSellerViewController: UIViewController {
 //        )
         rejectButton.addTarget(self, action: #selector(openRejectedPage), for: .touchUpInside)
         acceptButton.addTarget(self, action: #selector(openAcceptedPage), for: .touchUpInside)
+        chatButton.addTarget(self, action: #selector(chatTapped), for: .touchUpInside)
 
         // Load real order data if orderId is provided
         if let orderId = orderId {
@@ -387,28 +378,12 @@ class ConfirmOrderSellerViewController: UIViewController {
         navigationController?.setNavigationBarHidden(false, animated: false)
         tabBarController?.tabBar.isHidden = false
     }
-    @objc func heartTapped() {
-        let vc = WishlistViewController()
-
-        // CASE 1 — If inside navigation controller → push properly
-        if let nav = navigationController {
-            nav.pushViewController(vc, animated: true)
-            return
-        }
-
-        // CASE 2 — If not inside navigation controller → present full screen
-        vc.modalPresentationStyle = .fullScreen
-        vc.modalTransitionStyle = .coverVertical
-        present(vc, animated: true)
-    }
-    
 }
 
 
 extension ConfirmOrderSellerViewController {
 
     func setupUI() {
-        heartButton.addTarget(self, action: #selector(heartTapped), for: .touchUpInside)
         view.backgroundColor = UIColor.systemGray6
 
         // MARK: - ScrollView Setup
@@ -438,11 +413,9 @@ extension ConfirmOrderSellerViewController {
         view.addSubview(toolbarBackground)
         view.addSubview(backButton)
         view.addSubview(titleLabel)
-        view.addSubview(heartButton)
         toolbarBackground.translatesAutoresizingMaskIntoConstraints = false
         backButton.translatesAutoresizingMaskIntoConstraints = false
         titleLabel.translatesAutoresizingMaskIntoConstraints = false
-        heartButton.translatesAutoresizingMaskIntoConstraints = false
 
         NSLayoutConstraint.activate([
             toolbarBackground.topAnchor.constraint(equalTo: view.topAnchor),
@@ -455,11 +428,6 @@ extension ConfirmOrderSellerViewController {
             backButton.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 16),
             backButton.widthAnchor.constraint(equalToConstant: 44),
             backButton.heightAnchor.constraint(equalToConstant: 44),
-
-            heartButton.centerYAnchor.constraint(equalTo: backButton.centerYAnchor),
-            heartButton.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -16),
-            heartButton.widthAnchor.constraint(equalToConstant: 44),
-            heartButton.heightAnchor.constraint(equalToConstant: 44),
 
             titleLabel.centerXAnchor.constraint(equalTo: view.centerXAnchor),
             titleLabel.centerYAnchor.constraint(equalTo: backButton.centerYAnchor)
@@ -556,14 +524,14 @@ extension ConfirmOrderSellerViewController {
         ])
 
 
-        // MARK: - Message Field
-        contentView.addSubview(messageField)
+        // MARK: - Chat Button
+        contentView.addSubview(chatButton)
 
         NSLayoutConstraint.activate([
-            messageField.topAnchor.constraint(equalTo: buyerCard.bottomAnchor, constant: 24),
-            messageField.leadingAnchor.constraint(equalTo: contentView.leadingAnchor, constant: 20),
-            messageField.trailingAnchor.constraint(equalTo: contentView.trailingAnchor, constant: -20),
-            messageField.heightAnchor.constraint(equalToConstant: 56)
+            chatButton.topAnchor.constraint(equalTo: buyerCard.bottomAnchor, constant: 24),
+            chatButton.leadingAnchor.constraint(equalTo: contentView.leadingAnchor, constant: 20),
+            chatButton.trailingAnchor.constraint(equalTo: contentView.trailingAnchor, constant: -20),
+            chatButton.heightAnchor.constraint(equalToConstant: 50)
         ])
 
 
@@ -577,7 +545,7 @@ extension ConfirmOrderSellerViewController {
         
         NSLayoutConstraint.activate([
             // reject (left) - BIGGER BUTTONS
-            rejectButton.topAnchor.constraint(equalTo: messageField.bottomAnchor, constant: 24),
+            rejectButton.topAnchor.constraint(equalTo: chatButton.bottomAnchor, constant: 24),
             rejectButton.leadingAnchor.constraint(equalTo: contentView.leadingAnchor, constant: 20),
             rejectButton.widthAnchor.constraint(equalTo: contentView.widthAnchor, multiplier: 0.42),
             rejectButton.heightAnchor.constraint(equalToConstant: 56),
@@ -784,6 +752,60 @@ private extension ConfirmOrderSellerViewController {
     }
 }
 
+
+// MARK: - Chat
+extension ConfirmOrderSellerViewController {
+    @objc private func chatTapped() {
+        // Get the first order item to initiate chat
+        guard let firstItem = orderDetails?.items?.first,
+              let product = firstItem.product else {
+            self.showErrorAlert(message: "No product available for chat. Please try again.".localized)
+            return
+        }
+
+        let productId = product.id
+
+        // Disable button to prevent multiple taps
+        chatButton.isEnabled = false
+
+        Task {
+            do {
+                // Get the current user's ID (seller)
+                let currentUserId = try await supabase.auth.session.user.id
+
+                // Get or create conversation with buyer
+                let conversation = try await chatRepository.getOrCreateConversation(
+                    productId: productId,
+                    sellerId: currentUserId
+                )
+
+                // Navigate to chat
+                await MainActor.run {
+                    self.navigateToChatConversation(conversationId: conversation.id)
+                    self.chatButton.isEnabled = true
+                }
+            } catch {
+                await MainActor.run {
+                    self.showErrorAlert(message: "Unable to start conversation. Please try again.".localized)
+                    self.chatButton.isEnabled = true
+                }
+            }
+        }
+    }
+    
+    private func navigateToChatConversation(conversationId: UUID) {
+        // Switch to Chat tab (index 1) and navigate to specific conversation
+        if let tabBarController = self.tabBarController {
+            tabBarController.selectedIndex = 1 // Chat tab
+            
+            // Get the ChatViewController from the tab
+            if let navigationController = tabBarController.viewControllers?[1] as? UINavigationController,
+               let chatViewController = navigationController.viewControllers.first as? ChatViewController {
+                chatViewController.navigateToConversation(id: conversationId)
+            }
+        }
+    }
+}
 
 // MARK: - Padding Extension
 extension UITextField {
