@@ -79,6 +79,7 @@ class ConfirmOrderViewController: UIViewController {
         setupAddressSection()
         setupItemDetailSection()
         setupPlaceOrderButton()
+        setupKeyboardHandling()
 
         placeOrderButton.addTarget(self, action: #selector(placeOrderTapped), for: .touchUpInside)
     }
@@ -642,4 +643,15 @@ class ConfirmOrderViewController: UIViewController {
         dismiss(animated: true)
     }
 
+    // MARK: - Keyboard Handling
+    private func setupKeyboardHandling() {
+        // Tap gesture to dismiss keyboard
+        let tapGesture = UITapGestureRecognizer(target: self, action: #selector(dismissKeyboard))
+        tapGesture.cancelsTouchesInView = false
+        view.addGestureRecognizer(tapGesture)
+    }
+    
+    @objc private func dismissKeyboard() {
+        view.endEditing(true)
+    }
 }

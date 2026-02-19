@@ -137,6 +137,7 @@ class ListingsViewController: UIViewController {
         let buyerName: String?
         let orderStatus: String?
         let interestedBuyersCount: Int  // Number of buyers who started a conversation/deal
+        let dealRequestsCount: Int      // Number of buyers who placed a pending order (Deal)
     }
 
     // MARK: - Listings Data
@@ -208,6 +209,42 @@ class ListingsViewController: UIViewController {
                     interestedBuyersMap[productId] = buyersSet.count
                 }
 
+                // Fetch pending deal requests (orders with status "pending") for seller's products
+                let productIds = fetchedProducts.map { $0.id.uuidString }
+                var dealRequestsMap: [UUID: Int] = [:]
+
+                if !productIds.isEmpty {
+                    struct OrderItemWithOrder: Decodable {
+                        let product_id: UUID
+                        struct OrderInfo: Decodable {
+                            let id: UUID
+                            let status: String
+                            let user_id: UUID
+                        }
+                        let orders: OrderInfo
+                    }
+
+                    let orderItemsResponse = try await supabase
+                        .from("order_items")
+                        .select("product_id, orders!inner(id, status, user_id)")
+                        .in("product_id", values: productIds)
+                        .execute()
+
+                    let orderItems = try JSONDecoder().decode([OrderItemWithOrder].self, from: orderItemsResponse.data)
+
+                    // Filter for pending orders only and count unique buyers per product
+                    var dealBuyersSet: [UUID: Set<UUID>] = [:]
+                    for item in orderItems {
+                        if item.orders.status == "pending" {
+                            dealBuyersSet[item.product_id, default: Set<UUID>()].insert(item.orders.user_id)
+                        }
+                    }
+
+                    for (productId, buyersSet) in dealBuyersSet {
+                        dealRequestsMap[productId] = buyersSet.count
+                    }
+                }
+
                 let deletedIDs = DeletedListingsStore.all()
 
                 await MainActor.run {
@@ -240,7 +277,8 @@ class ListingsViewController: UIViewController {
                             quantity: product.quantity ?? 1,
                             buyerName: nil,
                             orderStatus: nil,
-                            interestedBuyersCount: interestedBuyersMap[product.id] ?? 0
+                            interestedBuyersCount: interestedBuyersMap[product.id] ?? 0,
+                            dealRequestsCount: dealRequestsMap[product.id] ?? 0
                         )
                     }
 
@@ -503,6 +541,14 @@ extension ListingsViewController: EnhancedListingCellDelegate {
         })
 
         present(alert, animated: true)
+    }
+
+    func didTapDealRequests(on cell: EnhancedListingCell) {
+        guard let indexPath = collectionView.indexPath(for: cell) else { return }
+        let listing = filteredListings[indexPath.row]
+
+        let dealRequestsVC = DealRequestsViewController(productId: listing.productId, productTitle: listing.name)
+        navigationController?.pushViewController(dealRequestsVC, animated: true)
     }
 
     private func deleteProduct(_ product: ProductDTO, listing: Listing) {

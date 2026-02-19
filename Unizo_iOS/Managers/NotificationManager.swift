@@ -282,4 +282,11 @@ final class NotificationManager {
             print("NotificationManager: Failed to mark all as read: \(error)")
         }
     }
+
+    // MARK: - Reset Unread Count (When All Notifications Deleted)
+    func resetUnreadCount() {
+        DispatchQueue.main.async {
+            self.unreadCount = 0
+        }
+    }
 }

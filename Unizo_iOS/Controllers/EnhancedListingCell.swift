@@ -12,6 +12,7 @@ protocol EnhancedListingCellDelegate: AnyObject {
     func didTapEdit(on cell: EnhancedListingCell)
     func didTapDelete(on cell: EnhancedListingCell)
     func didTapView(on cell: EnhancedListingCell)
+    func didTapDealRequests(on cell: EnhancedListingCell)
 }
 
 final class EnhancedListingCell: UICollectionViewCell {
@@ -143,6 +144,34 @@ final class EnhancedListingCell: UICollectionViewCell {
         return lbl
     }()
 
+    // Deal requests indicator
+    private let dealRequestsContainer: UIView = {
+        let v = UIView()
+        v.backgroundColor = .systemGreen.withAlphaComponent(0.12)
+        v.layer.cornerRadius = 12
+        v.translatesAutoresizingMaskIntoConstraints = false
+        v.isHidden = true
+        v.isUserInteractionEnabled = true
+        return v
+    }()
+
+    private let dealRequestsIcon: UIImageView = {
+        let iv = UIImageView()
+        iv.image = UIImage(systemName: "cart.fill")
+        iv.tintColor = .systemGreen
+        iv.contentMode = .scaleAspectFit
+        iv.translatesAutoresizingMaskIntoConstraints = false
+        return iv
+    }()
+
+    private let dealRequestsLabel: UILabel = {
+        let lbl = UILabel()
+        lbl.font = UIFont.systemFont(ofSize: 12, weight: .semibold)
+        lbl.textColor = .systemGreen
+        lbl.translatesAutoresizingMaskIntoConstraints = false
+        return lbl
+    }()
+
     // Buyer info section (shown for sold/pending items)
     private let buyerContainerView: UIView = {
         let v = UIView()
@@ -213,6 +242,7 @@ final class EnhancedListingCell: UICollectionViewCell {
         contentView.addSubview(priceLabel)
         contentView.addSubview(statsStackView)
         contentView.addSubview(interestedBuyersContainer)
+        contentView.addSubview(dealRequestsContainer)
         contentView.addSubview(buyerContainerView)
         contentView.addSubview(editButton)
         contentView.addSubview(deleteButton)
@@ -220,6 +250,10 @@ final class EnhancedListingCell: UICollectionViewCell {
         // Interested buyers container
         interestedBuyersContainer.addSubview(interestedBuyersIcon)
         interestedBuyersContainer.addSubview(interestedBuyersLabel)
+
+        // Deal requests container
+        dealRequestsContainer.addSubview(dealRequestsIcon)
+        dealRequestsContainer.addSubview(dealRequestsLabel)
 
         // Stats stack
         let viewsStack = UIStackView(arrangedSubviews: [viewsIcon, viewsLabel])
@@ -288,6 +322,20 @@ final class EnhancedListingCell: UICollectionViewCell {
             interestedBuyersLabel.trailingAnchor.constraint(equalTo: interestedBuyersContainer.trailingAnchor, constant: -10),
             interestedBuyersLabel.centerYAnchor.constraint(equalTo: interestedBuyersContainer.centerYAnchor),
 
+            // Deal requests container (next to interested buyers or at the same position)
+            dealRequestsContainer.leadingAnchor.constraint(equalTo: interestedBuyersContainer.trailingAnchor, constant: 8),
+            dealRequestsContainer.bottomAnchor.constraint(equalTo: contentView.bottomAnchor, constant: -Spacing.md),
+            dealRequestsContainer.heightAnchor.constraint(equalToConstant: 24),
+
+            dealRequestsIcon.leadingAnchor.constraint(equalTo: dealRequestsContainer.leadingAnchor, constant: 8),
+            dealRequestsIcon.centerYAnchor.constraint(equalTo: dealRequestsContainer.centerYAnchor),
+            dealRequestsIcon.widthAnchor.constraint(equalToConstant: 16),
+            dealRequestsIcon.heightAnchor.constraint(equalToConstant: 14),
+
+            dealRequestsLabel.leadingAnchor.constraint(equalTo: dealRequestsIcon.trailingAnchor, constant: 4),
+            dealRequestsLabel.trailingAnchor.constraint(equalTo: dealRequestsContainer.trailingAnchor, constant: -10),
+            dealRequestsLabel.centerYAnchor.constraint(equalTo: dealRequestsContainer.centerYAnchor),
+
             // Buyer container
             buyerContainerView.leadingAnchor.constraint(equalTo: productImageView.trailingAnchor, constant: Spacing.md),
             buyerContainerView.bottomAnchor.constraint(equalTo: contentView.bottomAnchor, constant: -Spacing.md),
@@ -322,6 +370,9 @@ final class EnhancedListingCell: UICollectionViewCell {
         // Tap gesture for cell
         let tapGesture = UITapGestureRecognizer(target: self, action: #selector(cellTapped))
         contentView.addGestureRecognizer(tapGesture)
+
+        let dealTap = UITapGestureRecognizer(target: self, action: #selector(dealRequestsTapped))
+        dealRequestsContainer.addGestureRecognizer(dealTap)
     }
 
     @objc private func editTapped() {
@@ -337,6 +388,11 @@ final class EnhancedListingCell: UICollectionViewCell {
     @objc private func cellTapped() {
         HapticFeedback.light()
         delegate?.didTapView(on: self)
+    }
+
+    @objc private func dealRequestsTapped() {
+        HapticFeedback.light()
+        delegate?.didTapDealRequests(on: self)
     }
 
     // MARK: - Configure
@@ -373,6 +429,7 @@ final class EnhancedListingCell: UICollectionViewCell {
         if let buyerName = listing.buyerName, listing.status != "Available" {
             buyerContainerView.isHidden = false
             interestedBuyersContainer.isHidden = true
+            dealRequestsContainer.isHidden = true
             buyerLabel.text = String(format: "Buyer: %@".localized, buyerName)
         } else {
             buyerContainerView.isHidden = true
@@ -384,6 +441,15 @@ final class EnhancedListingCell: UICollectionViewCell {
                 interestedBuyersLabel.text = buyerText
             } else {
                 interestedBuyersContainer.isHidden = true
+            }
+
+            // Show deal requests count for available items
+            if listing.status == "Available" && listing.dealRequestsCount > 0 {
+                dealRequestsContainer.isHidden = false
+                let dealText = listing.dealRequestsCount == 1 ? "1 deal request".localized : String(format: "%d deal requests".localized, listing.dealRequestsCount)
+                dealRequestsLabel.text = dealText
+            } else {
+                dealRequestsContainer.isHidden = true
             }
         }
 
@@ -400,7 +466,7 @@ final class EnhancedListingCell: UICollectionViewCell {
 
     private func setupAccessibility(for listing: ListingsViewController.Listing) {
         isAccessibilityElement = false
-        accessibilityElements = [productImageView, nameLabel, priceLabel, statusBadge, interestedBuyersContainer, editButton, deleteButton]
+        accessibilityElements = [productImageView, nameLabel, priceLabel, statusBadge, interestedBuyersContainer, dealRequestsContainer, editButton, deleteButton]
 
         productImageView.isAccessibilityElement = true
         productImageView.accessibilityLabel = "Product image for \(listing.name)"
