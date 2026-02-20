@@ -175,8 +175,10 @@ final class EnhancedListingCell: UICollectionViewCell {
     // Buyer info section (shown for sold/pending items)
     private let buyerContainerView: UIView = {
         let v = UIView()
-        v.backgroundColor = .systemBlue.withAlphaComponent(0.1)
+        v.backgroundColor = .systemBlue.withAlphaComponent(0.18)
         v.layer.cornerRadius = Spacing.cornerRadiusSmall
+        v.layer.borderWidth = 1
+        v.layer.borderColor = UIColor.systemBlue.withAlphaComponent(0.35).cgColor
         v.isHidden = true
         v.translatesAutoresizingMaskIntoConstraints = false
         return v
@@ -336,10 +338,11 @@ final class EnhancedListingCell: UICollectionViewCell {
             dealRequestsLabel.trailingAnchor.constraint(equalTo: dealRequestsContainer.trailingAnchor, constant: -10),
             dealRequestsLabel.centerYAnchor.constraint(equalTo: dealRequestsContainer.centerYAnchor),
 
-            // Buyer container
+            // Buyer container (shown below views)
             buyerContainerView.leadingAnchor.constraint(equalTo: productImageView.trailingAnchor, constant: Spacing.md),
-            buyerContainerView.bottomAnchor.constraint(equalTo: contentView.bottomAnchor, constant: -Spacing.md),
+            buyerContainerView.topAnchor.constraint(equalTo: statsStackView.bottomAnchor, constant: Spacing.sm),
             buyerContainerView.heightAnchor.constraint(equalToConstant: 24),
+            buyerContainerView.bottomAnchor.constraint(lessThanOrEqualTo: contentView.bottomAnchor, constant: -Spacing.md),
 
             buyerIcon.leadingAnchor.constraint(equalTo: buyerContainerView.leadingAnchor, constant: Spacing.sm),
             buyerIcon.centerYAnchor.constraint(equalTo: buyerContainerView.centerYAnchor),
@@ -425,8 +428,8 @@ final class EnhancedListingCell: UICollectionViewCell {
             editButton.isHidden = false
         }
 
-        // Buyer info (show for sold/pending)
-        if let buyerName = listing.buyerName, listing.status != "Available" {
+        // Buyer info (show for sold only)
+        if let buyerName = listing.buyerName, listing.status.lowercased() == "sold" {
             buyerContainerView.isHidden = false
             interestedBuyersContainer.isHidden = true
             dealRequestsContainer.isHidden = true
@@ -469,7 +472,7 @@ final class EnhancedListingCell: UICollectionViewCell {
         accessibilityElements = [productImageView, nameLabel, priceLabel, statusBadge, interestedBuyersContainer, dealRequestsContainer, editButton, deleteButton]
 
         productImageView.isAccessibilityElement = true
-        productImageView.accessibilityLabel = "Product image for \(listing.name)"
+        productImageView.accessibilityLabel = String(format: "Product image for %@".localized, listing.name)
         productImageView.accessibilityTraits = .image
 
         nameLabel.isAccessibilityElement = true
@@ -477,38 +480,52 @@ final class EnhancedListingCell: UICollectionViewCell {
         nameLabel.accessibilityTraits = .staticText
 
         priceLabel.isAccessibilityElement = true
-        priceLabel.accessibilityLabel = "Price: \(listing.price)"
+        priceLabel.accessibilityLabel = String(format: "Price: %@".localized, listing.price)
         priceLabel.accessibilityTraits = .staticText
 
         statusBadge.isAccessibilityElement = true
-        statusBadge.accessibilityLabel = "Status: \(listing.status)"
+        statusBadge.accessibilityLabel = String(format: "Status: %@".localized, listing.status)
         statusBadge.accessibilityTraits = .staticText
 
         // Interested buyers accessibility
         interestedBuyersContainer.isAccessibilityElement = true
         if listing.interestedBuyersCount > 0 {
-            let buyerText = listing.interestedBuyersCount == 1 ? "1 interested buyer" : "\(listing.interestedBuyersCount) interested buyers"
+            let buyerText = listing.interestedBuyersCount == 1 ? "1 interested buyer".localized : "\(listing.interestedBuyersCount) " + "interested buyers".localized
             interestedBuyersContainer.accessibilityLabel = buyerText
         }
         interestedBuyersContainer.accessibilityTraits = .staticText
 
+        // Deal requests accessibility
+        dealRequestsContainer.isAccessibilityElement = true
+        if listing.dealRequestsCount > 0 {
+            let dealText = listing.dealRequestsCount == 1 ? "1 deal request".localized : String(format: "%d deal requests".localized, listing.dealRequestsCount)
+            dealRequestsContainer.accessibilityLabel = dealText
+            dealRequestsContainer.accessibilityHint = "Double tap to view deal requests".localized
+        }
+        dealRequestsContainer.accessibilityTraits = .button
+
         editButton.isAccessibilityElement = true
-        editButton.accessibilityLabel = "Edit listing"
-        editButton.accessibilityHint = "Double tap to edit this listing"
+        editButton.accessibilityLabel = "Edit listing".localized
+        editButton.accessibilityHint = "Double tap to edit this listing".localized
         editButton.accessibilityTraits = .button
 
         deleteButton.isAccessibilityElement = true
-        deleteButton.accessibilityLabel = "Delete listing"
-        deleteButton.accessibilityHint = "Double tap to delete this listing"
+        deleteButton.accessibilityLabel = "Delete listing".localized
+        deleteButton.accessibilityHint = "Double tap to delete this listing".localized
         deleteButton.accessibilityTraits = .button
 
+        // Combined accessibility label
         var fullAccessibilityLabel = "\(listing.name), \(listing.category), \(listing.price), \(listing.status)"
         if listing.interestedBuyersCount > 0 {
-            let buyerText = listing.interestedBuyersCount == 1 ? "1 interested buyer" : "\(listing.interestedBuyersCount) interested buyers"
+            let buyerText = listing.interestedBuyersCount == 1 ? "1 interested buyer".localized : "\(listing.interestedBuyersCount) " + "interested buyers".localized
             fullAccessibilityLabel += ", \(buyerText)"
         }
+        if listing.dealRequestsCount > 0 {
+            let dealText = listing.dealRequestsCount == 1 ? "1 deal request".localized : String(format: "%d deal requests".localized, listing.dealRequestsCount)
+            fullAccessibilityLabel += ", \(dealText)"
+        }
         accessibilityLabel = fullAccessibilityLabel
-        accessibilityHint = "Double tap to view details"
+        accessibilityHint = "Double tap to view details".localized
     }
 
     private func loadImage(from url: URL) {

@@ -20,7 +20,6 @@ class WelcomeViewController: UIViewController {
     @IBOutlet weak var loginButton: UIButton!
     @IBOutlet weak var accountLabel: UILabel!
     @IBOutlet weak var emailSignUpButton: UIButton!
-    @IBOutlet weak var appleSignUpButton: UIButton!
     @IBOutlet weak var bottomCardView: UIView!
 
     // MARK: - Lifecycle
@@ -75,11 +74,6 @@ class WelcomeViewController: UIViewController {
                             iconName: "envelope.fill",
                             tintColor: UIColor(red: 0/255, green: 76/255, blue: 97/255, alpha: 1))
 
-        setupOutlinedButton(appleSignUpButton,
-                            title: "Sign Up with Google".localized,
-                            iconName: "google_logo",   // ⭐️ Your asset name
-                            tintColor: UIColor(red: 0/255, green: 76/255, blue: 97/255, alpha: 1))
-
        }
 
        // MARK: - Constraints Setup
@@ -88,7 +82,7 @@ class WelcomeViewController: UIViewController {
         // Disable autoresizing masks
         [booksImageView, bikeImageView, headphonesImageView, tshirtImageView,
          footballImageView, bottomCardView, getStartedLabel, loginButton,
-         accountLabel, emailSignUpButton, appleSignUpButton].forEach {
+         accountLabel, emailSignUpButton].forEach {
             $0?.translatesAutoresizingMaskIntoConstraints = false
         }
 
@@ -147,34 +141,28 @@ class WelcomeViewController: UIViewController {
 
         // --- CARD CONTENT ---
         NSLayoutConstraint.activate([
-            // Move "Get Started Today" a little higher for better balance
-            getStartedLabel.topAnchor.constraint(equalTo: bottomCardView.topAnchor, constant: 14),
+            // "Get Started Today" heading
+            getStartedLabel.topAnchor.constraint(equalTo: bottomCardView.topAnchor, constant: 24),
             getStartedLabel.centerXAnchor.constraint(equalTo: bottomCardView.centerXAnchor),
 
-            // Login button closer for visual grouping
-            loginButton.topAnchor.constraint(equalTo: getStartedLabel.bottomAnchor, constant: 25),
+            // Login button
+            loginButton.topAnchor.constraint(equalTo: getStartedLabel.bottomAnchor, constant: 28),
             loginButton.leadingAnchor.constraint(equalTo: bottomCardView.leadingAnchor, constant: 32),
             loginButton.trailingAnchor.constraint(equalTo: bottomCardView.trailingAnchor, constant: -32),
             loginButton.heightAnchor.constraint(equalToConstant: 48),
 
-            // Account label centered with tighter spacing
-            accountLabel.topAnchor.constraint(equalTo: loginButton.bottomAnchor, constant: 6),
+            // "Don't have an account?" label
+            accountLabel.topAnchor.constraint(equalTo: loginButton.bottomAnchor, constant: 14),
             accountLabel.centerXAnchor.constraint(equalTo: bottomCardView.centerXAnchor),
 
-            // Email sign-up with equal breathing space
+            // Email sign-up button
             emailSignUpButton.topAnchor.constraint(equalTo: accountLabel.bottomAnchor, constant: 20),
             emailSignUpButton.leadingAnchor.constraint(equalTo: bottomCardView.leadingAnchor, constant: 32),
             emailSignUpButton.trailingAnchor.constraint(equalTo: bottomCardView.trailingAnchor, constant: -32),
             emailSignUpButton.heightAnchor.constraint(equalToConstant: 46),
 
-            // Apple sign-up evenly spaced below email
-            appleSignUpButton.topAnchor.constraint(equalTo: emailSignUpButton.bottomAnchor, constant: 14),
-            appleSignUpButton.leadingAnchor.constraint(equalTo: bottomCardView.leadingAnchor, constant: 32),
-            appleSignUpButton.trailingAnchor.constraint(equalTo: bottomCardView.trailingAnchor, constant: -32),
-            appleSignUpButton.heightAnchor.constraint(equalToConstant: 46),
-
-            // Perfect bottom padding for curved edge clearance
-            appleSignUpButton.bottomAnchor.constraint(equalTo: bottomCardView.bottomAnchor, constant: -48)
+            // Bottom padding for curved edge clearance
+            emailSignUpButton.bottomAnchor.constraint(equalTo: bottomCardView.bottomAnchor, constant: -48)
         ])
 
 

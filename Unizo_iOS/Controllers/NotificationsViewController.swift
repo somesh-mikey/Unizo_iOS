@@ -80,7 +80,7 @@ final class NotificationsViewController: UIViewController {
 
     // MARK: - Loading & Empty State
     private let loadingIndicator: UIActivityIndicatorView = {
-        let indicator = UIActivityIndicatorView(style: .large)
+        let indicator = UIActivityIndicatorView(style: .medium)
         indicator.hidesWhenStopped = true
         indicator.translatesAutoresizingMaskIntoConstraints = false
         return indicator
@@ -145,6 +145,12 @@ final class NotificationsViewController: UIViewController {
             clearAllButton.centerYAnchor.constraint(equalTo: backButton.centerYAnchor),
             clearAllButton.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -20)
         ])
+
+        // Accessibility
+        backButton.accessibilityLabel = "Go back".localized
+        backButton.accessibilityHint = "Return to previous screen".localized
+        titleLabel.accessibilityTraits = .header
+        clearAllButton.accessibilityLabel = "Clear all notifications".localized
     }
 
     @objc private func backPressed() {
@@ -184,6 +190,7 @@ final class NotificationsViewController: UIViewController {
                     self.tableView.reloadData()
                     self.loadingIndicator.stopAnimating()
                     self.emptyStateLabel.isHidden = false
+                    self.clearAllButton.isHidden = true
                     // Reset badge count
                     NotificationManager.shared.resetUnreadCount()
                 }
@@ -208,6 +215,9 @@ final class NotificationsViewController: UIViewController {
             emptyStateLabel.centerXAnchor.constraint(equalTo: view.centerXAnchor),
             emptyStateLabel.centerYAnchor.constraint(equalTo: view.centerYAnchor)
         ])
+
+        // Accessibility
+        loadingIndicator.accessibilityLabel = "Loading notifications".localized
     }
 
     // MARK: - Load Notifications from Backend

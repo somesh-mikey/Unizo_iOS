@@ -97,7 +97,7 @@ final class EditListingViewController: UIViewController,
 
     // MARK: - Loading Indicator
     private let loadingIndicator: UIActivityIndicatorView = {
-        let indicator = UIActivityIndicatorView(style: .large)
+        let indicator = UIActivityIndicatorView(style: .medium)
         indicator.color = UIColor(red: 0.07, green: 0.33, blue: 0.42, alpha: 1)
         indicator.hidesWhenStopped = true
         indicator.translatesAutoresizingMaskIntoConstraints = false
@@ -325,7 +325,9 @@ final class EditListingViewController: UIViewController,
             if i == 0 {
                 field.topAnchor.constraint(equalTo: productCard.topAnchor, constant: 16).isActive = true
             } else {
-                field.topAnchor.constraint(equalTo: previousField!.bottomAnchor, constant: 0).isActive = true
+                if let prev = previousField {
+                    field.topAnchor.constraint(equalTo: prev.bottomAnchor, constant: 0).isActive = true
+                }
             }
 
             if i < fieldTitles.count - 1 {
@@ -431,6 +433,11 @@ final class EditListingViewController: UIViewController,
         super.viewWillAppear(animated)
         // Ensure scroll view content is properly laid out
         scrollView.contentInsetAdjustmentBehavior = .never
+    }
+
+    override func viewWillDisappear(_ animated: Bool) {
+        super.viewWillDisappear(animated)
+        navigationController?.navigationBar.isHidden = false
     }
 
     private func setupLoadingIndicator() {

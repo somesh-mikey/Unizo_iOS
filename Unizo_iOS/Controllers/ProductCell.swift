@@ -178,15 +178,15 @@ final class ProductCell: UICollectionViewCell {
 
     private func setupAccessibility(for product: ProductUIModel) {
         // Make the entire cell accessible as a single element for VoiceOver
-        isAccessibilityElement = true
-        accessibilityTraits = .button
+        contentView.isAccessibilityElement = true
+        contentView.accessibilityTraits = .button
 
         // Create a comprehensive accessibility label
-        let negotiableText = product.negotiable ? "Negotiable" : "Non-Negotiable"
-        let availabilityText = product.isAvailable ? "" : ", Sold out"
+        let negotiableText = product.negotiable ? "Negotiable".localized : "Non-Negotiable".localized
+        let availabilityText = product.isAvailable ? "" : ", " + "Sold out".localized
 
-        accessibilityLabel = "\(product.name), Price: \(Int(product.price)) rupees, Rating: \(String(format: "%.1f", product.rating)) out of 5 stars, \(negotiableText)\(availabilityText)"
-        accessibilityHint = "Double tap to view product details"
+        contentView.accessibilityLabel = "\(product.name), ₹\(Int(product.price)), \(String(format: "%.1f", product.rating)) stars, \(negotiableText)\(availabilityText)"
+        contentView.accessibilityHint = "Double tap to view product details".localized
 
         // Individual element accessibility (for when cell is not a single accessible element)
         productImageView.isAccessibilityElement = false

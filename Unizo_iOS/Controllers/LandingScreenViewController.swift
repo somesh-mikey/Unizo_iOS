@@ -15,7 +15,7 @@ class LandingScreenViewController: UIViewController {
     private var collectionView: UICollectionView!
     private var hasMorePages = true
     private let refreshControl = UIRefreshControl()
-    private let loader = UIActivityIndicatorView(style: .large)
+    private let loader = UIActivityIndicatorView(style: .medium)
     private let productRepository = ProductRepository(supabase: supabase)
 
     private var allProducts: [ProductUIModel] = []
@@ -287,6 +287,7 @@ class LandingScreenViewController: UIViewController {
         navigationController?.setNavigationBarHidden(true, animated: false)
         searchBar.delegate = self
 
+        setupAccessibility()
     }
     override func viewWillAppear(_ animated: Bool) {
         super.viewWillAppear(animated)
@@ -1119,6 +1120,19 @@ extension LandingScreenViewController: UISearchBarDelegate {
         Task {
             await refreshProducts()
         }
+    }
+
+    // MARK: - Accessibility
+    private func setupAccessibility() {
+        loader.accessibilityLabel = "Loading products".localized
+        refreshControl.accessibilityLabel = "Pull to refresh products".localized
+        searchBar.accessibilityLabel = "Search products".localized
+        searchBar.accessibilityHint = "Search for products by name".localized
+        homeLabel.accessibilityTraits = .header
+        segmentedControl.accessibilityLabel = "Filter products".localized
+        menuButton.accessibilityLabel = "Menu".localized
+        menuButton.accessibilityHint = "Open menu options".localized
+        pageControl.accessibilityLabel = "Banner page indicator".localized
     }
 }
 final class ImageLoader {

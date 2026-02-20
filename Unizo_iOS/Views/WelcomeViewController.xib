@@ -11,7 +11,6 @@
         <placeholder placeholderIdentifier="IBFilesOwner" id="-1" userLabel="File's Owner" customClass="WelcomeViewController" customModule="Unizo_iOS" customModuleProvider="target">
             <connections>
                 <outlet property="accountLabel" destination="gta-8e-AW8" id="Whj-Sw-HNQ"/>
-                <outlet property="appleSignUpButton" destination="4t0-Y2-8Bc" id="hHu-Hy-nME"/>
                 <outlet property="bikeImageView" destination="LzH-bC-0a0" id="6pr-aX-Klw"/>
                 <outlet property="booksImageView" destination="mBx-uN-nTH" id="oye-yf-56S"/>
                 <outlet property="bottomCardView" destination="vtz-Cc-jqk" id="z9G-xa-Jel"/>
@@ -68,12 +67,6 @@
                             <connections>
                                 <action selector="loginButtonTapped:" destination="-1" eventType="touchUpInside" id="oKj-Y6-OtN"/>
                             </connections>
-                        </button>
-                        <button opaque="NO" contentMode="scaleToFill" fixedFrame="YES" contentHorizontalAlignment="center" contentVerticalAlignment="center" buttonType="system" lineBreakMode="middleTruncation" translatesAutoresizingMaskIntoConstraints="NO" id="4t0-Y2-8Bc">
-                            <rect key="frame" x="8" y="224" width="377" height="48"/>
-                            <autoresizingMask key="autoresizingMask" flexibleMaxX="YES" flexibleMaxY="YES"/>
-                            <state key="normal" title="Button"/>
-                            <buttonConfiguration key="configuration" style="plain" title="Button"/>
                         </button>
                         <label opaque="NO" userInteractionEnabled="NO" contentMode="left" horizontalHuggingPriority="251" verticalHuggingPriority="251" fixedFrame="YES" text="Label" textAlignment="center" lineBreakMode="tailTruncation" baselineAdjustment="alignBaselines" adjustsFontSizeToFit="NO" translatesAutoresizingMaskIntoConstraints="NO" id="gta-8e-AW8">
                             <rect key="frame" x="101" y="125" width="190" height="21"/>

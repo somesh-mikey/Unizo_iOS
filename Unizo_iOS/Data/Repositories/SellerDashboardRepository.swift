@@ -202,25 +202,22 @@ final class SellerDashboardRepository {
                 let email: String?
             }
 
-            for buyerId in buyerIds {
-                do {
-                    let buyers: [BuyerInfo] = try await client
-                        .from("users")
-                        .select("id, first_name, last_name, email")
-                        .eq("id", value: buyerId.uuidString)
-                        .limit(1)
-                        .execute()
-                        .value
+            do {
+                let buyers: [BuyerInfo] = try await client
+                    .from("users")
+                    .select("id, first_name, last_name, email")
+                    .in("id", values: buyerIds.map { $0.uuidString })
+                    .execute()
+                    .value
 
-                    if let buyer = buyers.first {
-                        let first = buyer.first_name ?? ""
-                        let last = buyer.last_name ?? ""
-                        let fullName = "\(first) \(last)".trimmingCharacters(in: .whitespaces)
-                        buyerNames[buyerId] = fullName.isEmpty ? (buyer.email?.components(separatedBy: "@").first ?? "Buyer") : fullName
-                    }
-                } catch {
-                    print("⚠️ Failed to fetch buyer name for \(buyerId): \(error)")
+                for buyer in buyers {
+                    let first = buyer.first_name ?? ""
+                    let last = buyer.last_name ?? ""
+                    let fullName = "\(first) \(last)".trimmingCharacters(in: .whitespaces)
+                    buyerNames[buyer.id] = fullName.isEmpty ? (buyer.email?.components(separatedBy: "@").first ?? "Buyer") : fullName
                 }
+            } catch {
+                print("⚠️ Failed to fetch buyer names: \(error)")
             }
         }
 

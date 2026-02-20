@@ -83,19 +83,45 @@ class MyOrdersViewController: UIViewController {
     private let contentStack = UIStackView()
 
     private let loadingIndicator: UIActivityIndicatorView = {
-        let indicator = UIActivityIndicatorView(style: .large)
+        let indicator = UIActivityIndicatorView(style: .medium)
         indicator.hidesWhenStopped = true
         indicator.translatesAutoresizingMaskIntoConstraints = false
         return indicator
     }()
 
+    private let emptyStateContainer: UIView = {
+        let v = UIView()
+        v.isHidden = true
+        v.translatesAutoresizingMaskIntoConstraints = false
+        return v
+    }()
+
+    private let emptyStateImageView: UIImageView = {
+        let iv = UIImageView()
+        iv.image = UIImage(systemName: "bag")
+        iv.tintColor = .tertiaryLabel
+        iv.contentMode = .scaleAspectFit
+        iv.translatesAutoresizingMaskIntoConstraints = false
+        return iv
+    }()
+
     private let emptyStateLabel: UILabel = {
         let lbl = UILabel()
         lbl.text = "No orders yet".localized
-        lbl.font = .systemFont(ofSize: 16)
+        lbl.font = .systemFont(ofSize: 17, weight: .medium)
         lbl.textColor = .secondaryLabel
         lbl.textAlignment = .center
-        lbl.isHidden = true
+        lbl.translatesAutoresizingMaskIntoConstraints = false
+        return lbl
+    }()
+
+    private let emptyStateSubtitle: UILabel = {
+        let lbl = UILabel()
+        lbl.text = "Your orders will appear here\nonce you make a purchase".localized
+        lbl.font = .systemFont(ofSize: 14)
+        lbl.textColor = .tertiaryLabel
+        lbl.textAlignment = .center
+        lbl.numberOfLines = 2
         lbl.translatesAutoresizingMaskIntoConstraints = false
         return lbl
     }()
@@ -146,11 +172,21 @@ class MyOrdersViewController: UIViewController {
         view.addSubview(scrollView)
         scrollView.addSubview(contentStack)
         view.addSubview(loadingIndicator)
-        view.addSubview(emptyStateLabel)
+        view.addSubview(emptyStateContainer)
+        emptyStateContainer.addSubview(emptyStateImageView)
+        emptyStateContainer.addSubview(emptyStateLabel)
+        emptyStateContainer.addSubview(emptyStateSubtitle)
 
         segmentedControl.addTarget(self, action: #selector(onSegmentChanged), for: .valueChanged)
 
         backButton.addTarget(self, action: #selector(backTapped), for: .touchUpInside)
+
+        // Accessibility
+        backButton.accessibilityLabel = "Go back".localized
+        backButton.accessibilityHint = "Return to previous screen".localized
+        titleLabel.accessibilityTraits = .header
+        segmentedControl.accessibilityLabel = "Filter orders".localized
+        loadingIndicator.accessibilityLabel = "Loading orders".localized
     }
 
     // MARK: - Constraints
@@ -199,9 +235,21 @@ class MyOrdersViewController: UIViewController {
             loadingIndicator.centerXAnchor.constraint(equalTo: view.centerXAnchor),
             loadingIndicator.centerYAnchor.constraint(equalTo: view.centerYAnchor),
 
-            // Empty state label
-            emptyStateLabel.centerXAnchor.constraint(equalTo: view.centerXAnchor),
-            emptyStateLabel.centerYAnchor.constraint(equalTo: view.centerYAnchor)
+            // Empty state container
+            emptyStateContainer.centerXAnchor.constraint(equalTo: view.centerXAnchor),
+            emptyStateContainer.centerYAnchor.constraint(equalTo: view.centerYAnchor),
+
+            emptyStateImageView.topAnchor.constraint(equalTo: emptyStateContainer.topAnchor),
+            emptyStateImageView.centerXAnchor.constraint(equalTo: emptyStateContainer.centerXAnchor),
+            emptyStateImageView.widthAnchor.constraint(equalToConstant: 60),
+            emptyStateImageView.heightAnchor.constraint(equalToConstant: 60),
+
+            emptyStateLabel.topAnchor.constraint(equalTo: emptyStateImageView.bottomAnchor, constant: 16),
+            emptyStateLabel.centerXAnchor.constraint(equalTo: emptyStateContainer.centerXAnchor),
+
+            emptyStateSubtitle.topAnchor.constraint(equalTo: emptyStateLabel.bottomAnchor, constant: 8),
+            emptyStateSubtitle.centerXAnchor.constraint(equalTo: emptyStateContainer.centerXAnchor),
+            emptyStateSubtitle.bottomAnchor.constraint(equalTo: emptyStateContainer.bottomAnchor)
         ])
     }
 
@@ -211,7 +259,7 @@ class MyOrdersViewController: UIViewController {
         isLoading = true
 
         loadingIndicator.startAnimating()
-        emptyStateLabel.isHidden = true
+        emptyStateContainer.isHidden = true
         contentStack.arrangedSubviews.forEach { $0.removeFromSuperview() }
 
         Task {
@@ -228,7 +276,9 @@ class MyOrdersViewController: UIViewController {
                     self.isLoading = false
                     self.loadingIndicator.stopAnimating()
                     self.emptyStateLabel.text = "Failed to load orders".localized
-                    self.emptyStateLabel.isHidden = false
+                    self.emptyStateSubtitle.text = "Pull down to try again".localized
+                    self.emptyStateImageView.image = UIImage(systemName: "exclamationmark.triangle")
+                    self.emptyStateContainer.isHidden = false
                     print("❌ Error fetching orders: \(error)")
                 }
             }
@@ -260,11 +310,13 @@ class MyOrdersViewController: UIViewController {
         // Show empty state if no orders
         if filteredOrders.isEmpty {
             emptyStateLabel.text = filter == "All" ? "No orders yet".localized : "No \(filter.lowercased()) orders"
-            emptyStateLabel.isHidden = false
+            emptyStateSubtitle.text = "Your orders will appear here\nonce you make a purchase".localized
+            emptyStateImageView.image = UIImage(systemName: "bag")
+            emptyStateContainer.isHidden = false
             return
         }
 
-        emptyStateLabel.isHidden = true
+        emptyStateContainer.isHidden = true
 
         // Create cards for each order
         for order in filteredOrders {

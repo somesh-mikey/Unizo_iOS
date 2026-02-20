@@ -25,7 +25,7 @@ class ConfirmOrderSellerViewController: UIViewController {
 
     // MARK: - Loading Indicator
     private let loadingIndicator: UIActivityIndicatorView = {
-        let indicator = UIActivityIndicatorView(style: .large)
+        let indicator = UIActivityIndicatorView(style: .medium)
         indicator.hidesWhenStopped = true
         indicator.translatesAutoresizingMaskIntoConstraints = false
         return indicator

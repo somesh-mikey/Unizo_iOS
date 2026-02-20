@@ -7,7 +7,10 @@
       "Bash(grep:*)",
       "Bash(done)",
       "Bash(wc:*)",
-      "Bash(ruby:*)"
+      "Bash(ruby:*)",
+      "Bash(for file in Unizo_iOS/Controllers/ProductPostedViewController.swift Unizo_iOS/Controllers/EventPostedViewController.swift Unizo_iOS/Controllers/OrderPlacedViewController.swift Unizo_iOS/Controllers/AccountCreatedViewController.swift Unizo_iOS/Controllers/OrderAcceptedViewController.swift)",
+      "Bash(do echo \"=== $file ===\" grep -n \"viewWillAppear\\\\|viewWillDisappear\\\\|tabBar.isHidden\\\\|setNavigationBarHidden\" \"$file\")",
+      "Bash(for file in Unizo_iOS/Controllers/PostEventViewController.swift Unizo_iOS/Controllers/PaymentsViewController.swift Unizo_iOS/Controllers/PostChooserViewController.swift Unizo_iOS/Controllers/CategoryPageViewController.swift)"
     ]
   }
 }
