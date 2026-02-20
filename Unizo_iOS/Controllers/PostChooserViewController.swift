@@ -101,6 +101,18 @@ final class PostChooserViewController: UIViewController {
             eventCard.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -20),
             eventCard.heightAnchor.constraint(equalToConstant: 120),
         ])
+
+        // Accessibility
+        titleLabel.accessibilityTraits = .header
+        subtitleLabel.accessibilityTraits = .staticText
+        itemCard.isAccessibilityElement = true
+        itemCard.accessibilityLabel = "Post an Item".localized
+        itemCard.accessibilityHint = "List a product for sale on the marketplace".localized
+        itemCard.accessibilityTraits = .button
+        eventCard.isAccessibilityElement = true
+        eventCard.accessibilityLabel = "Post an Event".localized
+        eventCard.accessibilityHint = "Create a campus event for others to discover".localized
+        eventCard.accessibilityTraits = .button
     }
 
     // MARK: - Card Builder

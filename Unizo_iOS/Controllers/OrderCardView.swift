@@ -49,7 +49,7 @@ class OrderCardView: UIView {
         statusLabel.textColor = order.statusColor
         statusLabel.backgroundColor = order.statusColor.withAlphaComponent(0.15)
 
-        let firstItem = order.items.first!
+        guard let firstItem = order.items.first else { return }
         productImage.image = UIImage(named: firstItem.imageName)
         productTitle.text = firstItem.title
         productDetail.text = firstItem.detail
@@ -132,6 +132,14 @@ class OrderCardView: UIView {
         } else {
             moreItemsLabel.isHidden = true
         }
+
+        // Accessibility
+        let shortIdForA11y = String(order.id.uuidString.suffix(8)).uppercased()
+        let orderStatus = OrderStatus(rawValue: order.status) ?? .pending
+        isAccessibilityElement = true
+        accessibilityLabel = String(format: "Order %@, %@".localized, shortIdForA11y, orderStatus.rawValue.capitalized)
+        accessibilityTraits = .button
+        accessibilityHint = "View order details".localized
     }
 
     // MARK: - Helpers

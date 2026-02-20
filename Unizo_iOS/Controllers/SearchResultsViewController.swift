@@ -22,6 +22,14 @@ final class SearchResultsViewController: UIViewController {
     private let collectionView: UICollectionView
     private var collectionViewHeightConstraint: NSLayoutConstraint?
 
+    // Loading indicator
+    private let loadingIndicator: UIActivityIndicatorView = {
+        let indicator = UIActivityIndicatorView(style: .medium)
+        indicator.hidesWhenStopped = true
+        indicator.translatesAutoresizingMaskIntoConstraints = false
+        return indicator
+    }()
+
     // Empty State
     private let emptyStateLabel = UILabel()
 
@@ -55,6 +63,7 @@ final class SearchResultsViewController: UIViewController {
         setupScrollView()
         setupCollectionView()
         setupEmptyState()
+        setupLoadingIndicator()
 
         searchBar.text = keyword
         performSearchDebounced(keyword)
@@ -83,15 +92,20 @@ final class SearchResultsViewController: UIViewController {
         guard !trimmed.isEmpty else {
             results = []
             collectionView.reloadData()
+            loadingIndicator.stopAnimating()
             emptyStateLabel.isHidden = false
             updateCollectionHeight()
             return
         }
 
+        loadingIndicator.startAnimating()
+        emptyStateLabel.isHidden = true
+
         do {
             let dtos = try await productRepository.searchProducts(keyword: trimmed)
             results = dtos.map(ProductMapper.toUIModel)
 
+            loadingIndicator.stopAnimating()
             collectionView.reloadData()
             collectionView.layoutIfNeeded()
             updateCollectionHeight()
@@ -100,6 +114,8 @@ final class SearchResultsViewController: UIViewController {
             print("🔍 Search results:", results.count)
         } catch {
             print("❌ Search failed:", error)
+            loadingIndicator.stopAnimating()
+            emptyStateLabel.isHidden = false
         }
     }
 
@@ -154,6 +170,14 @@ final class SearchResultsViewController: UIViewController {
             clearButton.widthAnchor.constraint(equalToConstant: 28),
             clearButton.heightAnchor.constraint(equalToConstant: 28)
         ])
+
+        // Accessibility
+        backButton.accessibilityLabel = "Go back".localized
+        backButton.accessibilityHint = "Return to previous screen".localized
+        searchBar.accessibilityLabel = "Search products".localized
+        clearButton.accessibilityLabel = "Clear search".localized
+        clearButton.accessibilityHint = "Clear the search text".localized
+        loadingIndicator.accessibilityLabel = "Searching".localized
     }
 
     @objc private func goBack() {
@@ -221,6 +245,15 @@ final class SearchResultsViewController: UIViewController {
     private func updateCollectionHeight() {
         collectionViewHeightConstraint?.constant =
             collectionView.collectionViewLayout.collectionViewContentSize.height
+    }
+
+    // MARK: - Loading Indicator
+    private func setupLoadingIndicator() {
+        view.addSubview(loadingIndicator)
+        NSLayoutConstraint.activate([
+            loadingIndicator.centerXAnchor.constraint(equalTo: scrollView.centerXAnchor),
+            loadingIndicator.topAnchor.constraint(equalTo: scrollView.topAnchor, constant: 60)
+        ])
     }
 
     // MARK: - Empty State

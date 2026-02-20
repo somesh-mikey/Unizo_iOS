@@ -331,6 +331,13 @@ final class ChatViewController: UIViewController {
             tableView.trailingAnchor.constraint(equalTo: view.trailingAnchor),
             tableView.bottomAnchor.constraint(equalTo: view.bottomAnchor)
         ])
+
+        // Accessibility
+        titleLabel.accessibilityTraits = .header
+        searchField.accessibilityLabel = "Search conversations".localized
+        searchField.accessibilityHint = "Filter conversations by name or product".localized
+        segmentedControl.accessibilityLabel = "Filter conversations".localized
+        loadingIndicator.accessibilityLabel = "Loading conversations".localized
     }
 
     private func setupTable() {

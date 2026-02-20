@@ -83,7 +83,7 @@ final class PostItemViewController: UIViewController,
 
     // MARK: - Loading Indicator
     private let loadingIndicator: UIActivityIndicatorView = {
-        let indicator = UIActivityIndicatorView(style: .large)
+        let indicator = UIActivityIndicatorView(style: .medium)
         indicator.color = .white
         indicator.hidesWhenStopped = true
         indicator.translatesAutoresizingMaskIntoConstraints = false
@@ -418,6 +418,10 @@ final class PostItemViewController: UIViewController,
             loadingIndicator.centerXAnchor.constraint(equalTo: view.centerXAnchor),
             loadingIndicator.centerYAnchor.constraint(equalTo: view.centerYAnchor)
         ])
+
+        // Accessibility
+        finalUploadButton.accessibilityLabel = "Post item".localized
+        loadingIndicator.accessibilityLabel = "Uploading item".localized
     }
 
     // MARK: - Upload Logic

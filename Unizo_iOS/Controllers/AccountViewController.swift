@@ -168,7 +168,7 @@ final class AccountViewController: UIViewController {
 
         // All content including title is inside scrollView
         [
-            titleLabel, profileImageView, nameLabel, emailLabel,
+            titleLabel, profileImageView, nameLabel, emailLabel, 
             featureContainer, generalLabel, generalCard,
             otherLabel, otherCard
         ].forEach {
@@ -180,8 +180,8 @@ final class AccountViewController: UIViewController {
         featureStack.translatesAutoresizingMaskIntoConstraints = false
 
         featureStack.addArrangedSubview(makeFeatureItem("shippingbox", "My Orders".localized, #selector(openOrders)))
-        featureStack.addArrangedSubview(makeFeatureItem("ticket", "Event Tickets", #selector(openEvents)))
-        featureStack.addArrangedSubview(makeFeatureItem("chart.bar", "Seller Dashboard", #selector(openSellerDashboard)))
+        featureStack.addArrangedSubview(makeFeatureItem("ticket", "Event Tickets".localized, #selector(openEvents)))
+        featureStack.addArrangedSubview(makeFeatureItem("chart.bar", "Seller Dashboard".localized, #selector(openSellerDashboard)))
 
         addGroupedRows(
             rows: [rowProfile, rowAddress, rowNotifications],
@@ -192,6 +192,12 @@ final class AccountViewController: UIViewController {
             rows: [rowTerms, rowPrivacy, rowSettings],
             to: otherCard
         )
+
+        // Accessibility
+        titleLabel.accessibilityTraits = .header
+        profileImageView.accessibilityLabel = "Profile picture".localized
+        nameLabel.accessibilityTraits = .staticText
+        emailLabel.accessibilityTraits = .staticText
     }
 
     // MARK: - Constraints
@@ -201,10 +207,10 @@ final class AccountViewController: UIViewController {
         contentView.translatesAutoresizingMaskIntoConstraints = false
 
         NSLayoutConstraint.activate([
-            scrollView.topAnchor.constraint(equalTo: view.topAnchor, constant: 75),
+            scrollView.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor),
             scrollView.leadingAnchor.constraint(equalTo: view.leadingAnchor),
             scrollView.trailingAnchor.constraint(equalTo: view.trailingAnchor),
-            scrollView.bottomAnchor.constraint(equalTo: view.bottomAnchor),
+            scrollView.bottomAnchor.constraint(equalTo: view.safeAreaLayoutGuide.bottomAnchor),
 
             contentView.topAnchor.constraint(equalTo: scrollView.topAnchor),
             contentView.leadingAnchor.constraint(equalTo: scrollView.leadingAnchor),
@@ -249,8 +255,9 @@ final class AccountViewController: UIViewController {
             otherCard.topAnchor.constraint(equalTo: otherLabel.bottomAnchor, constant: 12),
             otherCard.leadingAnchor.constraint(equalTo: generalCard.leadingAnchor),
             otherCard.trailingAnchor.constraint(equalTo: generalCard.trailingAnchor),
-            otherCard.bottomAnchor.constraint(equalTo: contentView.bottomAnchor, constant: -120)
+            otherCard.bottomAnchor.constraint(equalTo: contentView.bottomAnchor, constant: -20)
         ])
+        scrollView.alwaysBounceVertical = true
     }
 
     // MARK: - Helpers

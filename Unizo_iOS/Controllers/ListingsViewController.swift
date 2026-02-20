@@ -403,6 +403,12 @@ class ListingsViewController: UIViewController {
             emptyStateSubtitle.centerXAnchor.constraint(equalTo: emptyStateContainer.centerXAnchor),
             emptyStateSubtitle.bottomAnchor.constraint(equalTo: emptyStateContainer.bottomAnchor)
         ])
+
+        // Accessibility
+        titleLabel.accessibilityTraits = .header
+        filterSegmentedControl.accessibilityLabel = "Filter listings".localized
+        searchBar.accessibilityLabel = "Search listings".localized
+        searchBar.accessibilityHint = "Search listings by name or category".localized
     }
 
     private func setupCollectionView() {

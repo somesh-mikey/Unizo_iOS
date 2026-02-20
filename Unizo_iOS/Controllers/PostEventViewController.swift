@@ -146,7 +146,7 @@ final class PostEventViewController: UIViewController,
 
     // MARK: - Loading
     private let loadingIndicator: UIActivityIndicatorView = {
-        let ai = UIActivityIndicatorView(style: .large)
+        let ai = UIActivityIndicatorView(style: .medium)
         ai.color = .white
         ai.hidesWhenStopped = true
         ai.translatesAutoresizingMaskIntoConstraints = false

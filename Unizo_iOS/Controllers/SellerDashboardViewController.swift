@@ -212,7 +212,7 @@ final class SellerDashboardViewController: UIViewController {
 
     // MARK: - Loading
     private let loadingIndicator: UIActivityIndicatorView = {
-        let indicator = UIActivityIndicatorView(style: .large)
+        let indicator = UIActivityIndicatorView(style: .medium)
         indicator.hidesWhenStopped = true
         indicator.translatesAutoresizingMaskIntoConstraints = false
         return indicator
@@ -294,6 +294,12 @@ final class SellerDashboardViewController: UIViewController {
             loadingIndicator.centerXAnchor.constraint(equalTo: view.centerXAnchor),
             loadingIndicator.centerYAnchor.constraint(equalTo: view.centerYAnchor)
         ])
+
+        // Accessibility
+        loadingIndicator.accessibilityLabel = "Loading dashboard".localized
+        titleLabel.accessibilityTraits = .header
+        backButton.accessibilityLabel = "Go back".localized
+        backButton.accessibilityHint = "Return to previous screen".localized
     }
 
     private func loadDashboardData() {

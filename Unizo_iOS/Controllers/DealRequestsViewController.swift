@@ -100,7 +100,7 @@ class DealRequestsViewController: UIViewController {
     }()
 
     private let loadingIndicator: UIActivityIndicatorView = {
-        let indicator = UIActivityIndicatorView(style: .large)
+        let indicator = UIActivityIndicatorView(style: .medium)
         indicator.hidesWhenStopped = true
         indicator.translatesAutoresizingMaskIntoConstraints = false
         return indicator
@@ -171,6 +171,11 @@ class DealRequestsViewController: UIViewController {
             loadingIndicator.centerXAnchor.constraint(equalTo: view.centerXAnchor),
             loadingIndicator.centerYAnchor.constraint(equalTo: view.centerYAnchor),
         ])
+
+        // Accessibility
+        titleLabel.accessibilityTraits = .header
+        subtitleLabel.accessibilityTraits = .staticText
+        loadingIndicator.accessibilityLabel = "Loading deal requests".localized
     }
 
     private func setupTableView() {

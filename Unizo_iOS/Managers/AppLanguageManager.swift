@@ -303,6 +303,8 @@ final class AppLanguageManager {
             // Events
             "Events": "कार्यक्रम",
             "Browse Events": "कार्यक्रम देखें",
+            "Event Tickets": "इवेंट टिकट",
+            "Seller Dashboard": "विक्रेता डैशबोर्ड",
 
             // Post Chooser & Post Event
             "What would you like to post?": "आप क्या पोस्ट करना चाहेंगे?",
@@ -430,6 +432,11 @@ final class AppLanguageManager {
             "Deal requests for this product\nwill appear here": "इस उत्पाद के डील अनुरोध\nयहां दिखाई देंगे",
             "View Deal": "डील देखें",
             "Unknown Buyer": "अज्ञात खरीदार",
+            "Clear All": "सभी साफ़ करें",
+            "Clear All Notifications": "सभी सूचनाएं साफ़ करें",
+            "Are you sure you want to clear all notifications? This action cannot be undone.": "क्या आप सभी सूचनाएं साफ़ करना चाहते हैं? यह क्रिया पूर्ववत नहीं की जा सकती।",
+            "Your orders will appear here\nonce you make a purchase": "आपके ऑर्डर यहां दिखाई देंगे\nजब आप खरीदारी करेंगे",
+            "Pull down to try again": "पुनः प्रयास करने के लिए नीचे खींचें",
         ],
 
         // MARK: Spanish
@@ -664,6 +671,8 @@ final class AppLanguageManager {
 
             "Events": "Eventos",
             "Browse Events": "Explorar Eventos",
+            "Event Tickets": "Entradas de Evento",
+            "Seller Dashboard": "Panel del Vendedor",
 
             // Post Chooser & Post Event
             "What would you like to post?": "¿Qué te gustaría publicar?",
@@ -762,6 +771,11 @@ final class AppLanguageManager {
             "Deal requests for this product\nwill appear here": "Las solicitudes de compra para este producto\naparecerán aquí",
             "View Deal": "Ver oferta",
             "Unknown Buyer": "Comprador desconocido",
+            "Clear All": "Borrar todo",
+            "Clear All Notifications": "Borrar todas las notificaciones",
+            "Are you sure you want to clear all notifications? This action cannot be undone.": "¿Estás seguro de que quieres borrar todas las notificaciones? Esta acción no se puede deshacer.",
+            "Your orders will appear here\nonce you make a purchase": "Tus pedidos aparecerán aquí\nuna vez que realices una compra",
+            "Pull down to try again": "Desliza hacia abajo para reintentar",
         ],
 
         // MARK: French
@@ -996,6 +1010,8 @@ final class AppLanguageManager {
 
             "Events": "Événements",
             "Browse Events": "Parcourir les Événements",
+            "Event Tickets": "Billets d'événement",
+            "Seller Dashboard": "Tableau de bord du vendeur",
 
             // Post Chooser & Post Event
             "What would you like to post?": "Que souhaitez-vous publier ?",
@@ -1094,6 +1110,11 @@ final class AppLanguageManager {
             "Deal requests for this product\nwill appear here": "Les demandes d'achat pour ce produit\napparaîtront ici",
             "View Deal": "Voir l'offre",
             "Unknown Buyer": "Acheteur inconnu",
+            "Clear All": "Tout effacer",
+            "Clear All Notifications": "Effacer toutes les notifications",
+            "Are you sure you want to clear all notifications? This action cannot be undone.": "Êtes-vous sûr de vouloir effacer toutes les notifications ? Cette action est irréversible.",
+            "Your orders will appear here\nonce you make a purchase": "Vos commandes apparaîtront ici\nune fois que vous aurez effectué un achat",
+            "Pull down to try again": "Tirez vers le bas pour réessayer",
         ],
 
         // MARK: German
@@ -1328,6 +1349,8 @@ final class AppLanguageManager {
 
             "Events": "Veranstaltungen",
             "Browse Events": "Veranstaltungen Durchsuchen",
+            "Event Tickets": "Event-Tickets",
+            "Seller Dashboard": "Verkäufer-Dashboard",
 
             // Post Chooser & Post Event
             "What would you like to post?": "Was möchten Sie veröffentlichen?",
@@ -1426,6 +1449,11 @@ final class AppLanguageManager {
             "Deal requests for this product\nwill appear here": "Kaufanfragen für dieses Produkt\nwerden hier angezeigt",
             "View Deal": "Angebot ansehen",
             "Unknown Buyer": "Unbekannter Käufer",
+            "Clear All": "Alle löschen",
+            "Clear All Notifications": "Alle Benachrichtigungen löschen",
+            "Are you sure you want to clear all notifications? This action cannot be undone.": "Möchten Sie wirklich alle Benachrichtigungen löschen? Diese Aktion kann nicht rückgängig gemacht werden.",
+            "Your orders will appear here\nonce you make a purchase": "Ihre Bestellungen erscheinen hier\nsobald Sie einen Kauf tätigen",
+            "Pull down to try again": "Zum Wiederholen nach unten ziehen",
         ]
     ]
 }

@@ -336,6 +336,12 @@ class ChatDetailViewController: UIViewController {
             titleLabel.leadingAnchor.constraint(equalTo: roleLabel.leadingAnchor),
             titleLabel.topAnchor.constraint(equalTo: roleLabel.bottomAnchor, constant: 2)
         ])
+
+        // Accessibility
+        backButton.accessibilityLabel = "Go back".localized
+        backButton.accessibilityHint = "Return to conversations list".localized
+        titleLabel.accessibilityTraits = .header
+        roleLabel.accessibilityTraits = .staticText
     }
 
     // MARK: - TABLE
@@ -348,11 +354,11 @@ class ChatDetailViewController: UIViewController {
         tableView.register(ChatBubbleCell.self, forCellReuseIdentifier: "ChatBubbleCell")
         tableView.register(ChatImageCell.self, forCellReuseIdentifier: "ChatImageCell")
 
+        // NOTE: tableView.bottom is pinned to inputContainer.top in setupInputBar()
         NSLayoutConstraint.activate([
             tableView.topAnchor.constraint(equalTo: profileCircle.bottomAnchor, constant: 20),
             tableView.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 16),
             tableView.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -16),
-            tableView.bottomAnchor.constraint(equalTo: view.safeAreaLayoutGuide.bottomAnchor, constant: -70),
 
             loadingIndicator.centerXAnchor.constraint(equalTo: tableView.centerXAnchor),
             loadingIndicator.centerYAnchor.constraint(equalTo: tableView.centerYAnchor)
@@ -369,6 +375,9 @@ class ChatDetailViewController: UIViewController {
         inputContainerBottomConstraint = inputContainer.bottomAnchor.constraint(equalTo: view.safeAreaLayoutGuide.bottomAnchor)
 
         NSLayoutConstraint.activate([
+            // Pin tableView bottom dynamically to input bar top
+            tableView.bottomAnchor.constraint(equalTo: inputContainer.topAnchor, constant: -4),
+
             inputContainer.leadingAnchor.constraint(equalTo: view.leadingAnchor),
             inputContainer.trailingAnchor.constraint(equalTo: view.trailingAnchor),
             inputContainerBottomConstraint,
@@ -389,6 +398,13 @@ class ChatDetailViewController: UIViewController {
             sendButton.widthAnchor.constraint(equalToConstant: 36),
             sendButton.heightAnchor.constraint(equalToConstant: 36)
         ])
+
+        // Accessibility
+        addButton.accessibilityLabel = "Attach photo".localized
+        addButton.accessibilityHint = "Select a photo to send".localized
+        inputField.accessibilityLabel = "Message input".localized
+        sendButton.accessibilityLabel = "Send message".localized
+        sendButton.accessibilityHint = "Send the typed message".localized
 
         // Update send button state based on text
         inputField.addTarget(self, action: #selector(textFieldDidChange), for: .editingChanged)

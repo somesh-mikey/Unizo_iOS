@@ -7,7 +7,7 @@
 
 import UIKit
 
-class CategoryPageViewController: UIViewController, UITabBarDelegate, UIScrollViewDelegate {
+class CategoryPageViewController: UIViewController, UITabBarDelegate, UIScrollViewDelegate, UISearchBarDelegate {
 
     // MARK: - Data
     var categoryIndex: Int = 0
@@ -37,6 +37,9 @@ class CategoryPageViewController: UIViewController, UITabBarDelegate, UIScrollVi
 
     private let bannerImage = UIImageView()
     private let collectionView: UICollectionView
+    // MARK: - Search
+    private var filteredItems: [ProductUIModel] = []
+    private var isFiltering: Bool { !(searchBar.text ?? "").trimmingCharacters(in: .whitespaces).isEmpty }
     private var topContainerTopConstraint: NSLayoutConstraint!
 
     override func viewDidLayoutSubviews() {
@@ -80,8 +83,14 @@ class CategoryPageViewController: UIViewController, UITabBarDelegate, UIScrollVi
         loadCategoryBanner()
         collectionView.reloadData()
 
+        registerForKeyboardNotifications()
+
         // Hide navigation bar completely (no back button, no title, no toolbar)
         navigationController?.setNavigationBarHidden(true, animated: false)
+    }
+
+    deinit {
+        unregisterForKeyboardNotifications()
     }
 
     // MARK: - TOP SECTION (Identical to Landing)
@@ -163,7 +172,8 @@ class CategoryPageViewController: UIViewController, UITabBarDelegate, UIScrollVi
         navBarView.addSubview(searchBar)
         searchBar.translatesAutoresizingMaskIntoConstraints = false
         searchBar.searchBarStyle = .minimal
-        searchBar.placeholder = "Search"
+        searchBar.placeholder = "Search".localized
+        searchBar.delegate = self
 
         NSLayoutConstraint.activate([
             searchBar.topAnchor.constraint(equalTo: menuButton.bottomAnchor, constant: Spacing.md),
@@ -256,6 +266,8 @@ class CategoryPageViewController: UIViewController, UITabBarDelegate, UIScrollVi
         view.addSubview(scrollView)
         scrollView.translatesAutoresizingMaskIntoConstraints = false
         scrollView.isScrollEnabled = true
+        // Dismiss keyboard on drag
+        scrollView.keyboardDismissMode = .onDrag
 
         // Scroll starts from top of trending categories (same as LandingVC)
         NSLayoutConstraint.activate([
@@ -275,6 +287,11 @@ class CategoryPageViewController: UIViewController, UITabBarDelegate, UIScrollVi
             contentView.bottomAnchor.constraint(equalTo: scrollView.bottomAnchor),
             contentView.widthAnchor.constraint(equalTo: scrollView.widthAnchor)
         ])
+
+        // Tap to dismiss keyboard when tapping the content area
+        let tap = UITapGestureRecognizer(target: self, action: #selector(dismissKeyboard))
+        tap.cancelsTouchesInView = false
+        contentView.addGestureRecognizer(tap)
 
         // --- Add teal background strip behind trending categories for rounded corner effect ---
         let tealStrip = UIView()
@@ -372,6 +389,48 @@ class CategoryPageViewController: UIViewController, UITabBarDelegate, UIScrollVi
         }
 
         collectionView.heightAnchor.constraint(equalToConstant: contentHeight).isActive = true
+    }
+
+    // MARK: - Keyboard Observers
+    private func registerForKeyboardNotifications() {
+        NotificationCenter.default.addObserver(self,
+                                               selector: #selector(keyboardWillShow(_:)),
+                                               name: UIResponder.keyboardWillShowNotification,
+                                               object: nil)
+        NotificationCenter.default.addObserver(self,
+                                               selector: #selector(keyboardWillHide(_:)),
+                                               name: UIResponder.keyboardWillHideNotification,
+                                               object: nil)
+    }
+
+    private func unregisterForKeyboardNotifications() {
+        NotificationCenter.default.removeObserver(self,
+                                                  name: UIResponder.keyboardWillShowNotification,
+                                                  object: nil)
+        NotificationCenter.default.removeObserver(self,
+                                                  name: UIResponder.keyboardWillHideNotification,
+                                                  object: nil)
+    }
+
+    @objc private func keyboardWillShow(_ n: Notification) {
+        guard let userInfo = n.userInfo,
+              let frame = userInfo[UIResponder.keyboardFrameEndUserInfoKey] as? CGRect else { return }
+
+        let keyboardHeight = frame.height
+        var inset = scrollView.contentInset
+        inset.bottom = keyboardHeight
+        scrollView.contentInset = inset
+        scrollView.scrollIndicatorInsets = inset
+    }
+
+    @objc private func keyboardWillHide(_ n: Notification) {
+        scrollView.contentInset = .zero
+        scrollView.scrollIndicatorInsets = .zero
+    }
+
+    @objc private func dismissKeyboard() {
+        searchBar.resignFirstResponder()
+        view.endEditing(true)
     }
 
 
@@ -520,12 +579,40 @@ class CategoryPageViewController: UIViewController, UITabBarDelegate, UIScrollVi
 
 }
 
+// MARK: - Search
+extension CategoryPageViewController {
+    func searchBar(_ searchBar: UISearchBar, textDidChange searchText: String) {
+        let query = searchText.trimmingCharacters(in: .whitespacesAndNewlines)
+        if query.isEmpty {
+            filteredItems.removeAll()
+            collectionView.reloadData()
+            updateCollectionHeight()
+            return
+        }
+
+        filteredItems = items.filter { p in
+            let lower = query.lowercased()
+            if p.name.lowercased().contains(lower) { return true }
+            if let desc = p.description?.lowercased(), desc.contains(lower) { return true }
+            return false
+        }
+
+        collectionView.reloadData()
+        updateCollectionHeight()
+    }
+
+    func searchBarSearchButtonClicked(_ searchBar: UISearchBar) {
+        searchBar.resignFirstResponder()
+    }
+}
+
 
 // MARK: - CollectionView Delegates
 extension CategoryPageViewController: UICollectionViewDataSource, UICollectionViewDelegateFlowLayout {
 
     func collectionView(_ collectionView: UICollectionView, numberOfItemsInSection section: Int) -> Int {
-        return items.count   // Items passed from Landing
+        let source = isFiltering ? filteredItems : items
+        return source.count   // Items passed from Landing
     }
 
     func collectionView(
@@ -538,7 +625,8 @@ extension CategoryPageViewController: UICollectionViewDataSource, UICollectionVi
             for: indexPath
         ) as! ProductCell
 
-        cell.configure(with: items[indexPath.item])
+        let source = isFiltering ? filteredItems : items
+        cell.configure(with: source[indexPath.item])
         return cell
     }
 
@@ -558,9 +646,14 @@ extension CategoryPageViewController: UICollectionViewDataSource, UICollectionVi
         // Show tab bar
         (tabBarController as? MainTabBarController)?.showFloatingTabBar()
     }
-    func collectionView(_ collectionView: UICollectionView, didSelectItemAt indexPath: IndexPath) {
 
-        let selected = items[indexPath.item]
+    override func viewWillDisappear(_ animated: Bool) {
+        super.viewWillDisappear(animated)
+        navigationController?.setNavigationBarHidden(false, animated: animated)
+    }
+    func collectionView(_ collectionView: UICollectionView, didSelectItemAt indexPath: IndexPath) {
+        let source = isFiltering ? filteredItems : items
+        let selected = source[indexPath.item]
 
         let vc = ItemDetailsViewController(
             nibName: "ItemDetailsViewController",
