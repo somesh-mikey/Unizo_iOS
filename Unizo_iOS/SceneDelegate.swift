@@ -16,6 +16,7 @@ class SceneDelegate: UIResponder, UIWindowSceneDelegate {
         window.rootViewController = splashVC   // no navigation controller here
 
         self.window = window
+        window.overrideUserInterfaceStyle = .light
         window.makeKeyAndVisible()
     }
 
