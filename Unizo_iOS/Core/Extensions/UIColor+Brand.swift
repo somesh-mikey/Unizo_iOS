@@ -2,163 +2,103 @@
 //  UIColor+Brand.swift
 //  Unizo_iOS
 //
-//  Brand colors and semantic color extensions
-//  Uses iOS semantic colors for automatic dark mode support when needed
+//  Brand and semantic color palette. Semantic wrappers (textPrimary,
+//  backgroundPrimary, etc.) use iOS system colors so dark mode is handled
+//  automatically. Brand colors are fixed and do not adapt.
 //
 
 import UIKit
 
 // MARK: - Brand Colors
+
 extension UIColor {
 
-    /// Primary brand color - Main accent color
-    /// Used for: Primary buttons, key highlights, navigation tint
-    static let brandPrimary = UIColor(red: 0.239, green: 0.486, blue: 0.596, alpha: 1.0)  // #3D7C98
+    /// #3D7C98 — primary buttons, navigation tint, key highlights
+    static let brandPrimary   = UIColor(red: 0.239, green: 0.486, blue: 0.596, alpha: 1.0)
 
-    /// Secondary brand color - Supporting accent
-    /// Used for: Secondary buttons, less prominent elements
-    static let brandSecondary = UIColor(red: 0.365, green: 0.678, blue: 0.737, alpha: 1.0)  // #5DADBC
+    /// #5DADBC — secondary buttons, less prominent accents
+    static let brandSecondary = UIColor(red: 0.365, green: 0.678, blue: 0.737, alpha: 1.0)
 
-    /// Accent color - Call to action
-    /// Used for: Important buttons, notifications
-    static let brandAccent = UIColor(red: 0.902, green: 0.494, blue: 0.133, alpha: 1.0)  // #E67E22
+    /// #E67E22 — call-to-action badges, important notifications
+    static let brandAccent    = UIColor(red: 0.902, green: 0.494, blue: 0.133, alpha: 1.0)
 
-    /// Light brand color - Backgrounds
-    /// Used for: Light backgrounds, subtle highlights
-    static let brandLight = UIColor(red: 0.914, green: 0.949, blue: 0.961, alpha: 1.0)  // #E9F2F5
+    /// #E9F2F5 — light backgrounds, subtle highlights
+    static let brandLight     = UIColor(red: 0.914, green: 0.949, blue: 0.961, alpha: 1.0)
 }
 
-// MARK: - Semantic Colors (iOS Native)
+// MARK: - Semantic Text & Background Colors
+
 extension UIColor {
+    static var textPrimary:       UIColor { .label }
+    static var textSecondary:     UIColor { .secondaryLabel }
+    static var textTertiary:      UIColor { .tertiaryLabel }
+    static var textPlaceholder:   UIColor { .placeholderText }
 
-    /// Primary text color - Main content
-    static var textPrimary: UIColor { .label }
-
-    /// Secondary text color - Less prominent text
-    static var textSecondary: UIColor { .secondaryLabel }
-
-    /// Tertiary text color - Subtle text
-    static var textTertiary: UIColor { .tertiaryLabel }
-
-    /// Placeholder text color
-    static var textPlaceholder: UIColor { .placeholderText }
-
-    /// Primary background
-    static var backgroundPrimary: UIColor { .systemBackground }
-
-    /// Secondary background (grouped sections)
+    static var backgroundPrimary:   UIColor { .systemBackground }
     static var backgroundSecondary: UIColor { .secondarySystemBackground }
+    static var backgroundTertiary:  UIColor { .tertiarySystemBackground }
+    static var backgroundGrouped:   UIColor { .systemGroupedBackground }
 
-    /// Tertiary background (nested sections)
-    static var backgroundTertiary: UIColor { .tertiarySystemBackground }
-
-    /// Grouped background (table view background)
-    static var backgroundGrouped: UIColor { .systemGroupedBackground }
-
-    /// Separator color
     static var separatorColor: UIColor { .separator }
-
-    /// Border color for inputs
-    static var borderColor: UIColor { .systemGray4 }
+    static var borderColor:    UIColor { .systemGray4 }
 }
 
-// MARK: - Status Colors (iOS Semantic)
+// MARK: - Status Colors
+
 extension UIColor {
+    static var statusSuccess:   UIColor { .systemGreen }
+    static var statusWarning:   UIColor { .systemOrange }
+    static var statusError:     UIColor { .systemRed }
+    static var statusInfo:      UIColor { .systemBlue }
 
-    /// Success color - Positive outcomes
-    static var statusSuccess: UIColor { .systemGreen }
-
-    /// Warning color - Caution states
-    static var statusWarning: UIColor { .systemOrange }
-
-    /// Error color - Errors and destructive actions
-    static var statusError: UIColor { .systemRed }
-
-    /// Info color - Informational states
-    static var statusInfo: UIColor { .systemBlue }
-
-    /// Available status (product in stock)
+    /// Product in-stock indicator
     static var statusAvailable: UIColor { .systemGreen }
-
-    /// Pending status (order pending)
-    static var statusPending: UIColor { .systemOrange }
-
-    /// Sold status (product sold out)
-    static var statusSold: UIColor { .systemRed }
+    /// Order awaiting action
+    static var statusPending:   UIColor { .systemOrange }
+    /// Product sold out
+    static var statusSold:      UIColor { .systemRed }
 }
 
 // MARK: - UI Element Colors
+
 extension UIColor {
+    static var cardBackground:   UIColor { .white }
+    static var cardShadow:       UIColor { .black.withAlphaComponent(0.08) }
 
-    /// Card background color
-    static var cardBackground: UIColor { .white }
-
-    /// Card shadow color
-    static var cardShadow: UIColor { .black.withAlphaComponent(0.08) }
-
-    /// Navigation bar background
     static var navigationBackground: UIColor { .systemBackground }
+    static var tabBarBackground:     UIColor { .systemBackground }
 
-    /// Tab bar background
-    static var tabBarBackground: UIColor { .systemBackground }
-
-    /// Button primary background
-    static var buttonPrimaryBackground: UIColor { brandPrimary }
-
-    /// Button primary text
-    static var buttonPrimaryText: UIColor { .white }
-
-    /// Button secondary background
-    static var buttonSecondaryBackground: UIColor { brandLight }
-
-    /// Button secondary text
-    static var buttonSecondaryText: UIColor { brandPrimary }
-
-    /// Button destructive background
+    static var buttonPrimaryBackground:     UIColor { brandPrimary }
+    static var buttonPrimaryText:           UIColor { .white }
+    static var buttonSecondaryBackground:   UIColor { brandLight }
+    static var buttonSecondaryText:         UIColor { brandPrimary }
     static var buttonDestructiveBackground: UIColor { .systemRed }
+    static var buttonDestructiveText:       UIColor { .white }
 
-    /// Button destructive text
-    static var buttonDestructiveText: UIColor { .white }
-
-    /// Negotiable badge color
-    static var negotiableBadge: UIColor { .systemGreen }
-
-    /// Non-negotiable badge color
+    static var negotiableBadge:    UIColor { .systemGreen }
     static var nonNegotiableBadge: UIColor { .systemRed }
-
-    /// Rating star color
-    static var ratingStar: UIColor { .systemYellow }
-
-    /// Price text color
-    static var priceText: UIColor { .label }
-
-    /// Discount price color
-    static var discountPrice: UIColor { .systemRed }
-
-    /// Link color
-    static var linkColor: UIColor { brandPrimary }
+    static var ratingStar:         UIColor { .systemYellow }
+    static var priceText:          UIColor { .label }
+    static var discountPrice:      UIColor { .systemRed }
+    static var linkColor:          UIColor { brandPrimary }
 }
 
 // MARK: - Gradient Colors
+
 extension UIColor {
-
-    /// Primary gradient start color
     static var gradientStart: UIColor { brandPrimary }
-
-    /// Primary gradient end color
-    static var gradientEnd: UIColor { brandSecondary }
+    static var gradientEnd:   UIColor { brandSecondary }
 }
 
-// MARK: - CAGradientLayer Extension
 extension CAGradientLayer {
 
-    /// Creates a brand gradient layer
+    /// Creates a diagonal brand gradient (top-left → bottom-right).
     static func brandGradient(frame: CGRect) -> CAGradientLayer {
         let gradient = CAGradientLayer()
         gradient.frame = frame
         gradient.colors = [UIColor.gradientStart.cgColor, UIColor.gradientEnd.cgColor]
         gradient.startPoint = CGPoint(x: 0, y: 0)
-        gradient.endPoint = CGPoint(x: 1, y: 1)
+        gradient.endPoint   = CGPoint(x: 1, y: 1)
         return gradient
     }
 }
