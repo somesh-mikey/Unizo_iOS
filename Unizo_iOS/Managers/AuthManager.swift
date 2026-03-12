@@ -2,7 +2,9 @@
 //  AuthManager.swift
 //  Unizo_iOS
 //
-//  Centralized authentication manager for tracking current user state
+//  Thin wrapper around the Supabase Auth API. Provides async and sync
+//  accessors for the current user session, plus higher-level operations
+//  like password change and full account deletion.
 //
 
 import Foundation
@@ -15,13 +17,13 @@ final class AuthManager {
 
     private init() {}
 
-    // MARK: - Current User ID
-    /// Returns the currently authenticated user's ID, or nil if not logged in
+    // MARK: - Session Accessors
+
+    /// Async — fetches the live session from Supabase. Returns nil if no session exists.
     var currentUserId: UUID? {
         get async {
             do {
-                let session = try await supabase.auth.session
-                return session.user.id
+                return try await supabase.auth.session.user.id
             } catch {
                 print("⚠️ No active session:", error)
                 return nil
@@ -29,44 +31,26 @@ final class AuthManager {
         }
     }
 
-    /// Synchronous version - returns cached user ID or nil
-    /// Use this when you need immediate access and can't use async
+    /// Synchronous — reads from the SDK's in-memory session cache.
+    /// Use only when async context is unavailable; may be stale after token refresh.
     var currentUserIdSync: UUID? {
-        // Try to get from current session synchronously
-        // This relies on Supabase SDK's internal session cache
-        if let session = try? supabase.auth.currentSession {
-            return session.user.id
-        }
-        return nil
+        try? supabase.auth.currentSession?.user.id
     }
 
-    // MARK: - Current User Email
     var currentUserEmail: String? {
         get async {
-            do {
-                let session = try await supabase.auth.session
-                return session.user.email
-            } catch {
-                return nil
-            }
+            try? await supabase.auth.session.user.email
         }
     }
 
-    // MARK: - Auth State
-    var isLoggedIn: Bool {
-        get async {
-            await currentUserId != nil
-        }
-    }
+    var isLoggedIn:     Bool { get async { await currentUserId != nil } }
+    var isLoggedInSync: Bool { currentUserIdSync != nil }
 
-    var isLoggedInSync: Bool {
-        currentUserIdSync != nil
-    }
+    // MARK: - Password Management
 
-    // MARK: - Change Password
-    /// Re-authenticates with the old password then updates to the new password.
+    /// Re-authenticates with `oldPassword` then updates to `newPassword`.
+    /// Throws if the current email can't be retrieved or the old password is wrong.
     func changePassword(oldPassword: String, newPassword: String) async throws {
-        // 1. Re-authenticate by signing in with the current email + old password
         guard let email = try? await supabase.auth.session.user.email else {
             throw NSError(domain: "AuthManager", code: 401, userInfo: [
                 NSLocalizedDescriptionKey: "Unable to retrieve your email. Please try again."
@@ -81,107 +65,70 @@ final class AuthManager {
             ])
         }
 
-        // 2. Update to the new password
         _ = try await supabase.auth.update(user: UserAttributes(password: newPassword))
     }
 
-    // MARK: - Reset Password (send email link)
     func sendPasswordResetEmail(to email: String) async throws {
-        print("📧 [AuthManager] resetPasswordForEmail called with email: \(email)")
+        print("📧 [AuthManager] Sending reset email to: \(email)")
         do {
             try await supabase.auth.resetPasswordForEmail(email)
-            print("✅ [AuthManager] resetPasswordForEmail returned successfully (no error thrown)")
+            print("✅ [AuthManager] Reset email sent successfully")
         } catch {
-            print("❌ [AuthManager] resetPasswordForEmail threw error: \(error)")
-            print("❌ [AuthManager] Error type: \(type(of: error))")
+            print("❌ [AuthManager] Reset email failed: \(error)")
             throw error
         }
     }
 
-    // MARK: - Update Password (for logged-in user, no old password needed)
+    /// Updates password for an already-authenticated user (no old password required).
     func updatePassword(newPassword: String) async throws {
         _ = try await supabase.auth.update(user: UserAttributes(password: newPassword))
     }
 
-    // MARK: - Sign Out
     func signOut() async throws {
         try await supabase.auth.signOut()
     }
 
-    // MARK: - Delete Account
+    // MARK: - Account Deletion
+
+    /// Permanently deletes all user data then signs out. Order matters:
+    /// dependent rows (order_items, etc.) are removed before their parents.
     func deleteAccount() async throws {
-        // Get current user ID before deletion
         guard let userId = await currentUserId else {
             throw NSError(domain: "AuthManager", code: 401, userInfo: [
                 NSLocalizedDescriptionKey: "User not authenticated"
             ])
         }
 
-        // Delete user data from database tables first
-        // This ensures all user-related data is removed before the auth user is deleted
+        try await supabase.from("addresses").delete()
+            .eq("user_id", value: userId.uuidString).execute()
 
-        // Delete user's addresses
-        try await supabase
-            .from("addresses")
-            .delete()
-            .eq("user_id", value: userId.uuidString)
-            .execute()
-
-        // Delete user's orders and order items
-        // First get order IDs to delete related order_items
         let orders: [OrderDTO] = try await supabase
-            .from("orders")
-            .select("id")
+            .from("orders").select("id")
             .eq("user_id", value: userId.uuidString)
-            .execute()
-            .value
+            .execute().value
 
         for order in orders {
-            try await supabase
-                .from("order_items")
-                .delete()
-                .eq("order_id", value: order.id.uuidString)
-                .execute()
+            try await supabase.from("order_items").delete()
+                .eq("order_id", value: order.id.uuidString).execute()
         }
 
-        // Delete orders
-        try await supabase
-            .from("orders")
-            .delete()
-            .eq("user_id", value: userId.uuidString)
-            .execute()
+        try await supabase.from("orders").delete()
+            .eq("user_id", value: userId.uuidString).execute()
 
-        // Delete user's products
-        try await supabase
-            .from("products")
-            .delete()
-            .eq("seller_id", value: userId.uuidString)
-            .execute()
+        try await supabase.from("products").delete()
+            .eq("seller_id", value: userId.uuidString).execute()
 
-        // Delete user's notifications
-        try await supabase
-            .from("notifications")
-            .delete()
-            .eq("recipient_id", value: userId.uuidString)
-            .execute()
+        try await supabase.from("notifications").delete()
+            .eq("recipient_id", value: userId.uuidString).execute()
 
-        // Delete user's wishlist items
-        try await supabase
-            .from("wishlists")
-            .delete()
-            .eq("user_id", value: userId.uuidString)
-            .execute()
+        try await supabase.from("wishlists").delete()
+            .eq("user_id", value: userId.uuidString).execute()
 
-        // Delete user profile from users table
-        try await supabase
-            .from("users")
-            .delete()
-            .eq("id", value: userId.uuidString)
-            .execute()
+        try await supabase.from("users").delete()
+            .eq("id", value: userId.uuidString).execute()
 
-        // Finally sign out (this also clears the session)
         try await supabase.auth.signOut()
 
-        print("✅ User account and all associated data deleted successfully")
+        print("✅ Account and all associated data deleted successfully")
     }
 }

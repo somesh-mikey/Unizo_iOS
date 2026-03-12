@@ -2,7 +2,9 @@
 //  FeedbackManager.swift
 //  Unizo_iOS
 //
-//  Manages periodic feedback prompts for logged-in users
+//  Controls when to prompt logged-in users for in-app feedback.
+//  The interval between prompts is randomised (10–15 days) and
+//  persisted in UserDefaults so it survives app restarts.
 //
 
 import UIKit
@@ -10,53 +12,43 @@ import UIKit
 final class FeedbackManager {
     static let shared = FeedbackManager()
 
-    // MARK: - UserDefaults Keys
     private enum Keys {
-        static let lastFeedbackDate = "feedback_lastFeedbackDate"
+        static let lastFeedbackDate     = "feedback_lastFeedbackDate"
         static let feedbackIntervalDays = "feedback_intervalDays"
     }
 
     private let defaults = UserDefaults.standard
 
     private init() {
-        // Generate a random interval on first launch if one doesn't exist
         if defaults.object(forKey: Keys.feedbackIntervalDays) == nil {
             defaults.set(Int.random(in: 10...15), forKey: Keys.feedbackIntervalDays)
         }
     }
 
-    // MARK: - Stored Properties
+    // MARK: - Private State
 
-    /// The date feedback was last shown (or snoozed).
     private var lastFeedbackDate: Date? {
         get { defaults.object(forKey: Keys.lastFeedbackDate) as? Date }
         set { defaults.set(newValue, forKey: Keys.lastFeedbackDate) }
     }
 
-    /// Random interval in days (10-15) between feedback prompts.
     private var intervalDays: Int {
         let stored = defaults.integer(forKey: Keys.feedbackIntervalDays)
         return stored > 0 ? stored : 10
     }
 
-    // MARK: - Public Methods
+    // MARK: - Public Interface
 
-    /// Returns `true` if the required interval has elapsed since the last feedback prompt
-    /// and the user is currently logged in.
+    /// Returns `true` when enough time has elapsed since the last prompt
+    /// and the user is signed in. Always returns `false` for guests.
     func shouldShowFeedback() -> Bool {
-        // Never prompt logged-out users
         guard AuthManager.shared.isLoggedInSync else { return false }
-
-        guard let last = lastFeedbackDate else {
-            // Never shown before -- eligible
-            return true
-        }
-
+        guard let last = lastFeedbackDate else { return true }   // first-time user
         let elapsed = Calendar.current.dateComponents([.day], from: last, to: Date())
         return (elapsed.day ?? 0) >= intervalDays
     }
 
-    /// Presents the feedback screen modally if enough time has elapsed.
+    /// Shows the feedback sheet modally if `shouldShowFeedback()` is true.
     func presentFeedbackIfNeeded(from viewController: UIViewController) {
         guard shouldShowFeedback() else { return }
 
@@ -68,19 +60,18 @@ final class FeedbackManager {
         }
     }
 
-    /// Records the current date as the last feedback prompt date and
-    /// regenerates the random interval for the next cycle.
+    /// Marks today as the last shown date and picks a new random interval.
     func recordFeedbackShown() {
         lastFeedbackDate = Date()
         defaults.set(Int.random(in: 10...15), forKey: Keys.feedbackIntervalDays)
     }
 
-    /// Snoozes the feedback prompt for 5 days from now.
+    /// Defers the next prompt by 5 days by adjusting the last-shown reference date.
     func snooze() {
-        // Set the last feedback date to 'intervalDays - 5' days ago so
-        // the remaining wait is exactly 5 days.
-        let calendar = Calendar.current
-        let snoozeTarget = calendar.date(byAdding: .day, value: -(intervalDays - 5), to: Date()) ?? Date()
+        // Backdate so that `intervalDays - 5` days appear to have already elapsed.
+        let snoozeTarget = Calendar.current.date(
+            byAdding: .day, value: -(intervalDays - 5), to: Date()
+        ) ?? Date()
         lastFeedbackDate = snoozeTarget
     }
 }
