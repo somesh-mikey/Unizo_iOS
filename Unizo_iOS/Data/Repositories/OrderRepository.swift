@@ -4,6 +4,10 @@
 //
 //  Created by Soham on 22/01/26.
 //
+//  Data access layer for orders and order ratings. Handles the full
+//  lifecycle: creation, status updates, handoff verification, and
+//  post-delivery ratings.
+//
 
 import Foundation
 import Supabase
@@ -16,7 +20,8 @@ final class OrderRepository {
         self.client = client
     }
 
-    // MARK: - Get Current User ID
+    // MARK: - Private Helpers
+
     private func getCurrentUserId() async throws -> UUID {
         guard let userId = await AuthManager.shared.currentUserId else {
             throw NSError(domain: "OrderRepository", code: 401, userInfo: [
@@ -26,14 +31,16 @@ final class OrderRepository {
         return userId
     }
 
-    // MARK: - Network Guard
     private func requireNetwork() throws {
         guard NetworkMonitor.shared.isReachable() else {
             throw NetworkError.noConnection
         }
     }
 
-    // MARK: - Create Order
+    // MARK: - Order Creation
+
+    /// Creates the order record, inserts order items, then sends a notification
+    /// to each seller involved. Returns the new order's UUID.
     func createOrder(
         addressId: UUID,
         items: [OrderItem],
@@ -43,9 +50,8 @@ final class OrderRepository {
     ) async throws -> UUID {
         try requireNetwork()
         let orderId = UUID()
-        let userId = try await getCurrentUserId()
+        let userId  = try await getCurrentUserId()
 
-        // Create the order with 'pending' status - will become 'confirmed' when seller accepts
         let orderPayload = OrderInsertDTO(
             id: orderId,
             user_id: userId,
@@ -56,12 +62,8 @@ final class OrderRepository {
             instructions: instructions
         )
 
-        try await client
-            .from("orders")
-            .insert(orderPayload)
-            .execute()
+        try await client.from("orders").insert(orderPayload).execute()
 
-        // Create order items
         for item in items {
             let itemPayload = OrderItemInsertDTO(
                 id: UUID(),
@@ -72,43 +74,31 @@ final class OrderRepository {
                 colour: item.product.colour,
                 size: item.product.size
             )
-
-            try await client
-                .from("order_items")
-                .insert(itemPayload)
-                .execute()
+            try await client.from("order_items").insert(itemPayload).execute()
         }
 
-        // MARK: - Create Notifications Per Seller
-        // Group items by seller_id
+        // Group by seller so each seller gets exactly one notification
         var sellerItems: [UUID: [OrderItem]] = [:]
         for item in items {
             guard let sellerId = item.product.sellerId else {
-                print("⚠️ Product \(item.product.name) has no sellerId - skipping notification")
+                print("⚠️ Product \(item.product.name) has no sellerId — skipping notification")
                 continue
             }
             sellerItems[sellerId, default: []].append(item)
         }
 
-        print("📦 Order created - preparing notifications for \(sellerItems.count) seller(s)")
-        print("📦 Buyer (current user) ID: \(userId.uuidString)")
+        print("📦 Order created — notifying \(sellerItems.count) seller(s)")
 
-        // Get buyer name for notification
         let buyerName = try await fetchCurrentUserName()
-        print("📦 Buyer name: \(buyerName)")
-
-        // Create one notification per seller
         let notificationRepo = NotificationRepository(client: client)
-        for (sellerId, sellerOrderItems) in sellerItems {
-            print("📦 Processing notification for seller: \(sellerId.uuidString)")
 
+        for (sellerId, sellerOrderItems) in sellerItems {
             let productNames = sellerOrderItems.map { $0.product.name }.joined(separator: ", ")
-            let itemCount = sellerOrderItems.count
-            let message = itemCount == 1
+            let itemCount    = sellerOrderItems.count
+            let message      = itemCount == 1
                 ? "wants to place order for \(productNames)."
                 : "wants to place order for \(itemCount) items."
 
-            // Build deeplink payload for navigation
             let deeplinkPayload = DeeplinkPayload(
                 route: "confirm_order_seller",
                 orderId: orderId,
@@ -116,8 +106,8 @@ final class OrderRepository {
             )
 
             try await notificationRepo.createNotification(
-                recipientId: sellerId,      // Seller receives
-                senderId: userId,           // Buyer triggered
+                recipientId: sellerId,
+                senderId: userId,
                 orderId: orderId,
                 type: .newOrder,
                 title: buyerName,
@@ -129,7 +119,8 @@ final class OrderRepository {
         return orderId
     }
 
-    // MARK: - Fetch Current User Name
+    /// Returns a display name from the user's profile. Falls back to email
+    /// prefix, then "A buyer".
     private func fetchCurrentUserName() async throws -> String {
         let userId = try await getCurrentUserId()
 
@@ -147,24 +138,20 @@ final class OrderRepository {
             .execute()
             .value
 
-        let firstName = user.first_name ?? ""
-        let lastName = user.last_name ?? ""
+        let first = user.first_name ?? ""
+        let last  = user.last_name  ?? ""
 
-        if !firstName.isEmpty && !lastName.isEmpty {
-            return "\(firstName) \(lastName)"
-        } else if !firstName.isEmpty {
-            return firstName
-        } else if !lastName.isEmpty {
-            return lastName
-        } else if let email = user.email, !email.isEmpty {
-            // Use part before @ as display name
+        if !first.isEmpty && !last.isEmpty  { return "\(first) \(last)" }
+        if !first.isEmpty                   { return first }
+        if !last.isEmpty                    { return last }
+        if let email = user.email, !email.isEmpty {
             return email.components(separatedBy: "@").first ?? "A buyer"
-        } else {
-            return "A buyer"
         }
+        return "A buyer"
     }
 
-    // MARK: - Fetch Order by ID
+    // MARK: - Fetching Orders
+
     func fetchOrder(id: UUID) async throws -> OrderDTO {
         try requireNetwork()
         let response: OrderDTO = try await client
@@ -189,7 +176,6 @@ final class OrderRepository {
         return response
     }
 
-    // MARK: - Fetch Order with Items and Address
     func fetchOrderWithDetails(id: UUID) async throws -> OrderDTO {
         try requireNetwork()
         let response: OrderDTO = try await client
@@ -251,7 +237,6 @@ final class OrderRepository {
         return response
     }
 
-    // MARK: - Fetch User Orders
     func fetchUserOrders() async throws -> [OrderDTO] {
         try requireNetwork()
         let userId = try await getCurrentUserId()
@@ -278,7 +263,6 @@ final class OrderRepository {
         return response
     }
 
-    // MARK: - Fetch Order Items
     func fetchOrderItems(orderId: UUID) async throws -> [OrderItemDTO] {
         try requireNetwork()
         let response: [OrderItemDTO] = try await client
@@ -315,7 +299,6 @@ final class OrderRepository {
         return response
     }
 
-    // MARK: - Fetch User Orders With Items
     func fetchUserOrdersWithItems() async throws -> [OrderDTO] {
         try requireNetwork()
         let userId = try await getCurrentUserId()
@@ -366,16 +349,13 @@ final class OrderRepository {
         return response
     }
 
-    // MARK: - Update Order Status
+    // MARK: - Status Updates
+
     func updateOrderStatus(orderId: UUID, status: OrderStatus) async throws {
         try requireNetwork()
-        struct StatusUpdate: Encodable {
-            let status: String
-        }
+        struct StatusUpdate: Encodable { let status: String }
 
-        print("📝 Updating order status:")
-        print("   - Order ID: \(orderId.uuidString)")
-        print("   - New Status: \(status.rawValue)")
+        print("📝 Updating order \(orderId.uuidString) → \(status.rawValue)")
 
         try await client
             .from("orders")
@@ -383,14 +363,11 @@ final class OrderRepository {
             .eq("id", value: orderId.uuidString)
             .execute()
 
-        print("✅ Order status updated successfully to: \(status.rawValue)")
-
-        // Verify the update
         let updatedOrder = try await fetchOrder(id: orderId)
-        print("🔍 Verification - Order status in DB: \(updatedOrder.status)")
+        print("🔍 Verified status in DB: \(updatedOrder.status)")
     }
 
-    // MARK: - Mark Ready for Handoff (Seller Action)
+    /// Sets status to `shipped`, stores the handoff code and generation timestamp.
     func markReadyForHandoff(orderId: UUID, handoffCode: String) async throws {
         try requireNetwork()
         struct HandoffUpdate: Encodable {
@@ -401,9 +378,7 @@ final class OrderRepository {
 
         let now = ISO8601DateFormatter().string(from: Date())
 
-        print("🤝 Marking order ready for handoff:")
-        print("   - Order ID: \(orderId.uuidString)")
-        print("   - Handoff Code: \(handoffCode)")
+        print("🤝 Marking order \(orderId.uuidString) ready for handoff — code: \(handoffCode)")
 
         try await client
             .from("orders")
@@ -418,32 +393,30 @@ final class OrderRepository {
         print("✅ Order marked ready for handoff")
     }
 
-    // MARK: - Verify Handoff Code (Seller Action)
+    /// Compares `enteredCode` against the stored handoff code.
+    /// If they match, transitions the order to `.delivered` and returns `true`.
     func verifyHandoffCode(orderId: UUID, enteredCode: String) async throws -> Bool {
         let order = try await fetchOrder(id: orderId)
 
         guard let storedCode = order.handoff_code else {
-            print("❌ No handoff code found for order: \(orderId.uuidString)")
+            print("❌ No handoff code found for order \(orderId.uuidString)")
             return false
         }
 
         if storedCode == enteredCode {
-            print("✅ Handoff code verified - marking as delivered")
+            print("✅ Handoff code verified — marking as delivered")
             try await updateOrderStatus(orderId: orderId, status: .delivered)
             return true
         } else {
-            print("❌ Handoff code mismatch: entered '\(enteredCode)' vs stored '\(storedCode)'")
+            print("❌ Handoff code mismatch: '\(enteredCode)' vs '\(storedCode)'")
             return false
         }
     }
 
-    // MARK: - Submit Order Rating
-    /// Submits a rating for a user after an order is completed
-    /// - Parameters:
-    ///   - orderId: The order ID
-    ///   - ratedUserId: The user being rated
-    ///   - rating: Rating from 1 to 5 stars
-    ///   - review: Optional written review
+    // MARK: - Ratings
+
+    /// Submits a 1–5 star rating for a user after order completion.
+    /// `review` is optional freeform text.
     func submitOrderRating(
         orderId: UUID,
         ratedUserId: UUID,
@@ -467,16 +440,10 @@ final class OrderRepository {
             review: review
         )
 
-        try await client
-            .from("order_ratings")
-            .insert(ratingPayload)
-            .execute()
-
-        print("✅ Rating submitted: \(rating) stars for user \(ratedUserId.uuidString.prefix(8))")
+        try await client.from("order_ratings").insert(ratingPayload).execute()
+        print("✅ Rating submitted: \(rating)★ for user \(ratedUserId.uuidString.prefix(8))")
     }
 
-    // MARK: - Fetch Order Rating (if exists)
-    /// Fetches an existing rating for a given order and rater
     func fetchOrderRating(orderId: UUID, raterId: UUID) async throws -> OrderRatingDTO? {
         let response = try await client
             .from("order_ratings")
@@ -486,12 +453,9 @@ final class OrderRepository {
             .single()
             .execute()
 
-        let data = try JSONDecoder().decode(OrderRatingDTO.self, from: response.data)
-        return data
+        return try JSONDecoder().decode(OrderRatingDTO.self, from: response.data)
     }
 
-    // MARK: - Fetch All Ratings for a User
-    /// Fetches all ratings given to a specific user (seller or buyer)
     func fetchUserRatings(userId: UUID) async throws -> [OrderRatingDTO] {
         let response = try await client
             .from("order_ratings")
@@ -500,20 +464,14 @@ final class OrderRepository {
             .order("created_at", ascending: false)
             .execute()
 
-        let data = try JSONDecoder().decode([OrderRatingDTO].self, from: response.data)
-        return data
+        return try JSONDecoder().decode([OrderRatingDTO].self, from: response.data)
     }
 
-    // MARK: - Fetch User Rating Summary
-    /// Fetches average rating and total ratings count for a user
+    /// Reads `average_rating` and `total_ratings` from the `users` table
+    /// (these are denormalised columns updated by a DB trigger).
     struct UserRatingSummary: Decodable {
         let average_rating: Double?
         let total_ratings: Int?
-
-        enum CodingKeys: String, CodingKey {
-            case average_rating
-            case total_ratings
-        }
     }
 
     func fetchUserRatingSummary(userId: UUID) async throws -> UserRatingSummary {
@@ -524,17 +482,10 @@ final class OrderRepository {
             .single()
             .execute()
 
-        let data = try JSONDecoder().decode(UserRatingSummary.self, from: response.data)
-        return data
+        return try JSONDecoder().decode(UserRatingSummary.self, from: response.data)
     }
 
-    // MARK: - Update Rating
-    /// Allows updating a rating (only the review and rating itself)
-    func updateOrderRating(
-        ratingId: UUID,
-        newRating: Int,
-        newReview: String? = nil
-    ) async throws {
+    func updateOrderRating(ratingId: UUID, newRating: Int, newReview: String? = nil) async throws {
         struct RatingUpdate: Encodable {
             let rating: Int
             let review: String
@@ -548,18 +499,13 @@ final class OrderRepository {
 
         try await client
             .from("order_ratings")
-            .update(RatingUpdate(
-                rating: newRating,
-                review: newReview ?? ""
-            ))
+            .update(RatingUpdate(rating: newRating, review: newReview ?? ""))
             .eq("id", value: ratingId.uuidString)
             .execute()
 
-        print("✅ Rating updated: \(newRating) stars")
+        print("✅ Rating updated: \(newRating)★")
     }
 
-    // MARK: - Delete Rating
-    /// Allows deleting a rating (only by the user who created it)
     func deleteOrderRating(ratingId: UUID) async throws {
         try await client
             .from("order_ratings")
@@ -570,31 +516,22 @@ final class OrderRepository {
         print("✅ Rating deleted")
     }
 
-    // MARK: - Check if User Can Rate Order
-    /// Checks if the current user can rate a specific order
-    /// (user must be buyer or seller in the order and order must be delivered)
+    /// Returns `true` if the current user is the buyer or seller of `orderId`
+    /// and the order status is `delivered`.
     func canRateOrder(_ orderId: UUID) async throws -> Bool {
         do {
             let order = try await fetchOrder(id: orderId)
-            
-            // Order must be delivered
-            guard order.status == "delivered" else {
-                return false
-            }
+            guard order.status == "delivered" else { return false }
 
             let currentUserId = try await getCurrentUserId()
-
-            // Check if user is buyer or seller
-            let isBuyer = order.user_id == currentUserId
+            let isBuyer  = order.user_id == currentUserId
             let isSeller = try await isUserSellerInOrder(orderId, userId: currentUserId)
-
             return isBuyer || isSeller
         } catch {
             return false
         }
     }
 
-    // MARK: - Helper: Check if user is seller in order
     private func isUserSellerInOrder(_ orderId: UUID, userId: UUID) async throws -> Bool {
         let response = try await client
             .from("order_items")
@@ -602,9 +539,7 @@ final class OrderRepository {
             .eq("order_id", value: orderId.uuidString)
             .execute()
 
-        struct OrderItem: Decodable {
-            let product_id: UUID
-        }
+        struct OrderItem: Decodable { let product_id: UUID }
 
         let items = try JSONDecoder().decode([OrderItem].self, from: response.data)
 
@@ -616,14 +551,10 @@ final class OrderRepository {
                 .single()
                 .execute()
 
-            struct Product: Decodable {
-                let seller_id: UUID
-            }
+            struct Product: Decodable { let seller_id: UUID }
 
             let product = try JSONDecoder().decode(Product.self, from: productResponse.data)
-            if product.seller_id == userId {
-                return true
-            }
+            if product.seller_id == userId { return true }
         }
 
         return false

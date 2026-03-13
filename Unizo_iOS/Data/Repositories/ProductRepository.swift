@@ -2,7 +2,10 @@
 //  ProductRepository.swift
 //  Unizo_iOS
 //
-//  Created by Somesh on 03/01/26.
+//  Data access layer for the `products` table. All fetch methods that
+//  target the buyer feed auto-exclude the current user's own listings,
+//  sold items, and zero-quantity stock. Seller-facing queries (e.g.
+//  fetchSellerProducts) do not apply these filters.
 //
 
 import Foundation
@@ -10,13 +13,11 @@ import Supabase
 
 final class ProductRepository {
 
-    // MARK: - Properties
     private let supabase: SupabaseClient
     private let pageSize = 20
 
-    // Standard select fields for all product queries
-    // Note: gallery_images column may not exist in older database schemas
-    // The field is optional in ProductDTO so it gracefully handles null/missing values
+    // Shared select field list. `gallery_images` is optional in ProductDTO
+    // to handle older database schemas that predate that column.
     private let productSelectFields = """
         id,
         title,
@@ -37,31 +38,28 @@ final class ProductRepository {
         seller:users!seller_id(id, first_name, last_name, email)
     """
 
-    // In-memory cache (used for cart suggestions, category reuse, etc.)
+    /// In-memory cache populated on page 1. Used for cart suggestions and
+    /// category reuse across screens without a round-trip.
     private(set) var cachedProducts: [ProductDTO] = []
 
-    // MARK: - Init
     init(supabase: SupabaseClient) {
         self.supabase = supabase
     }
 
-    // MARK: - Helper: Get current user ID
+    // MARK: - Helpers
+
     private func getCurrentUserId() async -> UUID? {
-        return await AuthManager.shared.currentUserId
+        await AuthManager.shared.currentUserId
     }
 
-    // MARK: - Network Guard
     private func requireNetwork() throws {
         guard NetworkMonitor.shared.isReachable() else {
             throw NetworkError.noConnection
         }
     }
 
-    // MARK: - Fetch All Products (Paginated)
-    /// Fetches products excluding:
-    /// - Sold products (status = 'sold')
-    /// - Products with quantity = 0
-    /// - Current user's own products (sellers shouldn't see their own listings in buyer views)
+    // MARK: - Fetch All (Paginated)
+
     func fetchAllProducts(page: Int) async throws -> [ProductDTO] {
         try requireNetwork()
 
@@ -71,35 +69,31 @@ final class ProductRepository {
         }
 
         let from = (page - 1) * pageSize
-        let to = from + pageSize - 1
+        let to   = from + pageSize - 1
 
-        // Get current user ID to exclude their products
         let currentUserId = await getCurrentUserId()
 
         var query = supabase
             .from("products")
             .select(productSelectFields)
             .eq("is_active", value: true)
-            .neq("status", value: "sold")  // Exclude sold products
-            .gt("quantity", value: 0)       // Exclude zero-quantity products
+            .neq("status", value: "sold")
+            .gt("quantity", value: 0)
 
-        // Exclude current user's own products if logged in
         if let userId = currentUserId {
             query = query.neq("seller_id", value: userId.uuidString)
         }
 
-        let response = try await query
-            .range(from: from, to: to)
-            .execute()
+        let response = try await query.range(from: from, to: to).execute()
 
-        // Debug: Print raw JSON to see what Supabase returns
         if let jsonString = String(data: response.data, encoding: .utf8) {
             print("🔍 Raw Supabase response (first 2000 chars):", String(jsonString.prefix(2000)))
         }
 
         var products = try JSONDecoder().decode([ProductDTO].self, from: response.data)
 
-        // Filter out products from blocked sellers (local filter for immediate effect)
+        // Apply local blocked-user filter for immediate effect while the
+        // Row-Level Security policy propagates.
         let blockedUsers = BlockedUsersStore.all()
         if !blockedUsers.isEmpty {
             products = products.filter { product in
@@ -110,13 +104,11 @@ final class ProductRepository {
 
         print("📥 Supabase returned:", products.count)
 
-        // Debug: Check seller info for first product
         if let first = products.first {
             print("🔍 First product seller:", first.seller ?? "nil")
             print("🔍 First product sellerDisplayName:", first.sellerDisplayName)
         }
 
-        // Cache only once
         if page == 1 && cachedProducts.isEmpty {
             cachedProducts = products
             print("📦 Cached products:", cachedProducts.count)
@@ -125,11 +117,10 @@ final class ProductRepository {
         return products
     }
 
-    // MARK: - Popular Products
+    // MARK: - Curated Feeds
+
     func fetchPopularProducts() async throws -> [ProductDTO] {
         try requireNetwork()
-
-        // Get current user ID to exclude their products
         let currentUserId = await getCurrentUserId()
 
         var query = supabase
@@ -139,7 +130,6 @@ final class ProductRepository {
             .neq("status", value: "sold")
             .gt("quantity", value: 0)
 
-        // Exclude current user's own products if logged in
         if let userId = currentUserId {
             query = query.neq("seller_id", value: userId.uuidString)
         }
@@ -149,17 +139,11 @@ final class ProductRepository {
             .limit(pageSize)
             .execute()
 
-        return try JSONDecoder().decode(
-            [ProductDTO].self,
-            from: response.data
-        )
+        return try JSONDecoder().decode([ProductDTO].self, from: response.data)
     }
 
-    // MARK: - Negotiable Products
     func fetchNegotiableProducts() async throws -> [ProductDTO] {
         try requireNetwork()
-
-        // Get current user ID to exclude their products
         let currentUserId = await getCurrentUserId()
 
         var query = supabase
@@ -170,24 +154,16 @@ final class ProductRepository {
             .neq("status", value: "sold")
             .gt("quantity", value: 0)
 
-        // Exclude current user's own products if logged in
         if let userId = currentUserId {
             query = query.neq("seller_id", value: userId.uuidString)
         }
 
         let response = try await query.execute()
-
-        return try JSONDecoder().decode(
-            [ProductDTO].self,
-            from: response.data
-        )
+        return try JSONDecoder().decode([ProductDTO].self, from: response.data)
     }
 
-    // MARK: - Products by Category
     func fetchProductsByCategory(_ category: String) async throws -> [ProductDTO] {
         try requireNetwork()
-
-        // Get current user ID to exclude their products
         let currentUserId = await getCurrentUserId()
 
         var query = supabase
@@ -198,19 +174,14 @@ final class ProductRepository {
             .neq("status", value: "sold")
             .gt("quantity", value: 0)
 
-        // Exclude current user's own products if logged in
         if let userId = currentUserId {
             query = query.neq("seller_id", value: userId.uuidString)
         }
 
         let response = try await query.execute()
-
-        return try JSONDecoder().decode(
-            [ProductDTO].self,
-            from: response.data
-        )
+        return try JSONDecoder().decode([ProductDTO].self, from: response.data)
     }
-    // MARK: - Banners
+
     func fetchBanners() async throws -> [BannerDTO] {
         try requireNetwork()
         let response = try await supabase
@@ -223,16 +194,15 @@ final class ProductRepository {
         return try JSONDecoder().decode([BannerDTO].self, from: response.data)
     }
 
-    // MARK: - Search Products
+    // MARK: - Search
+
     func searchProducts(keyword: String) async throws -> [ProductDTO] {
         try requireNetwork()
 
         let trimmed = keyword.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else { return [] }
 
-        let pattern = "%\(trimmed)%"
-
-        // Get current user ID to exclude their products
+        let pattern       = "%\(trimmed)%"
         let currentUserId = await getCurrentUserId()
 
         var query = supabase
@@ -247,42 +217,33 @@ final class ProductRepository {
                 "category.ilike.\(pattern)"
             )
 
-        // Exclude current user's own products if logged in
         if let userId = currentUserId {
             query = query.neq("seller_id", value: userId.uuidString)
         }
 
         let response = try await query.execute()
-
-        return try JSONDecoder().decode(
-            [ProductDTO].self,
-            from: response.data
-        )
+        return try JSONDecoder().decode([ProductDTO].self, from: response.data)
     }
-    
+
+    // MARK: - Write
+
     func insertProduct(_ product: ProductInsertDTO) async throws {
         try requireNetwork()
-        try await supabase
-            .from("products")
-            .insert(product)
-            .execute()
+        try await supabase.from("products").insert(product).execute()
     }
 
-    // MARK: - Update Product Status (for sold items)
+    // MARK: - Inventory
 
-    /// Struct for updating product inventory
     private struct ProductInventoryUpdate: Codable {
         let quantity: Int
         let status: String
     }
 
-    /// Marks a product as sold and reduces quantity
-    /// - Parameters:
-    ///   - productId: The product UUID
-    ///   - quantitySold: Number of items sold (default 1)
+    /// Decrements quantity by `quantitySold` and marks the product as
+    /// "sold" if the resulting quantity reaches zero.
     func markProductAsSold(productId: UUID, quantitySold: Int = 1) async throws {
         try requireNetwork()
-        // First fetch current quantity
+
         let response = try await supabase
             .from("products")
             .select("quantity")
@@ -290,27 +251,23 @@ final class ProductRepository {
             .single()
             .execute()
 
-        struct QuantityResult: Codable {
-            let quantity: Int
-        }
+        struct QuantityResult: Codable { let quantity: Int }
 
-        let result = try JSONDecoder().decode(QuantityResult.self, from: response.data)
+        let result      = try JSONDecoder().decode(QuantityResult.self, from: response.data)
         let newQuantity = max(0, result.quantity - quantitySold)
         let newStatus: String = newQuantity == 0 ? "sold" : "available"
 
-        // Update product with Encodable struct
-        let updateData = ProductInventoryUpdate(quantity: newQuantity, status: newStatus)
-
         try await supabase
             .from("products")
-            .update(updateData)
+            .update(ProductInventoryUpdate(quantity: newQuantity, status: newStatus))
             .eq("id", value: productId.uuidString)
             .execute()
 
-        print("📦 Product \(productId) updated: quantity=\(newQuantity), status=\(newStatus)")
+        print("📦 Product \(productId) → quantity=\(newQuantity), status=\(newStatus)")
     }
 
-    /// Fetches a single product by ID (used for detail views)
+    // MARK: - Single-Item Fetches
+
     func fetchProduct(id: UUID) async throws -> ProductDTO? {
         let response = try await supabase
             .from("products")
@@ -322,8 +279,8 @@ final class ProductRepository {
         return try JSONDecoder().decode(ProductDTO.self, from: response.data)
     }
 
-    /// Fetches products for a specific seller (for ListingsViewController)
-    /// This does NOT exclude seller's own products (since that's the whole point)
+    /// Returns all listings for `sellerId`, including the seller's own.
+    /// Used by ListingsViewController and SellerDashboard.
     func fetchSellerProducts(sellerId: UUID) async throws -> [ProductDTO] {
         let response = try await supabase
             .from("products")
@@ -336,11 +293,8 @@ final class ProductRepository {
         return try JSONDecoder().decode([ProductDTO].self, from: response.data)
     }
 
-    // MARK: - Increment View Count
-    /// Increments the view count for a product when a user views it
-    /// - Parameter productId: The product UUID
+    /// Increments views_count by 1. Called when a buyer opens a product detail screen.
     func incrementViewCount(productId: UUID) async throws {
-        // First fetch current views count
         let response = try await supabase
             .from("products")
             .select("views_count")
@@ -348,18 +302,12 @@ final class ProductRepository {
             .single()
             .execute()
 
-        struct ViewsResult: Codable {
-            let views_count: Int?
-        }
+        struct ViewsResult: Codable { let views_count: Int? }
 
-        let result = try JSONDecoder().decode(ViewsResult.self, from: response.data)
-        let currentViews = result.views_count ?? 0
-        let newViews = currentViews + 1
+        let result    = try JSONDecoder().decode(ViewsResult.self, from: response.data)
+        let newViews  = (result.views_count ?? 0) + 1
 
-        // Update with incremented views count
-        struct ViewsUpdate: Codable {
-            let views_count: Int
-        }
+        struct ViewsUpdate: Codable { let views_count: Int }
 
         try await supabase
             .from("products")
@@ -367,6 +315,6 @@ final class ProductRepository {
             .eq("id", value: productId.uuidString)
             .execute()
 
-        print("👁️ Product \(productId) view count updated: \(currentViews) → \(newViews)")
+        print("👁️ Product \(productId) views: \(newViews)")
     }
 }
