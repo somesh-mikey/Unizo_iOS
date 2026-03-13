@@ -18,6 +18,7 @@ class AccountCreatedViewController: UIViewController {
     }()
     
     func goToMainTabBar() {
+        MainTabBarController.isGuestMode = false
         let tabBar = MainTabBarController()
         tabBar.modalPresentationStyle = .fullScreen
         
