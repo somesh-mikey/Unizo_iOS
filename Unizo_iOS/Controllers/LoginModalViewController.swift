@@ -318,6 +318,7 @@ final class LoginModalViewController: UIViewController {
                         guard let scene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
                               let window = scene.windows.first else { return }
 
+                        MainTabBarController.isGuestMode = false
                         let tab = MainTabBarController()
                         tab.selectedIndex = 0
 
