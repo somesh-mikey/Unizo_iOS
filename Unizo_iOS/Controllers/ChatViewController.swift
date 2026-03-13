@@ -382,6 +382,12 @@ final class ChatViewController: UIViewController {
             name: .newChatMessageReceived,
             object: nil
         )
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(handleProductDeleted(_:)),
+            name: .productDeleted,
+            object: nil
+        )
     }
 
     // MARK: - Fetch Conversations
@@ -470,6 +476,14 @@ final class ChatViewController: UIViewController {
         fetchConversations()
     }
 
+    @objc private func handleProductDeleted(_ notification: Notification) {
+        guard let productId = notification.userInfo?["productId"] as? UUID else { return }
+
+        // Remove conversations tied to the deleted product
+        allConversations.removeAll { $0.productId == productId }
+        applyFilters()
+    }
+
     private func applyFilters() {
         var result = allConversations
 
@@ -523,13 +537,15 @@ extension ChatViewController: UITableViewDataSource, UITableViewDelegate {
     
     func tableView(_ tableView: UITableView, didSelectRowAt indexPath: IndexPath) {
         let conversation = filteredConversations[indexPath.row]
-        
+
         let detailVC = ChatDetailViewController()
         detailVC.conversationId = conversation.id
         detailVC.chatTitle = conversation.productTitle
         detailVC.otherUserName = conversation.otherUserName
         detailVC.isSeller = conversation.isSeller
-        
+        detailVC.productId = conversation.productId
+        detailVC.otherUserImageURL = conversation.otherUserImageURL
+
         navigationController?.pushViewController(detailVC, animated: true)
     }
     
@@ -543,7 +559,9 @@ extension ChatViewController: UITableViewDataSource, UITableViewDelegate {
             detailVC.chatTitle = conversation.productTitle
             detailVC.otherUserName = conversation.otherUserName
             detailVC.isSeller = conversation.isSeller
-            
+            detailVC.productId = conversation.productId
+            detailVC.otherUserImageURL = conversation.otherUserImageURL
+
             navigationController?.pushViewController(detailVC, animated: true)
         } else {
             print("Conversation not found in list, attempting direct load")

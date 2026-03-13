@@ -14,8 +14,16 @@ final class EventRepository {
         self.client = client
     }
 
+    // MARK: - Network Guard
+    private func requireNetwork() throws {
+        guard NetworkMonitor.shared.isReachable() else {
+            throw NetworkError.noConnection
+        }
+    }
+
     // MARK: - Fetch All Active Events
     func fetchEvents() async throws -> [EventDTO] {
+        try requireNetwork()
         let response = try await client
             .from("events")
             .select("""
@@ -40,6 +48,7 @@ final class EventRepository {
 
     // MARK: - Fetch Featured Events
     func fetchFeaturedEvents() async throws -> [EventDTO] {
+        try requireNetwork()
         let response = try await client
             .from("events")
             .select("""
@@ -65,6 +74,7 @@ final class EventRepository {
 
     // MARK: - Fetch Event by ID
     func fetchEvent(id: UUID) async throws -> EventDTO {
+        try requireNetwork()
         let response: EventDTO = try await client
             .from("events")
             .select("""
@@ -90,6 +100,7 @@ final class EventRepository {
 
     // MARK: - Insert Event
     func insertEvent(_ event: EventInsertDTO) async throws {
+        try requireNetwork()
         try await client
             .from("events")
             .insert(event)

@@ -26,6 +26,13 @@ final class OrderRepository {
         return userId
     }
 
+    // MARK: - Network Guard
+    private func requireNetwork() throws {
+        guard NetworkMonitor.shared.isReachable() else {
+            throw NetworkError.noConnection
+        }
+    }
+
     // MARK: - Create Order
     func createOrder(
         addressId: UUID,
@@ -34,6 +41,7 @@ final class OrderRepository {
         paymentMethod: String,
         instructions: String?
     ) async throws -> UUID {
+        try requireNetwork()
         let orderId = UUID()
         let userId = try await getCurrentUserId()
 
@@ -158,6 +166,7 @@ final class OrderRepository {
 
     // MARK: - Fetch Order by ID
     func fetchOrder(id: UUID) async throws -> OrderDTO {
+        try requireNetwork()
         let response: OrderDTO = try await client
             .from("orders")
             .select("""
@@ -182,6 +191,7 @@ final class OrderRepository {
 
     // MARK: - Fetch Order with Items and Address
     func fetchOrderWithDetails(id: UUID) async throws -> OrderDTO {
+        try requireNetwork()
         let response: OrderDTO = try await client
             .from("orders")
             .select("""
@@ -243,6 +253,7 @@ final class OrderRepository {
 
     // MARK: - Fetch User Orders
     func fetchUserOrders() async throws -> [OrderDTO] {
+        try requireNetwork()
         let userId = try await getCurrentUserId()
 
         let response: [OrderDTO] = try await client
@@ -269,6 +280,7 @@ final class OrderRepository {
 
     // MARK: - Fetch Order Items
     func fetchOrderItems(orderId: UUID) async throws -> [OrderItemDTO] {
+        try requireNetwork()
         let response: [OrderItemDTO] = try await client
             .from("order_items")
             .select("""
@@ -305,6 +317,7 @@ final class OrderRepository {
 
     // MARK: - Fetch User Orders With Items
     func fetchUserOrdersWithItems() async throws -> [OrderDTO] {
+        try requireNetwork()
         let userId = try await getCurrentUserId()
 
         let response: [OrderDTO] = try await client
@@ -355,6 +368,7 @@ final class OrderRepository {
 
     // MARK: - Update Order Status
     func updateOrderStatus(orderId: UUID, status: OrderStatus) async throws {
+        try requireNetwork()
         struct StatusUpdate: Encodable {
             let status: String
         }
@@ -378,6 +392,7 @@ final class OrderRepository {
 
     // MARK: - Mark Ready for Handoff (Seller Action)
     func markReadyForHandoff(orderId: UUID, handoffCode: String) async throws {
+        try requireNetwork()
         struct HandoffUpdate: Encodable {
             let status: String
             let handoff_code: String
@@ -435,6 +450,7 @@ final class OrderRepository {
         rating: Int,
         review: String? = nil
     ) async throws {
+        try requireNetwork()
         guard rating >= 1 && rating <= 5 else {
             throw NSError(domain: "OrderRepository", code: 400, userInfo: [
                 NSLocalizedDescriptionKey: "Rating must be between 1 and 5"

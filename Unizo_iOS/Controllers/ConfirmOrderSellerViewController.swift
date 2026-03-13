@@ -72,7 +72,7 @@ class ConfirmOrderSellerViewController: UIViewController {
         let iv = UIImageView()
         iv.image = UIImage(systemName: "photo")  // Placeholder image
         iv.tintColor = .lightGray
-        iv.contentMode = .scaleAspectFit
+        iv.contentMode = .scaleAspectFill
         iv.clipsToBounds = true
         iv.layer.cornerRadius = 8
         iv.backgroundColor = .white
@@ -618,6 +618,15 @@ private extension ConfirmOrderSellerViewController {
                                 quantitySold: item.quantity
                             )
                             print("✅ Product \(productId) marked as sold (qty: \(item.quantity))")
+
+                            // Notify other screens to remove the product immediately
+                            await MainActor.run {
+                                NotificationCenter.default.post(
+                                    name: .productDeleted,
+                                    object: nil,
+                                    userInfo: ["productId": productId]
+                                )
+                            }
                         } catch {
                             print("⚠️ Failed to mark product \(productId) as sold: \(error)")
                             // Continue with other items even if one fails

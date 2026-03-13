@@ -24,6 +24,13 @@ final class NotificationRepository {
         return userId
     }
 
+    // MARK: - Network Guard
+    private func requireNetwork() throws {
+        guard NetworkMonitor.shared.isReachable() else {
+            throw NetworkError.noConnection
+        }
+    }
+
     // MARK: - Create Notification (with idempotency)
     func createNotification(
         recipientId: UUID,
@@ -34,6 +41,7 @@ final class NotificationRepository {
         message: String,
         deeplinkPayload: DeeplinkPayload
     ) async throws {
+        try requireNetwork()
         // Generate event_key for idempotency (prevents duplicates)
         let eventKey = "\(type.rawValue):\(orderId.uuidString):\(recipientId.uuidString)"
 
@@ -77,6 +85,7 @@ final class NotificationRepository {
 
     // MARK: - Fetch Notifications for Current User
     func fetchNotifications() async throws -> [NotificationDTO] {
+        try requireNetwork()
         let userId = try await getCurrentUserId()
 
         let response: [NotificationDTO] = try await client
@@ -105,6 +114,7 @@ final class NotificationRepository {
 
     // MARK: - Fetch Unread Count
     func fetchUnreadCount() async throws -> Int {
+        try requireNetwork()
         let userId = try await getCurrentUserId()
 
         let response = try await client
@@ -119,6 +129,7 @@ final class NotificationRepository {
 
     // MARK: - Mark Notification as Read
     func markAsRead(notificationId: UUID) async throws {
+        try requireNetwork()
         struct ReadUpdate: Encodable {
             let is_read: Bool
         }
@@ -132,6 +143,7 @@ final class NotificationRepository {
 
     // MARK: - Mark All Notifications as Read
     func markAllAsRead() async throws {
+        try requireNetwork()
         let userId = try await getCurrentUserId()
 
         struct ReadUpdate: Encodable {

@@ -14,9 +14,15 @@ class SplashViewController: UIViewController {
         setupLogo()
         setupTitle()
 
-        // 3-second delay before moving to the Welcome screen
-        DispatchQueue.main.asyncAfter(deadline: .now() + 3.0) {
-            self.goToWelcomeScreen()
+        // 3-second delay before checking session
+        DispatchQueue.main.asyncAfter(deadline: .now() + 3.0) { [weak self] in
+            guard let self = self else { return }
+
+            if AuthManager.shared.isLoggedInSync {
+                self.goToMainApp()
+            } else {
+                self.goToWelcomeScreen()
+            }
         }
     }
 
@@ -48,6 +54,23 @@ class SplashViewController: UIViewController {
             titleLabel.topAnchor.constraint(equalTo: logoImageView.bottomAnchor, constant: 12),
             titleLabel.centerXAnchor.constraint(equalTo: view.centerXAnchor)
         ])
+    }
+
+    // MARK: - Navigate to Main App (logged-in user)
+    private func goToMainApp() {
+        guard let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
+              let window = windowScene.windows.first else { return }
+
+        MainTabBarController.isGuestMode = false
+        window.rootViewController = MainTabBarController()
+        window.makeKeyAndVisible()
+        UIView.transition(with: window, duration: 0.3, options: .transitionCrossDissolve, animations: nil)
+
+        // Start notification and chat listeners
+        Task {
+            await NotificationManager.shared.startListening()
+            await ChatManager.shared.startListening()
+        }
     }
 
     // MARK: - Navigate to WelcomeViewController

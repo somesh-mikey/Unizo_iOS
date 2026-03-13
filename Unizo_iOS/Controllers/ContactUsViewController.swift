@@ -22,17 +22,15 @@ class ContactUsViewController: UIViewController {
     private let contactSegment = UISegmentedControl(items: ["Email".localized, "Phone".localized])
     private let contactField = UITextField()
 
-    // Subject row
-    private let subjectContainer = UIView()
-    private let subjectLeftLabel = UILabel()
-    private let subjectField = UITextField()
-    private let pickerView = UIPickerView()
+    // Category row
+    private let categoryButton = UIButton(type: .system)
 
     private let messageTextView = UITextView()
     private let submitButton = UIButton(type: .system)
 
     // MARK: - Data
-    private let subjectOptions = ["Help", "Bug Report", "Feedback", "Account Issue"]
+    private let categoryOptions = ["General Inquiry", "Bug Report", "Feature Request", "Account Issue", "Payment Issue", "Other"]
+    private var selectedCategory: String = "General Inquiry"
 
     // MARK: - Colors
     private let primaryColor = UIColor(red: 0.12, green: 0.28, blue: 0.35, alpha: 1.0)
@@ -134,26 +132,20 @@ class ContactUsViewController: UIViewController {
         contactField.placeholder = "Email Address".localized
         contactField.keyboardType = .emailAddress
 
-        // Subject container
-        subjectContainer.backgroundColor = .white
-        subjectContainer.layer.cornerRadius = 14
-
-        subjectLeftLabel.text = "Subject".localized
-        subjectLeftLabel.font = .systemFont(ofSize: 16, weight: .medium)
-        subjectLeftLabel.textColor = .label
-
-        subjectField.placeholder = "Help".localized
-        subjectField.font = .systemFont(ofSize: 16)
-        subjectField.tintColor = .clear
-
-        let chevron = UIImageView(image: UIImage(systemName: "chevron.down"))
-        chevron.tintColor = .secondaryLabel
-        subjectField.rightView = chevron
-        subjectField.rightViewMode = .always
-
-        pickerView.delegate = self
-        pickerView.dataSource = self
-        subjectField.inputView = pickerView
+        // Category button
+        var categoryConfig = UIButton.Configuration.filled()
+        categoryConfig.baseBackgroundColor = .white
+        categoryConfig.baseForegroundColor = .label
+        categoryConfig.cornerStyle = .large
+        categoryConfig.contentInsets = NSDirectionalEdgeInsets(top: 14, leading: 16, bottom: 14, trailing: 16)
+        categoryConfig.title = selectedCategory.localized
+        categoryConfig.image = UIImage(systemName: "chevron.down")
+        categoryConfig.imagePlacement = .trailing
+        categoryConfig.imagePadding = 8
+        categoryConfig.preferredSymbolConfigurationForImage = UIImage.SymbolConfiguration(pointSize: 12, weight: .medium)
+        categoryButton.configuration = categoryConfig
+        categoryButton.contentHorizontalAlignment = .leading
+        categoryButton.addTarget(self, action: #selector(categoryButtonTapped), for: .touchUpInside)
 
         // Message
         messageTextView.text = "Write your message here...".localized
@@ -175,21 +167,14 @@ class ContactUsViewController: UIViewController {
             contactSegment,
             contactField,
             helpLabel,
-            subjectContainer,
+            categoryButton,
             explainLabel,
-            messageTextView
+            messageTextView,
+            submitButton
         ].forEach {
             $0.translatesAutoresizingMaskIntoConstraints = false
             contentView.addSubview($0)
         }
-
-        [subjectLeftLabel, subjectField].forEach {
-            $0.translatesAutoresizingMaskIntoConstraints = false
-            subjectContainer.addSubview($0)
-        }
-
-        submitButton.translatesAutoresizingMaskIntoConstraints = false
-        view.addSubview(submitButton)
     }
 
     private func configureTextField(_ tf: UITextField) {
@@ -208,18 +193,26 @@ class ContactUsViewController: UIViewController {
         if contactSegment.selectedSegmentIndex == 0 {
             contactField.placeholder = "Email Address".localized
             contactField.keyboardType = .emailAddress
+            contactField.inputAccessoryView = nil
         } else {
             contactField.placeholder = "Phone Number".localized
-            contactField.keyboardType = .numberPad
+            contactField.keyboardType = .phonePad
+            // Add Done toolbar for phone pad (no Return key)
+            let toolbar = UIToolbar()
+            toolbar.sizeToFit()
+            let doneButton = UIBarButtonItem(barButtonSystemItem: .done, target: self, action: #selector(dismissKeyboard))
+            toolbar.items = [UIBarButtonItem.flexibleSpace(), doneButton]
+            contactField.inputAccessoryView = toolbar
         }
         contactField.reloadInputViews()
     }
 
-    // MARK: - Constraints (SUBMIT FIXED AT BOTTOM)
     // MARK: - Constraints
     private func setupConstraints() {
         scrollView.translatesAutoresizingMaskIntoConstraints = false
         contentView.translatesAutoresizingMaskIntoConstraints = false
+
+        scrollView.contentInset = UIEdgeInsets(top: 16, left: 0, bottom: 32, right: 0)
 
         NSLayoutConstraint.activate([
             // Scroll
@@ -237,12 +230,12 @@ class ContactUsViewController: UIViewController {
             reachLabel.topAnchor.constraint(equalTo: contentView.topAnchor, constant: 24),
             reachLabel.leadingAnchor.constraint(equalTo: contentView.leadingAnchor, constant: 16),
 
-            contactSegment.topAnchor.constraint(equalTo: reachLabel.bottomAnchor, constant: 12),
+            contactSegment.topAnchor.constraint(equalTo: reachLabel.bottomAnchor, constant: 16),
             contactSegment.leadingAnchor.constraint(equalTo: contentView.leadingAnchor, constant: 16),
             contactSegment.trailingAnchor.constraint(equalTo: contentView.trailingAnchor, constant: -16),
             contactSegment.heightAnchor.constraint(equalToConstant: 36),
 
-            contactField.topAnchor.constraint(equalTo: contactSegment.bottomAnchor, constant: 0),
+            contactField.topAnchor.constraint(equalTo: contactSegment.bottomAnchor, constant: 16),
             contactField.leadingAnchor.constraint(equalTo: contactSegment.leadingAnchor),
             contactField.trailingAnchor.constraint(equalTo: contactSegment.trailingAnchor),
             contactField.heightAnchor.constraint(equalToConstant: 52),
@@ -250,33 +243,47 @@ class ContactUsViewController: UIViewController {
             helpLabel.topAnchor.constraint(equalTo: contactField.bottomAnchor, constant: 24),
             helpLabel.leadingAnchor.constraint(equalTo: reachLabel.leadingAnchor),
 
-            subjectContainer.topAnchor.constraint(equalTo: helpLabel.bottomAnchor, constant: 12),
-            subjectContainer.leadingAnchor.constraint(equalTo: contactField.leadingAnchor),
-            subjectContainer.trailingAnchor.constraint(equalTo: contactField.trailingAnchor),
-            subjectContainer.heightAnchor.constraint(equalToConstant: 52),
+            categoryButton.topAnchor.constraint(equalTo: helpLabel.bottomAnchor, constant: 16),
+            categoryButton.leadingAnchor.constraint(equalTo: contactField.leadingAnchor),
+            categoryButton.trailingAnchor.constraint(equalTo: contactField.trailingAnchor),
+            categoryButton.heightAnchor.constraint(equalToConstant: 52),
 
-            subjectLeftLabel.leadingAnchor.constraint(equalTo: subjectContainer.leadingAnchor, constant: 16),
-            subjectLeftLabel.centerYAnchor.constraint(equalTo: subjectContainer.centerYAnchor),
-
-            subjectField.trailingAnchor.constraint(equalTo: subjectContainer.trailingAnchor, constant: -16),
-            subjectField.centerYAnchor.constraint(equalTo: subjectContainer.centerYAnchor),
-            subjectField.widthAnchor.constraint(equalToConstant: 120),
-
-            explainLabel.topAnchor.constraint(equalTo: subjectContainer.bottomAnchor, constant: 24),
+            explainLabel.topAnchor.constraint(equalTo: categoryButton.bottomAnchor, constant: 24),
             explainLabel.leadingAnchor.constraint(equalTo: reachLabel.leadingAnchor),
 
-            messageTextView.topAnchor.constraint(equalTo: explainLabel.bottomAnchor, constant: 12),
+            messageTextView.topAnchor.constraint(equalTo: explainLabel.bottomAnchor, constant: 16),
             messageTextView.leadingAnchor.constraint(equalTo: contactField.leadingAnchor),
             messageTextView.trailingAnchor.constraint(equalTo: contactField.trailingAnchor),
             messageTextView.heightAnchor.constraint(equalToConstant: 120),
 
-            // ✅ SUBMIT BUTTON — ONLY CHANGE
-            submitButton.topAnchor.constraint(equalTo: messageTextView.bottomAnchor, constant: 200),
+            submitButton.topAnchor.constraint(equalTo: messageTextView.bottomAnchor, constant: 32),
             submitButton.leadingAnchor.constraint(equalTo: contactField.leadingAnchor),
             submitButton.trailingAnchor.constraint(equalTo: contactField.trailingAnchor),
             submitButton.heightAnchor.constraint(equalToConstant: 56),
-            submitButton.bottomAnchor.constraint(equalTo: contentView.bottomAnchor, constant: 180)
+            submitButton.bottomAnchor.constraint(equalTo: contentView.bottomAnchor, constant: -16)
         ])
+    }
+
+    // MARK: - Category Selection
+    @objc private func categoryButtonTapped() {
+        let alert = UIAlertController(
+            title: "Select Category".localized,
+            message: nil,
+            preferredStyle: .actionSheet
+        )
+
+        for option in categoryOptions {
+            alert.addAction(UIAlertAction(title: option.localized, style: .default) { [weak self] _ in
+                guard let self = self else { return }
+                self.selectedCategory = option
+                var config = self.categoryButton.configuration
+                config?.title = option.localized
+                self.categoryButton.configuration = config
+            })
+        }
+
+        alert.addAction(UIAlertAction(title: "Cancel".localized, style: .cancel))
+        present(alert, animated: true)
     }
 
     @objc private func backTapped() {
@@ -284,25 +291,3 @@ class ContactUsViewController: UIViewController {
     }
 }
 
-// MARK: - Picker
-extension ContactUsViewController: UIPickerViewDelegate, UIPickerViewDataSource {
-    func numberOfComponents(in pickerView: UIPickerView) -> Int { 1 }
-    func pickerView(_ pickerView: UIPickerView, numberOfRowsInComponent component: Int) -> Int {
-        subjectOptions.count
-    }
-    func pickerView(_ pickerView: UIPickerView, titleForRow row: Int, forComponent component: Int) -> String? {
-        subjectOptions[row]
-    }
-    func pickerView(_ pickerView: UIPickerView, didSelectRow row: Int, inComponent component: Int) {
-        subjectField.text = subjectOptions[row]
-    }
-}
-
-// MARK: - Padding
-//private extension UITextField {
-//    func setLeftPadding(_ amount: CGFloat) {
-//        let v = UIView(frame: CGRect(x: 0, y: 0, width: amount, height: 1))
-//        leftView = v
-//        leftViewMode = .always
-//    }
-//}

@@ -18,6 +18,18 @@ class SceneDelegate: UIResponder, UIWindowSceneDelegate {
         self.window = window
         window.overrideUserInterfaceStyle = .light
         window.makeKeyAndVisible()
+
+        // TASK-25: Setup No Internet Banner
+        NetworkMonitor.shared.onStatusChange = { [weak self] isConnected in
+            DispatchQueue.main.async { [weak self] in
+                guard let window = self?.window else { return }
+                if !isConnected {
+                    NoInternetBannerView.show(in: window)
+                } else {
+                    NoInternetBannerView.hide(from: window)
+                }
+            }
+        }
     }
 
     func sceneDidDisconnect(_ scene: UIScene) {}
@@ -27,6 +39,13 @@ class SceneDelegate: UIResponder, UIWindowSceneDelegate {
         Task {
             if await AuthManager.shared.isLoggedIn {
                 await NotificationManager.shared.startListening()
+            }
+        }
+
+        // TASK-02: Show feedback popup if enough time has passed
+        if AuthManager.shared.isLoggedInSync {
+            if let topVC = self.window?.rootViewController {
+                FeedbackManager.shared.presentFeedbackIfNeeded(from: topVC)
             }
         }
     }

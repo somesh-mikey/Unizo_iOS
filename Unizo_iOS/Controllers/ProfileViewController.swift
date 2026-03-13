@@ -131,6 +131,7 @@ final class ProfileViewController: UIViewController {
         configureInteractions()
         setupDOBPicker()
         setupGenderPicker()
+        setupNumericKeyboards()
         setupKeyboardHandling()
         loadUserData()
         setEditMode(false) // Start in view-only mode
@@ -681,6 +682,25 @@ final class ProfileViewController: UIViewController {
 
     @objc private func cancelGenderPicker() {
         view.endEditing(true)
+    }
+
+    // MARK: - Numeric Keyboard Setup
+    private func setupNumericKeyboards() {
+        // Phone field - phone pad
+        phoneTF.keyboardType = .phonePad
+        let phoneToolbar = UIToolbar()
+        phoneToolbar.sizeToFit()
+        let phoneDoneButton = UIBarButtonItem(barButtonSystemItem: .done, target: self, action: #selector(dismissKeyboard))
+        phoneToolbar.items = [UIBarButtonItem.flexibleSpace(), phoneDoneButton]
+        phoneTF.inputAccessoryView = phoneToolbar
+
+        // ZIP Code field - number pad
+        zipTF.keyboardType = .numberPad
+        let zipToolbar = UIToolbar()
+        zipToolbar.sizeToFit()
+        let zipDoneButton = UIBarButtonItem(barButtonSystemItem: .done, target: self, action: #selector(dismissKeyboard))
+        zipToolbar.items = [UIBarButtonItem.flexibleSpace(), zipDoneButton]
+        zipTF.inputAccessoryView = zipToolbar
     }
 }
 

@@ -22,6 +22,17 @@ class WelcomeViewController: UIViewController {
     @IBOutlet weak var emailSignUpButton: UIButton!
     @IBOutlet weak var bottomCardView: UIView!
 
+    // TASK-08: Guest browsing button (programmatic)
+    private let guestBrowseButton: UIButton = {
+        let button = UIButton(type: .system)
+        button.setTitle("Browse as Guest".localized, for: .normal)
+        button.setTitleColor(UIColor(red: 0/255, green: 76/255, blue: 97/255, alpha: 1), for: .normal)
+        button.titleLabel?.font = UIFont.systemFont(ofSize: 14, weight: .medium)
+        button.backgroundColor = .clear
+        button.translatesAutoresizingMaskIntoConstraints = false
+        return button
+    }()
+
     // MARK: - Lifecycle
     override func viewDidLoad() {
         super.viewDidLoad()
@@ -31,6 +42,7 @@ class WelcomeViewController: UIViewController {
 
           setupUI()
           setupConstraints()
+          setupGuestButton()
       }
 
     // MARK: - UI Setup
@@ -162,7 +174,7 @@ class WelcomeViewController: UIViewController {
             emailSignUpButton.heightAnchor.constraint(equalToConstant: 46),
 
             // Bottom padding for curved edge clearance
-            emailSignUpButton.bottomAnchor.constraint(equalTo: bottomCardView.bottomAnchor, constant: -48)
+            emailSignUpButton.bottomAnchor.constraint(lessThanOrEqualTo: bottomCardView.bottomAnchor, constant: -48)
         ])
 
 
@@ -242,7 +254,28 @@ class WelcomeViewController: UIViewController {
         ])
     }
 
+    // MARK: - Guest Button Setup
+    private func setupGuestButton() {
+        bottomCardView.addSubview(guestBrowseButton)
+        guestBrowseButton.addTarget(self, action: #selector(guestBrowseTapped), for: .touchUpInside)
+
+        NSLayoutConstraint.activate([
+            guestBrowseButton.topAnchor.constraint(equalTo: emailSignUpButton.bottomAnchor, constant: 12),
+            guestBrowseButton.centerXAnchor.constraint(equalTo: bottomCardView.centerXAnchor),
+            guestBrowseButton.heightAnchor.constraint(equalToConstant: 36)
+        ])
+    }
+
     // MARK: - Actions
+    @objc private func guestBrowseTapped() {
+        guard let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
+              let window = windowScene.windows.first else { return }
+
+        MainTabBarController.isGuestMode = true
+        window.rootViewController = MainTabBarController()
+        window.makeKeyAndVisible()
+        UIView.transition(with: window, duration: 0.3, options: .transitionCrossDissolve, animations: nil)
+    }
     @IBAction func loginButtonTapped(_ sender: UIButton) {
 
         let loginVC = LoginModalViewController()   // <-- PROGRAMMATIC INIT (NO XIB)

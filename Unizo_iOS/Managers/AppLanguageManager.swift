@@ -11,11 +11,35 @@ import UIKit
 
 // MARK: - Supported Languages
 enum AppLanguage: String, CaseIterable {
-    case english  = "English"
-    case hindi    = "Hindi"
-    case spanish  = "Spanish"
-    case french   = "French"
-    case german   = "German"
+    case english           = "English"
+    case hindi             = "Hindi"
+    case spanish           = "Spanish"
+    case french            = "French"
+    case german            = "German"
+    case arabic            = "Arabic"
+    case portuguese        = "Portuguese"
+    case russian           = "Russian"
+    case japanese          = "Japanese"
+    case chineseSimplified = "Chinese Simplified"
+    case korean            = "Korean"
+    case italian           = "Italian"
+
+    var code: String {
+        switch self {
+        case .english: return "en"
+        case .hindi: return "hi"
+        case .spanish: return "es"
+        case .french: return "fr"
+        case .german: return "de"
+        case .arabic: return "ar"
+        case .portuguese: return "pt"
+        case .russian: return "ru"
+        case .japanese: return "ja"
+        case .chineseSimplified: return "zh-Hans"
+        case .korean: return "ko"
+        case .italian: return "it"
+        }
+    }
 }
 
 // MARK: - Language Manager
@@ -38,6 +62,13 @@ final class AppLanguageManager {
     func setLanguage(_ language: AppLanguage) {
         current = language
         defaults.set(language.rawValue, forKey: key)
+
+        if language == .arabic {
+            UIView.appearance().semanticContentAttribute = .forceRightToLeft
+        } else {
+            UIView.appearance().semanticContentAttribute = .forceLeftToRight
+        }
+
         print("\u{1F310} Language changed to: \(language.rawValue)")
     }
 
@@ -1454,7 +1485,28 @@ final class AppLanguageManager {
             "Are you sure you want to clear all notifications? This action cannot be undone.": "Möchten Sie wirklich alle Benachrichtigungen löschen? Diese Aktion kann nicht rückgängig gemacht werden.",
             "Your orders will appear here\nonce you make a purchase": "Ihre Bestellungen erscheinen hier\nsobald Sie einen Kauf tätigen",
             "Pull down to try again": "Zum Wiederholen nach unten ziehen",
-        ]
+        ],
+
+        // MARK: Arabic
+        .arabic: [:],
+
+        // MARK: Portuguese
+        .portuguese: [:],
+
+        // MARK: Russian
+        .russian: [:],
+
+        // MARK: Japanese
+        .japanese: [:],
+
+        // MARK: Chinese Simplified
+        .chineseSimplified: [:],
+
+        // MARK: Korean
+        .korean: [:],
+
+        // MARK: Italian
+        .italian: [:],
     ]
 }
 

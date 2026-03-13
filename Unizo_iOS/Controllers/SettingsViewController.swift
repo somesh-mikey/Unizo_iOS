@@ -4,6 +4,7 @@
 //
 
 import UIKit
+import StoreKit
 
 final class SettingsViewController: UIViewController {
 
@@ -192,7 +193,7 @@ final class SettingsViewController: UIViewController {
         contactRow.addGestureRecognizer(contactTap)
         contactRow.isUserInteractionEnabled = true
 
-        let rateRow = makeArrowRow(icon: "star", title: "Rate Our App".localized)
+        let rateRow = makeArrowRow(icon: "star.fill", title: "Rate Our App".localized)
         let rateTap = UITapGestureRecognizer(target: self, action: #selector(rateAppTapped))
         rateRow.addGestureRecognizer(rateTap)
         rateRow.isUserInteractionEnabled = true
@@ -399,20 +400,14 @@ final class SettingsViewController: UIViewController {
     }
 
     @objc private func rateAppTapped() {
-        let alert = UIAlertController(
-            title: "Rate Unizo".localized,
-            message: "You'll be redirected to our app page on the App Store where you can leave a rating and review.".localized,
-            preferredStyle: .alert
-        )
-
-        alert.addAction(UIAlertAction(title: "Continue".localized, style: .default) { _ in
+        if let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene {
+            SKStoreReviewController.requestReview(in: windowScene)
+        } else {
+            // Fallback: open App Store page
             if let url = URL(string: "itms-apps://itunes.apple.com/app/idYOUR_APP_ID?action=write-review") {
                 UIApplication.shared.open(url)
             }
-        })
-        alert.addAction(UIAlertAction(title: "Cancel".localized, style: .cancel))
-
-        present(alert, animated: true)
+        }
     }
 
     // MARK: - Sign Out

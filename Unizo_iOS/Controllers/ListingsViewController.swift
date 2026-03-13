@@ -557,6 +557,86 @@ extension ListingsViewController: EnhancedListingCellDelegate {
         navigationController?.pushViewController(dealRequestsVC, animated: true)
     }
 
+    func didTapInterestedBuyers(on cell: EnhancedListingCell) {
+        guard let indexPath = collectionView.indexPath(for: cell) else { return }
+        let listing = filteredListings[indexPath.row]
+
+        fetchInterestedBuyerNames(for: listing.productId, productName: listing.name)
+    }
+
+    private func fetchInterestedBuyerNames(for productId: UUID, productName: String) {
+        Task { [weak self] in
+            guard let self = self else { return }
+            do {
+                struct ConversationWithBuyer: Decodable {
+                    let buyer_id: UUID
+                    struct UserInfo: Decodable {
+                        let first_name: String?
+                        let last_name: String?
+                    }
+                    let users: UserInfo
+                }
+
+                let response = try await self.supabase
+                    .from("conversations")
+                    .select("buyer_id, users:buyer_id!inner(first_name, last_name)")
+                    .eq("product_id", value: productId.uuidString)
+                    .execute()
+
+                let conversations = try JSONDecoder().decode([ConversationWithBuyer].self, from: response.data)
+
+                // Deduplicate by buyer_id
+                var seenBuyerIds = Set<UUID>()
+                var buyerNames: [String] = []
+                for conv in conversations {
+                    guard !seenBuyerIds.contains(conv.buyer_id) else { continue }
+                    seenBuyerIds.insert(conv.buyer_id)
+
+                    let firstName = conv.users.first_name ?? ""
+                    let lastName = conv.users.last_name ?? ""
+                    let fullName = "\(firstName) \(lastName)".trimmingCharacters(in: .whitespaces)
+                    buyerNames.append(fullName.isEmpty ? "Unknown Buyer".localized : fullName)
+                }
+
+                await MainActor.run { [weak self] in
+                    guard let self = self else { return }
+                    self.showInterestedBuyersAlert(buyerNames: buyerNames, productName: productName)
+                }
+            } catch {
+                print("Failed to fetch interested buyers: \(error)")
+                await MainActor.run { [weak self] in
+                    guard let self = self else { return }
+                    let alert = UIAlertController(
+                        title: "Error".localized,
+                        message: "Failed to load interested buyers".localized,
+                        preferredStyle: .alert
+                    )
+                    alert.addAction(UIAlertAction(title: "OK".localized, style: .default))
+                    self.present(alert, animated: true)
+                }
+            }
+        }
+    }
+
+    private func showInterestedBuyersAlert(buyerNames: [String], productName: String) {
+        let title = "Interested Buyers".localized
+        let message: String
+        if buyerNames.isEmpty {
+            message = "No interested buyers yet".localized
+        } else {
+            let buyerList = buyerNames.enumerated().map { "\($0.offset + 1). \($0.element)" }.joined(separator: "\n")
+            message = "\(productName)\n\n\(buyerList)"
+        }
+
+        let alert = UIAlertController(
+            title: title,
+            message: message,
+            preferredStyle: .actionSheet
+        )
+        alert.addAction(UIAlertAction(title: "OK".localized, style: .cancel))
+        present(alert, animated: true)
+    }
+
     private func deleteProduct(_ product: ProductDTO, listing: Listing) {
         HapticFeedback.delete()
 
@@ -577,6 +657,13 @@ extension ListingsViewController: EnhancedListingCellDelegate {
                     self.allListings.removeAll { $0.productId == product.id }
                     self.applyFilters()
                     self.updateListingsCount()
+
+                    // Notify other screens about the deletion
+                    NotificationCenter.default.post(
+                        name: .productDeleted,
+                        object: nil,
+                        userInfo: ["productId": product.id]
+                    )
                 }
 
             } catch {

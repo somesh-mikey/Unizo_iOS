@@ -288,6 +288,14 @@ class LandingScreenViewController: UIViewController {
         searchBar.delegate = self
 
         setupAccessibility()
+
+        // Observe product deletion from ListingsViewController
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(handleProductDeleted(_:)),
+            name: .productDeleted,
+            object: nil
+        )
     }
     override func viewWillAppear(_ animated: Bool) {
         super.viewWillAppear(animated)
@@ -299,6 +307,7 @@ class LandingScreenViewController: UIViewController {
 
     deinit {
         timer?.invalidate()
+        NotificationCenter.default.removeObserver(self)
     }
 
     // MARK: Setup Views & Constraints
@@ -594,6 +603,19 @@ class LandingScreenViewController: UIViewController {
         mainScrollView.refreshControl = refreshControl
     }
     
+    @objc private func handleProductDeleted(_ notification: Notification) {
+        guard let productId = notification.userInfo?["productId"] as? UUID else { return }
+
+        // Remove the deleted product from all product arrays
+        allProducts.removeAll { $0.id == productId }
+        popularProducts.removeAll { $0.id == productId }
+        negotiableProducts.removeAll { $0.id == productId }
+        displayedProducts.removeAll { $0.id == productId }
+
+        collectionView.reloadData()
+        updateCollectionHeight()
+    }
+
     @MainActor
     private func loadProducts() async {
         currentPage = 0

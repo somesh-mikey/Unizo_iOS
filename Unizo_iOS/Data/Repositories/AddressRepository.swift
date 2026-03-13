@@ -38,7 +38,15 @@ final class AddressRepository {
         return userId
     }
 
+    // MARK: - Network Guard
+    private func requireNetwork() throws {
+        guard NetworkMonitor.shared.isReachable() else {
+            throw NetworkError.noConnection
+        }
+    }
+
     func fetchAddresses() async throws -> [AddressDTO] {
+        try requireNetwork()
         let userId = try await getCurrentUserId()
 
         return try await client
@@ -51,6 +59,7 @@ final class AddressRepository {
     }
 
     func createAddress(_ address: AddressDTO) async throws {
+        try requireNetwork()
         let userId = try await getCurrentUserId()
 
         // Check if user has any existing addresses
@@ -74,6 +83,7 @@ final class AddressRepository {
     }
 
     func updateAddress(_ address: AddressDTO) async throws {
+        try requireNetwork()
         let userId = try await getCurrentUserId()
 
         // If setting default → unset others for this user
@@ -110,6 +120,7 @@ final class AddressRepository {
 
 
     func deleteAddress(id: UUID) async throws {
+        try requireNetwork()
         let userId = try await getCurrentUserId()
 
         // Fetch all addresses for this user
