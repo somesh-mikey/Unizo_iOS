@@ -308,6 +308,16 @@ final class EditListingViewController: UIViewController,
             field.font = .systemFont(ofSize: 16)
             field.translatesAutoresizingMaskIntoConstraints = false
 
+            // Price field - use decimal pad with Done toolbar
+            if i == 1 {
+                field.keyboardType = .decimalPad
+                let toolbar = UIToolbar()
+                toolbar.sizeToFit()
+                let doneButton = UIBarButtonItem(barButtonSystemItem: .done, target: self, action: #selector(dismissKeyboard))
+                toolbar.items = [UIBarButtonItem.flexibleSpace(), doneButton]
+                field.inputAccessoryView = toolbar
+            }
+
             if i == 3 || i == 5 {
                 field.inputView = pickerView
                 field.delegate = self

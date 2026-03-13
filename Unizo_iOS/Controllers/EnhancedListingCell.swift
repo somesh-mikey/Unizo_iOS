@@ -13,6 +13,7 @@ protocol EnhancedListingCellDelegate: AnyObject {
     func didTapDelete(on cell: EnhancedListingCell)
     func didTapView(on cell: EnhancedListingCell)
     func didTapDealRequests(on cell: EnhancedListingCell)
+    func didTapInterestedBuyers(on cell: EnhancedListingCell)
 }
 
 final class EnhancedListingCell: UICollectionViewCell {
@@ -124,6 +125,7 @@ final class EnhancedListingCell: UICollectionViewCell {
         v.layer.cornerRadius = 12
         v.translatesAutoresizingMaskIntoConstraints = false
         v.isHidden = true
+        v.isUserInteractionEnabled = true
         return v
     }()
 
@@ -376,6 +378,9 @@ final class EnhancedListingCell: UICollectionViewCell {
 
         let dealTap = UITapGestureRecognizer(target: self, action: #selector(dealRequestsTapped))
         dealRequestsContainer.addGestureRecognizer(dealTap)
+
+        let interestedBuyersTap = UITapGestureRecognizer(target: self, action: #selector(interestedBuyersTapped))
+        interestedBuyersContainer.addGestureRecognizer(interestedBuyersTap)
     }
 
     @objc private func editTapped() {
@@ -396,6 +401,11 @@ final class EnhancedListingCell: UICollectionViewCell {
     @objc private func dealRequestsTapped() {
         HapticFeedback.light()
         delegate?.didTapDealRequests(on: self)
+    }
+
+    @objc private func interestedBuyersTapped() {
+        HapticFeedback.light()
+        delegate?.didTapInterestedBuyers(on: self)
     }
 
     // MARK: - Configure
@@ -492,8 +502,9 @@ final class EnhancedListingCell: UICollectionViewCell {
         if listing.interestedBuyersCount > 0 {
             let buyerText = listing.interestedBuyersCount == 1 ? "1 interested buyer".localized : "\(listing.interestedBuyersCount) " + "interested buyers".localized
             interestedBuyersContainer.accessibilityLabel = buyerText
+            interestedBuyersContainer.accessibilityHint = "Double tap to view interested buyers".localized
         }
-        interestedBuyersContainer.accessibilityTraits = .staticText
+        interestedBuyersContainer.accessibilityTraits = .button
 
         // Deal requests accessibility
         dealRequestsContainer.isAccessibilityElement = true

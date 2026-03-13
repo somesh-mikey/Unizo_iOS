@@ -7,6 +7,8 @@ import UIKit
 
 class MainTabBarController: UITabBarController, UITabBarControllerDelegate {
 
+    static var isGuestMode: Bool = false
+
     override func viewDidLoad() {
             super.viewDidLoad()
             delegate = self
@@ -48,9 +50,6 @@ class MainTabBarController: UITabBarController, UITabBarControllerDelegate {
     private func setupTabs() {
 
         let homeVC      = UINavigationController(rootViewController: LandingScreenViewController())
-        let chatVC      = UINavigationController(rootViewController: ChatViewController())
-        let postVC      = UINavigationController(rootViewController: PostChooserViewController())
-        let listingsVC  = UINavigationController(rootViewController: ListingsViewController())
         let accountVC   = UINavigationController(rootViewController: AccountViewController())
 
         homeVC.tabBarItem = UITabBarItem(
@@ -59,37 +58,45 @@ class MainTabBarController: UITabBarController, UITabBarControllerDelegate {
             tag: 0
         )
 
-        chatVC.tabBarItem = UITabBarItem(
-            title: "Chat".localized,
-            image: UIImage(systemName: "bubble.left.and.bubble.right.fill"),
-            tag: 1
-        )
-
-        postVC.tabBarItem = UITabBarItem(
-            title: "Post".localized,
-            image: UIImage(systemName: "plus.circle.fill"),
-            tag: 2
-        )
-
-        listingsVC.tabBarItem = UITabBarItem(
-            title: "My Listings".localized,
-            image: UIImage(systemName: "list.bullet.rectangle.portrait"),
-            tag: 3
-        )
-
         accountVC.tabBarItem = UITabBarItem(
             title: "Account".localized,
             image: UIImage(systemName: "person.crop.circle.fill"),
             tag: 4
         )
 
-        viewControllers = [
-            homeVC,
-            chatVC,
-            postVC,
-            listingsVC,
-            accountVC
-        ]
+        if MainTabBarController.isGuestMode {
+            viewControllers = [homeVC, accountVC]
+        } else {
+            let chatVC      = UINavigationController(rootViewController: ChatViewController())
+            let postVC      = UINavigationController(rootViewController: PostChooserViewController())
+            let listingsVC  = UINavigationController(rootViewController: ListingsViewController())
+
+            chatVC.tabBarItem = UITabBarItem(
+                title: "Chat".localized,
+                image: UIImage(systemName: "bubble.left.and.bubble.right.fill"),
+                tag: 1
+            )
+
+            postVC.tabBarItem = UITabBarItem(
+                title: "Post".localized,
+                image: UIImage(systemName: "plus.circle.fill"),
+                tag: 2
+            )
+
+            listingsVC.tabBarItem = UITabBarItem(
+                title: "My Listings".localized,
+                image: UIImage(systemName: "list.bullet.rectangle.portrait"),
+                tag: 3
+            )
+
+            viewControllers = [
+                homeVC,
+                chatVC,
+                postVC,
+                listingsVC,
+                accountVC
+            ]
+        }
 
         // Adjust icon + title for floating style
         for item in tabBar.items ?? [] {

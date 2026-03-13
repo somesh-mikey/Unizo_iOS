@@ -8,6 +8,7 @@
 import Foundation
 import UIKit
 import Supabase
+import UserNotifications
 
 // MARK: - Chat Manager Delegate
 protocol ChatManagerDelegate: AnyObject {
@@ -19,6 +20,7 @@ protocol ChatManagerDelegate: AnyObject {
 extension Notification.Name {
     static let chatUnreadCountChanged = Notification.Name("chatUnreadCountChanged")
     static let newChatMessageReceived = Notification.Name("newChatMessageReceived")
+    static let productDeleted = Notification.Name("productDeleted")
 }
 
 // MARK: - Chat Manager
@@ -206,6 +208,7 @@ final class ChatManager {
             // Show in-app banner if user is NOT in this conversation
             if activeConversationId != conversationId {
                 await showChatNotificationBanner(message: message, conversationId: conversationId)
+                await scheduleLocalNotification(message: message, conversationId: conversationId)
             }
 
         } catch {
@@ -292,6 +295,45 @@ final class ChatManager {
                     }
                 }
             }
+        }
+    }
+
+    // MARK: - Schedule Local Push Notification
+    private func scheduleLocalNotification(message: MessageDTO, conversationId: UUID) async {
+        // Get conversation info for sender name
+        var senderName = "New message"
+        if let cached = conversationCache[conversationId] {
+            if message.sender_id == cached.buyer_id {
+                senderName = cached.buyer?.displayName ?? "Buyer"
+            } else {
+                senderName = cached.seller?.displayName ?? "Seller"
+            }
+        } else if let conv = try? await repository.fetchConversation(id: conversationId) {
+            conversationCache[conversationId] = conv
+            if message.sender_id == conv.buyer_id {
+                senderName = conv.buyer?.displayName ?? "Buyer"
+            } else {
+                senderName = conv.seller?.displayName ?? "Seller"
+            }
+        }
+
+        let content = UNMutableNotificationContent()
+        content.title = senderName
+        content.body = message.message_type == "image" ? "Sent a photo" : (message.content ?? "")
+        content.sound = .default
+        content.userInfo = ["conversationId": conversationId.uuidString]
+
+        let trigger = UNTimeIntervalNotificationTrigger(timeInterval: 0.1, repeats: false)
+        let request = UNNotificationRequest(
+            identifier: "chat-\(message.id.uuidString)",
+            content: content,
+            trigger: trigger
+        )
+
+        do {
+            try await UNUserNotificationCenter.current().add(request)
+        } catch {
+            print("ChatManager: Failed to schedule local notification: \(error)")
         }
     }
 

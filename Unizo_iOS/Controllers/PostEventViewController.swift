@@ -78,7 +78,7 @@ final class PostEventViewController: UIViewController,
     private let venueField    = PostEventViewController.makeTextField(placeholder: "Venue".localized)
     private let priceField: UITextField = {
         let tf = PostEventViewController.makeTextField(placeholder: "Price (in Rupees)".localized)
-        tf.keyboardType = .numberPad
+        tf.keyboardType = .decimalPad
         return tf
     }()
 
@@ -167,6 +167,13 @@ final class PostEventViewController: UIViewController,
 
         freeSwitch.addTarget(self, action: #selector(freeSwitchChanged), for: .valueChanged)
         postButton.addTarget(self, action: #selector(postEventTapped), for: .touchUpInside)
+
+        // Add Done toolbar for price field (decimal pad has no Return key)
+        let priceToolbar = UIToolbar()
+        priceToolbar.sizeToFit()
+        let doneButton = UIBarButtonItem(barButtonSystemItem: .done, target: self, action: #selector(dismissKeyboard))
+        priceToolbar.items = [UIBarButtonItem.flexibleSpace(), doneButton]
+        priceField.inputAccessoryView = priceToolbar
     }
 
     override func viewWillAppear(_ animated: Bool) {
@@ -336,6 +343,10 @@ final class PostEventViewController: UIViewController,
         let tap = UITapGestureRecognizer(target: view, action: #selector(UIView.endEditing))
         tap.cancelsTouchesInView = false
         view.addGestureRecognizer(tap)
+    }
+
+    @objc private func dismissKeyboard() {
+        view.endEditing(true)
     }
 
     // MARK: - Helpers

@@ -16,6 +16,9 @@ class ChatDetailViewController: UIViewController {
     var chatTitle: String = ""
     var otherUserName: String = ""
     var isSeller: Bool = true
+    var productStatus: String = "available"
+    var otherUserImageURL: String?
+    var productId: UUID?
 
     // MARK: - Data
     private var messages: [MessageUIModel] = []
@@ -127,6 +130,38 @@ class ChatDetailViewController: UIViewController {
     // Keyboard handling
     private var inputContainerBottomConstraint: NSLayoutConstraint!
 
+    // Sold banner (shown when product is sold)
+    private let soldBannerView: UIView = {
+        let v = UIView()
+        v.backgroundColor = .systemGray4
+        v.translatesAutoresizingMaskIntoConstraints = false
+        v.isHidden = true
+        return v
+    }()
+
+    // Deal button (shown for buyers only)
+    private let dealButton: UIButton = {
+        let b = UIButton(type: .system)
+        b.setTitle("Deal".localized, for: .normal)
+        b.titleLabel?.font = UIFont.systemFont(ofSize: 14, weight: .semibold)
+        b.setTitleColor(.white, for: .normal)
+        b.backgroundColor = UIColor(red: 0.02, green: 0.34, blue: 0.46, alpha: 1.0)
+        b.layer.cornerRadius = 16
+        b.translatesAutoresizingMaskIntoConstraints = false
+        b.isHidden = true
+        return b
+    }()
+
+    private let soldBannerLabel: UILabel = {
+        let l = UILabel()
+        l.text = "This product has been sold".localized
+        l.font = UIFont.systemFont(ofSize: 14, weight: .medium)
+        l.textColor = .darkGray
+        l.textAlignment = .center
+        l.translatesAutoresizingMaskIntoConstraints = false
+        return l
+    }()
+
     // MARK: - Lifecycle
     override func viewDidLoad() {
         super.viewDidLoad()
@@ -148,6 +183,21 @@ class ChatDetailViewController: UIViewController {
 
         titleLabel.text = chatTitle
         roleLabel.text = isSeller ? "Buyer".localized : "Seller".localized
+
+        // TASK-15: Load other user's profile image if available
+        if let imageURL = otherUserImageURL, !imageURL.isEmpty {
+            profileIcon.loadImage(from: imageURL)
+            profileIcon.contentMode = .scaleAspectFill
+            profileIcon.clipsToBounds = true
+            profileIcon.layer.cornerRadius = 22
+            profileCircle.backgroundColor = .clear
+        }
+
+        // TASK-20: Disable chat if product is sold
+        if productStatus == "sold" {
+            inputContainer.isHidden = true
+            setupSoldBanner()
+        }
 
         // Fetch current user and messages
         fetchCurrentUser()
@@ -181,9 +231,45 @@ class ChatDetailViewController: UIViewController {
 
     // MARK: - Setup
     private func fetchCurrentUser() {
-        Task {
-            currentUserId = await AuthManager.shared.currentUserId
-            await fetchMessages()
+        Task { [weak self] in
+            guard let self = self else { return }
+            self.currentUserId = await AuthManager.shared.currentUserId
+
+            // Fetch product status if we have a productId (ensures sold banner / deal button are accurate)
+            if let productId = self.productId {
+                await self.fetchProductStatus(productId: productId)
+            }
+
+            await self.fetchMessages()
+        }
+    }
+
+    private func fetchProductStatus(productId: UUID) async {
+        do {
+            struct ProductStatusResult: Decodable {
+                let status: String?
+            }
+            let result: ProductStatusResult = try await SupabaseManager.shared.client
+                .from("products")
+                .select("status")
+                .eq("id", value: productId.uuidString)
+                .single()
+                .execute()
+                .value
+
+            if let status = result.status {
+                await MainActor.run { [weak self] in
+                    guard let self = self else { return }
+                    self.productStatus = status
+                    if status == "sold" {
+                        self.inputContainer.isHidden = true
+                        self.dealButton.isHidden = true
+                        self.setupSoldBanner()
+                    }
+                }
+            }
+        } catch {
+            print("Failed to fetch product status: \(error)")
         }
     }
 
@@ -256,23 +342,21 @@ class ChatDetailViewController: UIViewController {
     private func pollForNewMessages() {
         guard let conversationId = conversationId else { return }
 
-        Task {
+        Task { [weak self] in
             do {
                 let messageDTOs = try await ChatManager.shared.fetchMessages(conversationId: conversationId)
 
-                guard let userId = currentUserId else { return }
+                guard let self = self, let userId = self.currentUserId else { return }
 
                 let newMessages = messageDTOs.map { MessageMapper.toUIModel($0, currentUserId: userId) }
-                let currentCount = self.messages.count
 
-                // Check if there are new messages
-                if newMessages.count > currentCount {
-                    let newCount = newMessages.count - currentCount
-                    await MainActor.run {
+                await MainActor.run { [weak self] in
+                    guard let self = self else { return }
+                    let currentCount = self.messages.count
+                    if newMessages.count > currentCount {
                         self.messages = newMessages
                         self.tableView.reloadData()
                         self.scrollToBottom(animated: true)
-                        print("🔄 Polled and found \(newCount) new message(s)")
                     }
                 }
             } catch {
@@ -313,6 +397,9 @@ class ChatDetailViewController: UIViewController {
         profileCircle.addSubview(profileIcon)
         view.addSubview(roleLabel)
         view.addSubview(titleLabel)
+        view.addSubview(dealButton)
+
+        dealButton.addTarget(self, action: #selector(dealTapped), for: .touchUpInside)
 
         NSLayoutConstraint.activate([
             backButton.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 8),
@@ -334,14 +421,27 @@ class ChatDetailViewController: UIViewController {
             roleLabel.topAnchor.constraint(equalTo: profileCircle.topAnchor, constant: 4),
 
             titleLabel.leadingAnchor.constraint(equalTo: roleLabel.leadingAnchor),
-            titleLabel.topAnchor.constraint(equalTo: roleLabel.bottomAnchor, constant: 2)
+            titleLabel.topAnchor.constraint(equalTo: roleLabel.bottomAnchor, constant: 2),
+            titleLabel.trailingAnchor.constraint(lessThanOrEqualTo: dealButton.leadingAnchor, constant: -8),
+
+            dealButton.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -16),
+            dealButton.centerYAnchor.constraint(equalTo: backButton.centerYAnchor),
+            dealButton.widthAnchor.constraint(equalToConstant: 70),
+            dealButton.heightAnchor.constraint(equalToConstant: 32)
         ])
+
+        // Show Deal button only for buyers when product is available
+        if !isSeller && productStatus != "sold" {
+            dealButton.isHidden = false
+        }
 
         // Accessibility
         backButton.accessibilityLabel = "Go back".localized
         backButton.accessibilityHint = "Return to conversations list".localized
         titleLabel.accessibilityTraits = .header
         roleLabel.accessibilityTraits = .staticText
+        dealButton.accessibilityLabel = "Make a deal".localized
+        dealButton.accessibilityHint = "Place an order for this product".localized
     }
 
     // MARK: - TABLE
@@ -411,6 +511,25 @@ class ChatDetailViewController: UIViewController {
         updateSendButtonState()
     }
 
+    // MARK: - Sold Banner (TASK-20)
+    private func setupSoldBanner() {
+        view.addSubview(soldBannerView)
+        soldBannerView.addSubview(soldBannerLabel)
+        soldBannerView.isHidden = false
+
+        NSLayoutConstraint.activate([
+            soldBannerView.leadingAnchor.constraint(equalTo: view.leadingAnchor),
+            soldBannerView.trailingAnchor.constraint(equalTo: view.trailingAnchor),
+            soldBannerView.bottomAnchor.constraint(equalTo: view.safeAreaLayoutGuide.bottomAnchor),
+            soldBannerView.heightAnchor.constraint(equalToConstant: 44),
+
+            soldBannerLabel.centerXAnchor.constraint(equalTo: soldBannerView.centerXAnchor),
+            soldBannerLabel.centerYAnchor.constraint(equalTo: soldBannerView.centerYAnchor)
+        ])
+
+        soldBannerView.accessibilityLabel = "This product has been sold".localized
+    }
+
     // MARK: - Keyboard Handling
     private func setupKeyboardObservers() {
         NotificationCenter.default.addObserver(
@@ -459,7 +578,72 @@ class ChatDetailViewController: UIViewController {
         navigationController?.popViewController(animated: true)
     }
 
+    // MARK: - Deal Action
+    @objc private func dealTapped() {
+        guard let productId = productId else {
+            let alert = UIAlertController(
+                title: "Error".localized,
+                message: "Product information not available".localized,
+                preferredStyle: .alert
+            )
+            alert.addAction(UIAlertAction(title: "OK".localized, style: .default))
+            present(alert, animated: true)
+            return
+        }
+
+        let alert = UIAlertController(
+            title: "Make a Deal".localized,
+            message: String(format: "Would you like to place an order for %@?".localized, chatTitle),
+            preferredStyle: .actionSheet
+        )
+
+        alert.addAction(UIAlertAction(title: "Place Order".localized, style: .default) { [weak self] _ in
+            self?.fetchProductAndNavigateToOrder(productId: productId)
+        })
+
+        alert.addAction(UIAlertAction(title: "Cancel".localized, style: .cancel))
+        present(alert, animated: true)
+    }
+
+    private func fetchProductAndNavigateToOrder(productId: UUID) {
+        Task { [weak self] in
+            guard let self = self else { return }
+            do {
+                let product: ProductDTO = try await SupabaseManager.shared.client
+                    .from("products")
+                    .select("*, users!products_seller_id_fkey(first_name, last_name)")
+                    .eq("id", value: productId.uuidString)
+                    .single()
+                    .execute()
+                    .value
+
+                let uiModel = ProductMapper.toUIModel(product)
+                let orderItem = OrderItem(product: uiModel, quantity: 1)
+
+                await MainActor.run { [weak self] in
+                    let confirmVC = ConfirmOrderViewController()
+                    confirmVC.orderItems = [orderItem]
+                    self?.navigationController?.pushViewController(confirmVC, animated: true)
+                }
+            } catch {
+                print("Failed to fetch product for deal: \(error)")
+                await MainActor.run { [weak self] in
+                    guard let self = self else { return }
+                    let alert = UIAlertController(
+                        title: "Error".localized,
+                        message: "Failed to load product details".localized,
+                        preferredStyle: .alert
+                    )
+                    alert.addAction(UIAlertAction(title: "OK".localized, style: .default))
+                    self.present(alert, animated: true)
+                }
+            }
+        }
+    }
+
     @objc private func addPhotoTapped() {
+        guard productStatus != "sold" else { return }
+
         HapticFeedback.selection()
 
         var config = PHPickerConfiguration()

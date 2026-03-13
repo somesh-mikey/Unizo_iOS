@@ -320,6 +320,16 @@ final class PostItemViewController: UIViewController,
                 field.delegate = self
             }
 
+            // Price field - use decimal pad with Done toolbar
+            if title == "Price (in Rupees)".localized {
+                field.keyboardType = .decimalPad
+                let toolbar = UIToolbar()
+                toolbar.sizeToFit()
+                let doneButton = UIBarButtonItem(barButtonSystemItem: .done, target: self, action: #selector(dismissKeyboard))
+                toolbar.items = [UIBarButtonItem.flexibleSpace(), doneButton]
+                field.inputAccessoryView = toolbar
+            }
+
             if title == "Category".localized || title == "Condition".localized {
                 field.delegate = self
                 field.inputView = pickerView

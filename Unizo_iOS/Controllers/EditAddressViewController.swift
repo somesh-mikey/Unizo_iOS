@@ -107,6 +107,19 @@ final class EditAddressViewController: UIViewController {
 
         phoneField.keyboardType = .phonePad
         pincodeField.keyboardType = .numberPad
+
+        // Add Done toolbar for numeric keypads (no Return key)
+        let phoneToolbar = UIToolbar()
+        phoneToolbar.sizeToFit()
+        let phoneDoneButton = UIBarButtonItem(barButtonSystemItem: .done, target: self, action: #selector(dismissKeyboard))
+        phoneToolbar.items = [UIBarButtonItem.flexibleSpace(), phoneDoneButton]
+        phoneField.inputAccessoryView = phoneToolbar
+
+        let pincodeToolbar = UIToolbar()
+        pincodeToolbar.sizeToFit()
+        let pincodeDoneButton = UIBarButtonItem(barButtonSystemItem: .done, target: self, action: #selector(dismissKeyboard))
+        pincodeToolbar.items = [UIBarButtonItem.flexibleSpace(), pincodeDoneButton]
+        pincodeField.inputAccessoryView = pincodeToolbar
     }
 
     private func field(_ title: String, _ field: UITextField) -> UIView {

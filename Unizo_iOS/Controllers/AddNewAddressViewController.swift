@@ -255,6 +255,24 @@ class AddNewAddressViewController: UIViewController {
         if let lastField = last {
             lastField.bottomAnchor.constraint(equalTo: whiteContainer.bottomAnchor, constant: -15).isActive = true
         }
+
+        // Set numeric keyboard types and Done toolbars
+        phoneField.keyboardType = .phonePad
+        pincodeField.keyboardType = .numberPad
+
+        let numericToolbar = UIToolbar()
+        numericToolbar.sizeToFit()
+        let doneButton = UIBarButtonItem(barButtonSystemItem: .done, target: self, action: #selector(dismissKeyboard))
+        numericToolbar.items = [UIBarButtonItem.flexibleSpace(), doneButton]
+
+        phoneField.inputAccessoryView = numericToolbar
+
+        let pincodeToolbar = UIToolbar()
+        pincodeToolbar.sizeToFit()
+        let pincodeDoneButton = UIBarButtonItem(barButtonSystemItem: .done, target: self, action: #selector(dismissKeyboard))
+        pincodeToolbar.items = [UIBarButtonItem.flexibleSpace(), pincodeDoneButton]
+
+        pincodeField.inputAccessoryView = pincodeToolbar
     }
 
     // MARK: Save Button

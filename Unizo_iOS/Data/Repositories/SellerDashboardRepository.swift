@@ -81,8 +81,16 @@ final class SellerDashboardRepository {
         return userId
     }
 
+    // MARK: - Network Guard
+    private func requireNetwork() throws {
+        guard NetworkMonitor.shared.isReachable() else {
+            throw NetworkError.noConnection
+        }
+    }
+
     // MARK: - Fetch Current User Profile
     func fetchSellerProfile() async throws -> UserDTO? {
+        try requireNetwork()
         let userId = try await getCurrentUserId()
 
         let users: [UserDTO] = try await client
@@ -98,6 +106,7 @@ final class SellerDashboardRepository {
 
     // MARK: - Fetch Seller's Products
     func fetchSellerProducts() async throws -> [ProductDTO] {
+        try requireNetwork()
         let userId = try await getCurrentUserId()
 
         let response = try await client
@@ -129,6 +138,7 @@ final class SellerDashboardRepository {
 
     // MARK: - Fetch Orders Where Seller's Products Were Ordered
     func fetchSellerOrders() async throws -> [SellerOrder] {
+        try requireNetwork()
         let userId = try await getCurrentUserId()
 
         // Fetch order items where the product belongs to the current seller

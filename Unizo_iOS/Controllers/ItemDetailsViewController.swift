@@ -771,6 +771,31 @@ class ItemDetailsViewController: UIViewController {
         })
         present(alert, animated: true)
     }
+
+    // MARK: - Guest Gate
+    /// Returns true if in guest mode (and shows sign-in alert). Returns false if not guest.
+    private func showGuestGateIfNeeded() -> Bool {
+        guard MainTabBarController.isGuestMode else { return false }
+
+        let alert = UIAlertController(
+            title: "Sign In Required".localized,
+            message: "Please sign in to use this feature".localized,
+            preferredStyle: .alert
+        )
+
+        alert.addAction(UIAlertAction(title: "Sign In".localized, style: .default) { [weak self] _ in
+            guard let self = self else { return }
+            let welcomeVC = WelcomeViewController()
+            welcomeVC.modalPresentationStyle = .fullScreen
+            welcomeVC.modalTransitionStyle = .crossDissolve
+            self.present(welcomeVC, animated: true)
+        })
+
+        alert.addAction(UIAlertAction(title: "Cancel".localized, style: .cancel))
+
+        present(alert, animated: true)
+        return true
+    }
     private func updateHeartIcon() {
         guard let navBar = navigationController?.navigationBar else { return }
 
@@ -801,6 +826,8 @@ class ItemDetailsViewController: UIViewController {
 
     /// Navigate to chat with the seller
     @objc private func chatWithSellerTapped() {
+        if showGuestGateIfNeeded() { return }
+
         guard let product = product,
               let sellerId = product.sellerId else {
             return
@@ -875,6 +902,8 @@ class ItemDetailsViewController: UIViewController {
 
     /// Navigate to Deal flow (same as previous Buy Now)
     @objc private func dealTapped() {
+        if showGuestGateIfNeeded() { return }
+
         guard let product else { return }
 
         // Check if product is still available
@@ -892,6 +921,8 @@ class ItemDetailsViewController: UIViewController {
         navigationController?.pushViewController(vc, animated: true)
     }
     @objc private func heartTapped() {
+        if showGuestGateIfNeeded() { return }
+
         guard let product else { return }
 
         Task {

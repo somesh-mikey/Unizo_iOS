@@ -50,12 +50,20 @@ final class ProductRepository {
         return await AuthManager.shared.currentUserId
     }
 
+    // MARK: - Network Guard
+    private func requireNetwork() throws {
+        guard NetworkMonitor.shared.isReachable() else {
+            throw NetworkError.noConnection
+        }
+    }
+
     // MARK: - Fetch All Products (Paginated)
     /// Fetches products excluding:
     /// - Sold products (status = 'sold')
     /// - Products with quantity = 0
     /// - Current user's own products (sellers shouldn't see their own listings in buyer views)
     func fetchAllProducts(page: Int) async throws -> [ProductDTO] {
+        try requireNetwork()
 
         guard page >= 1 else {
             print("⚠️ Invalid page index:", page)
@@ -119,6 +127,7 @@ final class ProductRepository {
 
     // MARK: - Popular Products
     func fetchPopularProducts() async throws -> [ProductDTO] {
+        try requireNetwork()
 
         // Get current user ID to exclude their products
         let currentUserId = await getCurrentUserId()
@@ -148,6 +157,7 @@ final class ProductRepository {
 
     // MARK: - Negotiable Products
     func fetchNegotiableProducts() async throws -> [ProductDTO] {
+        try requireNetwork()
 
         // Get current user ID to exclude their products
         let currentUserId = await getCurrentUserId()
@@ -175,6 +185,7 @@ final class ProductRepository {
 
     // MARK: - Products by Category
     func fetchProductsByCategory(_ category: String) async throws -> [ProductDTO] {
+        try requireNetwork()
 
         // Get current user ID to exclude their products
         let currentUserId = await getCurrentUserId()
@@ -201,6 +212,7 @@ final class ProductRepository {
     }
     // MARK: - Banners
     func fetchBanners() async throws -> [BannerDTO] {
+        try requireNetwork()
         let response = try await supabase
             .from("banners")
             .select("id, image_url, position")
@@ -213,6 +225,7 @@ final class ProductRepository {
 
     // MARK: - Search Products
     func searchProducts(keyword: String) async throws -> [ProductDTO] {
+        try requireNetwork()
 
         let trimmed = keyword.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else { return [] }
@@ -248,6 +261,7 @@ final class ProductRepository {
     }
     
     func insertProduct(_ product: ProductInsertDTO) async throws {
+        try requireNetwork()
         try await supabase
             .from("products")
             .insert(product)
@@ -267,6 +281,7 @@ final class ProductRepository {
     ///   - productId: The product UUID
     ///   - quantitySold: Number of items sold (default 1)
     func markProductAsSold(productId: UUID, quantitySold: Int = 1) async throws {
+        try requireNetwork()
         // First fetch current quantity
         let response = try await supabase
             .from("products")

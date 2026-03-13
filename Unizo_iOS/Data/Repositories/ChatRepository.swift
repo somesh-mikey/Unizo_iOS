@@ -30,9 +30,17 @@ final class ChatRepository {
         return userId
     }
 
+    // MARK: - Network Guard
+    private func requireNetwork() throws {
+        guard NetworkMonitor.shared.isReachable() else {
+            throw NetworkError.noConnection
+        }
+    }
+
     // MARK: - Fetch User's Conversations
     /// Fetches all conversations for the current user (as buyer or seller)
     func fetchConversations() async throws -> [ConversationDTO] {
+        try requireNetwork()
         let userId = try await getCurrentUserId()
 
         // Fetch conversations where user is buyer or seller
@@ -53,6 +61,7 @@ final class ChatRepository {
     // MARK: - Fetch or Create Conversation
     /// Gets existing conversation or creates a new one for a product
     func getOrCreateConversation(productId: UUID, sellerId: UUID) async throws -> ConversationDTO {
+        try requireNetwork()
         let buyerId = try await getCurrentUserId()
 
         // Don't allow chatting with yourself
@@ -98,6 +107,7 @@ final class ChatRepository {
     // MARK: - Fetch Messages
     /// Fetches all messages for a conversation
     func fetchMessages(conversationId: UUID) async throws -> [MessageDTO] {
+        try requireNetwork()
         let _ = try await getCurrentUserId()
 
         let response = try await client
@@ -115,6 +125,7 @@ final class ChatRepository {
 
     // MARK: - Send Text Message
     func sendMessage(conversationId: UUID, content: String) async throws -> MessageDTO {
+        try requireNetwork()
         let senderId = try await getCurrentUserId()
 
         let messageDTO = MessageInsertDTO(
@@ -138,6 +149,7 @@ final class ChatRepository {
 
     // MARK: - Send Image Message
     func sendImageMessage(conversationId: UUID, imageURL: String) async throws -> MessageDTO {
+        try requireNetwork()
         let senderId = try await getCurrentUserId()
 
         let messageDTO = MessageInsertDTO(
@@ -161,6 +173,7 @@ final class ChatRepository {
 
     // MARK: - Upload Chat Image
     func uploadChatImage(_ imageData: Data, conversationId: UUID) async throws -> String {
+        try requireNetwork()
         let fileName = "\(conversationId.uuidString)_\(Int(Date().timeIntervalSince1970)).jpg"
         let filePath = "chat-images/\(fileName)"
 
@@ -267,6 +280,7 @@ final class ChatRepository {
 
     // MARK: - Fetch Single Conversation
     func fetchConversation(id: UUID) async throws -> ConversationDTO? {
+        try requireNetwork()
         let _ = try await getCurrentUserId()
 
         let response = try await client

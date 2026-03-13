@@ -60,6 +60,23 @@ final class SignUpViewController: UIViewController {
         return b
     }()
 
+    // Scroll view for keyboard handling
+    private let scrollView: UIScrollView = {
+        let sv = UIScrollView()
+        sv.showsVerticalScrollIndicator = false
+        sv.alwaysBounceVertical = true
+        sv.keyboardDismissMode = .interactive
+        return sv
+    }()
+
+    private let scrollContentView: UIView = {
+        let v = UIView()
+        return v
+    }()
+
+    // Track the currently active text field
+    private weak var activeTextField: UITextField?
+
     // Keyboard handling
     private var cardBottomConstraint: NSLayoutConstraint!
 
@@ -142,9 +159,18 @@ final class SignUpViewController: UIViewController {
 
         let keyboardHeight = keyboardFrame.height
 
-        UIView.animate(withDuration: duration) {
-            self.cardBottomConstraint.constant = -keyboardHeight
-            self.view.layoutIfNeeded()
+        // Add bottom inset so the scroll view content can scroll above the keyboard
+        let contentInsets = UIEdgeInsets(top: 0, left: 0, bottom: keyboardHeight, right: 0)
+        scrollView.contentInset = contentInsets
+        scrollView.scrollIndicatorInsets = contentInsets
+
+        // Scroll the active text field into view
+        if let activeField = activeTextField {
+            let fieldFrame = activeField.convert(activeField.bounds, to: scrollView)
+            let visibleRect = scrollView.bounds.inset(by: contentInsets)
+            if !visibleRect.contains(fieldFrame) {
+                scrollView.scrollRectToVisible(fieldFrame.insetBy(dx: 0, dy: -20), animated: true)
+            }
         }
     }
 
@@ -154,8 +180,8 @@ final class SignUpViewController: UIViewController {
         }
 
         UIView.animate(withDuration: duration) {
-            self.cardBottomConstraint.constant = 0
-            self.view.layoutIfNeeded()
+            self.scrollView.contentInset = .zero
+            self.scrollView.scrollIndicatorInsets = .zero
         }
     }
 
@@ -204,12 +230,43 @@ final class SignUpViewController: UIViewController {
 
         addEyeButton(to: createPasswordTF)
         addEyeButton(to: confirmPasswordTF)
+
+        // Set keyboard types
+        emailTF.keyboardType = .emailAddress
+        phoneTF.keyboardType = .phonePad
+
+        // Set return key types and delegate
+        let allFields = [firstNameTF, lastNameTF, regTF, emailTF,
+                         phoneTF, createPasswordTF, confirmPasswordTF]
+
+        for (index, tf) in allFields.enumerated() {
+            tf.delegate = self
+            tf.returnKeyType = (index == allFields.count - 1) ? .done : .next
+            tf.tag = index
+        }
+
+        // Create a toolbar with a "Done" button for all text fields
+        let toolbar = UIToolbar()
+        toolbar.sizeToFit()
+        let flexSpace = UIBarButtonItem(barButtonSystemItem: .flexibleSpace, target: nil, action: nil)
+        let doneButton = UIBarButtonItem(title: "Done".localized, style: .done,
+                                         target: self, action: #selector(dismissKeyboard))
+        toolbar.items = [flexSpace, doneButton]
+
+        for tf in allFields {
+            tf.inputAccessoryView = toolbar
+        }
     }
 
     private func setupHierarchy() {
         view.addSubview(cardView)
-        cardView.addSubview(titleLabel)
-        cardView.addSubview(fieldsContainer)
+
+        // Add scroll view inside the card for keyboard-friendly scrolling
+        cardView.addSubview(scrollView)
+        scrollView.addSubview(scrollContentView)
+
+        scrollContentView.addSubview(titleLabel)
+        scrollContentView.addSubview(fieldsContainer)
 
         let fields = [
             firstNameTF, lastNameTF, regTF, emailTF,
@@ -223,9 +280,9 @@ final class SignUpViewController: UIViewController {
             }
         }
 
-        cardView.addSubview(checkBoxButton)
-        cardView.addSubview(termsLabel)
-        cardView.addSubview(signUpButton)
+        scrollContentView.addSubview(checkBoxButton)
+        scrollContentView.addSubview(termsLabel)
+        scrollContentView.addSubview(signUpButton)
     }
 
     private func setupActions() {
@@ -431,7 +488,8 @@ final class SignUpViewController: UIViewController {
     // MARK: - Constraints (unchanged)
 
     private func setupConstraints() {
-        [cardView, titleLabel, fieldsContainer, checkBoxButton, termsLabel, signUpButton]
+        [cardView, scrollView, scrollContentView, titleLabel, fieldsContainer,
+         checkBoxButton, termsLabel, signUpButton]
             .forEach { $0.translatesAutoresizingMaskIntoConstraints = false }
 
         let fields = [
@@ -450,15 +508,32 @@ final class SignUpViewController: UIViewController {
             cardView.heightAnchor.constraint(equalTo: view.heightAnchor, multiplier: 0.70)
         ])
 
+        // ScrollView fills the cardView
         NSLayoutConstraint.activate([
-            titleLabel.topAnchor.constraint(equalTo: cardView.topAnchor, constant: 18),
-            titleLabel.leadingAnchor.constraint(equalTo: cardView.leadingAnchor, constant: 20)
+            scrollView.topAnchor.constraint(equalTo: cardView.topAnchor),
+            scrollView.leadingAnchor.constraint(equalTo: cardView.leadingAnchor),
+            scrollView.trailingAnchor.constraint(equalTo: cardView.trailingAnchor),
+            scrollView.bottomAnchor.constraint(equalTo: cardView.bottomAnchor)
+        ])
+
+        // ScrollContentView defines the scrollable area
+        NSLayoutConstraint.activate([
+            scrollContentView.topAnchor.constraint(equalTo: scrollView.topAnchor),
+            scrollContentView.leadingAnchor.constraint(equalTo: scrollView.leadingAnchor),
+            scrollContentView.trailingAnchor.constraint(equalTo: scrollView.trailingAnchor),
+            scrollContentView.bottomAnchor.constraint(equalTo: scrollView.bottomAnchor),
+            scrollContentView.widthAnchor.constraint(equalTo: scrollView.widthAnchor)
+        ])
+
+        NSLayoutConstraint.activate([
+            titleLabel.topAnchor.constraint(equalTo: scrollContentView.topAnchor, constant: 18),
+            titleLabel.leadingAnchor.constraint(equalTo: scrollContentView.leadingAnchor, constant: 20)
         ])
 
         NSLayoutConstraint.activate([
             fieldsContainer.topAnchor.constraint(equalTo: titleLabel.bottomAnchor, constant: 12),
-            fieldsContainer.leadingAnchor.constraint(equalTo: cardView.leadingAnchor, constant: 16),
-            fieldsContainer.trailingAnchor.constraint(equalTo: cardView.trailingAnchor, constant: -16)
+            fieldsContainer.leadingAnchor.constraint(equalTo: scrollContentView.leadingAnchor, constant: 16),
+            fieldsContainer.trailingAnchor.constraint(equalTo: scrollContentView.trailingAnchor, constant: -16)
         ])
 
         var prev = fieldsContainer.topAnchor
@@ -497,7 +572,7 @@ final class SignUpViewController: UIViewController {
 
             termsLabel.centerYAnchor.constraint(equalTo: checkBoxButton.centerYAnchor),
             termsLabel.leadingAnchor.constraint(equalTo: checkBoxButton.trailingAnchor, constant: 8),
-            termsLabel.trailingAnchor.constraint(equalTo: cardView.trailingAnchor, constant: -20)
+            termsLabel.trailingAnchor.constraint(equalTo: scrollContentView.trailingAnchor, constant: -20)
         ])
 
         NSLayoutConstraint.activate([
@@ -505,8 +580,41 @@ final class SignUpViewController: UIViewController {
             signUpButton.leadingAnchor.constraint(equalTo: fieldsContainer.leadingAnchor),
             signUpButton.trailingAnchor.constraint(equalTo: fieldsContainer.trailingAnchor),
             signUpButton.heightAnchor.constraint(equalToConstant: 50),
-            signUpButton.bottomAnchor.constraint(lessThanOrEqualTo: cardView.bottomAnchor, constant: -28)
+            signUpButton.bottomAnchor.constraint(equalTo: scrollContentView.bottomAnchor, constant: -28)
         ])
+    }
+}
+
+
+// MARK: - UITextFieldDelegate
+
+extension SignUpViewController: UITextFieldDelegate {
+
+    func textFieldDidBeginEditing(_ textField: UITextField) {
+        activeTextField = textField
+
+        // Scroll the active field into view if the keyboard is already showing
+        let fieldFrame = textField.convert(textField.bounds, to: scrollView)
+        scrollView.scrollRectToVisible(fieldFrame.insetBy(dx: 0, dy: -20), animated: true)
+    }
+
+    func textFieldDidEndEditing(_ textField: UITextField) {
+        activeTextField = nil
+    }
+
+    func textFieldShouldReturn(_ textField: UITextField) -> Bool {
+        let allFields = [firstNameTF, lastNameTF, regTF, emailTF,
+                         phoneTF, createPasswordTF, confirmPasswordTF]
+
+        let currentIndex = textField.tag
+        if currentIndex < allFields.count - 1 {
+            // Move focus to the next field
+            allFields[currentIndex + 1].becomeFirstResponder()
+        } else {
+            // Last field — dismiss the keyboard
+            textField.resignFirstResponder()
+        }
+        return true
     }
 }
 

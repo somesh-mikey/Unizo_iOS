@@ -24,8 +24,16 @@ final class UserRepository {
         return userId
     }
 
+    // MARK: - Network Guard
+    private func requireNetwork() throws {
+        guard NetworkMonitor.shared.isReachable() else {
+            throw NetworkError.noConnection
+        }
+    }
+
     // MARK: - Fetch Current User Profile
     func fetchCurrentUser() async throws -> UserDTO? {
+        try requireNetwork()
         let userId = try await getCurrentUserId()
 
         let users: [UserDTO] = try await client
@@ -41,6 +49,7 @@ final class UserRepository {
 
     // MARK: - Update User Preferences (notifications)
     func updatePreferences(emailNotifications: Bool?, smsNotifications: Bool?) async throws {
+        try requireNetwork()
         let userId = try await getCurrentUserId()
 
         var payload = UserPreferencesUpdate()
@@ -56,6 +65,7 @@ final class UserRepository {
 
     // MARK: - Update User Profile
     func updateProfile(_ update: UserProfileUpdate) async throws {
+        try requireNetwork()
         let userId = try await getCurrentUserId()
 
         try await client
@@ -67,6 +77,7 @@ final class UserRepository {
 
     // MARK: - Update Profile Image URL
     func updateProfileImageURL(_ url: String) async throws {
+        try requireNetwork()
         let userId = try await getCurrentUserId()
 
         struct ImageUpdate: Encodable {
