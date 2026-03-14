@@ -2,44 +2,47 @@
 //  OrderRealtimeManager.swift
 //  Unizo_iOS
 //
+//  Manages per-order Supabase Realtime channels so both buyer and seller
+//  see status changes immediately without polling.
+//
+//  Usage:
+//    - Call subscribeToOrder(_:) when entering OrderDetailsViewController.
+//    - Call unsubscribeFromOrder(_:) when leaving.
+//    - Call unsubscribeAll() on sign-out.
+//  Observe .orderStatusDidChange on NotificationCenter for UI updates.
+//
 
 import Foundation
 import Supabase
 
-// MARK: - Notification Names
+// MARK: - Notification Name
+
 extension Notification.Name {
-    /// Posted when a specific order's status changes in realtime.
-    /// userInfo: ["orderId": UUID, "newStatus": String, "handoffCode": String?]
+    /// Posted on the main queue when an order's status changes.
+    /// userInfo keys: "orderId" (UUID), "newStatus" (String), "handoffCode" (String?)
     static let orderStatusDidChange = Notification.Name("orderStatusDidChange")
 }
 
-// MARK: - Order Realtime Manager
-/// Manages Supabase Realtime subscriptions for order status updates.
-/// Subscribes per-order so both buyer and seller see updates instantly.
+// MARK: - OrderRealtimeManager
+
 final class OrderRealtimeManager {
 
     static let shared = OrderRealtimeManager()
 
-    private let client = SupabaseManager.shared.client
-
-    /// Active channels keyed by order ID
+    private let client  = SupabaseManager.shared.client
     private var channels: [UUID: RealtimeChannelV2] = [:]
 
     private init() {}
 
-    // MARK: - Subscribe to a Specific Order
+    // MARK: - Subscription Lifecycle
 
-    /// Call when opening OrderDetailsViewController. Safe to call multiple times
-    /// for the same order — duplicates are ignored.
+    /// Subscribes to realtime updates for the given order. Duplicate calls for
+    /// the same order ID are ignored.
     func subscribeToOrder(_ orderId: UUID) async {
-        guard channels[orderId] == nil else {
-            print("OrderRealtime: Already subscribed to order \(orderId.uuidString.prefix(8))")
-            return
-        }
+        guard channels[orderId] == nil else { return }
 
         let channel = client.realtimeV2.channel("order:\(orderId.uuidString)")
 
-        // Listen for UPDATE events on this specific order row
         let updates = channel.postgresChange(
             UpdateAction.self,
             schema: "public",
@@ -47,7 +50,6 @@ final class OrderRealtimeManager {
             filter: "id=eq.\(orderId.uuidString)"
         )
 
-        // Handle updates in a background task
         Task { [weak self] in
             for await update in updates {
                 self?.handleOrderUpdate(update, orderId: orderId)
@@ -60,20 +62,14 @@ final class OrderRealtimeManager {
         print("OrderRealtime: Subscribed to order \(orderId.uuidString.prefix(8))")
     }
 
-    // MARK: - Unsubscribe from a Specific Order
-
-    /// Call when leaving OrderDetailsViewController.
     func unsubscribeFromOrder(_ orderId: UUID) async {
         guard let channel = channels[orderId] else { return }
-
         await client.realtimeV2.removeChannel(channel)
         channels[orderId] = nil
-
         print("OrderRealtime: Unsubscribed from order \(orderId.uuidString.prefix(8))")
     }
 
-    // MARK: - Unsubscribe All (call on logout)
-
+    /// Removes all active order channels. Call on sign-out.
     func unsubscribeAll() async {
         for (orderId, channel) in channels {
             await client.realtimeV2.removeChannel(channel)
@@ -82,9 +78,9 @@ final class OrderRealtimeManager {
         channels.removeAll()
     }
 
-    // MARK: - Handle Realtime Update
+    // MARK: - Update Handling
 
-    /// Lightweight struct for decoding just the fields we need from the realtime record.
+    /// Minimal decodable for the fields we care about from the realtime record.
     private struct OrderRealtimeRecord: Codable {
         let id: UUID
         let status: String
@@ -93,24 +89,20 @@ final class OrderRealtimeManager {
 
     private func handleOrderUpdate(_ update: UpdateAction, orderId: UUID) {
         do {
-            // Same encode→decode pattern used in NotificationManager / ChatManager
-            let data = try JSONEncoder().encode(update.record)
+            // Encode the AnyJSON record to Data, then decode into our typed struct.
+            let data   = try JSONEncoder().encode(update.record)
             let record = try JSONDecoder().decode(OrderRealtimeRecord.self, from: data)
 
-            let newStatus = record.status
-            let handoffCode = record.handoff_code
+            print("OrderRealtime: Order \(orderId.uuidString.prefix(8)) → status=\(record.status)")
 
-            print("OrderRealtime: Order \(orderId.uuidString.prefix(8)) updated → status=\(newStatus), handoffCode=\(handoffCode ?? "nil")")
-
-            // Post notification on main thread so UI observers can react
             DispatchQueue.main.async {
                 NotificationCenter.default.post(
                     name: .orderStatusDidChange,
                     object: nil,
                     userInfo: [
-                        "orderId": orderId,
-                        "newStatus": newStatus,
-                        "handoffCode": handoffCode as Any
+                        "orderId":     orderId,
+                        "newStatus":   record.status,
+                        "handoffCode": record.handoff_code as Any
                     ]
                 )
             }
