@@ -78,7 +78,7 @@ final class PostEventViewController: UIViewController,
     private let venueField    = PostEventViewController.makeTextField(placeholder: "Venue".localized)
     private let priceField: UITextField = {
         let tf = PostEventViewController.makeTextField(placeholder: "Price (in Rupees)".localized)
-        tf.keyboardType = .decimalPad
+        tf.keyboardType = .numberPad
         return tf
     }()
 

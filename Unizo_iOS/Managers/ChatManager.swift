@@ -183,16 +183,6 @@ final class ChatManager {
                 return
             }
 
-            // Increment unread count
-            await MainActor.run {
-                self.totalUnreadCount += 1
-            }
-
-            // Notify delegate
-            await MainActor.run {
-                self.delegate?.chatManager(self, didReceiveMessage: message, inConversation: conversationId)
-            }
-
             // Post notification for observers
             await MainActor.run {
                 NotificationCenter.default.post(

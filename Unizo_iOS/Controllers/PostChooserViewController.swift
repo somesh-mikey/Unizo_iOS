@@ -210,6 +210,7 @@ final class PostChooserViewController: UIViewController {
         HapticFeedback.tabSelected()
         animateCardPress(itemCard) { [weak self] in
             let vc = PostItemViewController()
+            vc.hidesBottomBarWhenPushed = true
             self?.navigationController?.pushViewController(vc, animated: true)
         }
     }
@@ -218,6 +219,7 @@ final class PostChooserViewController: UIViewController {
         HapticFeedback.tabSelected()
         animateCardPress(eventCard) { [weak self] in
             let vc = PostEventViewController()
+            vc.hidesBottomBarWhenPushed = true
             self?.navigationController?.pushViewController(vc, animated: true)
         }
     }

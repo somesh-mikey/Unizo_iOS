@@ -306,11 +306,10 @@ final class EditListingViewController: UIViewController,
             let field = UITextField()
             field.placeholder = title
             field.font = .systemFont(ofSize: 16)
-            field.translatesAutoresizingMaskIntoConstraints = false
 
-            // Price field - use decimal pad with Done toolbar
+            // Price field - use number pad with Done toolbar
             if i == 1 {
-                field.keyboardType = .decimalPad
+                field.keyboardType = .numberPad
                 let toolbar = UIToolbar()
                 toolbar.sizeToFit()
                 let doneButton = UIBarButtonItem(barButtonSystemItem: .done, target: self, action: #selector(dismissKeyboard))
@@ -323,6 +322,7 @@ final class EditListingViewController: UIViewController,
                 field.delegate = self
             }
 
+            field.translatesAutoresizingMaskIntoConstraints = false
             productCard.addSubview(field)
             fields.append(field)
 
@@ -339,6 +339,7 @@ final class EditListingViewController: UIViewController,
                     field.topAnchor.constraint(equalTo: prev.bottomAnchor, constant: 0).isActive = true
                 }
             }
+            previousField = field
 
             if i < fieldTitles.count - 1 {
                 let sep = UIView()

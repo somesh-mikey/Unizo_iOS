@@ -308,21 +308,20 @@ final class PostItemViewController: UIViewController,
 
         var lastField: UIView?
 
-        for title in fieldTitles {
+        for (i, title) in fieldTitles.enumerated() {
             let field = UITextField()
             field.placeholder = title
             field.font = .systemFont(ofSize: 15)
-            field.setLeftPaddingPoints(18)
             field.translatesAutoresizingMaskIntoConstraints = false
 
             // Product Name field - add character limit
-            if title == "Product Name".localized {
+            if i == 0 {
                 field.delegate = self
             }
 
-            // Price field - use decimal pad with Done toolbar
-            if title == "Price (in Rupees)".localized {
-                field.keyboardType = .decimalPad
+            // Price field - use number pad with Done toolbar
+            if i == 1 {
+                field.keyboardType = .numberPad
                 let toolbar = UIToolbar()
                 toolbar.sizeToFit()
                 let doneButton = UIBarButtonItem(barButtonSystemItem: .done, target: self, action: #selector(dismissKeyboard))
@@ -330,7 +329,7 @@ final class PostItemViewController: UIViewController,
                 field.inputAccessoryView = toolbar
             }
 
-            if title == "Category".localized || title == "Condition".localized {
+            if i == 3 || i == 5 {
                 field.delegate = self
                 field.inputView = pickerView
                 field.inputAccessoryView = makePickerToolbar()
@@ -341,8 +340,8 @@ final class PostItemViewController: UIViewController,
             fields.append(field)
 
             NSLayoutConstraint.activate([
-                field.leadingAnchor.constraint(equalTo: productCard.leadingAnchor),
-                field.trailingAnchor.constraint(equalTo: productCard.trailingAnchor),
+                field.leadingAnchor.constraint(equalTo: productCard.leadingAnchor, constant: 18),
+                field.trailingAnchor.constraint(equalTo: productCard.trailingAnchor, constant: -18),
                 field.heightAnchor.constraint(equalToConstant: 50),
                 field.topAnchor.constraint(equalTo: lastField?.bottomAnchor ?? productCard.topAnchor)
             ])
