@@ -39,6 +39,7 @@ class SceneDelegate: UIResponder, UIWindowSceneDelegate {
         Task {
             if await AuthManager.shared.isLoggedIn {
                 await NotificationManager.shared.startListening()
+                await ChatManager.shared.startListening()
             }
         }
 

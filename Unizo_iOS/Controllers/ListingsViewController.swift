@@ -169,10 +169,10 @@ class ListingsViewController: UIViewController {
             do {
                 let userId = try await supabase.auth.session.user.id.uuidString
 
-                // Fetch products
+                // Fetch products with seller join
                 let response = try await supabase
                     .from("products")
-                    .select("*")
+                    .select("*, seller:seller_id(*)")
                     .eq("seller_id", value: userId)
                     .order("created_at", ascending: false)
                     .execute()

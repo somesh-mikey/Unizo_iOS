@@ -58,6 +58,7 @@ struct ConversationProductInfo: Codable {
     let id: UUID
     let title: String
     let image_url: String?
+    let status: String?  // "available", "sold", etc.
 }
 
 // MARK: - Nested User Info
@@ -111,6 +112,10 @@ struct ConversationUIModel: Identifiable {
     let lastMessageTime: Date?
     let unreadCount: Int
     let isSeller: Bool  // Is current user the seller in this conversation?
+    let productStatus: String?  // e.g. "available", "sold"
+
+    /// True when the linked product has been sold — conversation moves to Archived section
+    var isArchived: Bool { productStatus == "sold" }
 
     var formattedTime: String {
         guard let time = lastMessageTime else { return "" }

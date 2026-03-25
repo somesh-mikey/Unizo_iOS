@@ -127,7 +127,6 @@ class ItemDetailsViewController: UIViewController {
         v.backgroundColor = UIColor.brandLight
         v.layer.cornerRadius = Spacing.cornerRadiusMedium
         v.layer.masksToBounds = false
-        // make light shadow to mimic Figma card
         v.layer.shadowColor = UIColor.cardShadow.cgColor
         v.layer.shadowOpacity = 0.06
         v.layer.shadowRadius = 8
@@ -135,6 +134,37 @@ class ItemDetailsViewController: UIViewController {
         return v
     }()
 
+    /// Circular avatar with seller initials
+    private let sellerAvatarView: UIView = {
+        let v = UIView()
+        v.backgroundColor = UIColor(red: 0.02, green: 0.34, blue: 0.46, alpha: 1.0)
+        v.layer.cornerRadius = 24
+        v.clipsToBounds = true
+        return v
+    }()
+
+    private let sellerInitialsLabel: UILabel = {
+        let l = UILabel()
+        l.font = .systemFont(ofSize: 17, weight: .semibold)
+        l.textColor = .white
+        l.textAlignment = .center
+        return l
+    }()
+
+    /// "Seller" pill badge
+    private let sellerBadgeLabel: UILabel = {
+        let l = UILabel()
+        l.text = "  Seller  "
+        l.font = .systemFont(ofSize: 11, weight: .semibold)
+        l.textColor = UIColor(red: 0.02, green: 0.34, blue: 0.46, alpha: 1.0)
+        l.backgroundColor = UIColor(red: 0.02, green: 0.34, blue: 0.46, alpha: 0.12)
+        l.layer.cornerRadius = 9
+        l.clipsToBounds = true
+        l.textAlignment = .center
+        return l
+    }()
+
+    /// Bold seller real name
     private let sellerTitleLabel: UILabel = {
         let l = UILabel()
         l.text = "Seller".localized
@@ -154,10 +184,10 @@ class ItemDetailsViewController: UIViewController {
 
     private let sellerNameLabel: UILabel = {
         let l = UILabel()
-        l.text = "" // Will be populated from product data
-        l.font = UIFont.preferredFont(forTextStyle: .subheadline)
+        l.text = ""
+        l.font = .systemFont(ofSize: 16, weight: .bold)
         l.adjustsFontForContentSizeCategory = true
-        l.textColor = .secondaryLabel
+        l.textColor = .label
         return l
     }()
 
@@ -305,6 +335,14 @@ class ItemDetailsViewController: UIViewController {
         // Seller name and rating
         sellerNameLabel.text = p.sellerName
 
+        // Seller initials for avatar
+        let parts = p.sellerName.split(separator: " ")
+        if let first = parts.first?.prefix(1), let last = parts.dropFirst().first?.prefix(1) {
+            sellerInitialsLabel.text = "\(first)\(last)".uppercased()
+        } else {
+            sellerInitialsLabel.text = String(p.sellerName.prefix(2)).uppercased()
+        }
+
         // Seller rating (SF Symbol star + brand color)
         let ratingText = NSMutableAttributedString()
         let starImage = UIImage(systemName: "star.fill")?
@@ -420,11 +458,15 @@ class ItemDetailsViewController: UIViewController {
         }
 
         // Seller card layout: add internal subviews
-        sellerCard.addSubview(sellerTitleLabel)
+        sellerCard.addSubview(sellerAvatarView)
+        sellerAvatarView.addSubview(sellerInitialsLabel)
+        sellerCard.addSubview(sellerBadgeLabel)
         sellerCard.addSubview(sellerNameLabel)
         sellerCard.addSubview(sellerRatingLabel)
 
-        sellerTitleLabel.translatesAutoresizingMaskIntoConstraints = false
+        sellerAvatarView.translatesAutoresizingMaskIntoConstraints = false
+        sellerInitialsLabel.translatesAutoresizingMaskIntoConstraints = false
+        sellerBadgeLabel.translatesAutoresizingMaskIntoConstraints = false
         sellerNameLabel.translatesAutoresizingMaskIntoConstraints = false
         sellerRatingLabel.translatesAutoresizingMaskIntoConstraints = false
 
@@ -514,26 +556,36 @@ class ItemDetailsViewController: UIViewController {
             conditionValueLabel.leadingAnchor.constraint(equalTo: contentView.leadingAnchor),
         ])
 
-        // Seller card constraints (nice tall card)
+        // Seller card constraints — taller to fit avatar + name + badge
         NSLayoutConstraint.activate([
             sellerCard.topAnchor.constraint(equalTo: conditionValueLabel.bottomAnchor, constant: 18),
             sellerCard.leadingAnchor.constraint(equalTo: contentView.leadingAnchor),
             sellerCard.trailingAnchor.constraint(equalTo: contentView.trailingAnchor),
-            sellerCard.heightAnchor.constraint(equalToConstant: 90),
+            sellerCard.heightAnchor.constraint(equalToConstant: 76),
             sellerCard.bottomAnchor.constraint(equalTo: contentView.bottomAnchor, constant: -20)
         ])
 
         // Seller card internal layout
         NSLayoutConstraint.activate([
-            // "Seller" title on the left
-            sellerTitleLabel.topAnchor.constraint(equalTo: sellerCard.topAnchor, constant: 14),
-            sellerTitleLabel.leadingAnchor.constraint(equalTo: sellerCard.leadingAnchor, constant: 16),
+            // Avatar circle (left)
+            sellerAvatarView.leadingAnchor.constraint(equalTo: sellerCard.leadingAnchor, constant: 14),
+            sellerAvatarView.centerYAnchor.constraint(equalTo: sellerCard.centerYAnchor),
+            sellerAvatarView.widthAnchor.constraint(equalToConstant: 48),
+            sellerAvatarView.heightAnchor.constraint(equalToConstant: 48),
 
-            // Seller name below title
-            sellerNameLabel.topAnchor.constraint(equalTo: sellerTitleLabel.bottomAnchor, constant: 6),
-            sellerNameLabel.leadingAnchor.constraint(equalTo: sellerCard.leadingAnchor, constant: 16),
+            sellerInitialsLabel.centerXAnchor.constraint(equalTo: sellerAvatarView.centerXAnchor),
+            sellerInitialsLabel.centerYAnchor.constraint(equalTo: sellerAvatarView.centerYAnchor),
 
-            // Rating on the right (replaces chat button)
+            // Seller name (bold, next to avatar)
+            sellerNameLabel.leadingAnchor.constraint(equalTo: sellerAvatarView.trailingAnchor, constant: 12),
+            sellerNameLabel.topAnchor.constraint(equalTo: sellerCard.topAnchor, constant: 18),
+
+            // "Seller" badge pill (below name)
+            sellerBadgeLabel.leadingAnchor.constraint(equalTo: sellerNameLabel.leadingAnchor),
+            sellerBadgeLabel.topAnchor.constraint(equalTo: sellerNameLabel.bottomAnchor, constant: 4),
+            sellerBadgeLabel.heightAnchor.constraint(equalToConstant: 18),
+
+            // Rating on the right
             sellerRatingLabel.centerYAnchor.constraint(equalTo: sellerCard.centerYAnchor),
             sellerRatingLabel.trailingAnchor.constraint(equalTo: sellerCard.trailingAnchor, constant: -16)
         ])

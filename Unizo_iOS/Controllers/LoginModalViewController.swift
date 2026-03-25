@@ -309,8 +309,9 @@ final class LoginModalViewController: UIViewController {
 
                 print("✅ Login successful")
 
-                // Start notification listener
+                // Start notification listeners
                 await NotificationManager.shared.startListening()
+                await ChatManager.shared.startListening()
 
                 // Navigate to main app
                 await MainActor.run {

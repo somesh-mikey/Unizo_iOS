@@ -132,7 +132,7 @@ private final class ChatCell: UITableViewCell {
         ])
     }
 
-    func configure(with conversation: ConversationUIModel) {
+    func configure(with conversation: ConversationUIModel, dimmed: Bool = false) {
         // User name as main title
         let rolePrefix = conversation.isSeller ? "Buyer: " : "Seller: "
         userNameLabel.text = rolePrefix + conversation.otherUserName
@@ -144,12 +144,22 @@ private final class ChatCell: UITableViewCell {
         lastMessageLabel.text = conversation.lastMessage.isEmpty ? "Start a conversation".localized : conversation.lastMessage
         timeLabel.text = conversation.formattedTime
 
-        // Unread badge
-        if conversation.unreadCount > 0 {
+        // Dimmed style for archived conversations
+        contentView.alpha = dimmed ? 0.65 : 1.0
+
+        if dimmed {
+            // Show "Deal Closed" badge instead of unread count
             unreadBadge.isHidden = false
-            unreadBadge.text = conversation.unreadCount > 99 ? "99+" : "\(conversation.unreadCount)"
+            unreadBadge.text = "  ✅ Closed  "
+            unreadBadge.backgroundColor = UIColor.systemGreen.withAlphaComponent(0.8)
         } else {
-            unreadBadge.isHidden = true
+            unreadBadge.backgroundColor = UIColor(red: 0.02, green: 0.34, blue: 0.46, alpha: 1.0)
+            if conversation.unreadCount > 0 {
+                unreadBadge.isHidden = false
+                unreadBadge.text = conversation.unreadCount > 99 ? "99+" : "\(conversation.unreadCount)"
+            } else {
+                unreadBadge.isHidden = true
+            }
         }
 
         // Load user avatar
@@ -180,6 +190,7 @@ private final class ChatCell: UITableViewCell {
 
     override func prepareForReuse() {
         super.prepareForReuse()
+        contentView.alpha = 1.0
         avatarImageView.image = UIImage(systemName: "person.fill")
         avatarImageView.constraints.forEach { $0.isActive = false }
         NSLayoutConstraint.activate([
@@ -189,13 +200,99 @@ private final class ChatCell: UITableViewCell {
             avatarImageView.heightAnchor.constraint(equalToConstant: 28)
         ])
         unreadBadge.isHidden = true
+        unreadBadge.backgroundColor = UIColor(red: 0.02, green: 0.34, blue: 0.46, alpha: 1.0)
     }
+}
+
+// MARK: - Archived Section Header View
+private final class ArchivedSectionHeaderView: UIView {
+
+    var onToggle: (() -> Void)?
+
+    private let iconImageView: UIImageView = {
+        let iv = UIImageView(image: UIImage(systemName: "archivebox"))
+        iv.tintColor = UIColor(red: 0.02, green: 0.34, blue: 0.46, alpha: 1.0)
+        iv.contentMode = .scaleAspectFit
+        iv.translatesAutoresizingMaskIntoConstraints = false
+        return iv
+    }()
+
+    private let titleLabel: UILabel = {
+        let l = UILabel()
+        l.text = "Archived – Deals Closed"
+        l.font = .systemFont(ofSize: 15, weight: .semibold)
+        l.textColor = UIColor(red: 0.02, green: 0.34, blue: 0.46, alpha: 1.0)
+        l.translatesAutoresizingMaskIntoConstraints = false
+        return l
+    }()
+
+    private let countBadge: UILabel = {
+        let l = UILabel()
+        l.font = .systemFont(ofSize: 12, weight: .semibold)
+        l.textColor = .white
+        l.backgroundColor = UIColor(red: 0.02, green: 0.34, blue: 0.46, alpha: 1.0)
+        l.layer.cornerRadius = 10
+        l.clipsToBounds = true
+        l.textAlignment = .center
+        l.translatesAutoresizingMaskIntoConstraints = false
+        return l
+    }()
+
+    private(set) var chevronView: UIImageView = {
+        let iv = UIImageView(image: UIImage(systemName: "chevron.down"))
+        iv.tintColor = .secondaryLabel
+        iv.contentMode = .scaleAspectFit
+        iv.translatesAutoresizingMaskIntoConstraints = false
+        return iv
+    }()
+
+    init() {
+        super.init(frame: .zero)
+        backgroundColor = UIColor.systemGray5
+        setupUI()
+        let tap = UITapGestureRecognizer(target: self, action: #selector(handleTap))
+        addGestureRecognizer(tap)
+    }
+    required init?(coder: NSCoder) { fatalError() }
+
+    private func setupUI() {
+        [iconImageView, titleLabel, countBadge, chevronView].forEach { addSubview($0) }
+        NSLayoutConstraint.activate([
+            iconImageView.leadingAnchor.constraint(equalTo: leadingAnchor, constant: 16),
+            iconImageView.centerYAnchor.constraint(equalTo: centerYAnchor),
+            iconImageView.widthAnchor.constraint(equalToConstant: 20),
+            iconImageView.heightAnchor.constraint(equalToConstant: 20),
+            titleLabel.leadingAnchor.constraint(equalTo: iconImageView.trailingAnchor, constant: 10),
+            titleLabel.centerYAnchor.constraint(equalTo: centerYAnchor),
+            countBadge.leadingAnchor.constraint(equalTo: titleLabel.trailingAnchor, constant: 8),
+            countBadge.centerYAnchor.constraint(equalTo: centerYAnchor),
+            countBadge.widthAnchor.constraint(greaterThanOrEqualToConstant: 22),
+            countBadge.heightAnchor.constraint(equalToConstant: 20),
+            chevronView.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -16),
+            chevronView.centerYAnchor.constraint(equalTo: centerYAnchor),
+            chevronView.widthAnchor.constraint(equalToConstant: 14),
+            chevronView.heightAnchor.constraint(equalToConstant: 14)
+        ])
+    }
+
+    func configure(count: Int, isExpanded: Bool) {
+        countBadge.text = "  \(count)  "
+        countBadge.isHidden = count == 0
+        UIView.animate(withDuration: 0.2) {
+            self.chevronView.transform = isExpanded
+                ? .identity
+                : CGAffineTransform(rotationAngle: -(.pi / 2))
+        }
+    }
+
+    @objc private func handleTap() { onToggle?() }
 }
 
 // MARK: - Chat View Controller
 final class ChatViewController: UIViewController {
 
     private enum Segment { case all, selling, buying }
+    private enum Section: Int, CaseIterable { case active = 0; case archived = 1 }
 
     // MARK: - UI
     private let titleLabel: UILabel = {
@@ -216,6 +313,12 @@ final class ChatViewController: UIViewController {
 
     private let tableView = UITableView(frame: .zero, style: .plain)
     private let refreshControl = UIRefreshControl()
+
+    private lazy var archivedHeaderView: ArchivedSectionHeaderView = {
+        let v = ArchivedSectionHeaderView()
+        v.onToggle = { [weak self] in self?.toggleArchivedSection() }
+        return v
+    }()
 
     // Empty state
     private let emptyStateView: UIView = {
@@ -255,7 +358,6 @@ final class ChatViewController: UIViewController {
         return l
     }()
 
-    // Loading indicator
     private let loadingIndicator: UIActivityIndicatorView = {
         let indicator = UIActivityIndicatorView(style: .medium)
         indicator.hidesWhenStopped = true
@@ -266,7 +368,9 @@ final class ChatViewController: UIViewController {
     // MARK: - Data
     private var activeSegment: Segment = .all
     private var allConversations: [ConversationUIModel] = []
-    private var filteredConversations: [ConversationUIModel] = []
+    private var activeConversations: [ConversationUIModel] = []
+    private var archivedConversations: [ConversationUIModel] = []
+    private var isArchivedExpanded = false
     private var currentUserId: UUID?
 
     // MARK: - Lifecycle
@@ -284,9 +388,7 @@ final class ChatViewController: UIViewController {
         fetchConversations()
     }
 
-    deinit {
-        NotificationCenter.default.removeObserver(self)
-    }
+    deinit { NotificationCenter.default.removeObserver(self) }
 
     // MARK: - Setup
     private func setupUI() {
@@ -294,50 +396,37 @@ final class ChatViewController: UIViewController {
             $0.translatesAutoresizingMaskIntoConstraints = false
             view.addSubview($0)
         }
-
         searchContainer.backgroundColor = .white
         searchContainer.layer.cornerRadius = 20
-
         searchField.placeholder = "Search".localized
         searchField.translatesAutoresizingMaskIntoConstraints = false
         searchContainer.addSubview(searchField)
-
         segmentedControl.addTarget(self, action: #selector(segmentChanged), for: .valueChanged)
         searchField.addTarget(self, action: #selector(searchChanged), for: .editingChanged)
-
         NSLayoutConstraint.activate([
             titleLabel.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 20),
             titleLabel.topAnchor.constraint(equalTo: view.topAnchor, constant: 75),
-
             loadingIndicator.centerYAnchor.constraint(equalTo: titleLabel.centerYAnchor),
             loadingIndicator.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -20),
-
             searchContainer.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 16),
             searchContainer.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -16),
             searchContainer.topAnchor.constraint(equalTo: titleLabel.bottomAnchor, constant: 6),
             searchContainer.heightAnchor.constraint(equalToConstant: 44),
-
             searchField.leadingAnchor.constraint(equalTo: searchContainer.leadingAnchor, constant: 12),
             searchField.trailingAnchor.constraint(equalTo: searchContainer.trailingAnchor, constant: -12),
             searchField.centerYAnchor.constraint(equalTo: searchContainer.centerYAnchor),
-
             segmentedControl.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 16),
             segmentedControl.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -16),
             segmentedControl.topAnchor.constraint(equalTo: searchContainer.bottomAnchor, constant: 12),
             segmentedControl.heightAnchor.constraint(equalToConstant: 35),
-
             tableView.topAnchor.constraint(equalTo: segmentedControl.bottomAnchor, constant: 12),
             tableView.leadingAnchor.constraint(equalTo: view.leadingAnchor),
             tableView.trailingAnchor.constraint(equalTo: view.trailingAnchor),
             tableView.bottomAnchor.constraint(equalTo: view.bottomAnchor)
         ])
-
-        // Accessibility
         titleLabel.accessibilityTraits = .header
         searchField.accessibilityLabel = "Search conversations".localized
-        searchField.accessibilityHint = "Filter conversations by name or product".localized
         segmentedControl.accessibilityLabel = "Filter conversations".localized
-        loadingIndicator.accessibilityLabel = "Loading conversations".localized
     }
 
     private func setupTable() {
@@ -346,7 +435,6 @@ final class ChatViewController: UIViewController {
         tableView.backgroundColor = .clear
         tableView.dataSource = self
         tableView.delegate = self
-
         refreshControl.addTarget(self, action: #selector(handleRefresh), for: .valueChanged)
         tableView.refreshControl = refreshControl
     }
@@ -356,19 +444,15 @@ final class ChatViewController: UIViewController {
         emptyStateView.addSubview(emptyStateImageView)
         emptyStateView.addSubview(emptyStateLabel)
         emptyStateView.addSubview(emptyStateSubtitle)
-
         NSLayoutConstraint.activate([
             emptyStateView.centerXAnchor.constraint(equalTo: view.centerXAnchor),
             emptyStateView.centerYAnchor.constraint(equalTo: view.centerYAnchor),
-
             emptyStateImageView.topAnchor.constraint(equalTo: emptyStateView.topAnchor),
             emptyStateImageView.centerXAnchor.constraint(equalTo: emptyStateView.centerXAnchor),
             emptyStateImageView.widthAnchor.constraint(equalToConstant: 60),
             emptyStateImageView.heightAnchor.constraint(equalToConstant: 60),
-
             emptyStateLabel.topAnchor.constraint(equalTo: emptyStateImageView.bottomAnchor, constant: 16),
             emptyStateLabel.centerXAnchor.constraint(equalTo: emptyStateView.centerXAnchor),
-
             emptyStateSubtitle.topAnchor.constraint(equalTo: emptyStateLabel.bottomAnchor, constant: 8),
             emptyStateSubtitle.centerXAnchor.constraint(equalTo: emptyStateView.centerXAnchor),
             emptyStateSubtitle.bottomAnchor.constraint(equalTo: emptyStateView.bottomAnchor)
@@ -376,27 +460,17 @@ final class ChatViewController: UIViewController {
     }
 
     private func setupNotifications() {
-        NotificationCenter.default.addObserver(
-            self,
-            selector: #selector(handleNewMessage(_:)),
-            name: .newChatMessageReceived,
-            object: nil
-        )
-        NotificationCenter.default.addObserver(
-            self,
-            selector: #selector(handleProductDeleted(_:)),
-            name: .productDeleted,
-            object: nil
-        )
+        NotificationCenter.default.addObserver(self, selector: #selector(handleNewMessage(_:)),
+                                               name: .newChatMessageReceived, object: nil)
+        NotificationCenter.default.addObserver(self, selector: #selector(handleProductDeleted(_:)),
+                                               name: .productDeleted, object: nil)
     }
 
-    // MARK: - Fetch Conversations
+    // MARK: - Fetch
     private func fetchConversations() {
         loadingIndicator.startAnimating()
-
         Task {
             do {
-                // Get current user ID
                 guard let userId = await AuthManager.shared.currentUserId else {
                     await MainActor.run {
                         self.loadingIndicator.stopAnimating()
@@ -404,21 +478,13 @@ final class ChatViewController: UIViewController {
                     }
                     return
                 }
-
                 self.currentUserId = userId
-
                 let conversations = try await ChatManager.shared.fetchConversations()
-
-                // Convert to UI models
                 var uiModels: [ConversationUIModel] = []
-
                 for conv in conversations {
                     let isSeller = conv.seller_id == userId
                     let otherUser = isSeller ? conv.buyer : conv.seller
-
-                    // Get unread count for this conversation
                     let unreadCount = try await ChatRepository().getUnreadCount(conversationId: conv.id)
-
                     let uiModel = ConversationUIModel(
                         id: conv.id,
                         productId: conv.product_id,
@@ -430,21 +496,18 @@ final class ChatViewController: UIViewController {
                         lastMessage: conv.last_message?.previewText ?? "",
                         lastMessageTime: conv.last_message?.created_at,
                         unreadCount: unreadCount,
-                        isSeller: isSeller
+                        isSeller: isSeller,
+                        productStatus: conv.product?.status
                     )
                     uiModels.append(uiModel)
                 }
-
-                // Sort by last message time
                 uiModels.sort { ($0.lastMessageTime ?? Date.distantPast) > ($1.lastMessageTime ?? Date.distantPast) }
-
                 await MainActor.run {
                     self.allConversations = uiModels
                     self.applyFilters()
                     self.loadingIndicator.stopAnimating()
                     self.refreshControl.endRefreshing()
                 }
-
             } catch {
                 print("❌ Failed to fetch conversations: \(error)")
                 await MainActor.run {
@@ -455,49 +518,36 @@ final class ChatViewController: UIViewController {
         }
     }
 
+    // MARK: - Archived Toggle
+    private func toggleArchivedSection() {
+        isArchivedExpanded.toggle()
+        archivedHeaderView.configure(count: archivedConversations.count, isExpanded: isArchivedExpanded)
+        tableView.reloadSections(IndexSet(integer: Section.archived.rawValue), with: .fade)
+        HapticFeedback.selection()
+    }
+
     // MARK: - Actions
     @objc private func segmentChanged() {
         activeSegment = segmentedControl.selectedSegmentIndex == 1 ? .selling :
                         segmentedControl.selectedSegmentIndex == 2 ? .buying : .all
         applyFilters()
     }
-
-    @objc private func searchChanged() {
-        applyFilters()
-    }
-
-    @objc private func handleRefresh() {
-        HapticFeedback.pullToRefresh()
-        fetchConversations()
-    }
-
-    @objc private func handleNewMessage(_ notification: Notification) {
-        // Refresh conversation list when new message arrives
-        fetchConversations()
-    }
-
+    @objc private func searchChanged() { applyFilters() }
+    @objc private func handleRefresh() { HapticFeedback.pullToRefresh(); fetchConversations() }
+    @objc private func handleNewMessage(_ notification: Notification) { fetchConversations() }
     @objc private func handleProductDeleted(_ notification: Notification) {
         guard let productId = notification.userInfo?["productId"] as? UUID else { return }
-
-        // Remove conversations tied to the deleted product
         allConversations.removeAll { $0.productId == productId }
         applyFilters()
     }
 
     private func applyFilters() {
         var result = allConversations
-
-        // Filter by segment
         switch activeSegment {
-        case .all:
-            break
-        case .selling:
-            result = result.filter { $0.isSeller }
-        case .buying:
-            result = result.filter { !$0.isSeller }
+        case .all:      break
+        case .selling:  result = result.filter { $0.isSeller }
+        case .buying:   result = result.filter { !$0.isSeller }
         }
-
-        // Filter by search
         let query = searchField.text ?? ""
         if !query.isEmpty {
             result = result.filter {
@@ -505,39 +555,20 @@ final class ChatViewController: UIViewController {
                 $0.otherUserName.localizedCaseInsensitiveContains(query)
             }
         }
-
-        filteredConversations = result
+        activeConversations   = result.filter { !$0.isArchived }
+        archivedConversations = result.filter {  $0.isArchived }
+        archivedHeaderView.configure(count: archivedConversations.count, isExpanded: isArchivedExpanded)
         tableView.reloadData()
         updateEmptyState()
     }
 
     private func updateEmptyState() {
-        let isEmpty = filteredConversations.isEmpty
+        let isEmpty = activeConversations.isEmpty && archivedConversations.isEmpty
         emptyStateView.isHidden = !isEmpty
         tableView.isHidden = isEmpty
     }
-}
 
-// MARK: - Table Delegate
-extension ChatViewController: UITableViewDataSource, UITableViewDelegate {
-    
-    func tableView(_ tableView: UITableView, numberOfRowsInSection section: Int) -> Int {
-        filteredConversations.count
-    }
-    
-    func tableView(_ tableView: UITableView,
-                   cellForRowAt indexPath: IndexPath) -> UITableViewCell {
-        let cell = tableView.dequeueReusableCell(
-            withIdentifier: ChatCell.reuseId,
-            for: indexPath
-        ) as! ChatCell
-        cell.configure(with: filteredConversations[indexPath.row])
-        return cell
-    }
-    
-    func tableView(_ tableView: UITableView, didSelectRowAt indexPath: IndexPath) {
-        let conversation = filteredConversations[indexPath.row]
-
+    private func openConversation(_ conversation: ConversationUIModel) {
         let detailVC = ChatDetailViewController()
         detailVC.conversationId = conversation.id
         detailVC.chatTitle = conversation.productTitle
@@ -545,30 +576,68 @@ extension ChatViewController: UITableViewDataSource, UITableViewDelegate {
         detailVC.isSeller = conversation.isSeller
         detailVC.productId = conversation.productId
         detailVC.otherUserImageURL = conversation.otherUserImageURL
-
+        detailVC.productStatus = conversation.productStatus ?? "available"
         navigationController?.pushViewController(detailVC, animated: true)
     }
-    
-    // MARK: - External Navigation
-    /// Navigate to a specific conversation (called from other controllers like OrderDetailsViewController)
-    func navigateToConversation(id conversationId: UUID) {
-        // Find conversation in all loaded conversations (not just filtered)
-        if let conversation = allConversations.first(where: { $0.id == conversationId }) {
-            let detailVC = ChatDetailViewController()
-            detailVC.conversationId = conversation.id
-            detailVC.chatTitle = conversation.productTitle
-            detailVC.otherUserName = conversation.otherUserName
-            detailVC.isSeller = conversation.isSeller
-            detailVC.productId = conversation.productId
-            detailVC.otherUserImageURL = conversation.otherUserImageURL
+}
 
-            navigationController?.pushViewController(detailVC, animated: true)
+// MARK: - Table DataSource & Delegate
+extension ChatViewController: UITableViewDataSource, UITableViewDelegate {
+
+    func numberOfSections(in tableView: UITableView) -> Int {
+        return archivedConversations.isEmpty ? 1 : Section.allCases.count
+    }
+
+    func tableView(_ tableView: UITableView, numberOfRowsInSection section: Int) -> Int {
+        switch Section(rawValue: section) {
+        case .active:   return activeConversations.count
+        case .archived: return isArchivedExpanded ? archivedConversations.count : 0
+        case .none:     return 0
+        }
+    }
+
+    func tableView(_ tableView: UITableView,
+                   cellForRowAt indexPath: IndexPath) -> UITableViewCell {
+        let cell = tableView.dequeueReusableCell(
+            withIdentifier: ChatCell.reuseId,
+            for: indexPath
+        ) as! ChatCell
+        switch Section(rawValue: indexPath.section) {
+        case .active:   cell.configure(with: activeConversations[indexPath.row])
+        case .archived: cell.configure(with: archivedConversations[indexPath.row], dimmed: true)
+        case .none:     break
+        }
+        return cell
+    }
+
+    func tableView(_ tableView: UITableView, viewForHeaderInSection section: Int) -> UIView? {
+        guard Section(rawValue: section) == .archived, !archivedConversations.isEmpty else { return nil }
+        return archivedHeaderView
+    }
+
+    func tableView(_ tableView: UITableView, heightForHeaderInSection section: Int) -> CGFloat {
+        guard Section(rawValue: section) == .archived, !archivedConversations.isEmpty else { return 0 }
+        return 44
+    }
+
+    func tableView(_ tableView: UITableView, didSelectRowAt indexPath: IndexPath) {
+        switch Section(rawValue: indexPath.section) {
+        case .active:   openConversation(activeConversations[indexPath.row])
+        case .archived: openConversation(archivedConversations[indexPath.row])
+        case .none:     break
+        }
+    }
+
+    // MARK: - External Navigation
+    func navigateToConversation(id conversationId: UUID) {
+        let allVisible = activeConversations + archivedConversations
+        if let conversation = allVisible.first(where: { $0.id == conversationId }) {
+            openConversation(conversation)
         } else {
-            print("Conversation not found in list, attempting direct load")
-            // If not in the visible list, create detail VC directly
             let detailVC = ChatDetailViewController()
             detailVC.conversationId = conversationId
             navigationController?.pushViewController(detailVC, animated: true)
         }
     }
 }
+

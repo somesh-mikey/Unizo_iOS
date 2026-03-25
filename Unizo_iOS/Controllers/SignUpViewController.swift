@@ -410,6 +410,7 @@ final class SignUpViewController: UIViewController {
 
                 // Start notification listener
                 await NotificationManager.shared.startListening()
+                await ChatManager.shared.startListening()
 
                 // Show success screen
                 await MainActor.run {
