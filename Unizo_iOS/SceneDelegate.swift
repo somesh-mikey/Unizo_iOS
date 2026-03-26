@@ -19,14 +19,16 @@ class SceneDelegate: UIResponder, UIWindowSceneDelegate {
         window.overrideUserInterfaceStyle = .light
         window.makeKeyAndVisible()
 
-        // TASK-25: Setup No Internet Banner
-        NetworkMonitor.shared.onStatusChange = { [weak self] isConnected in
+        // TASK-25: Setup No Internet Banner (pill-style, iOS-native)
+        // Uses startObserving to fix launch-time gap: if NWPathMonitor fired
+        // before this closure was assigned, checkInitialState re-fires immediately.
+        NetworkMonitor.shared.startObserving { [weak self] isConnected in
             DispatchQueue.main.async { [weak self] in
                 guard let window = self?.window else { return }
                 if !isConnected {
-                    NoInternetBannerView.show(in: window)
+                    UnizoBannerView.show(in: window, state: .offline)
                 } else {
-                    NoInternetBannerView.hide(from: window)
+                    UnizoBannerView.show(in: window, state: .online)
                 }
             }
         }

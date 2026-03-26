@@ -334,6 +334,16 @@ final class LoginModalViewController: UIViewController {
                     }
                 }
 
+            } catch is NetworkError {
+                // RULE 5 — Show pill banner for no-internet (NOT an alert)
+                print("❌ Login failed: No internet")
+                await MainActor.run {
+                    loginButton.isEnabled = true
+                    loginButton.setTitle("Login".localized, for: .normal)
+                    if let window = self.view.window {
+                        UnizoBannerView.show(in: window, state: .offline)
+                    }
+                }
             } catch {
                 print("❌ Login failed:", error)
                 await MainActor.run {

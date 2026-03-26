@@ -422,6 +422,16 @@ final class SignUpViewController: UIViewController {
                     present(vc, animated: true)
                 }
 
+            } catch is NetworkError {
+                // RULE 5 — Show pill banner for no-internet (NOT an alert)
+                print("❌ Sign up failed: No internet")
+                await MainActor.run {
+                    signUpButton.isEnabled = true
+                    signUpButton.setTitle("Sign Up".localized, for: .normal)
+                    if let window = self.view.window {
+                        UnizoBannerView.show(in: window, state: .offline)
+                    }
+                }
             } catch {
                 print("❌ Sign up failed:", error)
                 await MainActor.run {
