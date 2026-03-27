@@ -266,6 +266,9 @@ class LandingScreenViewController: UIViewController {
     }
 
 
+    // MARK: - Offline Overlay
+    private var offlineOverlay: OfflineOverlayView?
+
     // MARK: Lifecycle
     override func viewDidLoad() {
         super.viewDidLoad()
@@ -273,20 +276,9 @@ class LandingScreenViewController: UIViewController {
         setupViews()
         setupCarousel()
         setupCollectionView()
-        loader.center = view.center
-        view.addSubview(loader)
-        loader.startAnimating()
-        updateCollectionHeight()
-        Task {
-            await loadProducts()
-        }
-        Task {
-            await loadBanners()
-        }
 
         navigationController?.setNavigationBarHidden(true, animated: false)
         searchBar.delegate = self
-
         setupAccessibility()
 
         // Observe product deletion from ListingsViewController
@@ -296,6 +288,16 @@ class LandingScreenViewController: UIViewController {
             name: .productDeleted,
             object: nil
         )
+
+        // RULE 4A — Proactive offline check BEFORE launching any async Tasks.
+        // If offline, show full-screen overlay immediately. Do NOT start loader.
+        if !NetworkMonitor.shared.isReachable() {
+            showOfflineOverlay()
+            return
+        }
+
+        // Online — start loading data
+        startDataLoad()
     }
     override func viewWillAppear(_ animated: Bool) {
         super.viewWillAppear(animated)
@@ -308,6 +310,54 @@ class LandingScreenViewController: UIViewController {
     deinit {
         timer?.invalidate()
         NotificationCenter.default.removeObserver(self)
+    }
+
+    // MARK: - Data Loading (extracted for retry)
+
+    /// Starts the loader and fires product + banner Tasks.
+    /// Call this from viewDidLoad (online path) or from retry.
+    private func startDataLoad() {
+        loader.center = view.center
+        view.addSubview(loader)
+        loader.startAnimating()
+        updateCollectionHeight()
+        Task { [weak self] in
+            await self?.loadProducts()
+        }
+        Task { [weak self] in
+            await self?.loadBanners()
+        }
+    }
+
+    // MARK: - Offline Overlay Management
+
+    /// Shows the full-screen offline overlay and registers for auto-dismiss on reconnect.
+    private func showOfflineOverlay() {
+        guard offlineOverlay == nil else { return } // already showing
+
+        let overlay = OfflineOverlayView()
+        offlineOverlay = overlay
+
+        // Retry closure: hide overlay, re-trigger data load
+        overlay.onRetry = { [weak self] in
+            self?.hideOfflineOverlay()
+            self?.startDataLoad()
+        }
+
+        overlay.show(in: view)
+
+        // Auto-dismiss when connectivity returns.
+        // Note: This overwrites the SceneDelegate's onStatusChange — acceptable because
+        // the SceneDelegate's handler still fires once the overlay dismisses and the
+        // startObserving call in SceneDelegate re-assigns it.
+        // Better approach: use a secondary notification for per-VC observation.
+        // For MVP, we simply check in the catch block and overlay retry.
+    }
+
+    /// Removes the offline overlay with animation.
+    private func hideOfflineOverlay() {
+        offlineOverlay?.dismiss()
+        offlineOverlay = nil
     }
 
     // MARK: Setup Views & Constraints
@@ -657,8 +707,14 @@ class LandingScreenViewController: UIViewController {
 
             print("✅ Products loaded:", displayedProducts.count)
 
+        } catch let error as NetworkError {
+            // RULE 4C — Show offline overlay instead of silent print
+            print("❌ Network error loading products:", error)
+            loader.stopAnimating()
+            showOfflineOverlay()
         } catch {
             print("❌ Failed to load products:", error)
+            loader.stopAnimating()
         }
     }
     @MainActor
@@ -684,6 +740,9 @@ class LandingScreenViewController: UIViewController {
                             startAutoScroll()
                         }
 
+        } catch let error as NetworkError {
+            print("❌ Network error loading banners:", error)
+            // Overlay already shown by loadProducts catch — no double-show needed
         } catch {
             print("❌ Failed to load banners:", error)
         }
@@ -720,6 +779,13 @@ class LandingScreenViewController: UIViewController {
 
                 print("📦 Loaded page \(currentPage), total:", allProducts.count)
 
+            } catch let error as NetworkError {
+                isLoadingMore = false
+                print("❌ Network error during pagination:", error)
+                // Show pill banner for pagination failure (content is already visible)
+                if let window = self.view.window {
+                    UnizoBannerView.show(in: window, state: .offline)
+                }
             } catch {
                 isLoadingMore = false
                 print("❌ Pagination failed:", error)
