@@ -23,9 +23,9 @@ struct ProductUIModel {
     let sellerName: String
     let sellerId: UUID?  // Preserve seller ID for notifications
 
-    // Inventory fields
-    let quantity: Int
-    let status: ProductStatus
+    // Inventory fields (var to allow mutation when product is sold via notification)
+    var quantity: Int
+    var status: ProductStatus
 
     // Computed property to check if product is available for purchase
     var isAvailable: Bool {

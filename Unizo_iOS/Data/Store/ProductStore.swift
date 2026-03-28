@@ -18,6 +18,11 @@ final class ProductStore {
         self.products = products
     }
 
+    /// Removes a single product by ID (e.g., after it is sold).
+    func removeProduct(id: UUID) {
+        products.removeAll { $0.id == id }
+    }
+
     func products(for category: String?) -> [ProductUIModel] {
         guard let category else {
             return products.shuffled()
