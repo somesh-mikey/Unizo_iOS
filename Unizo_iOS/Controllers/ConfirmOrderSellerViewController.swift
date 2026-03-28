@@ -602,7 +602,18 @@ private extension ConfirmOrderSellerViewController {
 
         Task {
             do {
-                print("🛒 Seller accepting order: \(orderId.uuidString)")
+        print("🛒 Seller accepting order: \(orderId.uuidString)")
+
+                // Guard: if sellerItems is empty, show error and bail
+                guard !sellerItems.isEmpty else {
+                    await MainActor.run {
+                        self.loadingIndicator.stopAnimating()
+                        self.acceptButton.isEnabled = true
+                        self.rejectButton.isEnabled = true
+                        self.showErrorAlert(message: "No items found for this order. Please try again.".localized)
+                    }
+                    return
+                }
 
                 // Update order status to confirmed
                 try await orderRepository.updateOrderStatus(orderId: orderId, status: .confirmed)
@@ -619,7 +630,17 @@ private extension ConfirmOrderSellerViewController {
                             )
                             print("✅ Product \(productId) marked as sold (qty: \(item.quantity))")
 
-                            // Notify other screens to remove the product immediately
+                            // RULE G — Prevent re-appearance on refresh before Supabase propagates
+                            DeletedListingsStore.add(productId.uuidString)
+
+                            // RULE H — Clear in-memory product cache
+                            await MainActor.run {
+                                ProductStore.shared.removeProduct(id: productId)
+                            }
+
+                            // Notify other screens to remove the product immediately.
+                            // Posted on MainActor so all @objc observer handlers
+                            // run synchronously on the main thread — safe for direct UI updates.
                             await MainActor.run {
                                 NotificationCenter.default.post(
                                     name: .productDeleted,
