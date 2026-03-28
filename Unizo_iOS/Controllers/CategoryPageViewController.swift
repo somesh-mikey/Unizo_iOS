@@ -105,7 +105,8 @@ class CategoryPageViewController: UIViewController, UITabBarDelegate, UIScrollVi
     }
 
     deinit {
-        unregisterForKeyboardNotifications()
+        // Removes all observers including .productDeleted and keyboard notifications
+        NotificationCenter.default.removeObserver(self)
     }
 
     // MARK: - TOP SECTION (Identical to Landing)

@@ -81,6 +81,10 @@ final class SearchResultsViewController: UIViewController {
         searchTask?.cancel()
     }
 
+    deinit {
+        NotificationCenter.default.removeObserver(self)
+    }
+
     @objc private func handleProductDeleted(_ notification: Notification) {
         guard let productId = notification.userInfo?["productId"] as? UUID else { return }
         results.removeAll { $0.id == productId }

@@ -606,12 +606,25 @@ class LandingScreenViewController: UIViewController {
     @objc private func handleProductDeleted(_ notification: Notification) {
         guard let productId = notification.userInfo?["productId"] as? UUID else { return }
 
-        // Remove the deleted product from all product arrays
+        // Remove the deleted product from all product arrays immediately
         allProducts.removeAll { $0.id == productId }
         popularProducts.removeAll { $0.id == productId }
         negotiableProducts.removeAll { $0.id == productId }
         displayedProducts.removeAll { $0.id == productId }
 
+        // Debounce: coalesce rapid notifications (e.g., 3-item order) into one layout pass.
+        // cancelPreviousPerformRequests + perform(...afterDelay:0) executes on the next
+        // runloop tick, so multiple calls within the same synchronous batch are collapsed.
+        NSObject.cancelPreviousPerformRequests(
+            withTarget: self,
+            selector: #selector(debouncedCollectionReload),
+            object: nil
+        )
+        perform(#selector(debouncedCollectionReload), with: nil, afterDelay: 0)
+    }
+
+    /// Single layout pass after all product arrays have been updated.
+    @objc private func debouncedCollectionReload() {
         collectionView.reloadData()
         updateCollectionHeight()
     }
