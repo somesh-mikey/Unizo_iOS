@@ -217,6 +217,30 @@ class ItemDetailsViewController: UIViewController {
         return l
     }
 
+    // MARK: - Sold State Banner
+    /// Non-dismissible banner shown when the product is sold while the user is viewing it.
+    private let soldBanner: UIView = {
+        let v = UIView()
+        v.backgroundColor = UIColor.systemRed.withAlphaComponent(0.9)
+        v.layer.cornerRadius = 8
+        v.isHidden = true
+        v.translatesAutoresizingMaskIntoConstraints = false
+        return v
+    }()
+
+    private let soldBannerLabel: UILabel = {
+        let l = UILabel()
+        l.text = "This item has been sold".localized
+        l.font = UIFont.preferredFont(forTextStyle: .headline)
+        l.adjustsFontForContentSizeCategory = true
+        l.textColor = .white
+        l.textAlignment = .center
+        l.accessibilityLabel = "This item has been sold".localized
+        l.accessibilityTraits = .staticText
+        l.translatesAutoresizingMaskIntoConstraints = false
+        return l
+    }()
+
     // MARK: - Lifecycle
     override func viewDidLoad() {
         super.viewDidLoad()
@@ -242,6 +266,67 @@ class ItemDetailsViewController: UIViewController {
 
         // Increment view count when user views the product
         incrementProductViewCount()
+
+        // RULE E — Observe product sold/deleted while user is viewing details.
+        // Posted on MainActor, so this handler runs on the main thread.
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(handleProductDeleted(_:)),
+            name: .productDeleted,
+            object: nil
+        )
+
+        // Setup the sold banner (hidden by default)
+        setupSoldBanner()
+    }
+
+    deinit {
+        NotificationCenter.default.removeObserver(self)
+    }
+
+    // MARK: - Sold Banner Setup
+    private func setupSoldBanner() {
+        view.addSubview(soldBanner)
+        soldBanner.addSubview(soldBannerLabel)
+
+        NSLayoutConstraint.activate([
+            soldBanner.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor, constant: 8),
+            soldBanner.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 16),
+            soldBanner.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -16),
+            soldBanner.heightAnchor.constraint(equalToConstant: 44),
+
+            soldBannerLabel.centerXAnchor.constraint(equalTo: soldBanner.centerXAnchor),
+            soldBannerLabel.centerYAnchor.constraint(equalTo: soldBanner.centerYAnchor),
+            soldBannerLabel.leadingAnchor.constraint(greaterThanOrEqualTo: soldBanner.leadingAnchor, constant: 12),
+            soldBannerLabel.trailingAnchor.constraint(lessThanOrEqualTo: soldBanner.trailingAnchor, constant: -12)
+        ])
+    }
+
+    // MARK: - Product Deleted Handler
+    /// When the currently displayed product is sold, disable Deal button and show sold banner.
+    /// Does NOT auto-dismiss the VC — lets the user navigate back themselves (avoids jarring UX).
+    @objc private func handleProductDeleted(_ notification: Notification) {
+        guard let productId = notification.userInfo?["productId"] as? UUID,
+              productId == product?.id else { return }
+
+        // Mutate product state so isAvailable returns false
+        product?.status = .sold
+        product?.quantity = 0
+
+        // Disable Deal button immediately
+        buyNowButton.isEnabled = false
+        buyNowButton.setTitle("Sold".localized, for: .normal)
+        buyNowButton.backgroundColor = .systemGray3
+
+        // Show sold banner with animation
+        soldBanner.alpha = 0
+        soldBanner.isHidden = false
+        UIView.animate(withDuration: 0.3) {
+            self.soldBanner.alpha = 1
+        }
+
+        // Announce to VoiceOver
+        UIAccessibility.post(notification: .announcement, argument: "This item has been sold".localized)
     }
 
     // MARK: - View Count

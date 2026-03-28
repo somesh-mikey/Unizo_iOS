@@ -28,9 +28,31 @@ class WishlistViewController: UIViewController {
         setupCollectionView()
         backButton.addTarget(self, action: #selector(backPressed), for: .touchUpInside)
 
+        // RULE D — Observe product sold/deleted notifications
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(handleProductDeleted(_:)),
+            name: .productDeleted,
+            object: nil
+        )
+
         Task {
             await loadWishlist()
         }
+    }
+
+    deinit {
+        NotificationCenter.default.removeObserver(self)
+    }
+
+    // MARK: - Product Deleted Handler
+    /// Removes a sold product from the wishlist UI immediately.
+    /// This is UI-only removal — the Supabase wishlist entry is cleaned up on next load.
+    /// Posted on MainActor, so this handler runs on the main thread.
+    @objc private func handleProductDeleted(_ notification: Notification) {
+        guard let productId = notification.userInfo?["productId"] as? UUID else { return }
+        wishlistItems.removeAll { $0.id == productId }
+        collectionView.reloadData()
     }
 
 

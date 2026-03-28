@@ -284,7 +284,24 @@ final class SellerDashboardViewController: UIViewController {
         setupLoadingIndicator()
         navigationController?.setNavigationBarHidden(true, animated: false)
 
+        // RULE F — Observe product sold/deleted to refresh statistics
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(handleProductDeleted),
+            name: .productDeleted,
+            object: nil
+        )
+
         // Load real data from backend
+        loadDashboardData()
+    }
+
+    deinit {
+        NotificationCenter.default.removeObserver(self)
+    }
+
+    /// Reload the entire dashboard when a product is sold so statistics stay current.
+    @objc private func handleProductDeleted() {
         loadDashboardData()
     }
 
