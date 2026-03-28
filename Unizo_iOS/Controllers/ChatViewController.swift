@@ -95,8 +95,8 @@ private final class ChatCell: UITableViewCell {
 
             avatarImageView.centerXAnchor.constraint(equalTo: avatarView.centerXAnchor),
             avatarImageView.centerYAnchor.constraint(equalTo: avatarView.centerYAnchor),
-            avatarImageView.widthAnchor.constraint(equalToConstant: 28),
-            avatarImageView.heightAnchor.constraint(equalToConstant: 28),
+            avatarImageView.widthAnchor.constraint(equalTo: avatarView.widthAnchor),
+            avatarImageView.heightAnchor.constraint(equalTo: avatarView.heightAnchor),
 
             // Time label (top right)
             timeLabel.trailingAnchor.constraint(equalTo: contentView.trailingAnchor, constant: -36),
@@ -170,16 +170,9 @@ private final class ChatCell: UITableViewCell {
                    let image = UIImage(data: data) {
                     await MainActor.run {
                         self.avatarImageView.image = image
+                        // Update to not override parent constraints, since we fixed the cell default constraints
                         self.avatarImageView.layer.cornerRadius = 28
                         self.avatarImageView.layer.masksToBounds = true
-                        // Fill the entire avatar view with the image
-                        self.avatarImageView.constraints.forEach { $0.isActive = false }
-                        NSLayoutConstraint.activate([
-                            self.avatarImageView.topAnchor.constraint(equalTo: self.avatarView.topAnchor),
-                            self.avatarImageView.bottomAnchor.constraint(equalTo: self.avatarView.bottomAnchor),
-                            self.avatarImageView.leadingAnchor.constraint(equalTo: self.avatarView.leadingAnchor),
-                            self.avatarImageView.trailingAnchor.constraint(equalTo: self.avatarView.trailingAnchor)
-                        ])
                     }
                 }
             }
@@ -192,13 +185,7 @@ private final class ChatCell: UITableViewCell {
         super.prepareForReuse()
         contentView.alpha = 1.0
         avatarImageView.image = UIImage(systemName: "person.fill")
-        avatarImageView.constraints.forEach { $0.isActive = false }
-        NSLayoutConstraint.activate([
-            avatarImageView.centerXAnchor.constraint(equalTo: avatarView.centerXAnchor),
-            avatarImageView.centerYAnchor.constraint(equalTo: avatarView.centerYAnchor),
-            avatarImageView.widthAnchor.constraint(equalToConstant: 28),
-            avatarImageView.heightAnchor.constraint(equalToConstant: 28)
-        ])
+        // Reset specific styling flags
         unreadBadge.isHidden = true
         unreadBadge.backgroundColor = UIColor(red: 0.02, green: 0.34, blue: 0.46, alpha: 1.0)
     }

@@ -23,6 +23,7 @@ class ChatDetailViewController: UIViewController {
     // MARK: - Data
     private var messages: [MessageUIModel] = []
     private var currentUserId: UUID?
+    private var currentUserImageURL: String?
     private var isLoadingMessages = false
 
     // MARK: - UI ELEMENTS
@@ -233,7 +234,12 @@ class ChatDetailViewController: UIViewController {
     private func fetchCurrentUser() {
         Task { [weak self] in
             guard let self = self else { return }
+            // Fetch current user details including avatar
             self.currentUserId = await AuthManager.shared.currentUserId
+            
+            if let user = try? await UserRepository().fetchCurrentUser() {
+                self.currentUserImageURL = user.profile_image_url
+            }
 
             // Fetch product status if we have a productId (ensures sold banner / deal button are accurate)
             if let productId = self.productId {
@@ -798,13 +804,15 @@ extension ChatDetailViewController: UITableViewDataSource, UITableViewDelegate {
     func tableView(_ tableView: UITableView, cellForRowAt indexPath: IndexPath) -> UITableViewCell {
         let msg = messages[indexPath.row]
 
+        let imageURL = msg.isMine ? currentUserImageURL : otherUserImageURL
+
         if msg.messageType == .image {
             let cell = tableView.dequeueReusableCell(withIdentifier: "ChatImageCell", for: indexPath) as! ChatImageCell
-            cell.configure(with: msg)
+            cell.configure(with: msg, otherUserImageURL: imageURL)
             return cell
         } else {
             let cell = tableView.dequeueReusableCell(withIdentifier: "ChatBubbleCell", for: indexPath) as! ChatBubbleCell
-            cell.configure(isMine: msg.isMine, text: msg.content ?? "", time: msg.formattedTime)
+            cell.configure(isMine: msg.isMine, text: msg.content ?? "", time: msg.formattedTime, otherUserImageURL: imageURL)
             return cell
         }
     }
@@ -834,6 +842,7 @@ final class ChatBubbleCell: UITableViewCell {
     private let bubble = UIView()
     private let label = UILabel()
     private let timeLabel = UILabel()
+    private let avatarImageView = UIImageView()
 
     override init(style: UITableViewCell.CellStyle, reuseIdentifier: String?) {
         super.init(style: style, reuseIdentifier: reuseIdentifier)
@@ -852,6 +861,15 @@ final class ChatBubbleCell: UITableViewCell {
         timeLabel.textColor = .gray
         timeLabel.translatesAutoresizingMaskIntoConstraints = false
 
+        avatarImageView.contentMode = .scaleAspectFill
+        avatarImageView.clipsToBounds = true
+        avatarImageView.layer.cornerRadius = 14
+        avatarImageView.backgroundColor = .systemGray4
+        avatarImageView.image = UIImage(systemName: "person.fill")
+        avatarImageView.tintColor = .white
+        avatarImageView.translatesAutoresizingMaskIntoConstraints = false
+
+        contentView.addSubview(avatarImageView)
         contentView.addSubview(bubble)
         contentView.addSubview(timeLabel)
         bubble.addSubview(label)
@@ -859,7 +877,7 @@ final class ChatBubbleCell: UITableViewCell {
 
     required init?(coder: NSCoder) { fatalError("") }
 
-    func configure(isMine: Bool, text: String, time: String) {
+    func configure(isMine: Bool, text: String, time: String, otherUserImageURL: String?) {
 
         // Teal for sender, grey for receiver
         bubble.backgroundColor = isMine
@@ -870,12 +888,21 @@ final class ChatBubbleCell: UITableViewCell {
         label.text = text
         timeLabel.text = time
 
+        avatarImageView.isHidden = false
+        if let imageURL = otherUserImageURL, !imageURL.isEmpty {
+            avatarImageView.loadImage(from: imageURL)
+        } else {
+            avatarImageView.image = UIImage(systemName: "person.fill")
+        }
+
         // Remove old constraints before applying new
         bubble.removeConstraints(bubble.constraints)
         timeLabel.removeConstraints(timeLabel.constraints)
-
+        avatarImageView.removeFromSuperview()
         bubble.removeFromSuperview()
         timeLabel.removeFromSuperview()
+        
+        contentView.addSubview(avatarImageView)
         contentView.addSubview(bubble)
         contentView.addSubview(timeLabel)
         bubble.addSubview(label)
@@ -884,7 +911,12 @@ final class ChatBubbleCell: UITableViewCell {
 
         if isMine {
             NSLayoutConstraint.activate([
-                bubble.trailingAnchor.constraint(equalTo: contentView.trailingAnchor),
+                avatarImageView.trailingAnchor.constraint(equalTo: contentView.trailingAnchor),
+                avatarImageView.bottomAnchor.constraint(equalTo: bubble.bottomAnchor),
+                avatarImageView.widthAnchor.constraint(equalToConstant: 28),
+                avatarImageView.heightAnchor.constraint(equalToConstant: 28),
+
+                bubble.trailingAnchor.constraint(equalTo: avatarImageView.leadingAnchor, constant: -8),
                 bubble.leadingAnchor.constraint(greaterThanOrEqualTo: contentView.leadingAnchor, constant: horizontalPadding),
                 bubble.topAnchor.constraint(equalTo: contentView.topAnchor, constant: 6),
 
@@ -900,7 +932,12 @@ final class ChatBubbleCell: UITableViewCell {
 
         } else {
             NSLayoutConstraint.activate([
-                bubble.leadingAnchor.constraint(equalTo: contentView.leadingAnchor),
+                avatarImageView.leadingAnchor.constraint(equalTo: contentView.leadingAnchor),
+                avatarImageView.bottomAnchor.constraint(equalTo: bubble.bottomAnchor),
+                avatarImageView.widthAnchor.constraint(equalToConstant: 28),
+                avatarImageView.heightAnchor.constraint(equalToConstant: 28),
+
+                bubble.leadingAnchor.constraint(equalTo: avatarImageView.trailingAnchor, constant: 8),
                 bubble.trailingAnchor.constraint(lessThanOrEqualTo: contentView.trailingAnchor, constant: -horizontalPadding),
                 bubble.topAnchor.constraint(equalTo: contentView.topAnchor, constant: 6),
 
@@ -923,6 +960,7 @@ final class ChatImageCell: UITableViewCell {
     private let bubble = UIView()
     private let chatImageView = UIImageView()
     private let timeLabel = UILabel()
+    private let avatarImageView = UIImageView()
 
     override init(style: UITableViewCell.CellStyle, reuseIdentifier: String?) {
         super.init(style: style, reuseIdentifier: reuseIdentifier)
@@ -944,6 +982,15 @@ final class ChatImageCell: UITableViewCell {
         timeLabel.textColor = .gray
         timeLabel.translatesAutoresizingMaskIntoConstraints = false
 
+        avatarImageView.contentMode = .scaleAspectFill
+        avatarImageView.clipsToBounds = true
+        avatarImageView.layer.cornerRadius = 14
+        avatarImageView.backgroundColor = .systemGray4
+        avatarImageView.image = UIImage(systemName: "person.fill")
+        avatarImageView.tintColor = .white
+        avatarImageView.translatesAutoresizingMaskIntoConstraints = false
+
+        contentView.addSubview(avatarImageView)
         contentView.addSubview(bubble)
         contentView.addSubview(timeLabel)
         bubble.addSubview(chatImageView)
@@ -951,7 +998,7 @@ final class ChatImageCell: UITableViewCell {
 
     required init?(coder: NSCoder) { fatalError("") }
 
-    func configure(with message: MessageUIModel) {
+    func configure(with message: MessageUIModel, otherUserImageURL: String?) {
         let isMine = message.isMine
 
         // Teal for sender, grey for receiver
@@ -966,9 +1013,18 @@ final class ChatImageCell: UITableViewCell {
             chatImageView.loadImage(from: imageURL)
         }
 
+        avatarImageView.isHidden = false
+        if let imgURL = otherUserImageURL, !imgURL.isEmpty {
+            avatarImageView.loadImage(from: imgURL)
+        } else {
+            avatarImageView.image = UIImage(systemName: "person.fill")
+        }
+
         // Remove old constraints
+        avatarImageView.removeFromSuperview()
         bubble.removeFromSuperview()
         timeLabel.removeFromSuperview()
+        contentView.addSubview(avatarImageView)
         contentView.addSubview(bubble)
         contentView.addSubview(timeLabel)
         bubble.addSubview(chatImageView)
@@ -977,7 +1033,12 @@ final class ChatImageCell: UITableViewCell {
 
         if isMine {
             NSLayoutConstraint.activate([
-                bubble.trailingAnchor.constraint(equalTo: contentView.trailingAnchor),
+                avatarImageView.trailingAnchor.constraint(equalTo: contentView.trailingAnchor),
+                avatarImageView.bottomAnchor.constraint(equalTo: bubble.bottomAnchor),
+                avatarImageView.widthAnchor.constraint(equalToConstant: 28),
+                avatarImageView.heightAnchor.constraint(equalToConstant: 28),
+
+                bubble.trailingAnchor.constraint(equalTo: avatarImageView.leadingAnchor, constant: -8),
                 bubble.leadingAnchor.constraint(greaterThanOrEqualTo: contentView.leadingAnchor, constant: horizontalPadding),
                 bubble.topAnchor.constraint(equalTo: contentView.topAnchor, constant: 6),
 
@@ -994,7 +1055,12 @@ final class ChatImageCell: UITableViewCell {
             ])
         } else {
             NSLayoutConstraint.activate([
-                bubble.leadingAnchor.constraint(equalTo: contentView.leadingAnchor),
+                avatarImageView.leadingAnchor.constraint(equalTo: contentView.leadingAnchor),
+                avatarImageView.bottomAnchor.constraint(equalTo: bubble.bottomAnchor),
+                avatarImageView.widthAnchor.constraint(equalToConstant: 28),
+                avatarImageView.heightAnchor.constraint(equalToConstant: 28),
+
+                bubble.leadingAnchor.constraint(equalTo: avatarImageView.trailingAnchor, constant: 8),
                 bubble.trailingAnchor.constraint(lessThanOrEqualTo: contentView.trailingAnchor, constant: -horizontalPadding),
                 bubble.topAnchor.constraint(equalTo: contentView.topAnchor, constant: 6),
 

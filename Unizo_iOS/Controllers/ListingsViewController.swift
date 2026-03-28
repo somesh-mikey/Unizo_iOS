@@ -640,41 +640,58 @@ extension ListingsViewController: EnhancedListingCellDelegate {
     private func deleteProduct(_ product: ProductDTO, listing: Listing) {
         HapticFeedback.delete()
 
-        // Persist deletion locally
+        // Mark locally deleted FIRST so the local UI stops showing it immediately
         DeletedListingsStore.add(product.id.uuidString)
 
+        // Remove from local data sources immediately (no waiting for network)
+        products.removeAll { $0.id == product.id }
+        allListings.removeAll { $0.productId == product.id }
+        applyFilters()
+        updateListingsCount()
+
+        // Broadcast deletion to Home, Search, Category screens right away
+        NotificationCenter.default.post(
+            name: .productDeleted,
+            object: nil,
+            userInfo: ["productId": product.id]
+        )
+
         Task {
+            let idStr = product.id.uuidString
+
+            // STEP 1: Soft-delete — set is_active = false
+            // All buyer-facing queries already filter `.eq("is_active", true)`
+            // so this instantly hides the product from Home/Search/Category
+            // even if the hard DELETE below is blocked by an RLS policy.
+            do {
+                struct SoftDelete: Encodable { let is_active: Bool }
+                try await supabase
+                    .from("products")
+                    .update(SoftDelete(is_active: false))
+                    .eq("id", value: idStr)
+                    .execute()
+                print("✅ Product soft-deleted (is_active=false): \(idStr)")
+            } catch {
+                print("⚠️ Soft-delete failed: \(error)")
+            }
+
+            // STEP 2: Hard DELETE — removes the row entirely
             do {
                 try await supabase
                     .from("products")
                     .delete()
-                    .eq("id", value: product.id.uuidString)
+                    .eq("id", value: idStr)
                     .execute()
-
-                await MainActor.run {
-                    // Remove from all data sources
-                    self.products.removeAll { $0.id == product.id }
-                    self.allListings.removeAll { $0.productId == product.id }
-                    self.applyFilters()
-                    self.updateListingsCount()
-
-                    // Notify other screens about the deletion
-                    NotificationCenter.default.post(
-                        name: .productDeleted,
-                        object: nil,
-                        userInfo: ["productId": product.id]
-                    )
-                }
-
+                print("✅ Product hard-deleted: \(idStr)")
             } catch {
-                print("❌ Failed to delete product:", error)
+                print("⚠️ Hard-delete failed (soft-delete already hides it): \(error)")
             }
         }
     }
 }
 
 // MARK: - Local Deleted Listings Store
-private enum DeletedListingsStore {
+enum DeletedListingsStore {
     private static let key = "deleted_listing_ids"
 
     static func all() -> Set<String> {

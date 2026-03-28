@@ -67,11 +67,26 @@ final class SearchResultsViewController: UIViewController {
 
         searchBar.text = keyword
         performSearchDebounced(keyword)
+
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(handleProductDeleted(_:)),
+            name: .productDeleted,
+            object: nil
+        )
     }
 
     override func viewWillDisappear(_ animated: Bool) {
         super.viewWillDisappear(animated)
         searchTask?.cancel()
+    }
+
+    @objc private func handleProductDeleted(_ notification: Notification) {
+        guard let productId = notification.userInfo?["productId"] as? UUID else { return }
+        results.removeAll { $0.id == productId }
+        collectionView.reloadData()
+        updateCollectionHeight()
+        emptyStateLabel.isHidden = !results.isEmpty
     }
 
     // MARK: - Search (Debounced)

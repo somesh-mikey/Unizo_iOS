@@ -131,9 +131,8 @@ final class AccountViewController: UIViewController {
         emailLabel.text = user.email ?? ""
 
         // Load profile image if available
-        if let imageUrlString = user.profile_image_url,
-           let imageUrl = URL(string: imageUrlString) {
-            loadProfileImage(from: imageUrl)
+        if let imageUrlString = user.profile_image_url, !imageUrlString.isEmpty {
+            profileImageView.loadImage(from: imageUrlString)
         } else {
             // Keep default placeholder
             profileImageView.image = UIImage(systemName: "person.circle.fill")
@@ -141,21 +140,7 @@ final class AccountViewController: UIViewController {
         }
     }
 
-    private func loadProfileImage(from url: URL) {
-        Task {
-            do {
-                let (data, _) = try await URLSession.shared.data(from: url)
-                if let image = UIImage(data: data) {
-                    await MainActor.run {
-                        self.profileImageView.image = image
-                        self.profileImageView.tintColor = nil
-                    }
-                }
-            } catch {
-                print("Failed to load profile image:", error)
-            }
-        }
-    }
+
 
     // MARK: - Setup UI
     private func setupUI() {

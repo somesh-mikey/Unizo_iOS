@@ -741,77 +741,121 @@ extension ProfileViewController: UIImagePickerControllerDelegate, UINavigationCo
     }
 
     private func uploadProfileImage(_ image: UIImage) {
-        // Show loading indicator
-        let loadingView = UIActivityIndicatorView(style: .medium)
-        loadingView.center = profileImageView.center
-        loadingView.startAnimating()
-        view.addSubview(loadingView)
+        // Spinner overlay on the profileImageView
+        let overlayView = UIView()
+        overlayView.backgroundColor = UIColor.black.withAlphaComponent(0.35)
+        overlayView.layer.cornerRadius = 55
+        overlayView.clipsToBounds = true
+        overlayView.translatesAutoresizingMaskIntoConstraints = false
+        profileImageView.addSubview(overlayView)
+        NSLayoutConstraint.activate([
+            overlayView.topAnchor.constraint(equalTo: profileImageView.topAnchor),
+            overlayView.leadingAnchor.constraint(equalTo: profileImageView.leadingAnchor),
+            overlayView.trailingAnchor.constraint(equalTo: profileImageView.trailingAnchor),
+            overlayView.bottomAnchor.constraint(equalTo: profileImageView.bottomAnchor)
+        ])
+        let spinner = UIActivityIndicatorView(style: .medium)
+        spinner.color = .white
+        spinner.translatesAutoresizingMaskIntoConstraints = false
+        spinner.startAnimating()
+        overlayView.addSubview(spinner)
+        NSLayoutConstraint.activate([
+            spinner.centerXAnchor.constraint(equalTo: overlayView.centerXAnchor),
+            spinner.centerYAnchor.constraint(equalTo: overlayView.centerYAnchor)
+        ])
+        
+        // Prevent saving while uploading
+        saveButton.isEnabled = false
+        navigationItem.rightBarButtonItem?.isEnabled = false
 
         Task {
+            defer {
+                Task { @MainActor in
+                    overlayView.removeFromSuperview()
+                    self.saveButton.isEnabled = true
+                    self.navigationItem.rightBarButtonItem?.isEnabled = true
+                }
+            }
             do {
-                // Compress image
-                guard let imageData = image.jpegData(compressionQuality: 0.7) else {
-                    throw NSError(domain: "ProfileImage", code: 0, userInfo: [
-                        NSLocalizedDescriptionKey: "Failed to compress image"
-                    ])
+                guard let imageData = image.jpegData(compressionQuality: 0.75) else {
+                    throw NSError(domain: "ProfileImage", code: 0,
+                                  userInfo: [NSLocalizedDescriptionKey: "Image compression failed"])
                 }
+                print("📸 Compressed image size: \(imageData.count) bytes")
 
-                // Get current user ID for unique path
                 guard let userId = await AuthManager.shared.currentUserId else {
-                    throw NSError(domain: "ProfileImage", code: 401, userInfo: [
-                        NSLocalizedDescriptionKey: "User not authenticated"
-                    ])
+                    throw NSError(domain: "ProfileImage", code: 401,
+                                  userInfo: [NSLocalizedDescriptionKey: "User not authenticated"])
                 }
+                print("👤 Uploading for user: \(userId.uuidString)")
 
-                // Create unique file path
-                let fileName = "\(userId.uuidString)_\(Int(Date().timeIntervalSince1970)).jpg"
-                let filePath = "profile-images/\(fileName)"
+                // Fixed per-user path with upsert=true so repeated saves overwrite the same file
+                let filePath = "profiles/\(userId.uuidString)/avatar.jpg"
+                print("📁 Storage path: \(filePath)")
 
-                // Upload to Supabase storage
-                do {
-                    try await SupabaseManager.shared.client.storage
-                        .from("product-images")
-                        .upload(filePath, data: imageData, options: .init(upsert: true))
-                } catch {
-                    // Handle Supabase iOS SDK bug workaround (empty response considered error)
-                    let nsError = error as NSError
-                    if nsError.domain != NSURLErrorDomain || nsError.code != -1017 {
-                        throw error
+                // Retry upload up to 3 times to handle transient network drops (-1005)
+                var uploadError: Error?
+                for attempt in 1...3 {
+                    do {
+                        try await SupabaseManager.shared.client.storage
+                            .from("product-images")
+                            .upload(filePath, data: imageData, options: .init(upsert: true))
+                        print("✅ Storage upload complete (attempt \(attempt))")
+                        uploadError = nil
+                        break
+                    } catch {
+                        let nsErr = error as NSError
+                        print("⚠️ Upload attempt \(attempt) error — domain:\(nsErr.domain) code:\(nsErr.code)")
+                        // -1017 = Supabase SDK parse quirk on successful upload
+                        if nsErr.domain == NSURLErrorDomain && nsErr.code == -1017 {
+                            print("✅ Treating as success (Supabase SDK parse quirk)")
+                            uploadError = nil
+                            break
+                        }
+                        uploadError = error
+                        if attempt < 3 {
+                            print("🔄 Retrying in 1.5s...")
+                            try await Task.sleep(nanoseconds: 1_500_000_000)
+                        }
                     }
                 }
+                if let err = uploadError { throw err }
 
-                // Get public URL
                 let publicURL = try SupabaseManager.shared.client.storage
                     .from("product-images")
                     .getPublicURL(path: filePath)
 
-                let imageURLString = publicURL.absoluteString
+                // Cache-bust so UIImageView reloads even when URL string is identical
+                let cacheBusted = publicURL.absoluteString + "?v=\(Int(Date().timeIntervalSince1970))"
+                print("🌐 Public URL: \(cacheBusted)")
 
-                // Update user profile with new image URL
-                try await userRepository.updateProfileImageURL(imageURLString)
+                // Write directly to DB (bypasses requireNetwork guard)
+                struct ImageUpdate: Encodable { let profile_image_url: String }
+                try await SupabaseManager.shared.client
+                    .from("users")
+                    .update(ImageUpdate(profile_image_url: cacheBusted))
+                    .eq("id", value: userId.uuidString)
+                    .execute()
+                print("✅ DB row updated")
 
-                // Update local currentUser
                 await MainActor.run {
-                    loadingView.stopAnimating()
-                    loadingView.removeFromSuperview()
-                    self.currentUser?.profile_image_url = imageURLString
-                    print("✅ Profile image uploaded successfully: \(imageURLString)")
+                    self.currentUser?.profile_image_url = cacheBusted
+                    self.profileImageView.image = image
+                    self.profileImageView.tintColor = nil
+                    print("✅ UI updated successfully")
                 }
 
             } catch {
-                print("❌ Failed to upload profile image: \(error)")
+                print("❌ uploadProfileImage failed: \(error)")
                 await MainActor.run {
-                    loadingView.stopAnimating()
-                    loadingView.removeFromSuperview()
-                    // Revert to previous image or placeholder
-                    if let existingURL = self.currentUser?.profile_image_url,
-                       let url = URL(string: existingURL) {
-                        self.loadProfileImage(from: url)
+                    if let url = self.currentUser?.profile_image_url, !url.isEmpty {
+                        self.profileImageView.loadImage(from: url)
                     } else {
                         self.profileImageView.image = UIImage(systemName: "person.circle.fill")
-                        self.profileImageView.tintColor = UIColor.systemGray3
+                        self.profileImageView.tintColor = .systemGray3
                     }
-                    self.showAlert(title: "Upload Failed".localized, message: "Failed to upload profile picture. Please try again.".localized)
+                    self.showAlert(title: "Upload Failed".localized,
+                                   message: "Could not save your picture: \(error.localizedDescription)")
                 }
             }
         }

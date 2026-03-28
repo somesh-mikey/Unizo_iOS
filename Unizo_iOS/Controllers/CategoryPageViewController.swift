@@ -87,6 +87,21 @@ class CategoryPageViewController: UIViewController, UITabBarDelegate, UIScrollVi
 
         // Hide navigation bar completely (no back button, no title, no toolbar)
         navigationController?.setNavigationBarHidden(true, animated: false)
+
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(handleProductDeleted(_:)),
+            name: .productDeleted,
+            object: nil
+        )
+    }
+
+    @objc private func handleProductDeleted(_ notification: Notification) {
+        guard let productId = notification.userInfo?["productId"] as? UUID else { return }
+        items.removeAll { $0.id == productId }
+        filteredItems.removeAll { $0.id == productId }
+        collectionView.reloadData()
+        updateCollectionHeight()
     }
 
     deinit {

@@ -46,6 +46,11 @@ final class ProductRepository {
         self.supabase = supabase
     }
 
+    /// Removes a single product from the in-memory cache (call after deletion).
+    func removeFromCache(productId: UUID) {
+        cachedProducts.removeAll { $0.id == productId }
+    }
+
     // MARK: - Helpers
 
     private func getCurrentUserId() async -> UUID? {
@@ -102,6 +107,12 @@ final class ProductRepository {
             }
         }
 
+        // Filter out locally-deleted product IDs so they never reappear
+        let deletedIds = DeletedListingsStore.all()
+        if !deletedIds.isEmpty {
+            products = products.filter { !deletedIds.contains($0.id.uuidString) }
+        }
+
         print("📥 Supabase returned:", products.count)
 
         if let first = products.first {
@@ -139,7 +150,12 @@ final class ProductRepository {
             .limit(pageSize)
             .execute()
 
-        return try JSONDecoder().decode([ProductDTO].self, from: response.data)
+        var dtos = try JSONDecoder().decode([ProductDTO].self, from: response.data)
+        let deletedIds = DeletedListingsStore.all()
+        if !deletedIds.isEmpty {
+            dtos = dtos.filter { !deletedIds.contains($0.id.uuidString) }
+        }
+        return dtos
     }
 
     func fetchNegotiableProducts() async throws -> [ProductDTO] {
@@ -159,7 +175,12 @@ final class ProductRepository {
         }
 
         let response = try await query.execute()
-        return try JSONDecoder().decode([ProductDTO].self, from: response.data)
+        var dtos = try JSONDecoder().decode([ProductDTO].self, from: response.data)
+        let deletedIds = DeletedListingsStore.all()
+        if !deletedIds.isEmpty {
+            dtos = dtos.filter { !deletedIds.contains($0.id.uuidString) }
+        }
+        return dtos
     }
 
     func fetchProductsByCategory(_ category: String) async throws -> [ProductDTO] {
@@ -179,7 +200,12 @@ final class ProductRepository {
         }
 
         let response = try await query.execute()
-        return try JSONDecoder().decode([ProductDTO].self, from: response.data)
+        var dtos = try JSONDecoder().decode([ProductDTO].self, from: response.data)
+        let deletedIds = DeletedListingsStore.all()
+        if !deletedIds.isEmpty {
+            dtos = dtos.filter { !deletedIds.contains($0.id.uuidString) }
+        }
+        return dtos
     }
 
     func fetchBanners() async throws -> [BannerDTO] {
@@ -222,7 +248,12 @@ final class ProductRepository {
         }
 
         let response = try await query.execute()
-        return try JSONDecoder().decode([ProductDTO].self, from: response.data)
+        var dtos = try JSONDecoder().decode([ProductDTO].self, from: response.data)
+        let deletedIds = DeletedListingsStore.all()
+        if !deletedIds.isEmpty {
+            dtos = dtos.filter { !deletedIds.contains($0.id.uuidString) }
+        }
+        return dtos
     }
 
     // MARK: - Write
