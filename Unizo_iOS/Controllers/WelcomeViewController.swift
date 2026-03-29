@@ -24,11 +24,7 @@ class WelcomeViewController: UIViewController {
 
     // TASK-08: Guest browsing button (programmatic)
     private let guestBrowseButton: UIButton = {
-        let button = UIButton(type: .system)
-        button.setTitle("Browse as Guest".localized, for: .normal)
-        button.setTitleColor(UIColor(red: 0/255, green: 76/255, blue: 97/255, alpha: 1), for: .normal)
-        button.titleLabel?.font = UIFont.systemFont(ofSize: 14, weight: .medium)
-        button.backgroundColor = .clear
+        let button = UIButton(type: .custom)
         button.translatesAutoresizingMaskIntoConstraints = false
         return button
     }()
@@ -171,10 +167,7 @@ class WelcomeViewController: UIViewController {
             emailSignUpButton.topAnchor.constraint(equalTo: accountLabel.bottomAnchor, constant: 20),
             emailSignUpButton.leadingAnchor.constraint(equalTo: bottomCardView.leadingAnchor, constant: 32),
             emailSignUpButton.trailingAnchor.constraint(equalTo: bottomCardView.trailingAnchor, constant: -32),
-            emailSignUpButton.heightAnchor.constraint(equalToConstant: 46),
-
-            // Bottom padding for curved edge clearance
-            emailSignUpButton.bottomAnchor.constraint(lessThanOrEqualTo: bottomCardView.bottomAnchor, constant: -48)
+            emailSignUpButton.heightAnchor.constraint(equalToConstant: 46)
         ])
 
 
@@ -210,6 +203,7 @@ class WelcomeViewController: UIViewController {
         button.layer.borderColor = tintColor.cgColor
         button.layer.borderWidth = 1.4
         button.layer.cornerRadius = 10
+        button.layer.masksToBounds = true
         button.backgroundColor = .white
 
         // ----- CREATE HORIZONTAL STACK FOR ICON + TEXT -----
@@ -259,12 +253,20 @@ class WelcomeViewController: UIViewController {
         bottomCardView.addSubview(guestBrowseButton)
         guestBrowseButton.addTarget(self, action: #selector(guestBrowseTapped), for: .touchUpInside)
 
+        setupOutlinedButton(guestBrowseButton,
+                            title: "Browse as Guest".localized,
+                            iconName: "person.fill",
+                            tintColor: UIColor(red: 0/255, green: 76/255, blue: 97/255, alpha: 1))
+
         NSLayoutConstraint.activate([
             guestBrowseButton.topAnchor.constraint(equalTo: emailSignUpButton.bottomAnchor, constant: 12),
-            guestBrowseButton.centerXAnchor.constraint(equalTo: bottomCardView.centerXAnchor),
-            guestBrowseButton.heightAnchor.constraint(equalToConstant: 36)
+            guestBrowseButton.leadingAnchor.constraint(equalTo: bottomCardView.leadingAnchor, constant: 32),
+            guestBrowseButton.trailingAnchor.constraint(equalTo: bottomCardView.trailingAnchor, constant: -32),
+            guestBrowseButton.heightAnchor.constraint(equalToConstant: 46),
+            guestBrowseButton.bottomAnchor.constraint(lessThanOrEqualTo: bottomCardView.bottomAnchor, constant: -24)
         ])
     }
+
 
     // MARK: - Actions
     @objc private func guestBrowseTapped() {

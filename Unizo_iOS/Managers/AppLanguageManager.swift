@@ -12,32 +12,16 @@ import UIKit
 // MARK: - Supported Languages
 enum AppLanguage: String, CaseIterable {
     case english           = "English"
-    case hindi             = "Hindi"
     case spanish           = "Spanish"
     case french            = "French"
     case german            = "German"
-    case arabic            = "Arabic"
-    case portuguese        = "Portuguese"
-    case russian           = "Russian"
-    case japanese          = "Japanese"
-    case chineseSimplified = "Chinese Simplified"
-    case korean            = "Korean"
-    case italian           = "Italian"
 
     var code: String {
         switch self {
         case .english: return "en"
-        case .hindi: return "hi"
         case .spanish: return "es"
         case .french: return "fr"
         case .german: return "de"
-        case .arabic: return "ar"
-        case .portuguese: return "pt"
-        case .russian: return "ru"
-        case .japanese: return "ja"
-        case .chineseSimplified: return "zh-Hans"
-        case .korean: return "ko"
-        case .italian: return "it"
         }
     }
 }
@@ -63,11 +47,6 @@ final class AppLanguageManager {
         current = language
         defaults.set(language.rawValue, forKey: key)
 
-        if language == .arabic {
-            UIView.appearance().semanticContentAttribute = .forceRightToLeft
-        } else {
-            UIView.appearance().semanticContentAttribute = .forceLeftToRight
-        }
 
         print("\u{1F310} Language changed to: \(language.rawValue)")
     }
@@ -83,394 +62,7 @@ final class AppLanguageManager {
 
     private let translations: [AppLanguage: [String: String]] = [
 
-        // MARK: Hindi
-        .hindi: [
-            // Tab Bar
-            "Home": "होम",
-            "Search": "खोजें",
-            "Sell": "बेचें",
-            "Post": "पोस्ट",
-            "Chat": "चैट",
-            "Account": "खाता",
 
-            // Settings
-            "Settings": "सेटिंग्स",
-            "Preferences": "प्राथमिकताएं",
-            "Support": "सहायता",
-            "Security": "सुरक्षा",
-            "Account Actions": "खाता कार्रवाई",
-            "Language": "भाषा",
-            "Push Notifications": "पुश सूचनाएं",
-            "Email Marketing": "ईमेल मार्केटिंग",
-            "Contact Us": "संपर्क करें",
-            "Rate Our App": "ऐप को रेट करें",
-            "Change Password": "पासवर्ड बदलें",
-            "Biometric Login": "बायोमेट्रिक लॉगिन",
-            "Sign Out": "साइन आउट",
-            "Delete Account": "खाता हटाएं",
-
-            // Language Screen
-            "Choose the language": "भाषा चुनें",
-            "Select your preferred language below. This helps us serve you better.": "नीचे अपनी पसंदीदा भाषा चुनें। यह हमें आपकी बेहतर सेवा करने में मदद करता है।",
-            "You Selected": "आपने चुना",
-            "All Languages": "सभी भाषाएं",
-
-            // Change Password
-            "Enter old password:": "पुराना पासवर्ड दर्ज करें:",
-            "Enter new password:": "नया पासवर्ड दर्ज करें:",
-            "Old Password": "पुराना पासवर्ड",
-            "New Password": "नया पासवर्ड",
-            "Forgot Password?": "पासवर्ड भूल गए?",
-            "Save": "सहेजें",
-            "Password Changed": "पासवर्ड बदला गया",
-            "Your password has been updated successfully.": "आपका पासवर्ड सफलतापूर्वक अपडेट किया गया है।",
-
-            // Reset Password
-            "Set New Password": "नया पासवर्ड सेट करें",
-            "Enter and confirm your new password below.": "नीचे अपना नया पासवर्ड दर्ज करें और पुष्टि करें।",
-            "Reset Your Password": "अपना पासवर्ड रीसेट करें",
-            "Confirm Password": "पासवर्ड की पुष्टि करें",
-            "College Email": "कॉलेज ईमेल",
-            "Update Password": "पासवर्ड अपडेट करें",
-            "Send Reset Link": "रीसेट लिंक भेजें",
-            "Back to Login.": "लॉगिन पर वापस जाएं।",
-            "Password Updated": "पासवर्ड अपडेट किया गया",
-            "Your password has been changed successfully.": "आपका पासवर्ड सफलतापूर्वक बदल दिया गया है।",
-            "Reset Link Sent": "रीसेट लिंक भेजा गया",
-
-            // Contact Us
-            "How Can We Reach You?": "हम आपसे कैसे संपर्क करें?",
-            "What Can We Help You With?": "हम आपकी किस तरह मदद कर सकते हैं?",
-            "Briefly Explain What's Going On": "संक्षेप में बताएं क्या हो रहा है",
-            "Email": "ईमेल",
-            "Phone": "फ़ोन",
-            "Email Address": "ईमेल पता",
-            "Phone Number": "फ़ोन नंबर",
-            "Subject": "विषय",
-            "Message": "संदेश",
-            "Submit": "भेजें",
-            "Help": "सहायता",
-            "Bug Report": "बग रिपोर्ट",
-            "Feedback": "प्रतिक्रिया",
-            "Account Issue": "खाता समस्या",
-            "Write your message here...": "अपना संदेश यहां लिखें...",
-
-            // Common
-            "OK": "ठीक है",
-            "Cancel": "रद्द करें",
-            "Continue": "जारी रखें",
-            "Get Help": "सहायता प्राप्त करें",
-            "Back": "वापस",
-            "Loading...": "लोड हो रहा है...",
-            "Error": "त्रुटि",
-            "Success": "सफल",
-            "Delete": "हटाएं",
-            "Done": "हो गया",
-            "Edit": "संपादित करें",
-            "Discard": "खारिज करें",
-            "All": "सभी",
-
-            // Home
-            "Trending Categories": "ट्रेंडिंग श्रेणियां",
-            "Categories": "श्रेणियां",
-            "See All": "सभी देखें",
-            "Popular Items": "लोकप्रिय वस्तुएं",
-            "Most Popular": "सबसे लोकप्रिय",
-            "Negotiable": "सौदेबाज़ी योग्य",
-            "Hostel Essentials": "हॉस्टल की ज़रूरतें",
-            "Furniture": "फर्नीचर",
-            "Fashion": "फैशन",
-            "Sports": "खेल",
-            "Gadgets": "गैजेट्स",
-
-            // Chat
-            "No conversations yet": "अभी कोई बातचीत नहीं",
-            "Start chatting with sellers\nby tapping Chat on a product": "किसी उत्पाद पर चैट टैप करके\nविक्रेताओं से चैट शुरू करें",
-            "Type a message...": "एक संदेश लिखें...",
-            "Start a conversation": "बातचीत शुरू करें",
-            "Selling": "बिक्री",
-            "Buying": "खरीदारी",
-            "Buyer": "खरीदार",
-            "Seller": "विक्रेता",
-            "Sending photo...": "फ़ोटो भेज रहा है...",
-            "Failed to Send": "भेजने में विफल",
-            "Could not send the photo. Please try again.": "फ़ोटो भेजी नहीं जा सकी। कृपया पुनः प्रयास करें।",
-            "Chat Error": "चैट त्रुटि",
-            "Unable to start conversation. Please try again.": "बातचीत शुरू नहीं की जा सकी। कृपया पुनः प्रयास करें।",
-            "Chat with Buyer": "खरीदार के साथ चैट करें",
-
-            // Orders
-            "My Orders": "मेरे ऑर्डर",
-            "Order Details": "ऑर्डर विवरण",
-            "Pending": "लंबित",
-            "Confirmed": "पुष्टि की गई",
-            "Delivered": "वितरित",
-            "Cancelled": "रद्द",
-            "Processing": "प्रक्रिया में",
-            "No orders yet": "अभी कोई ऑर्डर नहीं",
-            "Failed to load orders": "ऑर्डर लोड करने में विफल",
-            "Order Timeline": "ऑर्डर टाइमलाइन",
-            "Order Items": "ऑर्डर आइटम",
-            "Delivery Information": "डिलीवरी जानकारी",
-            "Order Summary": "ऑर्डर सारांश",
-            "Subtotal": "उप-योग",
-            "Negotiation Discount": "सौदेबाज़ी छूट",
-            "Total": "कुल",
-            "Rate Order": "ऑर्डर रेट करें",
-            "How would you rate this order?": "आप इस ऑर्डर को कैसे रेट करेंगे?",
-            "Your feedback helps us improve": "आपकी प्रतिक्रिया हमें बेहतर बनाने में मदद करती है",
-            "Share your feedback": "अपनी प्रतिक्रिया साझा करें",
-            "Share your feedback (optional)": "अपनी प्रतिक्रिया साझा करें (वैकल्पिक)",
-            "Submit Rating": "रेटिंग सबमिट करें",
-            "Rating submitted successfully": "रेटिंग सफलतापूर्वक सबमिट की गई",
-            "Failed to submit rating": "रेटिंग सबमिट करने में विफल",
-            "Rated": "रेट किया गया",
-            "Order Confirmed": "ऑर्डर की पुष्टि हुई",
-            "Order Placed": "ऑर्डर दिया गया",
-            "Order Delivered": "ऑर्डर वितरित",
-            "Order Declined": "ऑर्डर अस्वीकृत",
-            "Ready for Handoff": "हैंडऑफ़ के लिए तैयार",
-            "Get Code": "कोड प्राप्त करें",
-            "Verify Code": "कोड सत्यापित करें",
-            "Enter 6-digit code": "6 अंकों का कोड दर्ज करें",
-            "Loading order items...": "ऑर्डर आइटम लोड हो रहे हैं...",
-            "Colour": "रंग",
-            "Size": "आकार",
-            "Quantity": "मात्रा",
-            "Confirm Order": "ऑर्डर की पुष्टि करें",
-            "Place Order": "ऑर्डर दें",
-            "Accept Order": "ऑर्डर स्वीकार करें",
-            "Reject Order": "ऑर्डर अस्वीकार करें",
-
-            // Listings
-            "My Listings": "मेरी लिस्टिंग",
-            "No listings yet": "अभी कोई लिस्टिंग नहीं",
-            "Search listings...": "लिस्टिंग खोजें...",
-            "Available": "उपलब्ध",
-            "Sold": "बिका",
-            "Start selling by posting\nyour first item": "अपना पहला आइटम पोस्ट करके\nबेचना शुरू करें",
-            "No results found": "कोई परिणाम नहीं मिला",
-            "Try a different search term": "एक अलग खोज शब्द आज़माएं",
-            "Items with this status\nwill appear here": "इस स्थिति वाले आइटम\nयहां दिखाई देंगे",
-            "Cannot Edit": "संपादित नहीं कर सकते",
-            "Once sold, listing cannot be edited.": "बिकने के बाद, लिस्टिंग संपादित नहीं की जा सकती।",
-            "Delete Listing": "लिस्टिंग हटाएं",
-            "Edit Listing": "लिस्टिंग संपादित करें",
-
-            // Item Details
-            "Description": "विवरण",
-            "Features": "विशेषताएं",
-            "Condition": "स्थिति",
-            "Deal": "सौदा",
-            "Item Unavailable": "आइटम उपलब्ध नहीं",
-            "No description available.": "कोई विवरण उपलब्ध नहीं।",
-            "No features listed.": "कोई विशेषता सूचीबद्ध नहीं।",
-
-            // Post Item
-            "Post Item": "आइटम पोस्ट करें",
-            "Upload Photos": "फ़ोटो अपलोड करें",
-            "Product Details": "उत्पाद विवरण",
-            "Product Name": "उत्पाद का नाम",
-            "Price (in Rupees)": "कीमत (रुपये में)",
-            "Category": "श्रेणी",
-            "Upload Product": "उत्पाद अपलोड करें",
-            "Non-Negotiable": "सौदेबाज़ी अयोग्य",
-            "Authentication Required": "प्रमाणीकरण आवश्यक",
-            "Please log in to post items": "आइटम पोस्ट करने के लिए कृपया लॉगिन करें",
-            "Missing Information": "जानकारी अधूरी है",
-            "Please fill in all required fields": "कृपया सभी आवश्यक फ़ील्ड भरें",
-            "Product uploaded successfully!": "उत्पाद सफलतापूर्वक अपलोड किया गया!",
-            "Save Changes": "परिवर्तन सहेजें",
-            "Update Listing": "लिस्टिंग अपडेट करें",
-
-            // Notifications
-            "Notifications": "सूचनाएं",
-            "No notifications yet": "अभी कोई सूचना नहीं",
-            "Failed to load notifications": "सूचनाएं लोड करने में विफल",
-
-            // Profile
-            "Profile": "प्रोफ़ाइल",
-            "Personal Information": "व्यक्तिगत जानकारी",
-            "Hotspot Information": "हॉटस्पॉट जानकारी",
-            "First Name": "पहला नाम",
-            "Last Name": "अंतिम नाम",
-            "Date of Birth": "जन्म तिथि",
-            "Gender": "लिंग",
-            "Address": "पता",
-            "City": "शहर",
-            "State": "राज्य",
-            "ZIP Code": "पिन कोड",
-            "Male": "पुरुष",
-            "Female": "महिला",
-            "Neutral": "तटस्थ",
-            "Email Notifications": "ईमेल सूचनाएं",
-            "SMS Notifications": "एसएमएस सूचनाएं",
-            "Edit Profile": "प्रोफाइल संपादित करें",
-            "Discard Changes?": "परिवर्तन खारिज करें?",
-            "You have unsaved changes. Are you sure you want to go back?": "आपके असहेजे परिवर्तन हैं। क्या आप वापस जाना चाहते हैं?",
-
-            // Wishlist
-            "My Wishlist": "मेरी इच्छा सूची",
-            "Wishlist": "इच्छा सूची",
-            "My Addresses": "मेरे पते",
-            "Terms & Conditions": "नियम और शर्तें",
-            "Privacy Policy": "गोपनीयता नीति",
-
-            // Address
-            "Add New Address": "नया पता जोड़ें",
-            "Add Address": "पता जोड़ें",
-            "Street": "गली",
-            "Country": "देश",
-
-            // Confirm Order
-            "Delivery Address": "डिलीवरी पता",
-            "Change": "बदलें",
-            "Payment Method": "भुगतान विधि",
-            "Cash on Delivery": "कैश ऑन डिलीवरी",
-            "Special Instructions": "विशेष निर्देश",
-            "Review": "समीक्षा",
-            "Payment": "भुगतान",
-
-            // Events
-            "Events": "कार्यक्रम",
-            "Browse Events": "कार्यक्रम देखें",
-            "Event Tickets": "इवेंट टिकट",
-            "Seller Dashboard": "विक्रेता डैशबोर्ड",
-
-            // Post Chooser & Post Event
-            "What would you like to post?": "आप क्या पोस्ट करना चाहेंगे?",
-            "Choose an option below to get started.": "शुरू करने के लिए नीचे एक विकल्प चुनें।",
-            "Post an Item": "आइटम पोस्ट करें",
-            "Post an Event": "इवेंट पोस्ट करें",
-            "List a product for sale on the marketplace.": "मार्केटप्लेस पर बिक्री के लिए उत्पाद सूचीबद्ध करें।",
-            "Create a campus event for others to discover.": "दूसरों के लिए कैंपस इवेंट बनाएं।",
-            "Post Event": "इवेंट पोस्ट करें",
-            "Event Details": "इवेंट विवरण",
-            "Event Title": "इवेंट शीर्षक",
-            "Venue": "स्थान",
-            "Date": "तारीख",
-            "Time": "समय",
-            "Free Event": "मुफ़्त इवेंट",
-            "Tap to add an event image": "इवेंट इमेज जोड़ने के लिए टैप करें",
-            "Describe your event...": "अपने इवेंट का वर्णन करें...",
-            "Your event has been posted successfully!": "आपका इवेंट सफलतापूर्वक पोस्ट हो गया है!",
-            "Your Event has been posted!": "आपका इवेंट पोस्ट हो गया है!",
-            "Users can now discover and register for your event.": "उपयोगकर्ता अब आपके इवेंट को खोज और पंजीकरण कर सकते हैं।",
-            "View Events": "इवेंट देखें",
-            "Please enter a valid price or mark the event as free.": "कृपया एक मान्य कीमत दर्ज करें या इवेंट को मुफ़्त चिह्नित करें।",
-            "Please fill in all required fields.": "कृपया सभी आवश्यक फ़ील्ड भरें।",
-
-            // Auth
-            "Login": "लॉगिन",
-            "Welcome Back": "वापसी पर स्वागत",
-            "Sign Up": "साइन अप",
-            "Create Account": "खाता बनाएं",
-            "Password": "पासवर्ड",
-            "Already have an account?": "पहले से खाता है?",
-            "Account Created": "खाता बनाया गया",
-            "Get Started": "शुरू करें",
-            "Welcome": "स्वागत",
-            "Order Placed!": "ऑर्डर दिया गया!",
-            "Continue Shopping": "खरीदारी जारी रखें",
-            "View Order": "ऑर्डर देखें",
-
-            // Rate App
-            "Rate Unizo": "Unizo को रेट करें",
-            "You'll be redirected to our app page on the App Store where you can leave a rating and review.": "आपको ऐप स्टोर पर हमारे ऐप पेज पर रीडायरेक्ट किया जाएगा जहां आप रेटिंग और समीक्षा दे सकते हैं।",
-
-            // Sign Out / Delete
-            "Are you sure you want to sign out?": "क्या आप साइन आउट करना चाहते हैं?",
-            "Are you sure you want to delete your account? This action cannot be undone.": "क्या आप अपना खाता हटाना चाहते हैं? यह क्रिया पूर्ववत नहीं की जा सकती।",
-
-            // Handoff
-            "Show this code to the seller when you meet to confirm delivery.": "डिलीवरी की पुष्टि के लिए जब आप मिलें तो विक्रेता को यह कोड दिखाएं।",
-            "Enter the code the buyer shows you to confirm delivery.": "डिलीवरी की पुष्टि के लिए खरीदार द्वारा दिखाया गया कोड दर्ज करें।",
-            "Please enter the full 6-digit code.": "कृपया पूरा 6 अंकों का कोड दर्ज करें।",
-            "Incorrect code. Please try again.": "गलत कोड। कृपया पुनः प्रयास करें।",
-            "Something went wrong. Please try again.": "कुछ गलत हो गया। कृपया पुनः प्रयास करें।",
-
-            // New Localization Keys
-            // Settings Alerts
-            "Failed to sign out: %@": "%@ साइन आउट करने में विफल:",
-            "Are you sure you want to delete your account? This action cannot be undone and all your data will be permanently removed.": "क्या आप वाकई अपना खाता हटाना चाहते हैं? यह क्रिया पूर्ववत नहीं की जा सकती और आपका सारा डेटा स्थायी रूप से हटा दिया जाएगा।",
-            "Failed to delete account: %@": "खाता हटाने में विफल: %@",
-
-            // Account
-            "Guest": "अतिथि",
-            "Not signed in": "साइन इन नहीं है",
-
-            // Edit Address
-            "Edit Hotspot": "हॉटस्पॉट संपादित करें",
-            "Set as default hotspot": "डिफ़ॉल्ट हॉटस्पॉट सेट करें",
-
-            // Product Posted
-            "Your Product has been posted!": "आपका उत्पाद पोस्ट हो गया है!",
-            "We'll reach out to the best valued customers.": "हम सबसे अच्छे ग्राहकों तक पहुंचेंगे।",
-            "View Listings": "लिस्टिंग देखें",
-
-            // Payments
-            "Payments": "भुगतान",
-            "Cards": "कार्ड",
-            "UPI": "UPI",
-            "Add credit or debit cards": "क्रेडिट या डेबिट कार्ड जोड़ें",
-            "Google Pay UPI": "Google Pay UPI",
-            "PhonePe UPI": "PhonePe UPI",
-            "BHIM UPI": "BHIM UPI",
-            "Add new UPI ID": "नई UPI ID जोड़ें",
-            "Add": "जोड़ें",
-
-            // Seller Dashboard
-            "Dashboard": "डैशबोर्ड",
-            "Breakdown": "विवरण",
-            "Failed to load dashboard data": "डैशबोर्ड डेटा लोड करने में विफल",
-            "Retry": "पुनः प्रयास करें",
-
-            // Search
-            "Recent Searches": "हाल की खोजें",
-
-            // Terms
-            "Terms and Conditions": "नियम और शर्तें",
-
-            // Events
-            "Book Now": "अभी बुक करें",
-
-            // Listings
-            "No %@ listings": "कोई %@ लिस्टिंग नहीं",
-            "%d listings • %d available • %d sold": "%d लिस्टिंग • %d उपलब्ध • %d बिके",
-            "Are you sure you want to delete \"%@\"?": "क्या आप \"%@\" को हटाना चाहते हैं?",
-
-            // Enhanced Listing
-            "%d views": "%d दृश्य",
-            "Qty: %d": "मात्रा: %d",
-            "Buyer: %@": "खरीदार: %@",
-
-            // Order Card
-            "Order #%@": "ऑर्डर #%@",
-            "Placed on %@": "%@ को ऑर्डर किया",
-            "Total: ₹%@": "कुल: ₹%@",
-            "Total: ₹%d": "कुल: ₹%d",
-            "+%d more items →": "+%d और आइटम →",
-            "+%d more item →": "+%d और आइटम →",
-            "No items": "कोई आइटम नहीं",
-
-            // Reset Password
-            "Don't worry! Enter your email address and we'll send\nyou a link to reset your password.": "चिंता न करें! अपना ईमेल दर्ज करें और हम आपको पासवर्ड रीसेट लिंक भेजेंगे।",
-            "We've sent a password reset link to %@. Please check your inbox and spam folder.": "हमने %@ पर पासवर्ड रीसेट लिंक भेजा है। कृपया अपना इनबॉक्स और स्पैम फ़ोल्डर जांचें।",
-            "Deal Requests": "डील अनुरोध",
-            "1 deal request": "1 डील अनुरोध",
-            "%d deal requests": "%d डील अनुरोध",
-            "No deal requests yet": "अभी तक कोई डील अनुरोध नहीं",
-            "Deal requests for this product\nwill appear here": "इस उत्पाद के डील अनुरोध\nयहां दिखाई देंगे",
-            "View Deal": "डील देखें",
-            "Unknown Buyer": "अज्ञात खरीदार",
-            "Clear All": "सभी साफ़ करें",
-            "Clear All Notifications": "सभी सूचनाएं साफ़ करें",
-            "Are you sure you want to clear all notifications? This action cannot be undone.": "क्या आप सभी सूचनाएं साफ़ करना चाहते हैं? यह क्रिया पूर्ववत नहीं की जा सकती।",
-            "Your orders will appear here\nonce you make a purchase": "आपके ऑर्डर यहां दिखाई देंगे\nजब आप खरीदारी करेंगे",
-            "Pull down to try again": "पुनः प्रयास करने के लिए नीचे खींचें",
-        ],
-
-        // MARK: Spanish
         .spanish: [
             "Home": "Inicio",
             "Search": "Buscar",
@@ -522,7 +114,7 @@ final class AppLanguageManager {
 
             "How Can We Reach You?": "¿Cómo podemos contactarte?",
             "What Can We Help You With?": "¿En qué podemos ayudarte?",
-            "Briefly Explain What's Going On": "Explica brevemente qué sucede",
+            "Could You Please Explain": "Explica brevemente qué sucede",
             "Email": "Correo",
             "Phone": "Teléfono",
             "Email Address": "Dirección de Correo",
@@ -861,7 +453,7 @@ final class AppLanguageManager {
 
             "How Can We Reach You?": "Comment pouvons-nous vous joindre ?",
             "What Can We Help You With?": "Comment pouvons-nous vous aider ?",
-            "Briefly Explain What's Going On": "Expliquez brièvement ce qui se passe",
+            "Could You Please Explain": "Expliquez brièvement ce qui se passe",
             "Email": "Email",
             "Phone": "Téléphone",
             "Email Address": "Adresse Email",
@@ -1200,7 +792,7 @@ final class AppLanguageManager {
 
             "How Can We Reach You?": "Wie können wir Sie erreichen?",
             "What Can We Help You With?": "Wie können wir Ihnen helfen?",
-            "Briefly Explain What's Going On": "Erklären Sie kurz, was los ist",
+            "Could You Please Explain": "Erklären Sie kurz, was los ist",
             "Email": "E-Mail",
             "Phone": "Telefon",
             "Email Address": "E-Mail-Adresse",
@@ -1486,27 +1078,6 @@ final class AppLanguageManager {
             "Your orders will appear here\nonce you make a purchase": "Ihre Bestellungen erscheinen hier\nsobald Sie einen Kauf tätigen",
             "Pull down to try again": "Zum Wiederholen nach unten ziehen",
         ],
-
-        // MARK: Arabic
-        .arabic: [:],
-
-        // MARK: Portuguese
-        .portuguese: [:],
-
-        // MARK: Russian
-        .russian: [:],
-
-        // MARK: Japanese
-        .japanese: [:],
-
-        // MARK: Chinese Simplified
-        .chineseSimplified: [:],
-
-        // MARK: Korean
-        .korean: [:],
-
-        // MARK: Italian
-        .italian: [:],
     ]
 }
 

@@ -15,7 +15,7 @@ final class SearchResultsViewController: UIViewController {
     private let navBar = UIView()
     private let backButton = UIButton(type: .system)
     private let searchBar = UISearchBar()
-    private let clearButton = UIButton(type: .system)
+    private let wishlistButton = UIButton(type: .system)
 
     private let scrollView = UIScrollView()
     private let contentView = UIView()
@@ -76,9 +76,19 @@ final class SearchResultsViewController: UIViewController {
         )
     }
 
+    override func viewWillAppear(_ animated: Bool) {
+        super.viewWillAppear(animated)
+        navigationController?.setNavigationBarHidden(true, animated: false)
+        (tabBarController as? MainTabBarController)?.hideFloatingTabBar()
+        tabBarController?.tabBar.isHidden = true
+    }
+
     override func viewWillDisappear(_ animated: Bool) {
         super.viewWillDisappear(animated)
         searchTask?.cancel()
+        navigationController?.setNavigationBarHidden(false, animated: false)
+        (tabBarController as? MainTabBarController)?.showFloatingTabBar()
+        tabBarController?.tabBar.isHidden = false
     }
 
     deinit {
@@ -177,25 +187,25 @@ final class SearchResultsViewController: UIViewController {
             searchBar.heightAnchor.constraint(equalToConstant: 44)
         ])
 
-        clearButton.setImage(UIImage(systemName: "xmark.circle.fill"), for: .normal)
-        clearButton.tintColor = .white
-        clearButton.addTarget(self, action: #selector(clearSearch), for: .touchUpInside)
-        navBar.addSubview(clearButton)
-        clearButton.translatesAutoresizingMaskIntoConstraints = false
+        wishlistButton.setImage(UIImage(systemName: "heart"), for: .normal)
+        wishlistButton.tintColor = .white
+        wishlistButton.addTarget(self, action: #selector(openWishlist), for: .touchUpInside)
+        navBar.addSubview(wishlistButton)
+        wishlistButton.translatesAutoresizingMaskIntoConstraints = false
 
         NSLayoutConstraint.activate([
-            clearButton.leadingAnchor.constraint(equalTo: searchBar.trailingAnchor, constant: 8),
-            clearButton.centerYAnchor.constraint(equalTo: navBar.centerYAnchor),
-            clearButton.widthAnchor.constraint(equalToConstant: 28),
-            clearButton.heightAnchor.constraint(equalToConstant: 28)
+            wishlistButton.leadingAnchor.constraint(equalTo: searchBar.trailingAnchor, constant: 8),
+            wishlistButton.centerYAnchor.constraint(equalTo: navBar.centerYAnchor),
+            wishlistButton.widthAnchor.constraint(equalToConstant: 28),
+            wishlistButton.heightAnchor.constraint(equalToConstant: 28)
         ])
 
         // Accessibility
         backButton.accessibilityLabel = "Go back".localized
         backButton.accessibilityHint = "Return to previous screen".localized
         searchBar.accessibilityLabel = "Search products".localized
-        clearButton.accessibilityLabel = "Clear search".localized
-        clearButton.accessibilityHint = "Clear the search text".localized
+        wishlistButton.accessibilityLabel = "Wishlist".localized
+        wishlistButton.accessibilityHint = "View your saved items".localized
         loadingIndicator.accessibilityLabel = "Searching".localized
     }
 
@@ -203,9 +213,9 @@ final class SearchResultsViewController: UIViewController {
         navigationController?.popViewController(animated: true)
     }
 
-    @objc private func clearSearch() {
-        searchBar.text = ""
-        performSearchDebounced("")
+    @objc private func openWishlist() {
+        let vc = WishlistViewController()
+        navigationController?.pushViewController(vc, animated: true)
     }
 
     // MARK: - ScrollView

@@ -15,4 +15,5 @@ struct EventInsertDTO: Encodable {
     let price: Double
     let is_free: Bool
     let image_url: String?
+    let is_active: Bool
 }
