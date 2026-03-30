@@ -505,7 +505,8 @@ final class PostEventViewController: UIViewController,
                     event_time: timeString,
                     price: price,
                     is_free: isFree,
-                    image_url: imageURL
+                    image_url: imageURL,
+                    is_active: true
                 )
 
                 let repo = EventRepository()
@@ -547,25 +548,51 @@ final class PostEventViewController: UIViewController,
     // MARK: - Image Upload
 
     private func uploadEventImage(_ image: UIImage) async throws -> String {
-        guard let data = image.jpegData(compressionQuality: 0.8) else {
+        // Downsample large camera images to prevent timeout errors
+        let maxDimension: CGFloat = 800
+        var finalImage = image
+        if image.size.width > maxDimension || image.size.height > maxDimension {
+            let ratio = min(maxDimension / image.size.width, maxDimension / image.size.height)
+            let newSize = CGSize(width: image.size.width * ratio, height: image.size.height * ratio)
+            UIGraphicsBeginImageContextWithOptions(newSize, false, 1.0)
+            image.draw(in: CGRect(origin: .zero, size: newSize))
+            if let resized = UIGraphicsGetImageFromCurrentImageContext() {
+                finalImage = resized
+            }
+            UIGraphicsEndImageContext()
+        }
+
+        guard let data = finalImage.jpegData(compressionQuality: 0.7) else {
             throw NSError(domain: "ImageConversion", code: 0,
                           userInfo: [NSLocalizedDescriptionKey: "Failed to convert image"])
         }
 
         let path = "events/\(UUID().uuidString).jpg"
 
-        do {
-            try await supabase.storage
-                .from("event-images")
-                .upload(path, data: data)
-        } catch {
-            let nsError = error as NSError
-            if nsError.domain == NSURLErrorDomain && nsError.code == -1017 {
-                print("⚠️ Supabase parse error ignored (upload succeeded)")
-            } else {
-                throw error
+        var uploadError: Error?
+        for attempt in 1...3 {
+            do {
+                try await supabase.storage
+                    .from("event-images")
+                    .upload(path, data: data, options: .init(upsert: true))
+                uploadError = nil
+                print("✅ Event image upload complete (attempt \(attempt))")
+                break
+            } catch {
+                let nsErr = error as NSError
+                if nsErr.domain == NSURLErrorDomain && nsErr.code == -1017 {
+                    print("⚠️ Supabase parse error ignored (upload succeeded)")
+                    uploadError = nil
+                    break
+                }
+                uploadError = error
+                print("⚠️ Event image upload attempt \(attempt) error: \(error.localizedDescription)")
+                if attempt < 3 {
+                    try await Task.sleep(nanoseconds: 1_500_000_000)
+                }
             }
         }
+        if let err = uploadError { throw err }
 
         let publicURL = try supabase.storage
             .from("event-images")

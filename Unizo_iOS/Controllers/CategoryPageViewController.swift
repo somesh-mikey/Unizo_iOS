@@ -162,7 +162,7 @@ class CategoryPageViewController: UIViewController, UITabBarDelegate, UIScrollVi
 
         // --- Menu Button (Apple HIG: Use plain buttons, not toolbars, for navigation areas) ---
         navBarView.addSubview(menuButton)
-        menuButton.addTarget(self, action: #selector(menuButtonTapped), for: .touchUpInside)
+        configureMenuButton()
 
         // 44pt minimum touch target per Apple HIG
         NSLayoutConstraint.activate([
@@ -496,11 +496,13 @@ class CategoryPageViewController: UIViewController, UITabBarDelegate, UIScrollVi
 //
 //        present(alert, animated: true)
 //    }
-    @objc private func menuButtonTapped() {
-        let alert = UIAlertController(title: nil, message: nil, preferredStyle: .actionSheet)
-
-        // --- WISHLIST ---
-        alert.addAction(UIAlertAction(title: "Wishlist".localized, style: .default, handler: { _ in
+    // MARK: - Native Pull-Down Menu (UIMenu)
+    private func configureMenuButton() {
+        let wishlistAction = UIAction(
+            title: "Wishlist".localized,
+            image: UIImage(systemName: "heart")
+        ) { [weak self] _ in
+            guard let self = self else { return }
             let vc = WishlistViewController()
             if let nav = self.navigationController {
                 nav.pushViewController(vc, animated: true)
@@ -509,28 +511,25 @@ class CategoryPageViewController: UIViewController, UITabBarDelegate, UIScrollVi
                 vc.modalTransitionStyle = .coverVertical
                 self.present(vc, animated: true)
             }
-        }))
+        }
 
-        // --- NOTIFICATIONS ---
-        alert.addAction(UIAlertAction(title: "Notifications".localized, style: .default, handler: { _ in
+        let notificationsAction = UIAction(
+            title: "Notifications".localized,
+            image: UIImage(systemName: "bell")
+        ) { [weak self] _ in
+            guard let self = self else { return }
             let vc = NotificationsViewController()
             if let nav = self.navigationController {
                 nav.pushViewController(vc, animated: true)
-                return
+            } else {
+                vc.modalPresentationStyle = .fullScreen
+                vc.modalTransitionStyle = .coverVertical
+                self.present(vc, animated: true)
             }
-            vc.modalPresentationStyle = .fullScreen
-            vc.modalTransitionStyle = .coverVertical
-            self.present(vc, animated: true)
-        }))
-
-        alert.addAction(UIAlertAction(title: "Cancel".localized, style: .cancel))
-
-        if let popover = alert.popoverPresentationController {
-            popover.sourceView = menuButton
-            popover.sourceRect = menuButton.bounds
         }
 
-        present(alert, animated: true)
+        menuButton.menu = UIMenu(children: [wishlistAction, notificationsAction])
+        menuButton.showsMenuAsPrimaryAction = true
     }
 
     @objc private func categoryTapped(_ sender: UIButton) {

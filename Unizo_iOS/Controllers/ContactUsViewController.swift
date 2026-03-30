@@ -118,7 +118,7 @@ class ContactUsViewController: UIViewController {
         helpLabel.text = "What Can We Help You With?".localized
         helpLabel.font = .systemFont(ofSize: 17, weight: .semibold)
 
-        explainLabel.text = "Briefly Explain What's Going On".localized
+        explainLabel.text = "Could You Please Explain".localized
         explainLabel.font = .systemFont(ofSize: 17, weight: .semibold)
 
         // Segment
@@ -144,7 +144,10 @@ class ContactUsViewController: UIViewController {
         categoryConfig.imagePadding = 8
         categoryConfig.preferredSymbolConfigurationForImage = UIImage.SymbolConfiguration(pointSize: 12, weight: .medium)
         categoryButton.configuration = categoryConfig
-        categoryButton.contentHorizontalAlignment = .leading
+        categoryButton.configurationUpdateHandler = { button in
+            // Ensure the button stretches across its full width
+            button.contentHorizontalAlignment = .fill
+        }
         categoryButton.addTarget(self, action: #selector(categoryButtonTapped), for: .touchUpInside)
 
         // Message

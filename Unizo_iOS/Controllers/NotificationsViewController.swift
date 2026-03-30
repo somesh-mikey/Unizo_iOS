@@ -45,8 +45,8 @@ final class NotificationsViewController: UIViewController {
     private let clearAllButton: UIButton = {
         let btn = UIButton(type: .system)
         btn.setTitle("Clear All".localized, for: .normal)
-        btn.titleLabel?.font = UIFont.systemFont(ofSize: 14, weight: .medium)
-        btn.setTitleColor(UIColor(red: 0.96, green: 0.42, blue: 0.42, alpha: 1.0), for: .normal)
+        btn.titleLabel?.font = UIFont.systemFont(ofSize: 17, weight: .regular)
+        btn.setTitleColor(.systemRed, for: .normal)
         btn.translatesAutoresizingMaskIntoConstraints = false
         return btn
     }()
