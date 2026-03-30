@@ -1,0 +1,678 @@
+//
+//  AddressViewController.swift
+//  Unizo_iOS
+//
+//  Created by Nishtha on 18/11/25.
+//
+
+import UIKit
+
+enum AddressFlowSource {
+    case fromAccount
+    case fromCheckout
+}
+
+class AddressViewController: UIViewController {
+
+    var flowSource: AddressFlowSource = .fromCheckout
+
+    /// The items to be ordered (passed from ItemDetailsViewController)
+    var orderItems: [OrderItem] = []
+    private let addressRepository = AddressRepository(client: supabase)
+    private var addresses: [AddressDTO] = []
+
+    // MARK: - Colors
+    private let bgColor     = UIColor(red: 0.96, green: 0.97, blue: 1.0, alpha: 1.0)
+    private let primaryTeal = UIColor(red: 0.02, green: 0.34, blue: 0.46, alpha: 1.0)
+    private let accentTeal  = UIColor(red: 0.00, green: 0.62, blue: 0.71, alpha: 1.0)
+    private let lightGray   = UIColor(white: 0.8, alpha: 1.0)
+
+    // MARK: - Top bar
+    private let navBar = UIView()
+    private let backButton = UIButton(type: .system)
+    private let titleLabel = UILabel()
+
+    // MARK: - Step indicator
+    private let stepContainer = UIView()
+    private let stepStack = UIStackView()
+
+    // MARK: - Scroll + content
+    private let scrollView = UIScrollView()
+    private let contentView = UIView()
+
+    private let addressesStack = UIStackView()
+    private let addNewAddressButton = UIButton(type: .system)
+    private let continueButton = UIButton(type: .system)
+
+    // Empty state
+    private let emptyStateLabel: UILabel = {
+        let lbl = UILabel()
+        lbl.text = "No hotspots added".localized
+        lbl.font = .systemFont(ofSize: 16)
+        lbl.textColor = .secondaryLabel
+        lbl.textAlignment = .center
+        lbl.isHidden = true
+        lbl.translatesAutoresizingMaskIntoConstraints = false
+        return lbl
+    }()
+
+    // Radio selection
+    private var addressCards: [UIView] = []
+    private var radioViews: [UIView] = []
+    private var selectedIndex: Int = 0
+
+    override func viewDidLoad() {
+        super.viewDidLoad()
+
+        view.backgroundColor = bgColor
+
+        setupNavBar()
+        setupStepIndicator()
+        setupScrollAndContent()
+        setupAddNewAddressButton()
+        setupContinueButton()
+
+        Task {
+            await loadAddresses()
+        }
+    }
+    override func viewWillAppear(_ animated: Bool) {
+        super.viewWillAppear(animated)
+        navigationController?.setNavigationBarHidden(true, animated: false)
+        self.tabBarController?.tabBar.isHidden = true
+
+    }
+    override func viewWillDisappear(_ animated: Bool) {
+        super.viewWillDisappear(animated)
+        navigationController?.setNavigationBarHidden(false, animated: false)
+        self.tabBarController?.tabBar.isHidden = false
+
+    }
+
+    // MARK: - NAV BAR
+    private func setupNavBar() {
+        navBar.translatesAutoresizingMaskIntoConstraints = false
+        navBar.backgroundColor = bgColor
+        view.addSubview(navBar)
+
+        NSLayoutConstraint.activate([
+            navBar.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor),
+            navBar.leadingAnchor.constraint(equalTo: view.leadingAnchor),
+            navBar.trailingAnchor.constraint(equalTo: view.trailingAnchor),
+            navBar.heightAnchor.constraint(equalToConstant: 56)
+        ])
+
+        // Back with glowing style
+        backButton.setImage(UIImage(systemName: "chevron.left"), for: .normal)
+        backButton.tintColor = .black
+        backButton.backgroundColor = .white
+        backButton.layer.cornerRadius = 22
+        backButton.layer.shadowColor = UIColor.black.cgColor
+        backButton.layer.shadowOpacity = 0.1
+        backButton.layer.shadowRadius = 8
+        backButton.layer.shadowOffset = CGSize(width: 0, height: 2)
+        backButton.translatesAutoresizingMaskIntoConstraints = false
+        backButton.addTarget(self, action: #selector(backTapped), for: .touchUpInside)
+
+        // Title - different based on flow
+        titleLabel.text = (flowSource == .fromAccount) ? "My Hotspots".localized : "Select Hotspot".localized
+        titleLabel.font = UIFont.systemFont(ofSize: 18, weight: .semibold)
+        titleLabel.textColor = .black
+        titleLabel.translatesAutoresizingMaskIntoConstraints = false
+
+        navBar.addSubview(backButton)
+        navBar.addSubview(titleLabel)
+
+        NSLayoutConstraint.activate([
+            backButton.leadingAnchor.constraint(equalTo: navBar.leadingAnchor, constant: 16),
+            backButton.centerYAnchor.constraint(equalTo: navBar.centerYAnchor),
+            backButton.widthAnchor.constraint(equalToConstant: 44),
+            backButton.heightAnchor.constraint(equalToConstant: 44),
+
+            titleLabel.centerXAnchor.constraint(equalTo: navBar.centerXAnchor),
+            titleLabel.centerYAnchor.constraint(equalTo: navBar.centerYAnchor)
+        ])
+    }
+
+    // UPDATED: Back navigation based on flow source
+    @objc private func backTapped() {
+        // Default: try to pop, otherwise dismiss
+        if let nav = navigationController {
+            nav.popViewController(animated: true)
+        } else {
+            dismiss(animated: true)
+        }
+    }
+    // MARK: - STEP INDICATOR
+    private func setupStepIndicator() {
+        stepContainer.translatesAutoresizingMaskIntoConstraints = false
+        stepContainer.backgroundColor = bgColor
+        view.addSubview(stepContainer)
+
+        // Hide stepper when accessed from Account (not checkout flow)
+        stepContainer.isHidden = (flowSource == .fromAccount)
+
+        NSLayoutConstraint.activate([
+            stepContainer.topAnchor.constraint(equalTo: navBar.bottomAnchor),
+            stepContainer.leadingAnchor.constraint(equalTo: view.leadingAnchor),
+            stepContainer.trailingAnchor.constraint(equalTo: view.trailingAnchor),
+            stepContainer.heightAnchor.constraint(equalToConstant: 44)
+        ])
+
+        stepStack.axis = .horizontal
+        stepStack.alignment = .center
+        stepStack.spacing = 40      // big gap so "Confirm Order" shifts to the right
+        stepStack.translatesAutoresizingMaskIntoConstraints = false
+        stepContainer.addSubview(stepStack)
+
+        NSLayoutConstraint.activate([
+            stepStack.leadingAnchor.constraint(equalTo: stepContainer.leadingAnchor, constant: 20),
+            stepStack.centerYAnchor.constraint(equalTo: stepContainer.centerYAnchor)
+        ])
+
+        // STEP 1
+        let step1Circle = UIView()
+        step1Circle.backgroundColor = accentTeal
+        step1Circle.layer.cornerRadius = 10
+        step1Circle.translatesAutoresizingMaskIntoConstraints = false
+        NSLayoutConstraint.activate([
+            step1Circle.widthAnchor.constraint(equalToConstant: 20),
+            step1Circle.heightAnchor.constraint(equalToConstant: 20)
+        ])
+
+        let step1LabelNumber = UILabel()
+        step1LabelNumber.text = "1"
+        step1LabelNumber.textColor = .white
+        step1LabelNumber.font = UIFont.systemFont(ofSize: 12, weight: .semibold)
+        step1LabelNumber.textAlignment = .center
+        step1LabelNumber.translatesAutoresizingMaskIntoConstraints = false
+        step1Circle.addSubview(step1LabelNumber)
+        NSLayoutConstraint.activate([
+            step1LabelNumber.centerXAnchor.constraint(equalTo: step1Circle.centerXAnchor),
+            step1LabelNumber.centerYAnchor.constraint(equalTo: step1Circle.centerYAnchor)
+        ])
+
+        let step1Text = UILabel()
+        step1Text.text = "Set Hotspot".localized
+        step1Text.font = UIFont.systemFont(ofSize: 14, weight: .semibold)
+        step1Text.textColor = .black
+
+        let step1Stack = UIStackView(arrangedSubviews: [step1Circle, step1Text])
+        step1Stack.axis = .horizontal
+        step1Stack.spacing = 6
+
+        // Arrow
+        let arrowLabel = UILabel()
+        arrowLabel.text = "›"
+        arrowLabel.textColor = .gray
+        arrowLabel.font = UIFont.systemFont(ofSize: 16, weight: .regular)
+
+        // STEP 2
+        let step2Circle = UIView()
+        step2Circle.backgroundColor = lightGray
+        step2Circle.layer.cornerRadius = 10
+        step2Circle.translatesAutoresizingMaskIntoConstraints = false
+        NSLayoutConstraint.activate([
+            step2Circle.widthAnchor.constraint(equalToConstant: 20),
+            step2Circle.heightAnchor.constraint(equalToConstant: 20)
+        ])
+
+        let step2Number = UILabel()
+        step2Number.text = "2"
+        step2Number.textColor = .white
+        step2Number.font = UIFont.systemFont(ofSize: 12, weight: .semibold)
+        step2Number.textAlignment = .center
+        step2Number.translatesAutoresizingMaskIntoConstraints = false
+        step2Circle.addSubview(step2Number)
+        NSLayoutConstraint.activate([
+            step2Number.centerXAnchor.constraint(equalTo: step2Circle.centerXAnchor),
+            step2Number.centerYAnchor.constraint(equalTo: step2Circle.centerYAnchor)
+        ])
+
+        let step2Text = UILabel()
+        step2Text.text = "Confirm Order".localized
+        step2Text.font = UIFont.systemFont(ofSize: 14, weight: .semibold)
+        step2Text.textColor = .gray
+
+        let step2Stack = UIStackView(arrangedSubviews: [step2Circle, step2Text])
+        step2Stack.axis = .horizontal
+        step2Stack.spacing = 6
+
+        stepStack.addArrangedSubview(step1Stack)
+        stepStack.addArrangedSubview(arrowLabel)
+        stepStack.addArrangedSubview(step2Stack)
+    }
+
+    // MARK: - SCROLL + CONTENT
+    private func setupScrollAndContent() {
+        scrollView.translatesAutoresizingMaskIntoConstraints = false
+        scrollView.showsVerticalScrollIndicator = false
+        view.addSubview(scrollView)
+
+        contentView.translatesAutoresizingMaskIntoConstraints = false
+        scrollView.addSubview(contentView)
+
+        // Anchor scroll view to navBar when stepper is hidden, otherwise to stepContainer
+        let scrollTopAnchor = (flowSource == .fromAccount)
+            ? navBar.bottomAnchor
+            : stepContainer.bottomAnchor
+
+        NSLayoutConstraint.activate([
+            scrollView.topAnchor.constraint(equalTo: scrollTopAnchor, constant: 8),
+            scrollView.leadingAnchor.constraint(equalTo: view.leadingAnchor),
+            scrollView.trailingAnchor.constraint(equalTo: view.trailingAnchor),
+            scrollView.bottomAnchor.constraint(equalTo: view.safeAreaLayoutGuide.bottomAnchor, constant: -90), // leave space for Continue button
+
+            contentView.topAnchor.constraint(equalTo: scrollView.topAnchor),
+            contentView.leadingAnchor.constraint(equalTo: scrollView.leadingAnchor),
+            contentView.trailingAnchor.constraint(equalTo: scrollView.trailingAnchor),
+            contentView.bottomAnchor.constraint(equalTo: scrollView.bottomAnchor),
+            contentView.widthAnchor.constraint(equalTo: scrollView.widthAnchor)
+        ])
+
+        addressesStack.axis = .vertical
+        addressesStack.spacing = 12
+        addressesStack.translatesAutoresizingMaskIntoConstraints = false
+        contentView.addSubview(addressesStack)
+        view.addSubview(emptyStateLabel)
+
+        NSLayoutConstraint.activate([
+            addressesStack.topAnchor.constraint(equalTo: contentView.topAnchor, constant: 8),
+            addressesStack.leadingAnchor.constraint(equalTo: contentView.leadingAnchor, constant: 20),
+            addressesStack.trailingAnchor.constraint(equalTo: contentView.trailingAnchor, constant: -20),
+
+            // Empty state label - centered in the screen
+            emptyStateLabel.centerXAnchor.constraint(equalTo: view.centerXAnchor),
+            emptyStateLabel.centerYAnchor.constraint(equalTo: view.centerYAnchor, constant: -50),
+            emptyStateLabel.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 20),
+            emptyStateLabel.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -20)
+        ])
+    }
+
+    private func makeAddressCard(index: Int, nameLine: String, addressText: String, canDelete: Bool) -> UIView {
+        let card = UIView()
+        card.backgroundColor = .white
+        card.layer.cornerRadius = 16
+        card.layer.shadowColor = UIColor.black.cgColor
+        card.layer.shadowOpacity = 0.06
+        card.layer.shadowRadius = 6
+        card.layer.shadowOffset = CGSize(width: 0, height: 2)
+        card.translatesAutoresizingMaskIntoConstraints = false
+        card.tag = index
+
+        // Card tap (selection)
+        let cardTap = UITapGestureRecognizer(target: self, action: #selector(cardTapped(_:)))
+        cardTap.delegate = self
+        card.addGestureRecognizer(cardTap)
+
+        // Radio
+        let radio = UIView()
+        radio.layer.cornerRadius = 7
+        radio.layer.borderWidth = 2
+        radio.layer.borderColor = accentTeal.cgColor
+        radio.translatesAutoresizingMaskIntoConstraints = false
+        card.addSubview(radio)
+
+        NSLayoutConstraint.activate([
+            radio.leadingAnchor.constraint(equalTo: card.leadingAnchor, constant: 16),
+            radio.topAnchor.constraint(equalTo: card.topAnchor, constant: 18),
+            radio.widthAnchor.constraint(equalToConstant: 14),
+            radio.heightAnchor.constraint(equalToConstant: 14)
+        ])
+
+        radioViews.append(radio)
+
+        // Labels
+        let nameLabel = UILabel()
+        nameLabel.text = nameLine
+        nameLabel.font = .systemFont(ofSize: 14, weight: .semibold)
+
+        let addressLabel = UILabel()
+        addressLabel.text = addressText
+        addressLabel.font = .systemFont(ofSize: 12)
+        addressLabel.textColor = .darkGray
+        addressLabel.numberOfLines = 2
+
+        [nameLabel, addressLabel].forEach {
+            $0.translatesAutoresizingMaskIntoConstraints = false
+            card.addSubview($0)
+        }
+
+        NSLayoutConstraint.activate([
+            nameLabel.leadingAnchor.constraint(equalTo: radio.trailingAnchor, constant: 10),
+            nameLabel.topAnchor.constraint(equalTo: card.topAnchor, constant: 14),
+            nameLabel.trailingAnchor.constraint(equalTo: card.trailingAnchor, constant: -70),
+
+            addressLabel.leadingAnchor.constraint(equalTo: nameLabel.leadingAnchor),
+            addressLabel.topAnchor.constraint(equalTo: nameLabel.bottomAnchor, constant: 4),
+            addressLabel.trailingAnchor.constraint(equalTo: nameLabel.trailingAnchor),
+            addressLabel.bottomAnchor.constraint(equalTo: card.bottomAnchor, constant: -14)
+        ])
+
+        // EDIT icon
+        let editIcon = UIImageView(image: UIImage(systemName: "pencil"))
+        editIcon.tintColor = .gray
+        editIcon.tag = index
+        editIcon.isUserInteractionEnabled = true
+        editIcon.translatesAutoresizingMaskIntoConstraints = false
+        card.addSubview(editIcon)
+
+        let editTap = UITapGestureRecognizer(target: self, action: #selector(editTapped(_:)))
+        editIcon.addGestureRecognizer(editTap)
+
+        // DELETE icon - only show if address can be deleted
+        let deleteIcon = UIImageView(image: UIImage(systemName: "trash"))
+        deleteIcon.tintColor = .gray
+        deleteIcon.tag = index
+        deleteIcon.isUserInteractionEnabled = canDelete
+        deleteIcon.isHidden = !canDelete
+        deleteIcon.translatesAutoresizingMaskIntoConstraints = false
+        card.addSubview(deleteIcon)
+
+        if canDelete {
+            let deleteTap = UITapGestureRecognizer(target: self, action: #selector(deleteTapped(_:)))
+            deleteIcon.addGestureRecognizer(deleteTap)
+        }
+
+        // Bring icons to front for tap handling
+        card.bringSubviewToFront(editIcon)
+        card.bringSubviewToFront(deleteIcon)
+
+        // Position edit icon based on whether delete is visible
+        let editTrailingConstant: CGFloat = canDelete ? -45 : -18
+
+        NSLayoutConstraint.activate([
+            editIcon.topAnchor.constraint(equalTo: card.topAnchor, constant: 14),
+            editIcon.trailingAnchor.constraint(equalTo: card.trailingAnchor, constant: editTrailingConstant),
+            editIcon.widthAnchor.constraint(equalToConstant: 18),
+            editIcon.heightAnchor.constraint(equalToConstant: 18),
+
+            deleteIcon.topAnchor.constraint(equalTo: card.topAnchor, constant: 14),
+            deleteIcon.trailingAnchor.constraint(equalTo: card.trailingAnchor, constant: -18),
+            deleteIcon.widthAnchor.constraint(equalToConstant: 18),
+            deleteIcon.heightAnchor.constraint(equalToConstant: 18)
+        ])
+
+        return card
+    }
+
+    @objc private func cardTapped(_ gesture: UITapGestureRecognizer) {
+        guard let card = gesture.view else { return }
+        selectedIndex = card.tag
+        updateSelectionUI()
+    }
+    @objc private func editTapped(_ gesture: UITapGestureRecognizer) {
+        guard
+            let icon = gesture.view,
+            icon.tag < addresses.count
+        else { return }
+
+        let address = addresses[icon.tag]
+
+        let editVC = EditAddressViewController(address: address)
+        editVC.onSave = { [weak self] in
+            Task { await self?.loadAddresses() }
+        }
+
+        navigationController?.pushViewController(editVC, animated: true)
+    }
+
+    @objc private func deleteTapped(_ gesture: UITapGestureRecognizer) {
+        guard
+            let icon = gesture.view,
+            icon.tag < addresses.count
+        else { return }
+
+        let address = addresses[icon.tag]
+
+        // Double-check if address can be deleted
+        guard addressRepository.canDeleteAddress(address, totalAddressCount: addresses.count) else {
+            let errorAlert = UIAlertController(
+                title: "Cannot Delete".localized,
+                message: address.is_default
+                    ? "The default hotspot cannot be deleted. Please set another hotspot as default first.".localized
+                    : "You must have at least one hotspot.".localized,
+                preferredStyle: .alert
+            )
+            errorAlert.addAction(UIAlertAction(title: "OK".localized, style: .default))
+            present(errorAlert, animated: true)
+            return
+        }
+
+        let alert = UIAlertController(
+            title: "Delete Hotspot?".localized,
+            message: "This action cannot be undone.".localized,
+            preferredStyle: .alert
+        )
+
+        alert.addAction(UIAlertAction(title: "Cancel".localized, style: .cancel))
+
+        alert.addAction(UIAlertAction(title: "Delete".localized, style: .destructive) { _ in
+            Task {
+                do {
+                    try await self.addressRepository.deleteAddress(id: address.id)
+                    print("🗑️ Hotspot deleted:", address.id)
+                    await self.loadAddresses()
+                } catch let error as AddressError {
+                    await MainActor.run {
+                        let errorAlert = UIAlertController(
+                            title: "Cannot Delete".localized,
+                            message: error.errorDescription,
+                            preferredStyle: .alert
+                        )
+                        errorAlert.addAction(UIAlertAction(title: "OK".localized, style: .default))
+                        self.present(errorAlert, animated: true)
+                    }
+                } catch {
+                    print("❌ Failed to delete hotspot:", error)
+                    await MainActor.run {
+                        let errorAlert = UIAlertController(
+                            title: "Error".localized,
+                            message: "Failed to delete hotspot. Please try again.".localized,
+                            preferredStyle: .alert
+                        )
+                        errorAlert.addAction(UIAlertAction(title: "OK".localized, style: .default))
+                        self.present(errorAlert, animated: true)
+                    }
+                }
+            }
+        })
+
+        present(alert, animated: true)
+    }
+
+
+    private func updateSelectionUI() {
+        for (idx, radio) in radioViews.enumerated() {
+            radio.subviews.forEach { $0.removeFromSuperview() }
+
+            if idx == selectedIndex {
+                // filled circle
+                let dot = UIView()
+                dot.backgroundColor = accentTeal
+                dot.layer.cornerRadius = 4
+                dot.translatesAutoresizingMaskIntoConstraints = false
+                radio.addSubview(dot)
+
+                NSLayoutConstraint.activate([
+                    dot.centerXAnchor.constraint(equalTo: radio.centerXAnchor),
+                    dot.centerYAnchor.constraint(equalTo: radio.centerYAnchor),
+                    dot.widthAnchor.constraint(equalToConstant: 8),
+                    dot.heightAnchor.constraint(equalToConstant: 8)
+                ])
+
+                addressCards[idx].layer.borderWidth = 2
+                addressCards[idx].layer.borderColor = accentTeal.cgColor
+            } else {
+                addressCards[idx].layer.borderWidth = 0
+                addressCards[idx].layer.borderColor = UIColor.clear.cgColor
+            }
+        }
+    }
+
+    // MARK: - ADD NEW HOTSPOT BUTTON
+    private func setupAddNewAddressButton() {
+        addNewAddressButton.setTitle("Add New Hotspot".localized, for: .normal)
+        addNewAddressButton.setTitleColor(primaryTeal, for: .normal)
+        addNewAddressButton.titleLabel?.font = UIFont.systemFont(ofSize: 14, weight: .semibold)
+        addNewAddressButton.backgroundColor = .white
+        addNewAddressButton.layer.cornerRadius = 18
+        addNewAddressButton.layer.borderWidth = 1.5
+        addNewAddressButton.layer.borderColor = primaryTeal.cgColor
+        addNewAddressButton.contentEdgeInsets = UIEdgeInsets(top: 8, left: 16, bottom: 8, right: 16)
+        addNewAddressButton.translatesAutoresizingMaskIntoConstraints = false
+        addNewAddressButton.addTarget(self, action: #selector(addAddressTapped), for: .touchUpInside)
+
+        contentView.addSubview(addNewAddressButton)
+
+        NSLayoutConstraint.activate([
+            addNewAddressButton.topAnchor.constraint(equalTo: addressesStack.bottomAnchor, constant: 18),
+            addNewAddressButton.leadingAnchor.constraint(equalTo: contentView.leadingAnchor, constant: 20),
+            addNewAddressButton.heightAnchor.constraint(equalToConstant: 36),
+            addNewAddressButton.bottomAnchor.constraint(equalTo: contentView.bottomAnchor, constant: -24)
+        ])
+    }
+
+    // UPDATED: navigate to AddNewAddressViewController (push or modal)
+    @objc private func addAddressTapped() {
+        let newVC = AddNewAddressViewController()
+        newVC.onSave = { [weak self] in
+            Task { await self?.loadAddresses() }
+        }
+
+        if let nav = navigationController {
+            nav.pushViewController(newVC, animated: true)
+        } else {
+            newVC.modalPresentationStyle = .fullScreen
+            present(newVC, animated: true)
+        }
+    }
+
+    // MARK: - CONTINUE BUTTON
+    private func setupContinueButton() {
+        continueButton.setTitle("Continue".localized, for: .normal)
+        continueButton.setTitleColor(.white, for: .normal)
+        continueButton.backgroundColor = primaryTeal
+        continueButton.layer.cornerRadius = 24
+        continueButton.titleLabel?.font = UIFont.systemFont(ofSize: 16, weight: .semibold)
+        continueButton.translatesAutoresizingMaskIntoConstraints = false
+        continueButton.addTarget(self, action: #selector(continueTapped), for: .touchUpInside)
+
+        view.addSubview(continueButton)
+
+        NSLayoutConstraint.activate([
+            continueButton.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 30),
+            continueButton.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -30),
+            continueButton.bottomAnchor.constraint(equalTo: view.safeAreaLayoutGuide.bottomAnchor, constant: -16),
+            continueButton.heightAnchor.constraint(equalToConstant: 54)
+        ])
+    }
+    @MainActor
+    private func loadAddresses() async {
+        do {
+            let fetched = try await addressRepository.fetchAddresses()
+            print("📦 Hotspots fetched:", fetched.count)
+            self.addresses = fetched
+            renderAddressCards()
+        } catch {
+            print("❌ Failed to load hotspots:", error)
+        }
+        if selectedIndex >= addresses.count {
+            selectedIndex = max(0, addresses.count - 1)
+        }
+    }
+    @MainActor
+    private func renderAddressCards() {
+        // Clear old cards
+        addressesStack.arrangedSubviews.forEach {
+            addressesStack.removeArrangedSubview($0)
+            $0.removeFromSuperview()
+        }
+
+        addressCards.removeAll()
+        radioViews.removeAll()
+
+        let totalCount = addresses.count
+
+        // Show/hide empty state
+        if totalCount == 0 {
+            emptyStateLabel.isHidden = false
+            return
+        } else {
+            emptyStateLabel.isHidden = true
+        }
+
+        for (index, address) in addresses.enumerated() {
+            let nameLine = "\(address.name)   \(address.phone)"
+            let addressText = """
+            \(address.line1)
+            \(address.city), \(address.state) \(address.postal_code)
+            """
+
+            // Check if this address can be deleted
+            let canDelete = addressRepository.canDeleteAddress(address, totalAddressCount: totalCount)
+
+            let card = makeAddressCard(
+                index: index,
+                nameLine: nameLine,
+                addressText: addressText,
+                canDelete: canDelete
+            )
+
+            addressesStack.addArrangedSubview(card)
+            addressCards.append(card)
+
+            if address.is_default {
+                selectedIndex = index
+            }
+        }
+
+        updateSelectionUI()
+    }
+
+
+    @objc func continueTapped() {
+
+        switch flowSource {
+
+        case .fromAccount:
+            // Go BACK to Account screen
+            if navigationController != nil {
+                navigationController?.popViewController(animated: true)
+            } else {
+                dismiss(animated: true)
+            }
+
+        case .fromCheckout:
+            // Move to Confirm Order screen with selected address and order items
+            let vc = ConfirmOrderViewController()
+            vc.modalPresentationStyle = .fullScreen
+
+            // Pass selected address
+            if selectedIndex < addresses.count {
+                vc.selectedAddress = addresses[selectedIndex]
+            }
+
+            // Pass order items
+            vc.orderItems = orderItems
+
+            if let nav = navigationController {
+                nav.pushViewController(vc, animated: true)
+            } else {
+                present(vc, animated: true)
+            }
+        }
+    }
+}
+extension AddressViewController: UIGestureRecognizerDelegate {
+    func gestureRecognizer(
+        _ gestureRecognizer: UIGestureRecognizer,
+        shouldReceive touch: UITouch
+    ) -> Bool {
+        // If tap is on edit or delete icon → ignore card tap
+        if touch.view is UIImageView {
+            return false
+        }
+        return true
+    }
+}

@@ -1,0 +1,530 @@
+//
+//  SettingsViewController.swift
+//  Unizo_iOS
+//
+
+import UIKit
+import StoreKit
+
+final class SettingsViewController: UIViewController {
+
+    // MARK: - Scroll View
+    private let scrollView = UIScrollView()
+    private let contentView = UIView()
+
+    // MARK: - Lifecycle
+    override func viewDidLoad() {
+        super.viewDidLoad()
+
+        view.backgroundColor = UIColor(red: 0.95, green: 0.96, blue: 0.98, alpha: 1)
+        title = "Settings".localized
+        navigationItem.largeTitleDisplayMode = .never
+        setupScroll()
+        setupSections()
+    }
+    override func viewWillAppear(_ animated: Bool) {
+        super.viewWillAppear(animated)
+        navigationController?.setNavigationBarHidden(false, animated: false)
+        self.tabBarController?.tabBar.isHidden = true
+    }
+
+    override func viewWillDisappear(_ animated: Bool) {
+        super.viewWillDisappear(animated)
+        navigationController?.setNavigationBarHidden(false, animated: false)
+        self.tabBarController?.tabBar.isHidden = false
+    }
+
+    // MARK: - Scroll Setup
+    private func setupScroll() {
+        scrollView.translatesAutoresizingMaskIntoConstraints = false
+        scrollView.showsVerticalScrollIndicator = false
+        view.addSubview(scrollView)
+
+        contentView.translatesAutoresizingMaskIntoConstraints = false
+        scrollView.addSubview(contentView)
+
+        NSLayoutConstraint.activate([
+            scrollView.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor),
+            scrollView.leadingAnchor.constraint(equalTo: view.leadingAnchor),
+            scrollView.trailingAnchor.constraint(equalTo: view.trailingAnchor),
+            scrollView.bottomAnchor.constraint(equalTo: view.bottomAnchor),
+
+            contentView.topAnchor.constraint(equalTo: scrollView.topAnchor),
+            contentView.leadingAnchor.constraint(equalTo: scrollView.leadingAnchor),
+            contentView.trailingAnchor.constraint(equalTo: scrollView.trailingAnchor),
+            contentView.bottomAnchor.constraint(equalTo: scrollView.bottomAnchor),
+            contentView.widthAnchor.constraint(equalTo: scrollView.widthAnchor)
+        ])
+    }
+
+    // MARK: - Sections Layout
+    private func setupSections() {
+
+        var lastBottom: NSLayoutYAxisAnchor = contentView.topAnchor
+        let sectionSpacing: CGFloat = 28
+
+        // Preferences
+        let prefLabel = makeHeader("Preferences".localized)
+        contentView.addSubview(prefLabel)
+        NSLayoutConstraint.activate([
+            prefLabel.topAnchor.constraint(equalTo: lastBottom, constant: 25),
+            prefLabel.leadingAnchor.constraint(equalTo: contentView.leadingAnchor, constant: 20)
+        ])
+        lastBottom = prefLabel.bottomAnchor
+
+        let prefCard = makePreferencesCard()
+        contentView.addSubview(prefCard)
+        NSLayoutConstraint.activate([
+            prefCard.topAnchor.constraint(equalTo: lastBottom, constant: 10),
+            prefCard.leadingAnchor.constraint(equalTo: contentView.leadingAnchor, constant: 20),
+            prefCard.trailingAnchor.constraint(equalTo: contentView.trailingAnchor, constant: -20)
+        ])
+        lastBottom = prefCard.bottomAnchor
+
+        // Support
+        let supportLabel = makeHeader("Support".localized)
+        contentView.addSubview(supportLabel)
+        NSLayoutConstraint.activate([
+            supportLabel.topAnchor.constraint(equalTo: lastBottom, constant: sectionSpacing),
+            supportLabel.leadingAnchor.constraint(equalTo: contentView.leadingAnchor, constant: 20)
+        ])
+        lastBottom = supportLabel.bottomAnchor
+
+        let supportCard = makeSupportCard()
+        contentView.addSubview(supportCard)
+        NSLayoutConstraint.activate([
+            supportCard.topAnchor.constraint(equalTo: lastBottom, constant: 10),
+            supportCard.leadingAnchor.constraint(equalTo: contentView.leadingAnchor, constant: 20),
+            supportCard.trailingAnchor.constraint(equalTo: contentView.trailingAnchor, constant: -20)
+        ])
+        lastBottom = supportCard.bottomAnchor
+
+        // Security
+        let securityLabel = makeHeader("Security".localized)
+        contentView.addSubview(securityLabel)
+        NSLayoutConstraint.activate([
+            securityLabel.topAnchor.constraint(equalTo: lastBottom, constant: sectionSpacing),
+            securityLabel.leadingAnchor.constraint(equalTo: contentView.leadingAnchor, constant: 20)
+        ])
+        lastBottom = securityLabel.bottomAnchor
+
+        let securityCard = makeSecurityCard()
+        contentView.addSubview(securityCard)
+        NSLayoutConstraint.activate([
+            securityCard.topAnchor.constraint(equalTo: lastBottom, constant: 10),
+            securityCard.leadingAnchor.constraint(equalTo: contentView.leadingAnchor, constant: 20),
+            securityCard.trailingAnchor.constraint(equalTo: contentView.trailingAnchor, constant: -20)
+        ])
+        lastBottom = securityCard.bottomAnchor
+
+        // Account Actions
+        let accountLabel = makeHeader("Account Actions".localized)
+        contentView.addSubview(accountLabel)
+        NSLayoutConstraint.activate([
+            accountLabel.topAnchor.constraint(equalTo: lastBottom, constant: sectionSpacing),
+            accountLabel.leadingAnchor.constraint(equalTo: contentView.leadingAnchor, constant: 20)
+        ])
+        lastBottom = accountLabel.bottomAnchor
+
+        let accountCard = makeAccountCard()
+        contentView.addSubview(accountCard)
+        NSLayoutConstraint.activate([
+            accountCard.topAnchor.constraint(equalTo: lastBottom, constant: 10),
+            accountCard.leadingAnchor.constraint(equalTo: contentView.leadingAnchor, constant: 20),
+            accountCard.trailingAnchor.constraint(equalTo: contentView.trailingAnchor, constant: -20),
+            accountCard.bottomAnchor.constraint(equalTo: contentView.bottomAnchor, constant: -40)
+        ])
+    }
+
+    // MARK: - Header Label
+    private func makeHeader(_ title: String) -> UILabel {
+        let lbl = UILabel()
+        lbl.text = title
+        lbl.font = .systemFont(ofSize: 18, weight: .semibold)
+        lbl.translatesAutoresizingMaskIntoConstraints = false
+        return lbl
+    }
+
+    // MARK: - Cards
+    private func buildCard() -> UIView {
+        let v = UIView()
+        v.backgroundColor = .white
+        v.layer.cornerRadius = 16
+        v.translatesAutoresizingMaskIntoConstraints = false
+        return v
+    }
+
+    // MARK: - Cards Content
+    private func makePreferencesCard() -> UIView {
+        let card = buildCard()
+
+        let languageRow = makeArrowRow(icon: "globe", title: "Language".localized)
+        let languageTap = UITapGestureRecognizer(target: self, action: #selector(languageTapped))
+        languageRow.addGestureRecognizer(languageTap)
+        languageRow.isUserInteractionEnabled = true
+
+        stackRows(card, rows: [
+            makeSwitchRow(icon: "bell", title: "Push Notifications".localized, selector: #selector(togglePush)),
+            makeSwitchRow(icon: "envelope", title: "Email Marketing".localized, selector: #selector(toggleEmail)),
+            languageRow
+        ])
+        return card
+    }
+
+    private func makeSupportCard() -> UIView {
+        let card = buildCard()
+
+        let contactRow = makeArrowRow(icon: "phone", title: "Contact Us".localized)
+        let contactTap = UITapGestureRecognizer(target: self, action: #selector(contactUsTapped))
+        contactRow.addGestureRecognizer(contactTap)
+        contactRow.isUserInteractionEnabled = true
+
+        let rateRow = makeArrowRow(icon: "star.fill", title: "Rate Our App".localized)
+        let rateTap = UITapGestureRecognizer(target: self, action: #selector(rateAppTapped))
+        rateRow.addGestureRecognizer(rateTap)
+        rateRow.isUserInteractionEnabled = true
+
+        stackRows(card, rows: [
+            contactRow,
+            rateRow
+        ])
+        return card
+    }
+
+    private func makeSecurityCard() -> UIView {
+        let card = buildCard()
+
+        let passwordRow = makeArrowRow(icon: "key", title: "Change Password".localized)
+        let passwordTap = UITapGestureRecognizer(target: self, action: #selector(changePasswordTapped))
+        passwordRow.addGestureRecognizer(passwordTap)
+        passwordRow.isUserInteractionEnabled = true
+
+        stackRows(card, rows: [
+            passwordRow,
+            makeSwitchRow(icon: "touchid", title: "Biometric Login".localized, selector: #selector(toggleBiometric))
+        ])
+        return card
+    }
+
+    private func makeAccountCard() -> UIView {
+        let card = buildCard()
+
+        if MainTabBarController.isGuestMode {
+            // Guest: show Sign In option instead of Sign Out / Delete Account
+            let signInRow = makeArrowRow(icon: "person.crop.circle.badge.plus", title: "Sign In".localized)
+            let signInTap = UITapGestureRecognizer(target: self, action: #selector(signInTapped))
+            signInRow.addGestureRecognizer(signInTap)
+            signInRow.isUserInteractionEnabled = true
+            stackRows(card, rows: [signInRow])
+        } else {
+            let signOutRow = makeArrowRow(icon: "arrow.right.square", title: "Sign Out".localized)
+            let signOutTap = UITapGestureRecognizer(target: self, action: #selector(signOutTapped))
+            signOutRow.addGestureRecognizer(signOutTap)
+            signOutRow.isUserInteractionEnabled = true
+
+            let deleteAccountRow = makeArrowRow(icon: "trash", title: "Delete Account".localized)
+            let deleteAccountTap = UITapGestureRecognizer(target: self, action: #selector(deleteAccountTapped))
+            deleteAccountRow.addGestureRecognizer(deleteAccountTap)
+            deleteAccountRow.isUserInteractionEnabled = true
+
+            stackRows(card, rows: [signOutRow, deleteAccountRow])
+        }
+
+        return card
+    }
+
+    // MARK: - Rows
+    private func makeArrowRow(icon: String, title: String) -> UIView {
+        let row = UIView()
+        row.translatesAutoresizingMaskIntoConstraints = false
+
+        let image = UIImageView(image: UIImage(systemName: icon))
+        image.tintColor = UIColor(red: 0.07, green: 0.33, blue: 0.42, alpha: 1)
+        image.translatesAutoresizingMaskIntoConstraints = false
+
+        let label = UILabel()
+        label.text = title
+        label.font = .systemFont(ofSize: 16)
+        label.translatesAutoresizingMaskIntoConstraints = false
+
+        let arrow = UIImageView(image: UIImage(systemName: "chevron.right"))
+        arrow.tintColor = .gray
+        arrow.translatesAutoresizingMaskIntoConstraints = false
+
+        row.addSubview(image)
+        row.addSubview(label)
+        row.addSubview(arrow)
+
+        NSLayoutConstraint.activate([
+            image.leadingAnchor.constraint(equalTo: row.leadingAnchor, constant: 16),
+            image.centerYAnchor.constraint(equalTo: row.centerYAnchor),
+            image.widthAnchor.constraint(equalToConstant: 24),
+            image.heightAnchor.constraint(equalToConstant: 24),
+
+            label.leadingAnchor.constraint(equalTo: image.trailingAnchor, constant: 12),
+            label.centerYAnchor.constraint(equalTo: row.centerYAnchor),
+
+            arrow.trailingAnchor.constraint(equalTo: row.trailingAnchor, constant: -16),
+            arrow.centerYAnchor.constraint(equalTo: row.centerYAnchor),
+
+            row.heightAnchor.constraint(equalToConstant: 55)
+        ])
+
+        return row
+    }
+
+    private func makeSwitchRow(icon: String, title: String, selector: Selector) -> UIView {
+        let row = UIView()
+        row.translatesAutoresizingMaskIntoConstraints = false
+
+        let image = UIImageView(image: UIImage(systemName: icon))
+        image.tintColor = UIColor(red: 0.07, green: 0.33, blue: 0.42, alpha: 1)
+        image.translatesAutoresizingMaskIntoConstraints = false
+
+        let label = UILabel()
+        label.text = title
+        label.font = .systemFont(ofSize: 16)
+        label.translatesAutoresizingMaskIntoConstraints = false
+
+        let sw = UISwitch()
+        sw.onTintColor = UIColor(red: 0.07, green: 0.33, blue: 0.42, alpha: 1)
+        sw.addTarget(self, action: selector, for: .valueChanged)
+        sw.translatesAutoresizingMaskIntoConstraints = false
+
+        row.addSubview(image)
+        row.addSubview(label)
+        row.addSubview(sw)
+
+        NSLayoutConstraint.activate([
+            image.leadingAnchor.constraint(equalTo: row.leadingAnchor, constant: 16),
+            image.centerYAnchor.constraint(equalTo: row.centerYAnchor),
+            image.widthAnchor.constraint(equalToConstant: 24),
+            image.heightAnchor.constraint(equalToConstant: 24),
+
+            label.leadingAnchor.constraint(equalTo: image.trailingAnchor, constant: 12),
+            label.centerYAnchor.constraint(equalTo: row.centerYAnchor),
+
+            sw.trailingAnchor.constraint(equalTo: row.trailingAnchor, constant: -16),
+            sw.centerYAnchor.constraint(equalTo: row.centerYAnchor),
+
+            row.heightAnchor.constraint(equalToConstant: 55)
+        ])
+
+        return row
+    }
+
+    // MARK: - Separators + Stack Rows
+    private func makeSeparator() -> UIView {
+        let v = UIView()
+        v.backgroundColor = UIColor.lightGray.withAlphaComponent(0.3)
+        v.translatesAutoresizingMaskIntoConstraints = false
+        return v
+    }
+
+    private func stackRows(_ card: UIView, rows: [UIView]) {
+
+        var previous: UIView? = nil
+
+        for (index, row) in rows.enumerated() {
+
+            card.addSubview(row)
+
+            NSLayoutConstraint.activate([
+                row.leadingAnchor.constraint(equalTo: card.leadingAnchor),
+                row.trailingAnchor.constraint(equalTo: card.trailingAnchor)
+            ])
+
+            if let prev = previous {
+                row.topAnchor.constraint(equalTo: prev.bottomAnchor).isActive = true
+            } else {
+                row.topAnchor.constraint(equalTo: card.topAnchor).isActive = true
+            }
+
+            previous = row
+
+            if index < rows.count - 1 {
+                let sep = makeSeparator()
+                card.addSubview(sep)
+
+                NSLayoutConstraint.activate([
+                    sep.topAnchor.constraint(equalTo: row.bottomAnchor),
+                    sep.leadingAnchor.constraint(equalTo: card.leadingAnchor, constant: 56),
+                    sep.trailingAnchor.constraint(equalTo: card.trailingAnchor, constant: -16),
+                    sep.heightAnchor.constraint(equalToConstant: 1)
+                ])
+
+                previous = sep
+            }
+        }
+
+        previous?.bottomAnchor.constraint(equalTo: card.bottomAnchor).isActive = true
+    }
+
+    // MARK: - Switch Actions
+    @objc private func togglePush(_ sender: UISwitch) {
+        print("Push Notifications:", sender.isOn)
+    }
+
+    @objc private func toggleEmail(_ sender: UISwitch) {
+        print("Email Marketing:", sender.isOn)
+    }
+
+    @objc private func toggleBiometric(_ sender: UISwitch) {
+        print("Biometric Login:", sender.isOn)
+    }
+
+    // MARK: - Navigation Actions
+    @objc private func languageTapped() {
+        print("Language Screen pushed.")
+        let vc = LanguageViewController()
+        pushFromSettings(vc)
+    }
+
+    @objc private func contactUsTapped() {
+        print("Contact Us screen pushed.")
+        let vc = ContactUsViewController()
+        pushFromSettings(vc)
+    }
+
+    @objc private func changePasswordTapped() {
+        print("Change Password screen pushed.")
+        let vc = ChangePasswordViewController()
+        pushFromSettings(vc)
+    }
+
+    private func pushFromSettings(_ vc: UIViewController) {
+        if let nav = navigationController {
+            nav.pushViewController(vc, animated: true)
+        } else {
+            let nav = UINavigationController(rootViewController: vc)
+            nav.modalPresentationStyle = .fullScreen
+            present(nav, animated: true)
+        }
+    }
+
+    @objc private func rateAppTapped() {
+        if let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene {
+            SKStoreReviewController.requestReview(in: windowScene)
+        } else {
+            // Fallback: open App Store page
+            if let url = URL(string: "itms-apps://itunes.apple.com/app/idYOUR_APP_ID?action=write-review") {
+                UIApplication.shared.open(url)
+            }
+        }
+    }
+
+    // MARK: - Sign In (Guest mode)
+    @objc private func signInTapped() {
+        navigateToWelcome()
+    }
+
+    // MARK: - Sign Out
+    @objc private func signOutTapped() {
+        let alert = UIAlertController(
+            title: "Sign Out".localized,
+            message: "Are you sure you want to sign out?".localized,
+            preferredStyle: .alert
+        )
+
+        alert.addAction(UIAlertAction(title: "Cancel".localized, style: .cancel))
+        alert.addAction(UIAlertAction(title: "Sign Out".localized, style: .destructive) { [weak self] _ in
+            self?.performSignOut()
+        })
+
+        present(alert, animated: true)
+    }
+
+    private func performSignOut() {
+        Task {
+            do {
+                // Stop realtime listeners first
+                await NotificationManager.shared.stopListening()
+                await OrderRealtimeManager.shared.unsubscribeAll()
+
+                // Sign out from Supabase
+                try await AuthManager.shared.signOut()
+
+                print("✅ User signed out successfully")
+
+                // Navigate to welcome screen
+                await MainActor.run {
+                    self.navigateToWelcome()
+                }
+            } catch {
+                print("❌ Sign out failed:", error)
+                await MainActor.run {
+                    let alert = UIAlertController(
+                        title: "Error".localized,
+                        message: String(format: "Failed to sign out: %@".localized, error.localizedDescription),
+                        preferredStyle: .alert
+                    )
+                    alert.addAction(UIAlertAction(title: "OK".localized, style: .default))
+                    self.present(alert, animated: true)
+                }
+            }
+        }
+    }
+
+    // MARK: - Delete Account
+    @objc private func deleteAccountTapped() {
+        let alert = UIAlertController(
+            title: "Delete Account".localized,
+            message: "Are you sure you want to delete your account? This action cannot be undone and all your data will be permanently removed.".localized,
+            preferredStyle: .alert
+        )
+
+        alert.addAction(UIAlertAction(title: "Cancel".localized, style: .cancel))
+        alert.addAction(UIAlertAction(title: "Delete".localized, style: .destructive) { [weak self] _ in
+            self?.performDeleteAccount()
+        })
+
+        present(alert, animated: true)
+    }
+
+    private func performDeleteAccount() {
+        Task {
+            do {
+                // Stop realtime listeners first
+                await NotificationManager.shared.stopListening()
+                await OrderRealtimeManager.shared.unsubscribeAll()
+
+                // Delete user account from Supabase
+                try await AuthManager.shared.deleteAccount()
+
+                print("✅ Account deleted successfully")
+
+                // Navigate to welcome screen
+                await MainActor.run {
+                    self.navigateToWelcome()
+                }
+            } catch {
+                print("❌ Delete account failed:", error)
+                await MainActor.run {
+                    let alert = UIAlertController(
+                        title: "Error".localized,
+                        message: String(format: "Failed to delete account: %@".localized, error.localizedDescription),
+                        preferredStyle: .alert
+                    )
+                    alert.addAction(UIAlertAction(title: "OK".localized, style: .default))
+                    self.present(alert, animated: true)
+                }
+            }
+        }
+    }
+
+    // MARK: - Navigation Helper
+    private func navigateToWelcome() {
+        guard let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
+              let window = windowScene.windows.first else { return }
+
+        let welcomeVC = WelcomeViewController()
+        window.rootViewController = welcomeVC
+        window.makeKeyAndVisible()
+
+        UIView.transition(with: window,
+                          duration: 0.3,
+                          options: .transitionCrossDissolve,
+                          animations: nil,
+                          completion: nil)
+    }
+}
