@@ -12,12 +12,17 @@ final class SettingsViewController: UIViewController {
     private let scrollView = UIScrollView()
     private let contentView = UIView()
 
+    // MARK: - Custom Nav Bar
+    private let customNavBar = UIView()
+    private let navTitleLabel = UILabel()
+    private let navBackButton = UIButton(type: .system)
+
     // MARK: - Lifecycle
     override func viewDidLoad() {
         super.viewDidLoad()
 
         view.backgroundColor = UIColor(red: 0.95, green: 0.96, blue: 0.98, alpha: 1)
-        setupNavBar()
+        setupCustomNavBar()
         setupScroll()
         setupSections()
     }
@@ -31,17 +36,41 @@ final class SettingsViewController: UIViewController {
         self.tabBarController?.tabBar.isHidden = false
     }
 
-    // MARK: - Navigation Bar
-    private func setupNavBar() {
-        title = "Settings".localized
-        navigationController?.navigationBar.prefersLargeTitles = false
+    // MARK: - Custom Navigation Bar
+    private func setupCustomNavBar() {
+        customNavBar.backgroundColor = UIColor(red: 0.95, green: 0.96, blue: 0.98, alpha: 1)
+        customNavBar.translatesAutoresizingMaskIntoConstraints = false
+        view.addSubview(customNavBar)
 
-        navigationItem.leftBarButtonItem = UIBarButtonItem(
-            image: UIImage(systemName: "chevron.left"),
-            style: .plain,
-            target: self,
-            action: #selector(backPressed)
-        )
+        NSLayoutConstraint.activate([
+            customNavBar.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor),
+            customNavBar.leadingAnchor.constraint(equalTo: view.leadingAnchor),
+            customNavBar.trailingAnchor.constraint(equalTo: view.trailingAnchor),
+            customNavBar.heightAnchor.constraint(equalToConstant: 52)
+        ])
+
+        // Back button
+        navBackButton.setImage(UIImage(systemName: "chevron.left"), for: .normal)
+        navBackButton.tintColor = UIColor(red: 0.07, green: 0.33, blue: 0.42, alpha: 1)
+        navBackButton.addTarget(self, action: #selector(backPressed), for: .touchUpInside)
+        navBackButton.translatesAutoresizingMaskIntoConstraints = false
+        customNavBar.addSubview(navBackButton)
+
+        // Title
+        navTitleLabel.text = "Settings".localized
+        navTitleLabel.font = .systemFont(ofSize: 18, weight: .semibold)
+        navTitleLabel.translatesAutoresizingMaskIntoConstraints = false
+        customNavBar.addSubview(navTitleLabel)
+
+        NSLayoutConstraint.activate([
+            navBackButton.leadingAnchor.constraint(equalTo: customNavBar.leadingAnchor, constant: 16),
+            navBackButton.centerYAnchor.constraint(equalTo: customNavBar.centerYAnchor),
+            navBackButton.widthAnchor.constraint(equalToConstant: 32),
+            navBackButton.heightAnchor.constraint(equalToConstant: 32),
+
+            navTitleLabel.centerXAnchor.constraint(equalTo: customNavBar.centerXAnchor),
+            navTitleLabel.centerYAnchor.constraint(equalTo: customNavBar.centerYAnchor)
+        ])
     }
 
     @objc private func backPressed() {
@@ -58,7 +87,7 @@ final class SettingsViewController: UIViewController {
         scrollView.addSubview(contentView)
 
         NSLayoutConstraint.activate([
-            scrollView.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor),
+            scrollView.topAnchor.constraint(equalTo: customNavBar.bottomAnchor),
             scrollView.leadingAnchor.constraint(equalTo: view.leadingAnchor),
             scrollView.trailingAnchor.constraint(equalTo: view.trailingAnchor),
             scrollView.bottomAnchor.constraint(equalTo: view.bottomAnchor),
@@ -223,20 +252,27 @@ final class SettingsViewController: UIViewController {
     private func makeAccountCard() -> UIView {
         let card = buildCard()
 
-        let signOutRow = makeArrowRow(icon: "arrow.right.square", title: "Sign Out".localized)
-        let signOutTap = UITapGestureRecognizer(target: self, action: #selector(signOutTapped))
-        signOutRow.addGestureRecognizer(signOutTap)
-        signOutRow.isUserInteractionEnabled = true
+        if MainTabBarController.isGuestMode {
+            // Guest: show Sign In option instead of Sign Out / Delete Account
+            let signInRow = makeArrowRow(icon: "person.crop.circle.badge.plus", title: "Sign In".localized)
+            let signInTap = UITapGestureRecognizer(target: self, action: #selector(signInTapped))
+            signInRow.addGestureRecognizer(signInTap)
+            signInRow.isUserInteractionEnabled = true
+            stackRows(card, rows: [signInRow])
+        } else {
+            let signOutRow = makeArrowRow(icon: "arrow.right.square", title: "Sign Out".localized)
+            let signOutTap = UITapGestureRecognizer(target: self, action: #selector(signOutTapped))
+            signOutRow.addGestureRecognizer(signOutTap)
+            signOutRow.isUserInteractionEnabled = true
 
-        let deleteAccountRow = makeArrowRow(icon: "trash", title: "Delete Account".localized)
-        let deleteAccountTap = UITapGestureRecognizer(target: self, action: #selector(deleteAccountTapped))
-        deleteAccountRow.addGestureRecognizer(deleteAccountTap)
-        deleteAccountRow.isUserInteractionEnabled = true
+            let deleteAccountRow = makeArrowRow(icon: "trash", title: "Delete Account".localized)
+            let deleteAccountTap = UITapGestureRecognizer(target: self, action: #selector(deleteAccountTapped))
+            deleteAccountRow.addGestureRecognizer(deleteAccountTap)
+            deleteAccountRow.isUserInteractionEnabled = true
 
-        stackRows(card, rows: [
-            signOutRow,
-            deleteAccountRow
-        ])
+            stackRows(card, rows: [signOutRow, deleteAccountRow])
+        }
+
         return card
     }
 
@@ -408,6 +444,11 @@ final class SettingsViewController: UIViewController {
                 UIApplication.shared.open(url)
             }
         }
+    }
+
+    // MARK: - Sign In (Guest mode)
+    @objc private func signInTapped() {
+        navigateToWelcome()
     }
 
     // MARK: - Sign Out

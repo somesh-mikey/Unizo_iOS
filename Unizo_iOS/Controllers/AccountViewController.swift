@@ -101,6 +101,7 @@ final class AccountViewController: UIViewController {
 
     override func viewWillAppear(_ animated: Bool) {
         super.viewWillAppear(animated)
+        navigationController?.setNavigationBarHidden(true, animated: false)
         // Reload user data in case profile was updated
         loadUserData()
     }
@@ -147,8 +148,8 @@ final class AccountViewController: UIViewController {
         view.addSubview(scrollView)
         scrollView.addSubview(contentView)
 
-        // Disable automatic content inset adjustment to remove extra space at top
-        scrollView.contentInsetAdjustmentBehavior = .never
+        // Let the system automatically inset content below any overlapping bars
+        scrollView.contentInsetAdjustmentBehavior = .automatic
         scrollView.clipsToBounds = true
 
         // All content including title is inside scrollView
@@ -203,7 +204,7 @@ final class AccountViewController: UIViewController {
             contentView.bottomAnchor.constraint(equalTo: scrollView.bottomAnchor),
             contentView.widthAnchor.constraint(equalTo: scrollView.widthAnchor),
 
-            titleLabel.topAnchor.constraint(equalTo: contentView.topAnchor, constant: 0),
+            titleLabel.topAnchor.constraint(equalTo: contentView.topAnchor, constant: 16),
             titleLabel.leadingAnchor.constraint(equalTo: contentView.leadingAnchor, constant: 20),
 
             profileImageView.topAnchor.constraint(equalTo: titleLabel.bottomAnchor, constant: 16),

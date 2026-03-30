@@ -19,16 +19,15 @@ class SceneDelegate: UIResponder, UIWindowSceneDelegate {
         window.overrideUserInterfaceStyle = .light
         window.makeKeyAndVisible()
 
-        // TASK-25: Setup No Internet Banner (pill-style, iOS-native)
-        // Uses startObserving to fix launch-time gap: if NWPathMonitor fired
-        // before this closure was assigned, checkInitialState re-fires immediately.
+        // Full-screen "No Internet" overlay – blocks the entire app when offline.
+        // Replaces the old pill banner. The overlay has a "Try Again" button.
         NetworkMonitor.shared.startObserving { [weak self] isConnected in
             DispatchQueue.main.async { [weak self] in
                 guard let window = self?.window else { return }
                 if !isConnected {
-                    UnizoBannerView.show(in: window, state: .offline)
+                    NoInternetOverlayView.show(in: window)
                 } else {
-                    UnizoBannerView.show(in: window, state: .online)
+                    NoInternetOverlayView.hide(from: window)
                 }
             }
         }

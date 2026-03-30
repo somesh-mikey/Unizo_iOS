@@ -19,5 +19,9 @@
 			</array>
 		</dict>
 	</dict>
+	<key>CFBundleDisplayName</key>
+	<string>Unizo</string>
+	<key>CFBundleName</key>
+	<string>Unizo</string>
 </dict>
 </plist>
