@@ -139,14 +139,6 @@ final class ProfileViewController: UIViewController {
 
     // MARK: - Navigation Bar Setup
     private func setupNavigationBar() {
-        // Back button
-        navigationItem.leftBarButtonItem = UIBarButtonItem(
-            image: UIImage(systemName: "chevron.left"),
-            style: .plain,
-            target: self,
-            action: #selector(backTapped)
-        )
-
         // Edit button
         navigationItem.rightBarButtonItem = UIBarButtonItem(
             title: "Edit".localized,
@@ -154,24 +146,6 @@ final class ProfileViewController: UIViewController {
             target: self,
             action: #selector(editButtonTapped)
         )
-    }
-
-    @objc private func backTapped() {
-        // If in edit mode, ask to discard changes
-        if isEditMode {
-            let alert = UIAlertController(
-                title: "Discard Changes?".localized,
-                message: "You have unsaved changes. Are you sure you want to go back?".localized,
-                preferredStyle: .alert
-            )
-            alert.addAction(UIAlertAction(title: "Discard".localized, style: .destructive) { [weak self] _ in
-                self?.navigationController?.popViewController(animated: true)
-            })
-            alert.addAction(UIAlertAction(title: "Cancel".localized, style: .cancel))
-            present(alert, animated: true)
-        } else {
-            navigationController?.popViewController(animated: true)
-        }
     }
 
     @objc private func editButtonTapped() {
@@ -275,6 +249,7 @@ final class ProfileViewController: UIViewController {
     }
     override func viewWillAppear(_ animated: Bool) {
         super.viewWillAppear(animated)
+        navigationController?.setNavigationBarHidden(false, animated: false)
         tabBarController?.tabBar.isHidden = true
         self.tabBarController?.tabBar.isHidden = true
     }

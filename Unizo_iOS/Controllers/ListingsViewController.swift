@@ -172,7 +172,7 @@ class ListingsViewController: UIViewController {
                 // Fetch products with seller join
                 let response = try await supabase
                     .from("products")
-                    .select("*, seller:seller_id(*)")
+                    .select("*, seller:users!seller_id(*)")
                     .eq("seller_id", value: userId)
                     .order("created_at", ascending: false)
                     .execute()

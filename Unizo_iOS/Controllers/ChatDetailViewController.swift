@@ -28,15 +28,6 @@ class ChatDetailViewController: UIViewController {
 
     // MARK: - UI ELEMENTS
 
-    // BACK BUTTON
-    private let backButton: UIButton = {
-        let b = UIButton(type: .system)
-        b.setImage(UIImage(systemName: "chevron.left"), for: .normal)
-        b.tintColor = UIColor(red: 0.02, green: 0.34, blue: 0.46, alpha: 1.0) // Teal
-        b.translatesAutoresizingMaskIntoConstraints = false
-        return b
-    }()
-
     // PROFILE ICON - Teal circular
     private let profileCircle: UIView = {
         let v = UIView()
@@ -177,10 +168,6 @@ class ChatDetailViewController: UIViewController {
         setupKeyboardObservers()
         setupNotifications()
 
-        // Remove nav bar completely
-        navigationController?.setNavigationBarHidden(true, animated: false)
-
-        backButton.addTarget(self, action: #selector(goBack), for: .touchUpInside)
         addButton.addTarget(self, action: #selector(addPhotoTapped), for: .touchUpInside)
         sendButton.addTarget(self, action: #selector(sendTapped), for: .touchUpInside)
 
@@ -208,6 +195,8 @@ class ChatDetailViewController: UIViewController {
 
     override func viewWillAppear(_ animated: Bool) {
         super.viewWillAppear(animated)
+        navigationController?.setNavigationBarHidden(false, animated: false)
+        navigationItem.title = ""
         self.tabBarController?.tabBar.isHidden = true
 
         // Set active conversation to suppress notifications for this chat
@@ -400,7 +389,6 @@ class ChatDetailViewController: UIViewController {
 
     // MARK: - HEADER
     private func setupHeader() {
-        view.addSubview(backButton)
         view.addSubview(profileCircle)
         profileCircle.addSubview(profileIcon)
         view.addSubview(roleLabel)
@@ -410,13 +398,8 @@ class ChatDetailViewController: UIViewController {
         dealButton.addTarget(self, action: #selector(dealTapped), for: .touchUpInside)
 
         NSLayoutConstraint.activate([
-            backButton.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 8),
-            backButton.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor, constant: 8),
-            backButton.widthAnchor.constraint(equalToConstant: 44),
-            backButton.heightAnchor.constraint(equalToConstant: 44),
-
-            profileCircle.leadingAnchor.constraint(equalTo: backButton.trailingAnchor, constant: 4),
-            profileCircle.centerYAnchor.constraint(equalTo: backButton.centerYAnchor),
+            profileCircle.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 16),
+            profileCircle.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor, constant: 8),
             profileCircle.widthAnchor.constraint(equalToConstant: 44),
             profileCircle.heightAnchor.constraint(equalToConstant: 44),
 
@@ -433,7 +416,7 @@ class ChatDetailViewController: UIViewController {
             titleLabel.trailingAnchor.constraint(lessThanOrEqualTo: dealButton.leadingAnchor, constant: -8),
 
             dealButton.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -16),
-            dealButton.centerYAnchor.constraint(equalTo: backButton.centerYAnchor),
+            dealButton.centerYAnchor.constraint(equalTo: profileCircle.centerYAnchor),
             dealButton.widthAnchor.constraint(equalToConstant: 70),
             dealButton.heightAnchor.constraint(equalToConstant: 32)
         ])
@@ -444,8 +427,6 @@ class ChatDetailViewController: UIViewController {
         }
 
         // Accessibility
-        backButton.accessibilityLabel = "Go back".localized
-        backButton.accessibilityHint = "Return to conversations list".localized
         titleLabel.accessibilityTraits = .header
         roleLabel.accessibilityTraits = .staticText
         dealButton.accessibilityLabel = "Make a deal".localized
@@ -581,11 +562,6 @@ class ChatDetailViewController: UIViewController {
         }
     }
 
-    // MARK: - Actions
-    @objc private func goBack() {
-        navigationController?.popViewController(animated: true)
-    }
-
     // MARK: - Deal Action
     @objc private func dealTapped() {
         guard let productId = productId else {
@@ -619,7 +595,7 @@ class ChatDetailViewController: UIViewController {
             do {
                 let product: ProductDTO = try await SupabaseManager.shared.client
                     .from("products")
-                    .select("*, users!products_seller_id_fkey(first_name, last_name)")
+                    .select("id,title,description,price,rating,is_negotiable,image_url,gallery_images,views_count,colour,category,size,condition,quantity,status,seller:users!seller_id(id,first_name,last_name,email)")
                     .eq("id", value: productId.uuidString)
                     .single()
                     .execute()
@@ -629,9 +605,10 @@ class ChatDetailViewController: UIViewController {
                 let orderItem = OrderItem(product: uiModel, quantity: 1)
 
                 await MainActor.run { [weak self] in
-                    let confirmVC = ConfirmOrderViewController()
-                    confirmVC.orderItems = [orderItem]
-                    self?.navigationController?.pushViewController(confirmVC, animated: true)
+                    let addressVC = AddressViewController()
+                    addressVC.flowSource = .fromCheckout
+                    addressVC.orderItems = [orderItem]
+                    self?.navigationController?.pushViewController(addressVC, animated: true)
                 }
             } catch {
                 print("Failed to fetch product for deal: \(error)")
