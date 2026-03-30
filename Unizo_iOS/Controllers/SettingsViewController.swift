@@ -12,69 +12,26 @@ final class SettingsViewController: UIViewController {
     private let scrollView = UIScrollView()
     private let contentView = UIView()
 
-    // MARK: - Custom Nav Bar
-    private let customNavBar = UIView()
-    private let navTitleLabel = UILabel()
-    private let navBackButton = UIButton(type: .system)
-
     // MARK: - Lifecycle
     override func viewDidLoad() {
         super.viewDidLoad()
 
         view.backgroundColor = UIColor(red: 0.95, green: 0.96, blue: 0.98, alpha: 1)
-        setupCustomNavBar()
+        title = "Settings".localized
+        navigationItem.largeTitleDisplayMode = .never
         setupScroll()
         setupSections()
     }
     override func viewWillAppear(_ animated: Bool) {
         super.viewWillAppear(animated)
+        navigationController?.setNavigationBarHidden(false, animated: false)
         self.tabBarController?.tabBar.isHidden = true
     }
 
     override func viewWillDisappear(_ animated: Bool) {
         super.viewWillDisappear(animated)
+        navigationController?.setNavigationBarHidden(false, animated: false)
         self.tabBarController?.tabBar.isHidden = false
-    }
-
-    // MARK: - Custom Navigation Bar
-    private func setupCustomNavBar() {
-        customNavBar.backgroundColor = UIColor(red: 0.95, green: 0.96, blue: 0.98, alpha: 1)
-        customNavBar.translatesAutoresizingMaskIntoConstraints = false
-        view.addSubview(customNavBar)
-
-        NSLayoutConstraint.activate([
-            customNavBar.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor),
-            customNavBar.leadingAnchor.constraint(equalTo: view.leadingAnchor),
-            customNavBar.trailingAnchor.constraint(equalTo: view.trailingAnchor),
-            customNavBar.heightAnchor.constraint(equalToConstant: 52)
-        ])
-
-        // Back button
-        navBackButton.setImage(UIImage(systemName: "chevron.left"), for: .normal)
-        navBackButton.tintColor = UIColor(red: 0.07, green: 0.33, blue: 0.42, alpha: 1)
-        navBackButton.addTarget(self, action: #selector(backPressed), for: .touchUpInside)
-        navBackButton.translatesAutoresizingMaskIntoConstraints = false
-        customNavBar.addSubview(navBackButton)
-
-        // Title
-        navTitleLabel.text = "Settings".localized
-        navTitleLabel.font = .systemFont(ofSize: 18, weight: .semibold)
-        navTitleLabel.translatesAutoresizingMaskIntoConstraints = false
-        customNavBar.addSubview(navTitleLabel)
-
-        NSLayoutConstraint.activate([
-            navBackButton.leadingAnchor.constraint(equalTo: customNavBar.leadingAnchor, constant: 16),
-            navBackButton.centerYAnchor.constraint(equalTo: customNavBar.centerYAnchor),
-            navBackButton.widthAnchor.constraint(equalToConstant: 32),
-            navBackButton.heightAnchor.constraint(equalToConstant: 32),
-
-            navTitleLabel.centerXAnchor.constraint(equalTo: customNavBar.centerXAnchor),
-            navTitleLabel.centerYAnchor.constraint(equalTo: customNavBar.centerYAnchor)
-        ])
-    }
-
-    @objc private func backPressed() {
-        navigationController?.popViewController(animated: true)
     }
 
     // MARK: - Scroll Setup
@@ -87,7 +44,7 @@ final class SettingsViewController: UIViewController {
         scrollView.addSubview(contentView)
 
         NSLayoutConstraint.activate([
-            scrollView.topAnchor.constraint(equalTo: customNavBar.bottomAnchor),
+            scrollView.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor),
             scrollView.leadingAnchor.constraint(equalTo: view.leadingAnchor),
             scrollView.trailingAnchor.constraint(equalTo: view.trailingAnchor),
             scrollView.bottomAnchor.constraint(equalTo: view.bottomAnchor),
@@ -420,19 +377,29 @@ final class SettingsViewController: UIViewController {
     @objc private func languageTapped() {
         print("Language Screen pushed.")
         let vc = LanguageViewController()
-        navigationController?.pushViewController(vc, animated: true)
+        pushFromSettings(vc)
     }
 
     @objc private func contactUsTapped() {
         print("Contact Us screen pushed.")
         let vc = ContactUsViewController()
-        navigationController?.pushViewController(vc, animated: true)
+        pushFromSettings(vc)
     }
 
     @objc private func changePasswordTapped() {
         print("Change Password screen pushed.")
         let vc = ChangePasswordViewController()
-        navigationController?.pushViewController(vc, animated: true)
+        pushFromSettings(vc)
+    }
+
+    private func pushFromSettings(_ vc: UIViewController) {
+        if let nav = navigationController {
+            nav.pushViewController(vc, animated: true)
+        } else {
+            let nav = UINavigationController(rootViewController: vc)
+            nav.modalPresentationStyle = .fullScreen
+            present(nav, animated: true)
+        }
     }
 
     @objc private func rateAppTapped() {

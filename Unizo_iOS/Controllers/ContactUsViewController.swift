@@ -45,6 +45,7 @@ class ContactUsViewController: UIViewController {
 
     override func viewWillAppear(_ animated: Bool) {
         super.viewWillAppear(animated)
+        navigationController?.setNavigationBarHidden(false, animated: false)
         self.tabBarController?.tabBar.isHidden = true
     }
 
@@ -290,7 +291,11 @@ class ContactUsViewController: UIViewController {
     }
 
     @objc private func backTapped() {
-        navigationController?.popViewController(animated: true)
+        if let nav = navigationController, nav.viewControllers.count > 1 {
+            nav.popViewController(animated: true)
+        } else {
+            dismiss(animated: true)
+        }
     }
 }
 

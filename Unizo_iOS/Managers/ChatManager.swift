@@ -33,7 +33,8 @@ final class ChatManager {
 
     // Active conversation subscriptions
     private var conversationChannels: [UUID: RealtimeChannelV2] = [:]
-    private var globalChannel: RealtimeChannelV2?
+    private var conversationBuyerChannel: RealtimeChannelV2?
+    private var conversationSellerChannel: RealtimeChannelV2?
     private var currentUserId: UUID?
     private var isListening = false
 
@@ -81,6 +82,7 @@ final class ChatManager {
 
         // Subscribe to all messages for this user's conversations
         await subscribeToGlobalMessages(userId: userId)
+        await subscribeToNewConversations(userId: userId)
 
         print("ChatManager: Started listening for user \(userId)")
     }
@@ -95,10 +97,14 @@ final class ChatManager {
         }
         conversationChannels.removeAll()
 
-        // Remove global channel
-        if let channel = globalChannel {
+        // Remove conversation insert channels
+        if let channel = conversationBuyerChannel {
             await client.realtimeV2.removeChannel(channel)
-            globalChannel = nil
+            conversationBuyerChannel = nil
+        }
+        if let channel = conversationSellerChannel {
+            await client.realtimeV2.removeChannel(channel)
+            conversationSellerChannel = nil
         }
 
         currentUserId = nil
@@ -123,6 +129,59 @@ final class ChatManager {
 
         } catch {
             print("ChatManager: Failed to fetch conversations for subscription: \(error)")
+        }
+    }
+
+    // MARK: - Subscribe to New Conversations
+    private func subscribeToNewConversations(userId: UUID) async {
+        let buyerChannel = client.realtimeV2.channel("chat-conversations-buyer-\(userId.uuidString)")
+        let buyerInsertions = buyerChannel.postgresChange(
+            InsertAction.self,
+            schema: "public",
+            table: "conversations",
+            filter: "buyer_id=eq.\(userId.uuidString)"
+        )
+
+        Task {
+            for await insertion in buyerInsertions {
+                await self.handleConversationInserted(insertion)
+            }
+        }
+
+        await buyerChannel.subscribe()
+        conversationBuyerChannel = buyerChannel
+
+        let sellerChannel = client.realtimeV2.channel("chat-conversations-seller-\(userId.uuidString)")
+        let sellerInsertions = sellerChannel.postgresChange(
+            InsertAction.self,
+            schema: "public",
+            table: "conversations",
+            filter: "seller_id=eq.\(userId.uuidString)"
+        )
+
+        Task {
+            for await insertion in sellerInsertions {
+                await self.handleConversationInserted(insertion)
+            }
+        }
+
+        await sellerChannel.subscribe()
+        conversationSellerChannel = sellerChannel
+
+        print("ChatManager: Subscribed to new conversation inserts")
+    }
+
+    private func handleConversationInserted(_ insertion: InsertAction) async {
+        struct ConversationInsertRecord: Decodable {
+            let id: UUID
+        }
+
+        do {
+            let data = try JSONEncoder().encode(insertion.record)
+            let record = try JSONDecoder().decode(ConversationInsertRecord.self, from: data)
+            await subscribeToConversation(record.id)
+        } catch {
+            print("ChatManager: Failed to decode new conversation insert: \(error)")
         }
     }
 
@@ -197,94 +256,11 @@ final class ChatManager {
 
             // Show in-app banner if user is NOT in this conversation
             if activeConversationId != conversationId {
-                await showChatNotificationBanner(message: message, conversationId: conversationId)
                 await scheduleLocalNotification(message: message, conversationId: conversationId)
             }
 
         } catch {
             print("ChatManager: Failed to decode message: \(error)")
-        }
-    }
-
-    // MARK: - Show Chat Notification Banner
-    @MainActor
-    private func showChatNotificationBanner(message: MessageDTO, conversationId: UUID) {
-        guard let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
-              let window = windowScene.windows.first(where: { $0.isKeyWindow }) else {
-            return
-        }
-
-        // Get conversation info from cache or fetch it
-        Task {
-            var conversation: ConversationDTO?
-
-            if let cached = conversationCache[conversationId] {
-                conversation = cached
-            } else {
-                conversation = try? await repository.fetchConversation(id: conversationId)
-                if let conv = conversation {
-                    conversationCache[conversationId] = conv
-                }
-            }
-
-            await MainActor.run {
-                // Determine sender name
-                let senderName: String
-                if let conv = conversation {
-                    if message.sender_id == conv.buyer_id {
-                        senderName = conv.buyer?.displayName ?? "Buyer"
-                    } else {
-                        senderName = conv.seller?.displayName ?? "Seller"
-                    }
-                } else {
-                    senderName = "New message"
-                }
-
-                let productTitle = conversation?.product?.title ?? "Chat"
-                let messagePreview = message.message_type == "image" ? "📷 Photo" : (message.content ?? "")
-
-                let bannerView = ChatNotificationBanner(
-                    senderName: senderName,
-                    productTitle: productTitle,
-                    message: messagePreview,
-                    conversationId: conversationId
-                )
-
-                bannerView.onTap = { [weak self] convId in
-                    self?.navigateToChat(conversationId: convId)
-                }
-
-                // Add banner to window
-                window.addSubview(bannerView)
-                bannerView.translatesAutoresizingMaskIntoConstraints = false
-
-                let topConstraint = bannerView.topAnchor.constraint(equalTo: window.safeAreaLayoutGuide.topAnchor, constant: -120)
-
-                NSLayoutConstraint.activate([
-                    topConstraint,
-                    bannerView.leadingAnchor.constraint(equalTo: window.leadingAnchor, constant: 16),
-                    bannerView.trailingAnchor.constraint(equalTo: window.trailingAnchor, constant: -16),
-                    bannerView.heightAnchor.constraint(greaterThanOrEqualToConstant: 80)
-                ])
-
-                window.layoutIfNeeded()
-
-                // Animate in
-                UIView.animate(withDuration: 0.3, delay: 0, options: .curveEaseOut) {
-                    topConstraint.constant = 8
-                    window.layoutIfNeeded()
-                }
-
-                // Auto-dismiss after 4 seconds
-                DispatchQueue.main.asyncAfter(deadline: .now() + 4) {
-                    UIView.animate(withDuration: 0.3, delay: 0, options: .curveEaseIn) {
-                        topConstraint.constant = -120
-                        window.layoutIfNeeded()
-                    } completion: { _ in
-                        bannerView.removeFromSuperview()
-                    }
-                }
-            }
         }
     }
 
@@ -309,15 +285,17 @@ final class ChatManager {
 
         let content = UNMutableNotificationContent()
         content.title = senderName
-        content.body = message.message_type == "image" ? "Sent a photo" : (message.content ?? "")
+        content.body = message.message_type == "image" ? "Sent a photo" : ((message.content?.isEmpty == false) ? (message.content ?? "") : "New message")
         content.sound = .default
-        content.userInfo = ["conversationId": conversationId.uuidString]
+        content.userInfo = [
+            "type": "chat",
+            "conversationId": conversationId.uuidString
+        ]
 
-        let trigger = UNTimeIntervalNotificationTrigger(timeInterval: 0.1, repeats: false)
         let request = UNNotificationRequest(
             identifier: "chat-\(message.id.uuidString)",
             content: content,
-            trigger: trigger
+            trigger: nil
         )
 
         do {
@@ -328,6 +306,11 @@ final class ChatManager {
     }
 
     // MARK: - Navigate to Chat
+    @MainActor
+    func openChatFromNotification(conversationId: UUID) {
+        navigateToChat(conversationId: conversationId)
+    }
+
     private func navigateToChat(conversationId: UUID) {
         Task { @MainActor in
             guard let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
