@@ -289,6 +289,14 @@ class LandingScreenViewController: UIViewController {
             object: nil
         )
 
+        // Refresh home data when internet is restored after the no-internet overlay
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(handleInternetRestored),
+            name: NoInternetOverlayView.internetRestoredNotification,
+            object: nil
+        )
+
         // RULE 4A — Proactive offline check BEFORE launching any async Tasks.
         // If offline, show full-screen overlay immediately. Do NOT start loader.
         if !NetworkMonitor.shared.isReachable() {
@@ -653,6 +661,11 @@ class LandingScreenViewController: UIViewController {
         mainScrollView.refreshControl = refreshControl
     }
     
+    /// Called when internet is restored — reloads home screen data.
+    @objc private func handleInternetRestored() {
+        startDataLoad()
+    }
+
     @objc private func handleProductDeleted(_ notification: Notification) {
         guard let productId = notification.userInfo?["productId"] as? UUID else { return }
 
@@ -1190,6 +1203,9 @@ extension LandingScreenViewController: UICollectionViewDataSource, UICollectionV
 extension LandingScreenViewController: UISearchBarDelegate {
 
     func searchBarTextDidBeginEditing(_ searchBar: UISearchBar) {
+        // Resign focus BEFORE pushing — prevents the delegate from
+        // re-firing when we pop back (which would create a push loop).
+        searchBar.resignFirstResponder()
 
         let vc = SearchResultsViewController(
             keyword: searchBar.text ?? ""
