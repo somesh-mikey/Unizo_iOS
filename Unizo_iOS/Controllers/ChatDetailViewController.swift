@@ -42,7 +42,9 @@ class ChatDetailViewController: UIViewController {
         let v = UIView()
         v.backgroundColor = UIColor(red: 0.02, green: 0.34, blue: 0.46, alpha: 1.0) // Teal
         v.layer.cornerRadius = 22
+        v.clipsToBounds = true
         v.translatesAutoresizingMaskIntoConstraints = false
+        v.transform = .identity
         return v
     }()
 
@@ -190,7 +192,7 @@ class ChatDetailViewController: UIViewController {
             profileIcon.loadImage(from: imageURL)
             profileIcon.contentMode = .scaleAspectFill
             profileIcon.clipsToBounds = true
-            profileIcon.layer.cornerRadius = 22
+            profileIcon.layer.cornerRadius = 22 // Matches constraints (44x44)
             profileCircle.backgroundColor = .clear
         }
 
@@ -420,8 +422,8 @@ class ChatDetailViewController: UIViewController {
 
             profileIcon.centerXAnchor.constraint(equalTo: profileCircle.centerXAnchor),
             profileIcon.centerYAnchor.constraint(equalTo: profileCircle.centerYAnchor),
-            profileIcon.widthAnchor.constraint(equalToConstant: 22),
-            profileIcon.heightAnchor.constraint(equalToConstant: 22),
+            profileIcon.widthAnchor.constraint(equalToConstant: 44),
+            profileIcon.heightAnchor.constraint(equalToConstant: 44),
 
             roleLabel.leadingAnchor.constraint(equalTo: profileCircle.trailingAnchor, constant: 10),
             roleLabel.topAnchor.constraint(equalTo: profileCircle.topAnchor, constant: 4),
