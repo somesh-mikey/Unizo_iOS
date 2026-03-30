@@ -11,6 +11,7 @@
 import Foundation
 import UIKit
 import Supabase
+import UserNotifications
 
 // MARK: - Delegate
 
@@ -175,65 +176,42 @@ final class NotificationManager {
                 )
             }
 
-            await showInAppBanner(for: notification)
+            await scheduleLocalNotification(for: notification)
 
         } catch {
             print("NotificationManager: Failed to decode notification: \(error)")
         }
     }
 
-    // MARK: - UI Helpers
+    // MARK: - Local Notification Helpers
 
-    /// Displays a dismissible in-app banner over the key window, then
-    /// auto-dismisses after 4 seconds.
-    @MainActor
-    private func showInAppBanner(for notification: NotificationDTO) {
-        guard let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
-              let window = windowScene.windows.first(where: { $0.isKeyWindow }) else { return }
+    private func scheduleLocalNotification(for notification: NotificationDTO) async {
+        let content = UNMutableNotificationContent()
+        content.title = notification.title
+        content.body = notification.message
+        content.sound = .default
+        content.userInfo = [
+            "type": "order",
+            "route": notification.deeplink_payload.route,
+            "orderId": notification.order_id.uuidString
+        ]
 
-        let bannerView = InAppNotificationBanner(
-            title: notification.title,
-            message: notification.message,
-            orderId: notification.order_id
+        let request = UNNotificationRequest(
+            identifier: "order-\(notification.id.uuidString)",
+            content: content,
+            trigger: nil
         )
 
-        bannerView.onTap = { [weak self] _ in
-            self?.navigateToOrder(notification: notification)
-        }
-
-        window.addSubview(bannerView)
-        bannerView.translatesAutoresizingMaskIntoConstraints = false
-
-        let topConstraint = bannerView.topAnchor.constraint(
-            equalTo: window.safeAreaLayoutGuide.topAnchor, constant: -120)
-
-        NSLayoutConstraint.activate([
-            topConstraint,
-            bannerView.leadingAnchor.constraint(equalTo: window.leadingAnchor, constant: 16),
-            bannerView.trailingAnchor.constraint(equalTo: window.trailingAnchor, constant: -16),
-            bannerView.heightAnchor.constraint(greaterThanOrEqualToConstant: 80)
-        ])
-
-        window.layoutIfNeeded()
-
-        UIView.animate(withDuration: 0.3, delay: 0, options: .curveEaseOut) {
-            topConstraint.constant = 8
-            window.layoutIfNeeded()
-        }
-
-        DispatchQueue.main.asyncAfter(deadline: .now() + 4) {
-            UIView.animate(withDuration: 0.3, delay: 0, options: .curveEaseIn) {
-                topConstraint.constant = -120
-                window.layoutIfNeeded()
-            } completion: { _ in bannerView.removeFromSuperview() }
+        do {
+            try await UNUserNotificationCenter.current().add(request)
+        } catch {
+            print("NotificationManager: Failed to schedule local notification: \(error)")
         }
     }
 
-    /// Routes the user to the appropriate screen based on the notification's deeplink payload.
+    /// Routes to a screen based on deeplink route information.
     @MainActor
-    private func navigateToOrder(notification: NotificationDTO) {
-        let payload = notification.deeplink_payload
-
+    func navigateToRoute(route: String, orderId: UUID?) {
         guard let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
               let window = windowScene.windows.first(where: { $0.isKeyWindow }),
               let rootVC = window.rootViewController else { return }
@@ -246,9 +224,9 @@ final class NotificationManager {
             navController = nav
         }
 
-        switch payload.route {
+        switch route {
         case "confirm_order_seller":
-            guard let orderId = payload.orderId else { return }
+            guard let orderId = orderId else { return }
             let vc = ConfirmOrderSellerViewController()
             vc.orderId = orderId
 
@@ -260,7 +238,7 @@ final class NotificationManager {
             }
 
         default:
-            print("NotificationManager: Unknown route '\(payload.route)'")
+            print("NotificationManager: Unknown route '\(route)'")
         }
     }
 }

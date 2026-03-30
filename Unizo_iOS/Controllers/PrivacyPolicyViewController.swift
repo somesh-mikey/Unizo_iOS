@@ -19,6 +19,7 @@ class PrivacyPolicyViewController: UIViewController {
     }
     override func viewWillAppear(_ animated: Bool) {
         super.viewWillAppear(animated)
+        navigationController?.setNavigationBarHidden(false, animated: false)
         tabBarController?.tabBar.isHidden = true
         self.tabBarController?.tabBar.isHidden = true
     }

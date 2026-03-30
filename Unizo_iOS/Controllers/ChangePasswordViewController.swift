@@ -35,6 +35,7 @@ class ChangePasswordViewController: UIViewController {
 
     override func viewWillAppear(_ animated: Bool) {
         super.viewWillAppear(animated)
+        navigationController?.setNavigationBarHidden(false, animated: false)
         self.tabBarController?.tabBar.isHidden = true
     }
 
@@ -182,7 +183,11 @@ class ChangePasswordViewController: UIViewController {
 
     // MARK: - Actions
     @objc private func backTapped() {
-        navigationController?.popViewController(animated: true)
+        if let nav = navigationController, nav.viewControllers.count > 1 {
+            nav.popViewController(animated: true)
+        } else {
+            dismiss(animated: true)
+        }
     }
 
     @objc private func saveTapped() {
