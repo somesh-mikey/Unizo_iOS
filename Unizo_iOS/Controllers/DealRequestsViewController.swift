@@ -21,6 +21,8 @@ class DealRequestsViewController: UIViewController {
         let orderId: UUID
         let buyerName: String
         let buyerEmail: String?
+        let buyerPhone: String?
+        let buyerAddress: String?
         let orderDate: String
         let quantity: Int
         let priceAtPurchase: Double
@@ -217,14 +219,25 @@ class DealRequestsViewController: UIViewController {
                             let last_name: String?
                             let email: String?
                         }
-                        let users: UserInfo
+                        
+                        struct AddressInfo: Decodable {
+                            let name: String?
+                            let phone: String?
+                            let line1: String?
+                            let city: String?
+                            let state: String?
+                            let postal_code: String?
+                        }
+                        
+                        // users removed from nested join due to potential relationship issues
+                        let addresses: AddressInfo?
                     }
                     let orders: OrderInfo
                 }
 
                 let response = try await supabase
                     .from("order_items")
-                    .select("product_id, quantity, price_at_purchase, orders!inner(id, status, user_id, created_at, payment_method, total_amount, users!inner(id, first_name, last_name, email))")
+                    .select("product_id, quantity, price_at_purchase, orders!inner(id, status, user_id, created_at, payment_method, total_amount, addresses(name, phone, line1, city, state, postal_code))")
                     .eq("product_id", value: productId.uuidString)
                     .execute()
 
@@ -232,16 +245,55 @@ class DealRequestsViewController: UIViewController {
 
                 // Filter for pending orders only
                 let pendingItems = items.filter { $0.orders.status == "pending" }
+                
+                // Fetch buyer profiles separately for names and emails
+                let buyerIds = Set(pendingItems.map { $0.orders.user_id.uuidString })
+                var buyerProfiles: [UUID: (name: String, email: String?)] = [:]
+                
+                if !buyerIds.isEmpty {
+                    struct ProfileResponse: Decodable {
+                        let id: UUID
+                        let first_name: String?
+                        let last_name: String?
+                        let email: String?
+                    }
+                    
+                    do {
+                        let profileResponse = try await supabase
+                            .from("users")
+                            .select("id, first_name, last_name, email")
+                            .in("id", values: Array(buyerIds))
+                            .execute()
+                            
+                        let profiles = try JSONDecoder().decode([ProfileResponse].self, from: profileResponse.data)
+                        for p in profiles {
+                            let first = p.first_name ?? ""
+                            let last = p.last_name ?? ""
+                            let fullName = "\(first) \(last)".trimmingCharacters(in: .whitespaces)
+                            buyerProfiles[p.id] = (fullName, p.email)
+                        }
+                    } catch {
+                        print("⚠️ Failed to fetch buyer profiles:", error)
+                    }
+                }
 
                 let requests = pendingItems.map { item -> DealRequest in
-                    let firstName = item.orders.users.first_name ?? ""
-                    let lastName = item.orders.users.last_name ?? ""
-                    let fullName = "\(firstName) \(lastName)".trimmingCharacters(in: .whitespaces)
+                    let profile = buyerProfiles[item.orders.user_id]
+                    let buyerName = profile?.name ?? item.orders.addresses?.name ?? "Unknown Buyer".localized
+                    let buyerEmail = profile?.email
+                    
+                    let address = item.orders.addresses
+                    let addressString = [address?.line1, address?.city, address?.state, address?.postal_code]
+                        .compactMap { $0 }
+                        .filter { !$0.isEmpty }
+                        .joined(separator: ", ")
 
                     return DealRequest(
                         orderId: item.orders.id,
-                        buyerName: fullName.isEmpty ? "Unknown Buyer".localized : fullName,
-                        buyerEmail: item.orders.users.email,
+                        buyerName: buyerName.isEmpty ? "Unknown Buyer".localized : buyerName,
+                        buyerEmail: buyerEmail,
+                        buyerPhone: address?.phone,
+                        buyerAddress: addressString.isEmpty ? nil : addressString,
                         orderDate: formatDate(item.orders.created_at),
                         quantity: item.quantity,
                         priceAtPurchase: item.price_at_purchase,
@@ -315,8 +367,13 @@ extension DealRequestsViewController: UITableViewDelegate, UITableViewDataSource
         return cell
     }
 
+    func tableView(_ tableView: UITableView, didSelectRowAt indexPath: IndexPath) {
+        let request = dealRequests[indexPath.row]
+        navigateToConfirmOrder(orderId: request.orderId)
+    }
+
     func tableView(_ tableView: UITableView, heightForRowAt indexPath: IndexPath) -> CGFloat {
-        return 140
+        return 180
     }
 
     private func navigateToConfirmOrder(orderId: UUID) {
@@ -387,6 +444,31 @@ final class DealRequestCell: UITableViewCell {
         return lbl
     }()
 
+    private let emailLabel: UILabel = {
+        let lbl = UILabel()
+        lbl.font = UIFont.preferredFont(forTextStyle: .caption2)
+        lbl.textColor = .secondaryLabel
+        lbl.translatesAutoresizingMaskIntoConstraints = false
+        return lbl
+    }()
+
+    private let addressLabel: UILabel = {
+        let lbl = UILabel()
+        lbl.font = UIFont.preferredFont(forTextStyle: .caption2)
+        lbl.textColor = .tertiaryLabel
+        lbl.numberOfLines = 2
+        lbl.translatesAutoresizingMaskIntoConstraints = false
+        return lbl
+    }()
+
+    private let phoneLabel: UILabel = {
+        let lbl = UILabel()
+        lbl.font = UIFont.preferredFont(forTextStyle: .caption2)
+        lbl.textColor = .secondaryLabel
+        lbl.translatesAutoresizingMaskIntoConstraints = false
+        return lbl
+    }()
+
     private let paymentLabel: UILabel = {
         let lbl = UILabel()
         lbl.font = UIFont.preferredFont(forTextStyle: .caption1)
@@ -425,6 +507,9 @@ final class DealRequestCell: UITableViewCell {
         cardView.addSubview(buyerIcon)
         cardView.addSubview(buyerNameLabel)
         cardView.addSubview(dateLabel)
+        cardView.addSubview(emailLabel)
+        cardView.addSubview(phoneLabel)
+        cardView.addSubview(addressLabel)
         cardView.addSubview(priceLabel)
         cardView.addSubview(quantityLabel)
         cardView.addSubview(paymentLabel)
@@ -450,7 +535,19 @@ final class DealRequestCell: UITableViewCell {
             dateLabel.topAnchor.constraint(equalTo: buyerNameLabel.bottomAnchor, constant: 2),
             dateLabel.leadingAnchor.constraint(equalTo: buyerNameLabel.leadingAnchor),
 
-            priceLabel.topAnchor.constraint(equalTo: dateLabel.bottomAnchor, constant: 12),
+            emailLabel.topAnchor.constraint(equalTo: dateLabel.bottomAnchor, constant: 4),
+            emailLabel.leadingAnchor.constraint(equalTo: buyerNameLabel.leadingAnchor),
+            emailLabel.trailingAnchor.constraint(equalTo: cardView.trailingAnchor, constant: -16),
+
+            phoneLabel.topAnchor.constraint(equalTo: emailLabel.bottomAnchor, constant: 2),
+            phoneLabel.leadingAnchor.constraint(equalTo: buyerNameLabel.leadingAnchor),
+            phoneLabel.trailingAnchor.constraint(equalTo: cardView.trailingAnchor, constant: -16),
+
+            addressLabel.topAnchor.constraint(equalTo: phoneLabel.bottomAnchor, constant: 2),
+            addressLabel.leadingAnchor.constraint(equalTo: buyerNameLabel.leadingAnchor),
+            addressLabel.trailingAnchor.constraint(equalTo: cardView.trailingAnchor, constant: -16),
+
+            priceLabel.bottomAnchor.constraint(equalTo: cardView.bottomAnchor, constant: -16),
             priceLabel.leadingAnchor.constraint(equalTo: cardView.leadingAnchor, constant: 16),
 
             quantityLabel.centerYAnchor.constraint(equalTo: priceLabel.centerYAnchor),
@@ -477,5 +574,12 @@ final class DealRequestCell: UITableViewCell {
         priceLabel.text = "₹\(Int(request.priceAtPurchase))"
         quantityLabel.text = String(format: "Qty: %d".localized, request.quantity)
         paymentLabel.text = request.paymentMethod
+        emailLabel.text = request.buyerEmail
+        phoneLabel.text = request.buyerPhone
+        addressLabel.text = request.buyerAddress
+        
+        emailLabel.isHidden = request.buyerEmail == nil
+        phoneLabel.isHidden = request.buyerPhone == nil
+        addressLabel.isHidden = request.buyerAddress == nil
     }
 }

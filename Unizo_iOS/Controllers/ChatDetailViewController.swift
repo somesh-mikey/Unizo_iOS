@@ -33,7 +33,9 @@ class ChatDetailViewController: UIViewController {
         let v = UIView()
         v.backgroundColor = UIColor(red: 0.02, green: 0.34, blue: 0.46, alpha: 1.0) // Teal
         v.layer.cornerRadius = 22
+        v.clipsToBounds = true
         v.translatesAutoresizingMaskIntoConstraints = false
+        v.transform = .identity
         return v
     }()
 
@@ -48,6 +50,7 @@ class ChatDetailViewController: UIViewController {
         let l = UILabel()
         l.font = UIFont.systemFont(ofSize: 12, weight: .medium)
         l.textColor = UIColor(red: 0.02, green: 0.34, blue: 0.46, alpha: 1.0) // Teal
+        l.lineBreakMode = .byTruncatingTail
         l.translatesAutoresizingMaskIntoConstraints = false
         return l
     }()
@@ -56,6 +59,8 @@ class ChatDetailViewController: UIViewController {
         let l = UILabel()
         l.font = UIFont.systemFont(ofSize: 16, weight: .semibold)
         l.textColor = .black
+        l.lineBreakMode = .byTruncatingTail
+        l.numberOfLines = 1
         l.translatesAutoresizingMaskIntoConstraints = false
         return l
     }()
@@ -131,19 +136,6 @@ class ChatDetailViewController: UIViewController {
         return v
     }()
 
-    // Deal button (shown for buyers only)
-    private let dealButton: UIButton = {
-        let b = UIButton(type: .system)
-        b.setTitle("Deal".localized, for: .normal)
-        b.titleLabel?.font = UIFont.systemFont(ofSize: 14, weight: .semibold)
-        b.setTitleColor(.white, for: .normal)
-        b.backgroundColor = UIColor(red: 0.02, green: 0.34, blue: 0.46, alpha: 1.0)
-        b.layer.cornerRadius = 16
-        b.translatesAutoresizingMaskIntoConstraints = false
-        b.isHidden = true
-        return b
-    }()
-
     private let soldBannerLabel: UILabel = {
         let l = UILabel()
         l.text = "This product has been sold".localized
@@ -177,7 +169,7 @@ class ChatDetailViewController: UIViewController {
             profileIcon.loadImage(from: imageURL)
             profileIcon.contentMode = .scaleAspectFill
             profileIcon.clipsToBounds = true
-            profileIcon.layer.cornerRadius = 22
+            profileIcon.layer.cornerRadius = 22 // Matches constraints (44x44)
             profileCircle.backgroundColor = .clear
         }
 
@@ -185,6 +177,7 @@ class ChatDetailViewController: UIViewController {
         if productStatus == "sold" {
             inputContainer.isHidden = true
             setupSoldBanner()
+            updateNavigationMenu()
         }
 
         // Fetch current user and messages
@@ -258,9 +251,9 @@ class ChatDetailViewController: UIViewController {
                     self.productStatus = status
                     if status == "sold" {
                         self.inputContainer.isHidden = true
-                        self.dealButton.isHidden = true
                         self.setupSoldBanner()
                     }
+                    self.updateNavigationMenu()
                 }
             }
         } catch {
@@ -387,48 +380,66 @@ class ChatDetailViewController: UIViewController {
 
     // MARK: - HEADER
     private func setupHeader() {
-        view.addSubview(profileCircle)
-        profileCircle.addSubview(profileIcon)
-        view.addSubview(roleLabel)
-        view.addSubview(titleLabel)
-        view.addSubview(dealButton)
+        let headerContainer = UIView()
+        headerContainer.translatesAutoresizingMaskIntoConstraints = false
 
-        dealButton.addTarget(self, action: #selector(dealTapped), for: .touchUpInside)
+        headerContainer.addSubview(profileCircle)
+        profileCircle.addSubview(profileIcon)
+        headerContainer.addSubview(roleLabel)
+        headerContainer.addSubview(titleLabel)
 
         NSLayoutConstraint.activate([
-            profileCircle.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 16),
-            profileCircle.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor, constant: 8),
+            profileCircle.leadingAnchor.constraint(equalTo: headerContainer.leadingAnchor),
+            profileCircle.topAnchor.constraint(equalTo: headerContainer.topAnchor),
             profileCircle.widthAnchor.constraint(equalToConstant: 44),
             profileCircle.heightAnchor.constraint(equalToConstant: 44),
 
             profileIcon.centerXAnchor.constraint(equalTo: profileCircle.centerXAnchor),
             profileIcon.centerYAnchor.constraint(equalTo: profileCircle.centerYAnchor),
-            profileIcon.widthAnchor.constraint(equalToConstant: 22),
-            profileIcon.heightAnchor.constraint(equalToConstant: 22),
+            profileIcon.widthAnchor.constraint(equalToConstant: 44),
+            profileIcon.heightAnchor.constraint(equalToConstant: 44),
 
             roleLabel.leadingAnchor.constraint(equalTo: profileCircle.trailingAnchor, constant: 10),
             roleLabel.topAnchor.constraint(equalTo: profileCircle.topAnchor, constant: 4),
+            roleLabel.trailingAnchor.constraint(equalTo: headerContainer.trailingAnchor),
 
             titleLabel.leadingAnchor.constraint(equalTo: roleLabel.leadingAnchor),
             titleLabel.topAnchor.constraint(equalTo: roleLabel.bottomAnchor, constant: 2),
-            titleLabel.trailingAnchor.constraint(lessThanOrEqualTo: dealButton.leadingAnchor, constant: -8),
-
-            dealButton.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -16),
-            dealButton.centerYAnchor.constraint(equalTo: profileCircle.centerYAnchor),
-            dealButton.widthAnchor.constraint(equalToConstant: 70),
-            dealButton.heightAnchor.constraint(equalToConstant: 32)
+            titleLabel.trailingAnchor.constraint(equalTo: headerContainer.trailingAnchor),
+            titleLabel.bottomAnchor.constraint(lessThanOrEqualTo: headerContainer.bottomAnchor)
         ])
 
-        // Show Deal button only for buyers when product is available
-        if !isSeller && productStatus != "sold" {
-            dealButton.isHidden = false
-        }
+        titleLabel.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
+        roleLabel.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
+
+        headerContainer.layoutIfNeeded()
+        let titleSize = headerContainer.systemLayoutSizeFitting(UIView.layoutFittingCompressedSize)
+        headerContainer.frame = CGRect(origin: .zero, size: CGSize(width: min(max(190, titleSize.width), 280), height: 44))
+        navigationItem.leftItemsSupplementBackButton = false
+        navigationItem.leftBarButtonItems = nil
+        navigationItem.titleView = headerContainer
+
+        updateNavigationMenu()
 
         // Accessibility
         titleLabel.accessibilityTraits = .header
         roleLabel.accessibilityTraits = .staticText
-        dealButton.accessibilityLabel = "Make a deal".localized
-        dealButton.accessibilityHint = "Place an order for this product".localized
+    }
+
+    private func updateNavigationMenu() {
+        let isDealEnabled = !isSeller && productStatus != "sold"
+        let dealAction = UIAction(
+            title: "Deal".localized,
+            image: UIImage(systemName: "tag"),
+            attributes: isDealEnabled ? [] : [.disabled]
+        ) { [weak self] _ in
+            self?.dealTapped()
+        }
+
+        let menu = UIMenu(title: "", children: [dealAction])
+        let menuButton = UIBarButtonItem(image: UIImage(systemName: "ellipsis.circle"), menu: menu)
+        menuButton.accessibilityLabel = "More options".localized
+        navigationItem.rightBarButtonItem = menuButton
     }
 
     // MARK: - TABLE
@@ -443,7 +454,7 @@ class ChatDetailViewController: UIViewController {
 
         // NOTE: tableView.bottom is pinned to inputContainer.top in setupInputBar()
         NSLayoutConstraint.activate([
-            tableView.topAnchor.constraint(equalTo: profileCircle.bottomAnchor, constant: 20),
+            tableView.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor, constant: 8),
             tableView.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 16),
             tableView.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -16),
 
