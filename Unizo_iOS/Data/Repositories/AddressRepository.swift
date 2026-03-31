@@ -6,7 +6,7 @@
 //
 
 import Foundation
-import Supabase
+import FirebaseFirestore
 
 struct AddressUpdatePayload: Encodable {
     let name: String
@@ -19,23 +19,37 @@ struct AddressUpdatePayload: Encodable {
     let is_default: Bool
 }
 
+struct AddressInsertPayload: Encodable {
+    let user_id: String
+    let name: String
+    let phone: String
+    let line1: String
+    let city: String
+    let state: String
+    let postal_code: String
+    let country: String
+    let is_default: Bool
+}
 
 final class AddressRepository {
 
-    private let client: SupabaseClient
+    private let db = Firestore.firestore()
 
-    init(client: SupabaseClient = SupabaseManager.shared.client) {
-        self.client = client
-    }
+    init() { }
 
     // MARK: - Get Current User ID
-    private func getCurrentUserId() async throws -> UUID {
+    private func getCurrentUserId() async throws -> String {
         guard let userId = await AuthManager.shared.currentUserId else {
             throw NSError(domain: "AddressRepository", code: 401, userInfo: [
                 NSLocalizedDescriptionKey: "User not authenticated"
             ])
         }
         return userId
+    }
+    
+    // MARK: - Address Subcollection Ref
+    private func addressesCollection(for userId: String) -> CollectionReference {
+        return db.collection("users").document(userId).collection("addresses")
     }
 
     // MARK: - Network Guard
@@ -49,55 +63,50 @@ final class AddressRepository {
         try requireNetwork()
         let userId = try await getCurrentUserId()
 
-        return try await client
-            .from("addresses")
-            .select()
-            .eq("user_id", value: userId.uuidString)
-            .order("is_default", ascending: false)
-            .execute()
-            .value
+        let snapshot = try await addressesCollection(for: userId)
+            .order(by: "is_default", descending: true)
+            .getDocuments()
+            
+        return snapshot.documents.compactMap { try? $0.data(as: AddressDTO.self) }
     }
 
     func createAddress(_ address: AddressDTO) async throws {
         try requireNetwork()
         let userId = try await getCurrentUserId()
 
-        // Check if user has any existing addresses
-        let existingAddresses: [AddressDTO] = try await client
-            .from("addresses")
-            .select()
-            .eq("user_id", value: userId.uuidString)
-            .execute()
-            .value
+        let snapshot = try await addressesCollection(for: userId).getDocuments()
+        let existingAddresses = snapshot.documents
 
-        // If this is the first address, make it default
-        var addressToInsert = address
+        var isDefault = address.is_default
         if existingAddresses.isEmpty {
-            addressToInsert.is_default = true
+            isDefault = true
+        } else if address.is_default {
+            try await unsetDefaults(for: userId)
         }
 
-        try await client
-            .from("addresses")
-            .insert(addressToInsert)
-            .execute()
+        let payload = AddressInsertPayload(
+            user_id: userId,
+            name: address.name,
+            phone: address.phone,
+            line1: address.line1,
+            city: address.city,
+            state: address.state,
+            postal_code: address.postal_code,
+            country: address.country,
+            is_default: isDefault
+        )
+
+        let data = try Firestore.Encoder().encode(payload)
+        try await addressesCollection(for: userId).addDocument(data: data)
     }
 
     func updateAddress(_ address: AddressDTO) async throws {
         try requireNetwork()
         let userId = try await getCurrentUserId()
+        guard let addressId = address.id else { throw AddressError.addressNotFound }
 
-        // If setting default → unset others for this user
         if address.is_default {
-            struct DefaultReset: Encodable {
-                let is_default: Bool
-            }
-
-            try await client
-                .from("addresses")
-                .update(DefaultReset(is_default: false))
-                .eq("user_id", value: userId.uuidString)
-                .neq("id", value: address.id.uuidString)
-                .execute()
+            try await unsetDefaults(for: userId, excluding: addressId)
         }
 
         let payload = AddressUpdatePayload(
@@ -110,59 +119,50 @@ final class AddressRepository {
             country: address.country,
             is_default: address.is_default
         )
-
-        try await client
-            .from("addresses")
-            .update(payload)
-            .eq("id", value: address.id.uuidString)
-            .execute()
+        
+        let data = try Firestore.Encoder().encode(payload)
+        try await addressesCollection(for: userId).document(addressId).updateData(data)
     }
 
+    private func unsetDefaults(for userId: String, excluding addressId: String? = nil) async throws {
+        let snapshot = try await addressesCollection(for: userId)
+            .whereField("is_default", isEqualTo: true)
+            .getDocuments()
+            
+        let batch = db.batch()
+        for doc in snapshot.documents {
+            if doc.documentID != addressId {
+                batch.updateData(["is_default": false], forDocument: doc.reference)
+            }
+        }
+        try await batch.commit()
+    }
 
-    func deleteAddress(id: UUID) async throws {
+    func deleteAddress(id: String) async throws {
         try requireNetwork()
         let userId = try await getCurrentUserId()
 
-        // Fetch all addresses for this user
-        let allAddresses: [AddressDTO] = try await client
-            .from("addresses")
-            .select()
-            .eq("user_id", value: userId.uuidString)
-            .execute()
-            .value
+        let snapshot = try await addressesCollection(for: userId).getDocuments()
+        let allAddresses = snapshot.documents.compactMap { try? $0.data(as: AddressDTO.self) }
 
-        // Prevent deletion if this is the only address
         guard allAddresses.count > 1 else {
             throw AddressError.cannotDeleteLastAddress
         }
 
-        // Find the address to delete
         guard let addressToDelete = allAddresses.first(where: { $0.id == id }) else {
             throw AddressError.addressNotFound
         }
 
-        // Prevent deletion of default address
         if addressToDelete.is_default {
             throw AddressError.cannotDeleteDefaultAddress
         }
 
-        try await client
-            .from("addresses")
-            .delete()
-            .eq("id", value: id.uuidString)
-            .execute()
+        try await addressesCollection(for: userId).document(id).delete()
     }
 
-    // MARK: - Check if address can be deleted
     func canDeleteAddress(_ address: AddressDTO, totalAddressCount: Int) -> Bool {
-        // Cannot delete if it's the only address
-        if totalAddressCount <= 1 {
-            return false
-        }
-        // Cannot delete if it's the default address
-        if address.is_default {
-            return false
-        }
+        if totalAddressCount <= 1 { return false }
+        if address.is_default { return false }
         return true
     }
 }

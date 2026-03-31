@@ -6,9 +6,10 @@
 //
 
 import Foundation
+import FirebaseFirestore
 
 struct ProductUIModel {
-    let id: UUID
+    @DocumentID var id: String?
     let name: String
     let description: String?
     let price: Double
@@ -21,7 +22,7 @@ struct ProductUIModel {
     let size: String?
     let condition: String?
     let sellerName: String
-    let sellerId: UUID?  // Preserve seller ID for notifications
+    let sellerId: String?  // Preserve seller ID for notifications
 
     // Inventory fields (var to allow mutation when product is sold via notification)
     var quantity: Int

@@ -18,7 +18,7 @@ class WishlistViewController: UIViewController {
 
     // MARK: - Data
     private var wishlistItems: [ProductUIModel] = []
-    private let wishlistRepository = WishlistRepository(supabase: supabase)
+    private let wishlistRepository = WishlistRepository()
 
     override func viewDidLoad() {
         super.viewDidLoad()
@@ -50,7 +50,7 @@ class WishlistViewController: UIViewController {
     /// This is UI-only removal — the Supabase wishlist entry is cleaned up on next load.
     /// Posted on MainActor, so this handler runs on the main thread.
     @objc private func handleProductDeleted(_ notification: Notification) {
-        guard let productId = notification.userInfo?["productId"] as? UUID else { return }
+        guard let productId = notification.userInfo?["productId"] as? String else { return }
         wishlistItems.removeAll { $0.id == productId }
         collectionView.reloadData()
     }

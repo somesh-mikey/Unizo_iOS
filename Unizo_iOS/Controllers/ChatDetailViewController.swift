@@ -6,25 +6,34 @@
 //
 
 import UIKit
-import Supabase
 import PhotosUI
 
 class ChatDetailViewController: UIViewController {
 
     // MARK: - Inputs from previous screen
-    var conversationId: UUID!
+    var conversationId: UUID?
+    var conversationIdString: String?
     var chatTitle: String = ""
     var otherUserName: String = ""
     var isSeller: Bool = true
     var productStatus: String = "available"
     var otherUserImageURL: String?
     var productId: UUID?
+    var productIdString: String?
 
     // MARK: - Data
     private var messages: [MessageUIModel] = []
-    private var currentUserId: UUID?
+    private var currentUserId: String?
     private var currentUserImageURL: String?
     private var isLoadingMessages = false
+
+    private var resolvedConversationId: String? {
+        conversationIdString ?? conversationId?.uuidString
+    }
+
+    private var resolvedProductId: String? {
+        productIdString ?? productId?.uuidString
+    }
 
     // MARK: - UI ELEMENTS
 
@@ -150,6 +159,8 @@ class ChatDetailViewController: UIViewController {
     override func viewDidLoad() {
         super.viewDidLoad()
 
+        print("🟦 [ChatDebug] ChatDetail.viewDidLoad conversationId=\(resolvedConversationId ?? "nil"), productId=\(resolvedProductId ?? "nil"), title=\(chatTitle)")
+
         view.backgroundColor = .systemGray6
 
         setupHeader()
@@ -191,7 +202,7 @@ class ChatDetailViewController: UIViewController {
         self.tabBarController?.tabBar.isHidden = true
 
         // Set active conversation to suppress notifications for this chat
-        ChatManager.shared.activeConversationId = conversationId
+        ChatManager.shared.activeConversationId = resolvedConversationId
 
         // Mark messages as read when entering
         markMessagesAsRead()
@@ -224,7 +235,7 @@ class ChatDetailViewController: UIViewController {
             }
 
             // Fetch product status if we have a productId (ensures sold banner / deal button are accurate)
-            if let productId = self.productId {
+            if let productId = self.resolvedProductId {
                 await self.fetchProductStatus(productId: productId)
             }
 
@@ -232,20 +243,10 @@ class ChatDetailViewController: UIViewController {
         }
     }
 
-    private func fetchProductStatus(productId: UUID) async {
+    private func fetchProductStatus(productId: String) async {
         do {
-            struct ProductStatusResult: Decodable {
-                let status: String?
-            }
-            let result: ProductStatusResult = try await SupabaseManager.shared.client
-                .from("products")
-                .select("status")
-                .eq("id", value: productId.uuidString)
-                .single()
-                .execute()
-                .value
-
-            if let status = result.status {
+            if let product = try await ProductRepository().fetchProduct(id: productId),
+               let status = product.status?.rawValue {
                 await MainActor.run { [weak self] in
                     guard let self = self else { return }
                     self.productStatus = status
@@ -262,7 +263,9 @@ class ChatDetailViewController: UIViewController {
     }
 
     private func fetchMessages() async {
-        guard let conversationId = conversationId else { return }
+        guard let conversationId = resolvedConversationId else { return }
+
+        print("🟦 [ChatDebug] ChatDetail.fetchMessages start conversationId=\(conversationId)")
 
         await MainActor.run {
             self.loadingIndicator.startAnimating()
@@ -283,10 +286,10 @@ class ChatDetailViewController: UIViewController {
             }
 
             // Subscribe to real-time updates for this conversation
-            await ChatManager.shared.subscribeToConversation(conversationId)
+            ChatManager.shared.subscribeToConversation(conversationId)
 
         } catch {
-            print("❌ Failed to fetch messages: \(error)")
+            print("🟥 [ChatDebug] ChatDetail.fetchMessages failed: \(error)")
             await MainActor.run {
                 self.loadingIndicator.stopAnimating()
             }
@@ -294,7 +297,7 @@ class ChatDetailViewController: UIViewController {
     }
 
     private func markMessagesAsRead() {
-        guard let conversationId = conversationId else { return }
+        guard let conversationId = resolvedConversationId else { return }
         Task {
             await ChatManager.shared.markConversationAsRead(conversationId)
         }
@@ -328,7 +331,7 @@ class ChatDetailViewController: UIViewController {
     }
 
     private func pollForNewMessages() {
-        guard let conversationId = conversationId else { return }
+        guard let conversationId = resolvedConversationId else { return }
 
         Task { [weak self] in
             do {
@@ -356,8 +359,8 @@ class ChatDetailViewController: UIViewController {
     @objc private func handleNewMessage(_ notification: Notification) {
         guard let userInfo = notification.userInfo,
               let message = userInfo["message"] as? MessageDTO,
-              let convId = userInfo["conversationId"] as? UUID,
-              convId == conversationId,
+                            let convId = userInfo["conversationId"] as? String,
+                            convId == resolvedConversationId,
               let userId = currentUserId else {
             return
         }
@@ -573,7 +576,7 @@ class ChatDetailViewController: UIViewController {
 
     // MARK: - Deal Action
     @objc private func dealTapped() {
-        guard let productId = productId else {
+        guard let productId = resolvedProductId else {
             let alert = UIAlertController(
                 title: "Error".localized,
                 message: "Product information not available".localized,
@@ -598,17 +601,15 @@ class ChatDetailViewController: UIViewController {
         present(alert, animated: true)
     }
 
-    private func fetchProductAndNavigateToOrder(productId: UUID) {
+    private func fetchProductAndNavigateToOrder(productId: String) {
         Task { [weak self] in
             guard let self = self else { return }
             do {
-                let product: ProductDTO = try await SupabaseManager.shared.client
-                    .from("products")
-                    .select("id,title,description,price,rating,is_negotiable,image_url,gallery_images,views_count,colour,category,size,condition,quantity,status,seller:users!seller_id(id,first_name,last_name,email)")
-                    .eq("id", value: productId.uuidString)
-                    .single()
-                    .execute()
-                    .value
+                guard let product = try await ProductRepository().fetchProduct(id: productId) else {
+                    throw NSError(domain: "ChatDetailViewController", code: 404, userInfo: [
+                        NSLocalizedDescriptionKey: "Product not found"
+                    ])
+                }
 
                 let uiModel = ProductMapper.toUIModel(product)
                 let orderItem = OrderItem(product: uiModel, quantity: 1)
@@ -652,7 +653,7 @@ class ChatDetailViewController: UIViewController {
     @objc private func sendTapped() {
         guard let text = inputField.text?.trimmingCharacters(in: .whitespacesAndNewlines),
               !text.isEmpty,
-              let conversationId = conversationId else {
+                            let conversationId = resolvedConversationId else {
             return
         }
 
@@ -666,7 +667,7 @@ class ChatDetailViewController: UIViewController {
         // Create optimistic message immediately for instant feedback
         if let userId = currentUserId {
             let optimisticMessage = MessageUIModel(
-                id: UUID(), // Temporary ID
+                id: UUID().uuidString, // Temporary ID
                 conversationId: conversationId,
                 senderId: userId,
                 content: messageText,
@@ -724,7 +725,7 @@ class ChatDetailViewController: UIViewController {
 
     // MARK: - Send Image
     private func sendImage(_ image: UIImage) {
-        guard let conversationId = conversationId,
+        guard let conversationId = resolvedConversationId,
               let imageData = image.jpegData(compressionQuality: 0.7) else {
             return
         }

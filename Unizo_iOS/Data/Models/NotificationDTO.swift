@@ -4,6 +4,7 @@
 //
 
 import Foundation
+import FirebaseFirestore
 
 // MARK: - Notification Type (must match DB ENUM exactly)
 enum NotificationType: String, Codable {
@@ -17,8 +18,8 @@ enum NotificationType: String, Codable {
 // MARK: - Deeplink Payload
 struct DeeplinkPayload: Codable {
     let route: String
-    let orderId: UUID?
-    let sellerId: UUID?
+    let orderId: String?
+    let sellerId: String?
 
     enum CodingKeys: String, CodingKey {
         case route
@@ -26,7 +27,7 @@ struct DeeplinkPayload: Codable {
         case sellerId = "seller_id"
     }
 
-    init(route: String, orderId: UUID? = nil, sellerId: UUID? = nil) {
+    init(route: String, orderId: String? = nil, sellerId: String? = nil) {
         self.route = route
         self.orderId = orderId
         self.sellerId = sellerId
@@ -35,10 +36,10 @@ struct DeeplinkPayload: Codable {
 
 // MARK: - Notification DTO (for fetching from Supabase)
 struct NotificationDTO: Codable {
-    let id: UUID
-    let recipient_id: UUID      // Who receives (seller or buyer)
-    let sender_id: UUID         // Who triggered (buyer or seller)
-    let order_id: UUID
+    @DocumentID var id: String?
+    let recipient_id: String      // Who receives (seller or buyer)
+    let sender_id: String         // Who triggered (buyer or seller)
+    let order_id: String
     let type: String
     let title: String
     let message: String
@@ -53,10 +54,10 @@ struct NotificationDTO: Codable {
 
 // MARK: - Insert DTO (for creating notifications)
 struct NotificationInsertDTO: Encodable {
-    let id: UUID
-    let recipient_id: UUID
-    let sender_id: UUID
-    let order_id: UUID
+    @DocumentID var id: String?
+    let recipient_id: String
+    let sender_id: String
+    let order_id: String
     let type: String
     let title: String
     let message: String
@@ -66,10 +67,10 @@ struct NotificationInsertDTO: Encodable {
 
 // MARK: - UI Model (for display in views)
 struct NotificationUIModel {
-    let id: UUID
-    let recipientId: UUID
-    let senderId: UUID
-    let orderId: UUID
+    @DocumentID var id: String?
+    let recipientId: String
+    let senderId: String
+    let orderId: String
     let type: NotificationType
     let title: String
     let message: String

@@ -16,7 +16,7 @@ class LandingScreenViewController: UIViewController {
     private var hasMorePages = true
     private let refreshControl = UIRefreshControl()
     private let loader = UIActivityIndicatorView(style: .medium)
-    private let productRepository = ProductRepository(supabase: supabase)
+    private let productRepository = ProductRepository()
 
     private var allProducts: [ProductUIModel] = []
     private var popularProducts: [ProductUIModel] = []
@@ -667,7 +667,7 @@ class LandingScreenViewController: UIViewController {
     }
 
     @objc private func handleProductDeleted(_ notification: Notification) {
-        guard let productId = notification.userInfo?["productId"] as? UUID else { return }
+        guard let productId = notification.userInfo?["productId"] as? String else { return }
 
         // Remove the deleted product from all product arrays immediately
         allProducts.removeAll { $0.id == productId }
@@ -698,11 +698,9 @@ class LandingScreenViewController: UIViewController {
         hasMorePages = true
         isLoadingMore = false
         do {
-            async let allDTOs = productRepository.fetchAllProducts(page: 1)
-            async let popularDTOs = productRepository.fetchPopularProducts()
-            async let negotiableDTOs = productRepository.fetchNegotiableProducts()
-
-            let (all, popular, negotiable) = try await (allDTOs, popularDTOs, negotiableDTOs)
+            let all = try await productRepository.fetchAllProducts(page: 1)
+            let popular = (try? await productRepository.fetchPopularProducts()) ?? []
+            let negotiable = (try? await productRepository.fetchNegotiableProducts()) ?? []
 
             self.allProducts = all.map(ProductMapper.toUIModel)
             self.popularProducts = popular.map(ProductMapper.toUIModel)
@@ -719,6 +717,9 @@ class LandingScreenViewController: UIViewController {
             refreshControl.endRefreshing()
 
             print("✅ Products loaded:", displayedProducts.count)
+            if displayedProducts.isEmpty {
+                print("⚠️ Product list is empty after fetch; check Firestore documents/filters.")
+            }
 
         } catch let error as NetworkError {
             // RULE 4C — Show offline overlay instead of silent print
@@ -736,28 +737,40 @@ class LandingScreenViewController: UIViewController {
             let dtos = try await productRepository.fetchBanners()
             print("🟢 Banner DTOs:", dtos)
 
-            self.banners = dtos.map {
-                BannerUIModel(imageURL: $0.image_url)
+            if dtos.isEmpty {
+                self.banners = [
+                    BannerUIModel(imageURL: "banner1"),
+                    BannerUIModel(imageURL: "banner2"),
+                    BannerUIModel(imageURL: "banner3")
+                ]
+            } else {
+                self.banners = dtos.map { BannerUIModel(imageURL: $0.image_url) }
             }
 
             print("🟢 Banner URLs:", banners.map { $0.imageURL })
 
-            guard !banners.isEmpty else {
-                print("❌ No banners returned from DB")
-                return
-            }
             // Setup carousel after banners are loaded
-                        if !didSetupCarousel {
-                            didSetupCarousel = true
-                            setupCarousel()
-                            startAutoScroll()
-                        }
+            if !didSetupCarousel {
+                didSetupCarousel = true
+                setupCarousel()
+                startAutoScroll()
+            }
 
         } catch let error as NetworkError {
             print("❌ Network error loading banners:", error)
             // Overlay already shown by loadProducts catch — no double-show needed
         } catch {
             print("❌ Failed to load banners:", error)
+            self.banners = [
+                BannerUIModel(imageURL: "banner1"),
+                BannerUIModel(imageURL: "banner2"),
+                BannerUIModel(imageURL: "banner3")
+            ]
+            if !didSetupCarousel {
+                didSetupCarousel = true
+                setupCarousel()
+                startAutoScroll()
+            }
         }
     }
     @MainActor

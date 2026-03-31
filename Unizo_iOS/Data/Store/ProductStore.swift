@@ -19,7 +19,7 @@ final class ProductStore {
     }
 
     /// Removes a single product by ID (e.g., after it is sold).
-    func removeProduct(id: UUID) {
+    func removeProduct(id: String) {
         products.removeAll { $0.id == id }
     }
 

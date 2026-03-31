@@ -6,7 +6,6 @@
 //
 
 import UIKit
-import Supabase
 
 class ConfirmOrderSellerViewController: UIViewController {
 
@@ -17,7 +16,7 @@ class ConfirmOrderSellerViewController: UIViewController {
     private let orderRepository = OrderRepository()
     private let notificationRepository = NotificationRepository()
     private let chatRepository = ChatRepository()
-    private let productRepository = ProductRepository(supabase: supabase)
+    private let productRepository = ProductRepository()
     private var orderDetails: OrderDTO?
     private var sellerItems: [OrderItemDTO] = []
     private var buyerAddress: AddressDTO?
@@ -274,7 +273,7 @@ class ConfirmOrderSellerViewController: UIViewController {
         Task {
             do {
                 // Fetch full order with items and address
-                let order = try await orderRepository.fetchOrderWithDetails(id: orderId)
+                let order = try await orderRepository.fetchOrderWithDetails(id: orderId.uuidString)
                 self.orderDetails = order
                 self.buyerAddress = order.address
 
@@ -602,7 +601,7 @@ private extension ConfirmOrderSellerViewController {
 
         Task {
             do {
-        print("🛒 Seller accepting order: \(orderId.uuidString)")
+                print("🛒 Seller accepting order: \(orderId.uuidString)")
 
                 // Guard: if sellerItems is empty, show error and bail
                 guard !sellerItems.isEmpty else {
@@ -616,7 +615,7 @@ private extension ConfirmOrderSellerViewController {
                 }
 
                 // Update order status to confirmed
-                try await orderRepository.updateOrderStatus(orderId: orderId, status: .confirmed)
+                try await orderRepository.updateOrderStatus(orderId: orderId.uuidString, status: .confirmed)
 
                 print("✅ Order status update completed")
 
@@ -630,8 +629,8 @@ private extension ConfirmOrderSellerViewController {
                             )
                             print("✅ Product \(productId) marked as sold (qty: \(item.quantity))")
 
-                            // RULE G — Prevent re-appearance on refresh before Supabase propagates
-                            DeletedListingsStore.add(productId.uuidString)
+                            // RULE G — Prevent re-appearance on refresh before backend propagation
+                            DeletedListingsStore.add(productId)
 
                             // RULE H — Clear in-memory product cache
                             await MainActor.run {
@@ -668,14 +667,14 @@ private extension ConfirmOrderSellerViewController {
                     // Create notification for buyer
                     let deeplinkPayload = DeeplinkPayload(
                         route: "order_details",
-                        orderId: orderId,
+                        orderId: orderId.uuidString,
                         sellerId: currentSellerId
                     )
 
                     try await notificationRepository.createNotification(
                         recipientId: order.user_id,  // Buyer receives
                         senderId: currentSellerId,    // Seller triggered
-                        orderId: orderId,
+                        orderId: orderId.uuidString,
                         type: .orderAccepted,
                         title: sellerName,
                         message: "accepted your order for".localized + " \(productName).",
@@ -728,7 +727,7 @@ private extension ConfirmOrderSellerViewController {
         Task {
             do {
                 // Update order status to cancelled
-                try await orderRepository.updateOrderStatus(orderId: orderId, status: .cancelled)
+                try await orderRepository.updateOrderStatus(orderId: orderId.uuidString, status: .cancelled)
 
                 // Notify the buyer that their order was rejected
                 if let order = orderDetails,
@@ -743,14 +742,14 @@ private extension ConfirmOrderSellerViewController {
                     // Create notification for buyer
                     let deeplinkPayload = DeeplinkPayload(
                         route: "order_details",
-                        orderId: orderId,
+                        orderId: orderId.uuidString,
                         sellerId: currentSellerId
                     )
 
                     try await notificationRepository.createNotification(
                         recipientId: order.user_id,  // Buyer receives
                         senderId: currentSellerId,    // Seller triggered
-                        orderId: orderId,
+                        orderId: orderId.uuidString,
                         type: .orderRejected,
                         title: sellerName,
                         message: "rejected your order for".localized + " \(productName).",
@@ -788,12 +787,11 @@ extension ConfirmOrderSellerViewController {
     @objc private func chatTapped() {
         // Get the first order item to initiate chat
         guard let firstItem = orderDetails?.items?.first,
-              let product = firstItem.product else {
+              let product = firstItem.product,
+              let productId = product.id else {
             self.showErrorAlert(message: "No product available for chat. Please try again.".localized)
             return
         }
-
-        let productId = product.id
 
         // Disable button to prevent multiple taps
         chatButton.isEnabled = false
@@ -801,17 +799,26 @@ extension ConfirmOrderSellerViewController {
         Task {
             do {
                 // Get the current user's ID (seller)
-                let currentUserId = try await supabase.auth.session.user.id
+                guard let currentUserId = await AuthManager.shared.currentUserId else {
+                    throw NSError(domain: "ConfirmOrderSellerViewController", code: 401, userInfo: [
+                        NSLocalizedDescriptionKey: "Not authenticated"
+                    ])
+                }
 
                 // Get or create conversation with buyer
                 let conversation = try await chatRepository.getOrCreateConversation(
                     productId: productId,
                     sellerId: currentUserId
                 )
+                guard let conversationId = conversation.id else {
+                    throw NSError(domain: "ConfirmOrderSellerViewController", code: 404, userInfo: [
+                        NSLocalizedDescriptionKey: "Conversation not found"
+                    ])
+                }
 
                 // Navigate to chat
                 await MainActor.run {
-                    self.navigateToChatConversation(conversationId: conversation.id)
+                    self.navigateToChatConversation(conversationId: conversationId)
                     self.chatButton.isEnabled = true
                 }
             } catch {
@@ -823,7 +830,7 @@ extension ConfirmOrderSellerViewController {
         }
     }
     
-    private func navigateToChatConversation(conversationId: UUID) {
+    private func navigateToChatConversation(conversationId: String) {
         // Switch to Chat tab (index 1) and navigate to specific conversation
         if let tabBarController = self.tabBarController {
             tabBarController.selectedIndex = 1 // Chat tab

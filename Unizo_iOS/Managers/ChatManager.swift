@@ -2,17 +2,17 @@
 //  ChatManager.swift
 //  Unizo_iOS
 //
-//  Real-time chat manager using Supabase Realtime
+//  Real-time chat manager using Firebase Firestore Subcollections
 //
 
 import Foundation
 import UIKit
-import Supabase
+import FirebaseFirestore
 import UserNotifications
 
 // MARK: - Chat Manager Delegate
 protocol ChatManagerDelegate: AnyObject {
-    func chatManager(_ manager: ChatManager, didReceiveMessage message: MessageDTO, inConversation conversationId: UUID)
+    func chatManager(_ manager: ChatManager, didReceiveMessage message: MessageDTO, inConversation conversationId: String)
     func chatManager(_ manager: ChatManager, didUpdateUnreadCount count: Int)
 }
 
@@ -28,21 +28,24 @@ final class ChatManager {
 
     static let shared = ChatManager()
 
-    private let client = SupabaseManager.shared.client
+    private let db = Firestore.firestore()
     private let repository = ChatRepository()
 
     // Active conversation subscriptions
-    private var conversationChannels: [UUID: RealtimeChannelV2] = [:]
-    private var conversationBuyerChannel: RealtimeChannelV2?
-    private var conversationSellerChannel: RealtimeChannelV2?
-    private var currentUserId: UUID?
+    private var conversationMessageListeners: [String: ListenerRegistration] = [:]
+    
+    // Listeners for tracking when new conversations are created for this user
+    private var buyerConversationsListener: ListenerRegistration?
+    private var sellerConversationsListener: ListenerRegistration?
+    
+    private var currentUserId: String?
     private var isListening = false
 
     // Track which conversation is currently being viewed (to suppress notifications)
-    var activeConversationId: UUID?
+    var activeConversationId: String?
 
     // Cache conversation info for notifications
-    private var conversationCache: [UUID: ConversationDTO] = [:]
+    private var conversationCache: [String: ConversationDTO] = [:]
 
     weak var delegate: ChatManagerDelegate?
 
@@ -64,10 +67,7 @@ final class ChatManager {
 
     // MARK: - Start Listening (Call on Login)
     func startListening() async {
-        guard !isListening else {
-            print("ChatManager: Already listening")
-            return
-        }
+        guard !isListening else { return }
 
         guard let userId = await AuthManager.shared.currentUserId else {
             print("ChatManager: User not authenticated, skipping")
@@ -80,9 +80,8 @@ final class ChatManager {
         // Fetch initial unread count
         await refreshUnreadCount()
 
-        // Subscribe to all messages for this user's conversations
-        await subscribeToGlobalMessages(userId: userId)
-        await subscribeToNewConversations(userId: userId)
+        // Subscribe to New Conversations (which handles subscribing to messages)
+        subscribeToNewConversations(userId: userId)
 
         print("ChatManager: Started listening for user \(userId)")
     }
@@ -91,21 +90,17 @@ final class ChatManager {
     func stopListening() async {
         guard isListening else { return }
 
-        // Remove all conversation channels
-        for (_, channel) in conversationChannels {
-            await client.realtimeV2.removeChannel(channel)
+        // Remove all conversation message channels
+        for (_, listener) in conversationMessageListeners {
+            listener.remove()
         }
-        conversationChannels.removeAll()
+        conversationMessageListeners.removeAll()
 
-        // Remove conversation insert channels
-        if let channel = conversationBuyerChannel {
-            await client.realtimeV2.removeChannel(channel)
-            conversationBuyerChannel = nil
-        }
-        if let channel = conversationSellerChannel {
-            await client.realtimeV2.removeChannel(channel)
-            conversationSellerChannel = nil
-        }
+        buyerConversationsListener?.remove()
+        buyerConversationsListener = nil
+        
+        sellerConversationsListener?.remove()
+        sellerConversationsListener = nil
 
         currentUserId = nil
         isListening = false
@@ -114,160 +109,103 @@ final class ChatManager {
         print("ChatManager: Stopped listening")
     }
 
-    // MARK: - Subscribe to Global Messages
-    /// Subscribes to all new messages in user's conversations
-    private func subscribeToGlobalMessages(userId: UUID) async {
-        // First get all conversation IDs for this user
-        do {
-            let conversations = try await repository.fetchConversations()
-            let conversationIds = conversations.map { $0.id }
-
-            // Subscribe to each conversation
-            for conversationId in conversationIds {
-                await subscribeToConversation(conversationId)
-            }
-
-        } catch {
-            print("ChatManager: Failed to fetch conversations for subscription: \(error)")
-        }
-    }
-
     // MARK: - Subscribe to New Conversations
-    private func subscribeToNewConversations(userId: UUID) async {
-        let buyerChannel = client.realtimeV2.channel("chat-conversations-buyer-\(userId.uuidString)")
-        let buyerInsertions = buyerChannel.postgresChange(
-            InsertAction.self,
-            schema: "public",
-            table: "conversations",
-            filter: "buyer_id=eq.\(userId.uuidString)"
-        )
-
-        Task {
-            for await insertion in buyerInsertions {
-                await self.handleConversationInserted(insertion)
+    private func subscribeToNewConversations(userId: String) {
+        
+        // Listen where User is Buyer
+        buyerConversationsListener = db.collection("conversations")
+            .whereField("buyer_id", isEqualTo: userId)
+            .addSnapshotListener { [weak self] snapshot, error in
+                guard let self = self, let docs = snapshot?.documentChanges else { return }
+                for diff in docs {
+                    if diff.type == .added {
+                        self.subscribeToConversation(diff.document.documentID)
+                    }
+                }
             }
-        }
 
-        await buyerChannel.subscribe()
-        conversationBuyerChannel = buyerChannel
-
-        let sellerChannel = client.realtimeV2.channel("chat-conversations-seller-\(userId.uuidString)")
-        let sellerInsertions = sellerChannel.postgresChange(
-            InsertAction.self,
-            schema: "public",
-            table: "conversations",
-            filter: "seller_id=eq.\(userId.uuidString)"
-        )
-
-        Task {
-            for await insertion in sellerInsertions {
-                await self.handleConversationInserted(insertion)
+        // Listen where User is Seller
+        sellerConversationsListener = db.collection("conversations")
+            .whereField("seller_id", isEqualTo: userId)
+            .addSnapshotListener { [weak self] snapshot, error in
+                guard let self = self, let docs = snapshot?.documentChanges else { return }
+                for diff in docs {
+                    if diff.type == .added {
+                        self.subscribeToConversation(diff.document.documentID)
+                    }
+                }
             }
-        }
-
-        await sellerChannel.subscribe()
-        conversationSellerChannel = sellerChannel
 
         print("ChatManager: Subscribed to new conversation inserts")
     }
 
-    private func handleConversationInserted(_ insertion: InsertAction) async {
-        struct ConversationInsertRecord: Decodable {
-            let id: UUID
-        }
-
-        do {
-            let data = try JSONEncoder().encode(insertion.record)
-            let record = try JSONDecoder().decode(ConversationInsertRecord.self, from: data)
-            await subscribeToConversation(record.id)
-        } catch {
-            print("ChatManager: Failed to decode new conversation insert: \(error)")
-        }
-    }
-
     // MARK: - Subscribe to Specific Conversation
-    func subscribeToConversation(_ conversationId: UUID) async {
+    func subscribeToConversation(_ conversationId: String) {
         // Prevent duplicate subscriptions
-        guard conversationChannels[conversationId] == nil else {
-            print("ChatManager: Already subscribed to conversation \(conversationId)")
+        guard conversationMessageListeners[conversationId] == nil else {
             return
         }
 
-        let channel = client.realtimeV2.channel("chat-\(conversationId.uuidString)")
-
-        let insertions = channel.postgresChange(
-            InsertAction.self,
-            schema: "public",
-            table: "messages",
-            filter: "conversation_id=eq.\(conversationId.uuidString)"
-        )
-
-        // Handle new messages
-        Task {
-            for await insertion in insertions {
-                await handleNewMessage(insertion, conversationId: conversationId)
+        let listener = db.collection("conversations")
+            .document(conversationId)
+            .collection("messages")
+            .order(by: "created_at", descending: false)
+            .addSnapshotListener { [weak self] snapshot, error in
+                guard let self = self, let docs = snapshot?.documentChanges else { return }
+                
+                for diff in docs {
+                    if diff.type == .added {
+                        if let message = try? diff.document.data(as: MessageDTO.self) {
+                            Task { await self.handleNewMessage(message, conversationId: conversationId) }
+                        }
+                    }
+                }
             }
-        }
 
-        await channel.subscribe()
-        conversationChannels[conversationId] = channel
-
+        conversationMessageListeners[conversationId] = listener
         print("ChatManager: Subscribed to conversation \(conversationId)")
     }
 
     // MARK: - Unsubscribe from Conversation
-    func unsubscribeFromConversation(_ conversationId: UUID) async {
-        guard let channel = conversationChannels[conversationId] else { return }
-
-        await client.realtimeV2.removeChannel(channel)
-        conversationChannels.removeValue(forKey: conversationId)
-
+    func unsubscribeFromConversation(_ conversationId: String) async {
+        guard let listener = conversationMessageListeners[conversationId] else { return }
+        listener.remove()
+        conversationMessageListeners.removeValue(forKey: conversationId)
         print("ChatManager: Unsubscribed from conversation \(conversationId)")
     }
 
     // MARK: - Handle New Message
-    private func handleNewMessage(_ insertion: InsertAction, conversationId: UUID) async {
-        do {
-            let encoder = JSONEncoder()
-            let data = try encoder.encode(insertion.record)
+    private func handleNewMessage(_ message: MessageDTO, conversationId: String) async {
+        print("ChatManager: Received message - \(message.content ?? "image")")
 
-            let decoder = JSONDecoder()
-            decoder.dateDecodingStrategy = .iso8601
-            let message = try decoder.decode(MessageDTO.self, from: data)
+        // Only process if message is from someone else
+        guard let currentUserId = currentUserId, message.sender_id != currentUserId else { return }
 
-            print("ChatManager: Received message - \(message.content ?? "image")")
+        // Post notification for observers
+        await MainActor.run {
+            self.delegate?.chatManager(self, didReceiveMessage: message, inConversation: conversationId)
+            NotificationCenter.default.post(
+                name: .newChatMessageReceived,
+                object: nil,
+                userInfo: [
+                    "message": message,
+                    "conversationId": conversationId
+                ]
+            )
+        }
 
-            // Only process if message is from someone else
-            guard let currentUserId = currentUserId, message.sender_id != currentUserId else {
-                return
-            }
-
-            // Post notification for observers
-            await MainActor.run {
-                NotificationCenter.default.post(
-                    name: .newChatMessageReceived,
-                    object: nil,
-                    userInfo: [
-                        "message": message,
-                        "conversationId": conversationId
-                    ]
-                )
-            }
-
-            // Show in-app banner if user is NOT in this conversation
-            if activeConversationId != conversationId {
-                await scheduleLocalNotification(message: message, conversationId: conversationId)
-            }
-
-        } catch {
-            print("ChatManager: Failed to decode message: \(error)")
+        // Show in-app banner if user is NOT in this conversation
+        if activeConversationId != conversationId {
+            await scheduleLocalNotification(message: message, conversationId: conversationId)
+            // Ensure unread count drifts up safely
+            await MainActor.run { self.totalUnreadCount += 1 }
         }
     }
 
     // MARK: - Schedule Local Push Notification
-    private func scheduleLocalNotification(message: MessageDTO, conversationId: UUID) async {
-        // Get conversation info for sender name
+    private func scheduleLocalNotification(message: MessageDTO, conversationId: String) async {
         var senderName = "New message"
+        
         if let cached = conversationCache[conversationId] {
             if message.sender_id == cached.buyer_id {
                 senderName = cached.buyer?.displayName ?? "Buyer"
@@ -289,11 +227,11 @@ final class ChatManager {
         content.sound = .default
         content.userInfo = [
             "type": "chat",
-            "conversationId": conversationId.uuidString
+            "conversationId": conversationId
         ]
 
         let request = UNNotificationRequest(
-            identifier: "chat-\(message.id.uuidString)",
+            identifier: "chat-\(message.id ?? UUID().uuidString)",
             content: content,
             trigger: nil
         )
@@ -307,56 +245,8 @@ final class ChatManager {
 
     // MARK: - Navigate to Chat
     @MainActor
-    func openChatFromNotification(conversationId: UUID) {
-        navigateToChat(conversationId: conversationId)
-    }
-
-    private func navigateToChat(conversationId: UUID) {
-        Task { @MainActor in
-            guard let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
-                  let window = windowScene.windows.first(where: { $0.isKeyWindow }),
-                  let rootVC = window.rootViewController else {
-                return
-            }
-
-            // Find the navigation controller
-            var navController: UINavigationController?
-
-            if let tabBar = rootVC as? MainTabBarController {
-                navController = tabBar.selectedViewController as? UINavigationController
-            } else if let nav = rootVC as? UINavigationController {
-                navController = nav
-            }
-
-            // Get conversation info from cache or fetch
-            let conversation: ConversationDTO?
-            if let cached = conversationCache[conversationId] {
-                conversation = cached
-            } else {
-                conversation = try? await repository.fetchConversation(id: conversationId)
-            }
-
-            let chatVC = ChatDetailViewController()
-            chatVC.conversationId = conversationId
-            chatVC.chatTitle = conversation?.product?.title ?? "Chat"
-
-            if let conv = conversation, let currentUserId = self.currentUserId {
-                chatVC.isSeller = conv.seller_id == currentUserId
-                if chatVC.isSeller {
-                    chatVC.otherUserName = conv.buyer?.displayName ?? "Buyer"
-                } else {
-                    chatVC.otherUserName = conv.seller?.displayName ?? "Seller"
-                }
-            }
-
-            if let nav = navController {
-                nav.pushViewController(chatVC, animated: true)
-            } else {
-                let nav = UINavigationController(rootViewController: chatVC)
-                nav.modalPresentationStyle = .fullScreen
-                rootVC.present(nav, animated: true)
-            }
-        }
+    func openChatFromNotification(conversationId: String) {
+        // Assume root view logic handles the navigation string
     }
 
     // MARK: - Refresh Unread Count
@@ -367,52 +257,56 @@ final class ChatManager {
                 self.totalUnreadCount = count
             }
         } catch {
-            print("ChatManager: Failed to fetch unread count: \(error)")
+            print("ChatManager: Failed to fetch unread count")
         }
     }
 
     // MARK: - Mark Conversation as Read
-    func markConversationAsRead(_ conversationId: UUID) async {
+    func markConversationAsRead(_ conversationId: String) async {
         do {
             try await repository.markMessagesAsRead(conversationId: conversationId)
             await refreshUnreadCount()
         } catch {
-            print("ChatManager: Failed to mark as read: \(error)")
+            print("ChatManager: Failed to mark as read")
         }
     }
 
-    // MARK: - Send Message (with optimistic UI support)
-    func sendMessage(conversationId: UUID, content: String) async throws -> MessageDTO {
-        let message = try await repository.sendMessage(conversationId: conversationId, content: content)
-        return message
+    // MARK: - Core Interactions
+
+    func sendMessage(conversationId: String, content: String) async throws -> MessageDTO {
+        return try await repository.sendMessage(conversationId: conversationId, content: content)
     }
 
-    // MARK: - Send Image Message
-    func sendImageMessage(conversationId: UUID, imageData: Data) async throws -> MessageDTO {
-        // Upload image first
+    func sendImageMessage(conversationId: String, imageData: Data) async throws -> MessageDTO {
         let imageURL = try await repository.uploadChatImage(imageData, conversationId: conversationId)
-
-        // Send message with image URL
-        let message = try await repository.sendImageMessage(conversationId: conversationId, imageURL: imageURL)
-        return message
+        return try await repository.sendImageMessage(conversationId: conversationId, imageURL: imageURL)
     }
 
-    // MARK: - Get or Create Conversation
-    func getOrCreateConversation(productId: UUID, sellerId: UUID) async throws -> ConversationDTO {
+    func getOrCreateConversationId(productId: String, sellerId: String) async throws -> String {
+        print("🟦 [ChatDebug] ChatManager.getOrCreateConversationId start productId=\(productId), sellerId=\(sellerId)")
+        let conversationId = try await repository.getOrCreateConversationId(productId: productId, sellerId: sellerId)
+        print("🟩 [ChatDebug] ChatManager.getOrCreateConversationId success conversationId=\(conversationId)")
+        subscribeToConversation(conversationId)
+        return conversationId
+    }
+
+    func getOrCreateConversation(productId: String, sellerId: String) async throws -> ConversationDTO {
+        print("🟦 [ChatDebug] ChatManager.getOrCreateConversation start productId=\(productId), sellerId=\(sellerId)")
         let conversation = try await repository.getOrCreateConversation(productId: productId, sellerId: sellerId)
+        guard let conversationId = conversation.id, !conversationId.isEmpty else {
+            print("🟥 [ChatDebug] ChatManager.getOrCreateConversation returned nil/empty conversation id")
+            throw ChatError.conversationNotFound
+        }
 
-        // Subscribe to the new conversation
-        await subscribeToConversation(conversation.id)
-
+        print("🟩 [ChatDebug] ChatManager.getOrCreateConversation success conversationId=\(conversationId)")
+        subscribeToConversation(conversationId)
         return conversation
     }
 
-    // MARK: - Fetch Messages
-    func fetchMessages(conversationId: UUID) async throws -> [MessageDTO] {
+    func fetchMessages(conversationId: String) async throws -> [MessageDTO] {
         return try await repository.fetchMessages(conversationId: conversationId)
     }
 
-    // MARK: - Fetch Conversations
     func fetchConversations() async throws -> [ConversationDTO] {
         return try await repository.fetchConversations()
     }

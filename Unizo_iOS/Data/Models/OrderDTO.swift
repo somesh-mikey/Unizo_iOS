@@ -6,6 +6,7 @@
 //
 
 import Foundation
+import FirebaseFirestore
 
 // MARK: - Order Status
 enum OrderStatus: String, Codable {
@@ -18,9 +19,9 @@ enum OrderStatus: String, Codable {
 
 // MARK: - Order DTO (for fetching from Supabase)
 struct OrderDTO: Codable {
-    let id: UUID
-    let user_id: UUID
-    let address_id: UUID
+    @DocumentID var id: String?
+    let user_id: String
+    let address_id: String
     let status: String
     let total_amount: Double
     let payment_method: String
@@ -36,9 +37,9 @@ struct OrderDTO: Codable {
 
 // MARK: - Order Item DTO
 struct OrderItemDTO: Codable {
-    let id: UUID
-    let order_id: UUID
-    let product_id: UUID
+    @DocumentID var id: String?
+    let order_id: String
+    let product_id: String
     let quantity: Int
     let price_at_purchase: Double
     let colour: String?
@@ -50,9 +51,9 @@ struct OrderItemDTO: Codable {
 
 // MARK: - Insert DTOs (for creating new orders)
 struct OrderInsertDTO: Encodable {
-    let id: UUID
-    let user_id: UUID
-    let address_id: UUID
+    @DocumentID var id: String?
+    let user_id: String
+    let address_id: String
     let status: String
     let total_amount: Double
     let payment_method: String
@@ -60,9 +61,9 @@ struct OrderInsertDTO: Encodable {
 }
 
 struct OrderItemInsertDTO: Encodable {
-    let id: UUID
-    let order_id: UUID
-    let product_id: UUID
+    @DocumentID var id: String?
+    let order_id: String
+    let product_id: String
     let quantity: Int
     let price_at_purchase: Double
     let colour: String?
@@ -71,7 +72,7 @@ struct OrderItemInsertDTO: Encodable {
 
 // MARK: - Order UI Model (for display)
 struct OrderUIModel {
-    let id: UUID
+    @DocumentID var id: String?
     let orderId: String
     let status: OrderStatus
     let totalAmount: Double
@@ -84,8 +85,8 @@ struct OrderUIModel {
 }
 
 struct OrderItemUIModel {
-    let id: UUID
-    let productId: UUID
+    @DocumentID var id: String?
+    let productId: String
     let productName: String
     let productImage: String?
     let category: String?

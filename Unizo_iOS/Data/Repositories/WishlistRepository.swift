@@ -6,66 +6,65 @@
 //
 
 import Foundation
-import Supabase
+import FirebaseFirestore
 
 final class WishlistRepository {
 
-    private let supabase: SupabaseClient
+    private let db = Firestore.firestore()
 
-    init(supabase: SupabaseClient) {
-        self.supabase = supabase
+    init() {}
+
+    /// Fetches the user's wishlist from their subcollection, then manually
+    /// joins the Product details from the root products collection.
+    func fetchWishlist(userId: String) async throws -> [ProductDTO] {
+        let snapshot = try await db.collection("users")
+            .document(userId)
+            .collection("wishlist")
+            .getDocuments()
+
+        var products: [ProductDTO] = []
+
+        // Concurrent fetch for product joins (NoSQL workaround)
+        try await withThrowingTaskGroup(of: ProductDTO?.self) { group in
+            for doc in snapshot.documents {
+                let productId = doc.documentID
+                group.addTask {
+                    let productSnap = try await self.db.collection("products").document(productId).getDocument()
+                    return try? productSnap.data(as: ProductDTO.self)
+                }
+            }
+
+            for try await product in group {
+                if let product = product {
+                    products.append(product)
+                }
+            }
+        }
+
+        return products
     }
-
-    func fetchWishlist(userId: UUID) async throws -> [ProductDTO] {
-
-        let response = try await supabase
-            .from("wishlists")
-            .select("""
-                products!wishlists_product_id_fkey (
-                    id,
-                    title,
-                    description,
-                    price,
-                    image_url,
-                    is_negotiable,
-                    views_count,
-                    is_active,
-                    rating,
-                    colour,
-                    category
-                )
-            """)
-            .eq("user_id", value: userId.uuidString)
-            .execute()
-
-        // ✅ Force decode from raw Data
-        let data = response.data
-
-
-        let rows = try JSONDecoder().decode([WishlistRowDTO].self, from: data)
-        return rows.map { $0.products }
-    }
-
 }
+
 extension WishlistRepository {
 
-    func add(productId: UUID, userId: UUID) async throws {
-        try await supabase
-            .from("wishlists")
-            .insert([
-                "product_id": productId.uuidString,
-                "user_id": userId.uuidString
+    /// Adds a product to the user's wishlist subcollection natively via Document ID
+    func add(productId: String, userId: String) async throws {
+        try await db.collection("users")
+            .document(userId)
+            .collection("wishlist")
+            .document(productId)
+            .setData([
+                "product_id": productId,
+                "created_at": FieldValue.serverTimestamp()
             ])
-            .execute()
     }
 
-    func remove(productId: UUID, userId: UUID) async throws {
-        try await supabase
-            .from("wishlists")
+    /// Removes the product from the user's wishlist
+    func remove(productId: String, userId: String) async throws {
+        try await db.collection("users")
+            .document(userId)
+            .collection("wishlist")
+            .document(productId)
             .delete()
-            .eq("product_id", value: productId.uuidString)
-            .eq("user_id", value: userId.uuidString)
-            .execute()
     }
 }
-

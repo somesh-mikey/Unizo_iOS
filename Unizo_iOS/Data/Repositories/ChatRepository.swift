@@ -2,28 +2,132 @@
 //  ChatRepository.swift
 //  Unizo_iOS
 //
-//  Repository for chat/messaging operations with Supabase
+//  Repository for chat/messaging operations with Firebase Firestore.
+//  Conversations are top-level documents, and messages are subcollections 
+//  `conversations/{conversationId}/messages`. Joins are handled client-side.
+//  Firebase Storage is natively imported for image uploads.
 //
 
 import Foundation
-import Supabase
+import FirebaseFirestore
+import FirebaseStorage
 
 final class ChatRepository {
 
-    // MARK: - Properties
-    private let client: SupabaseClient
+    private let db = Firestore.firestore()
+    private let storage = Storage.storage()
+    private let iso8601WithFractionalSeconds: ISO8601DateFormatter = {
+        let formatter = ISO8601DateFormatter()
+        formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+        return formatter
+    }()
+    private let iso8601WithoutFractionalSeconds = ISO8601DateFormatter()
 
-    // Select fields for conversations with joins
-    // Messages are ordered by created_at DESC to get the latest message first
-    private let conversationSelectFields = "id,product_id,buyer_id,seller_id,created_at,product:products!product_id(id,title,image_url,status),buyer:users!buyer_id(id,first_name,last_name,profile_image_url),seller:users!seller_id(id,first_name,last_name,profile_image_url),messages(id,content,message_type,sender_id,created_at)"
+    init() { }
 
-    // MARK: - Init
-    init(client: SupabaseClient = SupabaseManager.shared.client) {
-        self.client = client
+    private func parseDate(_ value: Any?) -> Date? {
+        if let timestamp = value as? Timestamp {
+            return timestamp.dateValue()
+        }
+
+        if let date = value as? Date {
+            return date
+        }
+
+        if let string = value as? String {
+            return iso8601WithFractionalSeconds.date(from: string) ?? iso8601WithoutFractionalSeconds.date(from: string)
+        }
+
+        return nil
+    }
+
+    private func decodeLastMessage(from data: [String: Any], fallbackId: String? = nil) -> LastMessageInfo? {
+        guard let senderId = data["sender_id"] as? String else {
+            return nil
+        }
+
+        return LastMessageInfo(
+            id: fallbackId,
+            content: data["content"] as? String,
+            message_type: data["message_type"] as? String,
+            sender_id: senderId,
+            created_at: parseDate(data["created_at"])
+        )
+    }
+
+    private func decodeConversation(from document: DocumentSnapshot) -> ConversationDTO? {
+        if var conversation = try? document.data(as: ConversationDTO.self) {
+            if conversation.id == nil {
+                conversation.id = document.documentID
+            }
+            return conversation
+        }
+
+        guard let data = document.data(),
+              let productId = data["product_id"] as? String,
+              let buyerId = data["buyer_id"] as? String,
+              let sellerId = data["seller_id"] as? String else {
+            print("🟥 [ChatDebug] decodeConversation failed for docId=\(document.documentID)")
+            return nil
+        }
+
+        let fallback = ConversationDTO(
+            id: document.documentID,
+            product_id: productId,
+            buyer_id: buyerId,
+            seller_id: sellerId,
+            created_at: parseDate(data["created_at"]),
+            last_message: (data["last_message"] as? [String: Any]).flatMap { decodeLastMessage(from: $0) }
+        )
+
+        print("🟨 [ChatDebug] decodeConversation fallback used for docId=\(document.documentID)")
+        return fallback
+    }
+
+    private func attachLastMessages(to conversations: inout [ConversationDTO]) async {
+        for index in conversations.indices {
+            if conversations[index].last_message != nil {
+                continue
+            }
+
+            guard let conversationId = conversations[index].id, !conversationId.isEmpty else {
+                continue
+            }
+
+            do {
+                let orderedSnapshot = try await db.collection("conversations")
+                    .document(conversationId)
+                    .collection("messages")
+                    .order(by: "created_at", descending: true)
+                    .limit(to: 1)
+                    .getDocuments()
+
+                if let doc = orderedSnapshot.documents.first,
+                   let message = decodeLastMessage(from: doc.data(), fallbackId: doc.documentID) {
+                    conversations[index].last_message = message
+                    continue
+                }
+
+                // Fallback for legacy messages without created_at
+                let fallbackSnapshot = try await db.collection("conversations")
+                    .document(conversationId)
+                    .collection("messages")
+                    .getDocuments()
+
+                let latest = fallbackSnapshot.documents
+                    .compactMap { decodeLastMessage(from: $0.data(), fallbackId: $0.documentID) }
+                    .sorted { ($0.created_at ?? .distantPast) > ($1.created_at ?? .distantPast) }
+                    .first
+
+                conversations[index].last_message = latest
+            } catch {
+                print("⚠️ [ChatDebug] attachLastMessages failed for conversationId=\(conversationId): \(error.localizedDescription)")
+            }
+        }
     }
 
     // MARK: - Get Current User ID
-    private func getCurrentUserId() async throws -> UUID {
+    private func getCurrentUserId() async throws -> String {
         guard let userId = await AuthManager.shared.currentUserId else {
             throw ChatError.notAuthenticated
         }
@@ -37,263 +141,358 @@ final class ChatRepository {
         }
     }
 
+    // MARK: - Attach Joins Helper
+    private func attachJoins(to conversations: inout [ConversationDTO]) async throws {
+        let uniqueUserIds = Set(conversations.flatMap { [$0.buyer_id, $0.seller_id] })
+        let uniqueProductIds = Set(conversations.map { $0.product_id })
+        
+        var usersMap: [String: UserDTO] = [:]
+        var productsMap: [String: ProductDTO] = [:]
+
+        // Fetch Users manually (to simulate Users Join)
+        if !uniqueUserIds.isEmpty {
+            let chunks = Array(uniqueUserIds).chunked(into: 10)
+            for chunk in chunks {
+                let snapshot = try await db.collection("users").whereField(FieldPath.documentID(), in: chunk).getDocuments()
+                for doc in snapshot.documents {
+                    if let user = try? doc.data(as: UserDTO.self) {
+                        usersMap[doc.documentID] = user
+                    }
+                }
+            }
+        }
+        
+        // Fetch Products manually (to simulate Products Join)
+        if !uniqueProductIds.isEmpty {
+            let chunks = Array(uniqueProductIds).chunked(into: 10)
+            for chunk in chunks {
+                let snapshot = try await db.collection("products").whereField(FieldPath.documentID(), in: chunk).getDocuments()
+                for doc in snapshot.documents {
+                    if let product = try? doc.data(as: ProductDTO.self) {
+                        productsMap[doc.documentID] = product
+                    }
+                }
+            }
+        }
+        
+        for i in 0..<conversations.count {
+            let bId = conversations[i].buyer_id
+            let sId = conversations[i].seller_id
+            let pId = conversations[i].product_id
+
+            if let user = usersMap[bId] {
+                conversations[i].buyer = ConversationUserInfo(
+                    id: user.id,
+                    first_name: user.first_name,
+                    last_name: user.last_name,
+                    profile_image_url: user.profile_image_url
+                )
+            }
+
+            if let user = usersMap[sId] {
+                conversations[i].seller = ConversationUserInfo(
+                    id: user.id,
+                    first_name: user.first_name,
+                    last_name: user.last_name,
+                    profile_image_url: user.profile_image_url
+                )
+            }
+
+            if let product = productsMap[pId] {
+                conversations[i].product = ConversationProductInfo(
+                    id: product.id,
+                    title: product.title,
+                    image_url: product.imageUrl,
+                    status: product.status?.rawValue
+                )
+            }
+        }
+    }
+
     // MARK: - Fetch User's Conversations
-    /// Fetches all conversations for the current user (as buyer or seller)
     func fetchConversations() async throws -> [ConversationDTO] {
         try requireNetwork()
         let userId = try await getCurrentUserId()
 
-        // Fetch conversations where user is buyer or seller
-        // Order by most recent message
-        let response = try await client
-            .from("conversations")
-            .select(conversationSelectFields)
-            .or("buyer_id.eq.\(userId.uuidString),seller_id.eq.\(userId.uuidString)")
-            .order("created_at", ascending: false)
-            .execute()
+        // Firestore does not natively allow OR queries across different fields seamlessly if you want to sort.
+        // We will execute two queries: buyer == userId and seller == userId, then merge and sort.
+        
+        async let buyerSnapshot = db.collection("conversations")
+            .whereField("buyer_id", isEqualTo: userId)
+            .getDocuments()
+            
+        async let sellerSnapshot = db.collection("conversations")
+            .whereField("seller_id", isEqualTo: userId)
+            .getDocuments()
 
-        let decoder = JSONDecoder()
-        decoder.dateDecodingStrategy = .iso8601
-
-        return try decoder.decode([ConversationDTO].self, from: response.data)
+        let (bDocs, sDocs) = try await (buyerSnapshot.documents, sellerSnapshot.documents)
+        let allDocs = bDocs + sDocs
+        
+        // Ensure no duplicates just in case
+        var uniqueDocs: [String: DocumentSnapshot] = [:]
+        for doc in allDocs { uniqueDocs[doc.documentID] = doc }
+        
+        var conversations = uniqueDocs.values.compactMap { decodeConversation(from: $0) }
+        
+        // Sort effectively relies on local memory because of the dual query limitations
+        conversations.sort { ($0.created_at ?? Date.distantPast) > ($1.created_at ?? Date.distantPast) }
+        
+        try await attachJoins(to: &conversations)
+        await attachLastMessages(to: &conversations)
+        return conversations
     }
 
     // MARK: - Fetch or Create Conversation
-    /// Gets existing conversation or creates a new one for a product
-    func getOrCreateConversation(productId: UUID, sellerId: UUID) async throws -> ConversationDTO {
+    func getOrCreateConversationId(productId: String, sellerId: String) async throws -> String {
         try requireNetwork()
         let buyerId = try await getCurrentUserId()
 
-        // Don't allow chatting with yourself
-        guard buyerId != sellerId else {
-            throw ChatError.cannotChatWithSelf
+        print("🟦 [ChatDebug] ChatRepository.getOrCreateConversationId buyerId=\(buyerId), sellerId=\(sellerId), productId=\(productId)")
+
+        guard buyerId != sellerId else { throw ChatError.cannotChatWithSelf }
+
+        let snapshot = try await db.collection("conversations")
+            .whereField("product_id", isEqualTo: productId)
+            .whereField("buyer_id", isEqualTo: buyerId)
+            .limit(to: 1)
+            .getDocuments()
+
+        if let existingDoc = snapshot.documents.first {
+            print("🟩 [ChatDebug] Existing conversationId found=\(existingDoc.documentID)")
+            return existingDoc.documentID
         }
 
-        // Check if conversation already exists
-        let existingResponse = try await client
-            .from("conversations")
-            .select(conversationSelectFields)
-            .eq("product_id", value: productId.uuidString)
-            .eq("buyer_id", value: buyerId.uuidString)
-            .limit(1)
-            .execute()
-
-        let decoder = JSONDecoder()
-        decoder.dateDecodingStrategy = .iso8601
-
-        let existing = try decoder.decode([ConversationDTO].self, from: existingResponse.data)
-
-        if let conversation = existing.first {
-            return conversation
-        }
-
-        // Create new conversation
+        let ref = db.collection("conversations").document()
         let insertDTO = ConversationInsertDTO(
-            product_id: productId.uuidString,
-            buyer_id: buyerId.uuidString,
-            seller_id: sellerId.uuidString
+            product_id: productId,
+            buyer_id: buyerId,
+            seller_id: sellerId
         )
 
-        let createResponse = try await client
-            .from("conversations")
-            .insert(insertDTO)
-            .select(conversationSelectFields)
-            .single()
-            .execute()
+        var data = try Firestore.Encoder().encode(insertDTO)
+        data["created_at"] = FieldValue.serverTimestamp()
+        try await ref.setData(data)
+        print("🟩 [ChatDebug] Created new conversationId=\(ref.documentID)")
+        return ref.documentID
+    }
 
-        return try decoder.decode(ConversationDTO.self, from: createResponse.data)
+    func getOrCreateConversation(productId: String, sellerId: String) async throws -> ConversationDTO {
+        try requireNetwork()
+        let buyerId = try await getCurrentUserId()
+
+        print("🟦 [ChatDebug] ChatRepository.getOrCreateConversation buyerId=\(buyerId), sellerId=\(sellerId), productId=\(productId)")
+
+        guard buyerId != sellerId else { throw ChatError.cannotChatWithSelf }
+
+        let snapshot = try await db.collection("conversations")
+            .whereField("product_id", isEqualTo: productId)
+            .whereField("buyer_id", isEqualTo: buyerId)
+            .limit(to: 1)
+            .getDocuments()
+
+        if let doc = snapshot.documents.first, let existing = decodeConversation(from: doc) {
+            print("🟩 [ChatDebug] Existing conversation found docId=\(doc.documentID), decodedId=\(existing.id ?? "nil")")
+            return existing
+        }
+
+        // Create new
+        let ref = db.collection("conversations").document()
+        let insertDTO = ConversationInsertDTO(
+            product_id: productId,
+            buyer_id: buyerId,
+            seller_id: sellerId
+        )
+
+        var data = try Firestore.Encoder().encode(insertDTO)
+        data["created_at"] = FieldValue.serverTimestamp()
+        try await ref.setData(data)
+        print("🟦 [ChatDebug] Created new conversation document docId=\(ref.documentID)")
+        
+        guard let newConvo = try await fetchConversation(id: ref.documentID) else {
+            print("🟥 [ChatDebug] fetchConversation returned nil for docId=\(ref.documentID)")
+            throw ChatError.conversationNotFound
+        }
+        print("🟩 [ChatDebug] New conversation decoded id=\(newConvo.id ?? "nil")")
+        return newConvo
     }
 
     // MARK: - Fetch Messages
-    /// Fetches all messages for a conversation
-    func fetchMessages(conversationId: UUID) async throws -> [MessageDTO] {
+    func fetchMessages(conversationId: String) async throws -> [MessageDTO] {
         try requireNetwork()
         let _ = try await getCurrentUserId()
 
-        let response = try await client
-            .from("messages")
-            .select()
-            .eq("conversation_id", value: conversationId.uuidString)
-            .order("created_at", ascending: true)
-            .execute()
+        let orderedSnapshot = try await db.collection("conversations").document(conversationId).collection("messages")
+            .order(by: "created_at", descending: false)
+            .getDocuments()
 
-        let decoder = JSONDecoder()
-        decoder.dateDecodingStrategy = .iso8601
+        var orderedMessages = orderedSnapshot.documents.compactMap { try? $0.data(as: MessageDTO.self) }
 
-        return try decoder.decode([MessageDTO].self, from: response.data)
+        if orderedMessages.isEmpty {
+            // Fallback for older messages written before created_at was populated.
+            let fallbackSnapshot = try await db.collection("conversations")
+                .document(conversationId)
+                .collection("messages")
+                .getDocuments()
+
+            orderedMessages = fallbackSnapshot.documents
+                .compactMap { try? $0.data(as: MessageDTO.self) }
+                .sorted { ($0.created_at ?? .distantPast) < ($1.created_at ?? .distantPast) }
+
+            print("🟨 [ChatDebug] fetchMessages fallback used for conversationId=\(conversationId), count=\(orderedMessages.count)")
+        } else {
+            print("🟩 [ChatDebug] fetchMessages ordered count=\(orderedMessages.count) for conversationId=\(conversationId)")
+        }
+
+        return orderedMessages
     }
 
     // MARK: - Send Text Message
-    func sendMessage(conversationId: UUID, content: String) async throws -> MessageDTO {
+    func sendMessage(conversationId: String, content: String) async throws -> MessageDTO {
         try requireNetwork()
         let senderId = try await getCurrentUserId()
 
+        let ref = db.collection("conversations").document(conversationId).collection("messages").document()
         let messageDTO = MessageInsertDTO(
             conversationId: conversationId,
             senderId: senderId,
             content: content
         )
 
-        let response = try await client
-            .from("messages")
-            .insert(messageDTO)
-            .select()
-            .single()
-            .execute()
+        var data = try Firestore.Encoder().encode(messageDTO)
+        data["created_at"] = FieldValue.serverTimestamp()
+        try await ref.setData(data)
 
-        let decoder = JSONDecoder()
-        decoder.dateDecodingStrategy = .iso8601
+        // Ensure the conversation timestamp is updated so it floats to the top of inbox
+        let lastMessagePayload: [String: Any] = [
+            "content": content,
+            "message_type": "text",
+            "sender_id": senderId,
+            "created_at": FieldValue.serverTimestamp()
+        ]
 
-        return try decoder.decode(MessageDTO.self, from: response.data)
+        try await db.collection("conversations").document(conversationId).updateData([
+            "created_at": FieldValue.serverTimestamp(),
+            "last_message": lastMessagePayload
+        ])
+
+        let snapshot = try await ref.getDocument()
+        return try snapshot.data(as: MessageDTO.self)
     }
 
     // MARK: - Send Image Message
-    func sendImageMessage(conversationId: UUID, imageURL: String) async throws -> MessageDTO {
+    func sendImageMessage(conversationId: String, imageURL: String) async throws -> MessageDTO {
         try requireNetwork()
         let senderId = try await getCurrentUserId()
 
+        let ref = db.collection("conversations").document(conversationId).collection("messages").document()
         let messageDTO = MessageInsertDTO(
             conversationId: conversationId,
             senderId: senderId,
             imageURL: imageURL
         )
 
-        let response = try await client
-            .from("messages")
-            .insert(messageDTO)
-            .select()
-            .single()
-            .execute()
+        var data = try Firestore.Encoder().encode(messageDTO)
+        data["created_at"] = FieldValue.serverTimestamp()
+        try await ref.setData(data)
+        
+        let lastMessagePayload: [String: Any] = [
+            "content": "",
+            "message_type": "image",
+            "sender_id": senderId,
+            "created_at": FieldValue.serverTimestamp()
+        ]
 
-        let decoder = JSONDecoder()
-        decoder.dateDecodingStrategy = .iso8601
+        try await db.collection("conversations").document(conversationId).updateData([
+            "created_at": FieldValue.serverTimestamp(),
+            "last_message": lastMessagePayload
+        ])
 
-        return try decoder.decode(MessageDTO.self, from: response.data)
+        let snapshot = try await ref.getDocument()
+        return try snapshot.data(as: MessageDTO.self)
     }
 
     // MARK: - Upload Chat Image
-    func uploadChatImage(_ imageData: Data, conversationId: UUID) async throws -> String {
+    func uploadChatImage(_ imageData: Data, conversationId: String) async throws -> String {
         try requireNetwork()
-        let fileName = "\(conversationId.uuidString)_\(Int(Date().timeIntervalSince1970)).jpg"
-        let filePath = "chat-images/\(fileName)"
-
-        do {
-            try await client.storage
-                .from("product-images")
-                .upload(filePath, data: imageData, options: .init(upsert: true))
-        } catch {
-            // Handle Supabase iOS SDK bug workaround
-            let nsError = error as NSError
-            if nsError.domain != NSURLErrorDomain || nsError.code != -1017 {
-                throw error
-            }
-        }
-
-        // Get public URL
-        let publicURL = try client.storage
-            .from("product-images")
-            .getPublicURL(path: filePath)
-
-        return publicURL.absoluteString
+        let fileName = "\(conversationId)_\(Int(Date().timeIntervalSince1970)).jpg"
+        let storageRef = storage.reference().child("chat-images").child(fileName)
+        
+        _ = try await storageRef.putDataAsync(imageData)
+        let downloadURL = try await storageRef.downloadURL()
+        return downloadURL.absoluteString
     }
 
     // MARK: - Mark Messages as Read
-    /// Marks all unread messages from the other user as read
-    func markMessagesAsRead(conversationId: UUID) async throws {
-        // Temporarily disabled until read_at column is properly set up
-        // TODO: Re-enable when read_at column exists in messages table
-        return
+    func markMessagesAsRead(conversationId: String) async throws {
+        try requireNetwork()
+        let userId = try await getCurrentUserId()
 
-        /*
-        let currentUserId = try await getCurrentUserId()
+        let snapshot = try await db.collection("conversations")
+            .document(conversationId)
+            .collection("messages")
+            .getDocuments()
 
-        try await client
-            .from("messages")
-            .update(MarkMessagesReadDTO())
-            .eq("conversation_id", value: conversationId.uuidString)
-            .neq("sender_id", value: currentUserId.uuidString)
-            .is("read_at", value: nil)
-            .execute()
-        */
+        let batch = db.batch()
+        var updates = 0
+
+        for doc in snapshot.documents {
+            let data = doc.data()
+            let senderId = data["sender_id"] as? String
+            let readAt = data["read_at"]
+
+            if senderId != userId && (readAt == nil || readAt is NSNull) {
+                batch.updateData(["read_at": FieldValue.serverTimestamp()], forDocument: doc.reference)
+                updates += 1
+            }
+        }
+
+        if updates > 0 {
+            try await batch.commit()
+        }
     }
 
     // MARK: - Get Unread Count for Conversation
-    func getUnreadCount(conversationId: UUID) async throws -> Int {
-        // Temporarily return 0 until read_at column is properly set up
-        // TODO: Re-enable when read_at column exists in messages table
-        return 0
+    func getUnreadCount(conversationId: String) async throws -> Int {
+        try requireNetwork()
+        let userId = try await getCurrentUserId()
 
-        /*
-        let currentUserId = try await getCurrentUserId()
+        let snapshot = try await db.collection("conversations")
+            .document(conversationId)
+            .collection("messages")
+            .getDocuments()
 
-        let response = try await client
-            .from("messages")
-            .select("id", head: true, count: .exact)
-            .eq("conversation_id", value: conversationId.uuidString)
-            .neq("sender_id", value: currentUserId.uuidString)
-            .is("read_at", value: nil)
-            .execute()
-
-        return response.count ?? 0
-        */
+        return snapshot.documents.reduce(into: 0) { count, doc in
+            let data = doc.data()
+            let senderId = data["sender_id"] as? String
+            let readAt = data["read_at"]
+            if senderId != userId && (readAt == nil || readAt is NSNull) {
+                count += 1
+            }
+        }
     }
 
     // MARK: - Get Total Unread Count
-    /// Gets total unread message count across all conversations
     func getTotalUnreadCount() async throws -> Int {
-        // Temporarily return 0 until read_at column is properly set up
-        // TODO: Re-enable when read_at column exists in messages table
-        return 0
-
-        /*
-        let currentUserId = try await getCurrentUserId()
-
-        // Get all conversation IDs where user is participant
-        let conversationsResponse = try await client
-            .from("conversations")
-            .select("id")
-            .or("buyer_id.eq.\(currentUserId.uuidString),seller_id.eq.\(currentUserId.uuidString)")
-            .execute()
-
-        struct ConversationId: Codable {
-            let id: UUID
+        let conversations = try await fetchConversations()
+        var total = 0
+        for convo in conversations {
+            guard let conversationId = convo.id else { continue }
+            total += try await getUnreadCount(conversationId: conversationId)
         }
-
-        let conversations = try JSONDecoder().decode([ConversationId].self, from: conversationsResponse.data)
-
-        guard !conversations.isEmpty else { return 0 }
-
-        // Get unread messages count
-        let conversationIds = conversations.map { $0.id.uuidString }
-
-        let response = try await client
-            .from("messages")
-            .select("id", head: true, count: .exact)
-            .in("conversation_id", values: conversationIds)
-            .neq("sender_id", value: currentUserId.uuidString)
-            .is("read_at", value: nil)
-            .execute()
-
-        return response.count ?? 0
-        */
+        return total
     }
 
     // MARK: - Fetch Single Conversation
-    func fetchConversation(id: UUID) async throws -> ConversationDTO? {
+    func fetchConversation(id: String) async throws -> ConversationDTO? {
         try requireNetwork()
         let _ = try await getCurrentUserId()
 
-        let response = try await client
-            .from("conversations")
-            .select(conversationSelectFields)
-            .eq("id", value: id.uuidString)
-            .single()
-            .execute()
-
-        let decoder = JSONDecoder()
-        decoder.dateDecodingStrategy = .iso8601
-
-        return try decoder.decode(ConversationDTO.self, from: response.data)
+        let snapshot = try await db.collection("conversations").document(id).getDocument()
+        guard snapshot.exists, let convo = decodeConversation(from: snapshot) else { return nil }
+        
+        var convos = [convo]
+        try await attachJoins(to: &convos)
+        return convos.first
     }
 }
 

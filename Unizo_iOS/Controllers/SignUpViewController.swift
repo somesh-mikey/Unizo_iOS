@@ -6,12 +6,10 @@
 //
 
 import UIKit
-import Supabase
+import FirebaseAuth
+import FirebaseFirestore
 
 final class SignUpViewController: UIViewController {
-
-    // MARK: - Supabase
-    private let supabase = SupabaseManager.shared.client
 
     // MARK: - UI
 
@@ -363,50 +361,37 @@ final class SignUpViewController: UIViewController {
         signUpButton.isEnabled = false
         signUpButton.setTitle("Creating account...".localized, for: .normal)
 
-        // Sign up with Supabase
+        guard NetworkMonitor.shared.isReachable() else {
+            signUpButton.isEnabled = true
+            signUpButton.setTitle("Sign Up".localized, for: .normal)
+            if let window = self.view.window {
+                UnizoBannerView.show(in: window, state: .offline)
+            }
+            return
+        }
+
+        // Sign up with Firebase Auth + Firestore profile creation
         Task {
             do {
-                // Create auth user
-                let response = try await supabase.auth.signUp(
-                    email: email,
-                    password: password
-                )
+                let authResult = try await Auth.auth().createUser(withEmail: email, password: password)
+                let userId = authResult.user.uid
+                print("✅ Sign up successful - User ID: \(userId)")
 
-                print("✅ Sign up successful - User ID: \(response.user.id.uuidString)")
+                let regNo = regTF.text?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+                let userPayload: [String: Any] = [
+                    "first_name": firstName,
+                    "last_name": lastName,
+                    "phone": phone,
+                    "role": "buyer",
+                    "email_notifications": true,
+                    "sms_notifications": false,
+                    "email": email,
+                    "registration_number": regNo,
+                    "created_at": ISO8601DateFormatter().string(from: Date())
+                ]
 
-                // Sign in the user to establish a session (required for RLS)
-                try await supabase.auth.signIn(email: email, password: password)
-                print("✅ User signed in after signup")
-
-                // Update user profile data in users table
-                // (The row is auto-created by database trigger with id and email)
-                let userId = response.user.id
-
-                struct UserProfileUpdate: Encodable {
-                    let first_name: String
-                    let last_name: String
-                    let phone: String
-                    let role: String
-                    let email_notifications: Bool
-                    let sms_notifications: Bool
-                }
-
-                let profileUpdate = UserProfileUpdate(
-                    first_name: firstName,
-                    last_name: lastName,
-                    phone: phone,
-                    role: "buyer",
-                    email_notifications: true,
-                    sms_notifications: false
-                )
-
-                try await supabase
-                    .from("users")
-                    .update(profileUpdate)
-                    .eq("id", value: userId.uuidString)
-                    .execute()
-
-                print("✅ User profile updated in users table")
+                try await Firestore.firestore().collection("users").document(userId).setData(userPayload, merge: true)
+                print("✅ User profile created in Firestore")
 
                 // Start notification listener
                 await NotificationManager.shared.startListening()

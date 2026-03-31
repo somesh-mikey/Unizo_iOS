@@ -4,9 +4,10 @@
 //
 
 import Foundation
+import FirebaseFirestore
 
 struct EventDTO: Codable {
-    let id: UUID
+    @DocumentID var id: String?
     let title: String
     let description: String?
     let venue: String

@@ -2,24 +2,18 @@
 //  OrderRealtimeManager.swift
 //  Unizo_iOS
 //
-//  Manages per-order Supabase Realtime channels so both buyer and seller
-//  see status changes immediately without polling.
-//
-//  Usage:
-//    - Call subscribeToOrder(_:) when entering OrderDetailsViewController.
-//    - Call unsubscribeFromOrder(_:) when leaving.
-//    - Call unsubscribeAll() on sign-out.
-//  Observe .orderStatusDidChange on NotificationCenter for UI updates.
+//  Manages per-order Firestore Snapshot Listeners so both buyer and 
+//  seller see status changes immediately without polling.
 //
 
 import Foundation
-import Supabase
+import FirebaseFirestore
 
 // MARK: - Notification Name
 
 extension Notification.Name {
     /// Posted on the main queue when an order's status changes.
-    /// userInfo keys: "orderId" (UUID), "newStatus" (String), "handoffCode" (String?)
+    /// userInfo keys: "orderId" (String), "newStatus" (String), "handoffCode" (String?)
     static let orderStatusDidChange = Notification.Name("orderStatusDidChange")
 }
 
@@ -29,8 +23,8 @@ final class OrderRealtimeManager {
 
     static let shared = OrderRealtimeManager()
 
-    private let client  = SupabaseManager.shared.client
-    private var channels: [UUID: RealtimeChannelV2] = [:]
+    private let db = Firestore.firestore()
+    private var listeners: [String: ListenerRegistration] = [:]
 
     private init() {}
 
@@ -38,76 +32,57 @@ final class OrderRealtimeManager {
 
     /// Subscribes to realtime updates for the given order. Duplicate calls for
     /// the same order ID are ignored.
-    func subscribeToOrder(_ orderId: UUID) async {
-        guard channels[orderId] == nil else { return }
+    func subscribeToOrder(_ orderId: String) {
+        guard listeners[orderId] == nil else { return }
 
-        let channel = client.realtimeV2.channel("order:\(orderId.uuidString)")
-
-        let updates = channel.postgresChange(
-            UpdateAction.self,
-            schema: "public",
-            table: "orders",
-            filter: "id=eq.\(orderId.uuidString)"
-        )
-
-        Task { [weak self] in
-            for await update in updates {
-                self?.handleOrderUpdate(update, orderId: orderId)
+        let listener = db.collection("orders").document(orderId)
+            .addSnapshotListener { [weak self] documentSnapshot, error in
+                guard let document = documentSnapshot, document.exists else {
+                    print("OrderRealtime: Error fetching document: \(error?.localizedDescription ?? "unknown error")")
+                    return
+                }
+                
+                self?.handleOrderUpdate(document, orderId: orderId)
             }
-        }
 
-        await channel.subscribe()
-        channels[orderId] = channel
-
-        print("OrderRealtime: Subscribed to order \(orderId.uuidString.prefix(8))")
+        listeners[orderId] = listener
+        print("OrderRealtime: Subscribed to order \(orderId.prefix(8))")
     }
 
-    func unsubscribeFromOrder(_ orderId: UUID) async {
-        guard let channel = channels[orderId] else { return }
-        await client.realtimeV2.removeChannel(channel)
-        channels[orderId] = nil
-        print("OrderRealtime: Unsubscribed from order \(orderId.uuidString.prefix(8))")
+    func unsubscribeFromOrder(_ orderId: String) {
+        guard let listener = listeners[orderId] else { return }
+        listener.remove()
+        listeners.removeValue(forKey: orderId)
+        print("OrderRealtime: Unsubscribed from order \(orderId.prefix(8))")
     }
 
-    /// Removes all active order channels. Call on sign-out.
-    func unsubscribeAll() async {
-        for (orderId, channel) in channels {
-            await client.realtimeV2.removeChannel(channel)
-            print("OrderRealtime: Unsubscribed from order \(orderId.uuidString.prefix(8))")
+    /// Removes all active order listeners. Call on sign-out.
+    func unsubscribeAll() {
+        for (orderId, listener) in listeners {
+            listener.remove()
+            print("OrderRealtime: Unsubscribed from order \(orderId.prefix(8))")
         }
-        channels.removeAll()
+        listeners.removeAll()
     }
 
     // MARK: - Update Handling
 
-    /// Minimal decodable for the fields we care about from the realtime record.
-    private struct OrderRealtimeRecord: Codable {
-        let id: UUID
-        let status: String
-        let handoff_code: String?
-    }
+    private func handleOrderUpdate(_ doc: DocumentSnapshot, orderId: String) {
+        guard let data = doc.data(), let status = data["status"] as? String else { return }
+        let handoffCode = data["handoff_code"] as? String
 
-    private func handleOrderUpdate(_ update: UpdateAction, orderId: UUID) {
-        do {
-            // Encode the AnyJSON record to Data, then decode into our typed struct.
-            let data   = try JSONEncoder().encode(update.record)
-            let record = try JSONDecoder().decode(OrderRealtimeRecord.self, from: data)
+        print("OrderRealtime: Order \(orderId.prefix(8)) → status=\(status)")
 
-            print("OrderRealtime: Order \(orderId.uuidString.prefix(8)) → status=\(record.status)")
-
-            DispatchQueue.main.async {
-                NotificationCenter.default.post(
-                    name: .orderStatusDidChange,
-                    object: nil,
-                    userInfo: [
-                        "orderId":     orderId,
-                        "newStatus":   record.status,
-                        "handoffCode": record.handoff_code as Any
-                    ]
-                )
-            }
-        } catch {
-            print("OrderRealtime: Failed to decode order update: \(error)")
+        DispatchQueue.main.async {
+            NotificationCenter.default.post(
+                name: .orderStatusDidChange,
+                object: nil,
+                userInfo: [
+                    "orderId":     orderId,
+                    "newStatus":   status,
+                    "handoffCode": handoffCode as Any
+                ]
+            )
         }
     }
 }

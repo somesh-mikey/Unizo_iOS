@@ -6,10 +6,11 @@
 //
 
 import Foundation
+import FirebaseFirestore
 
 struct AddressDTO: Codable {
-    let id: UUID
-    let user_id: UUID
+    @DocumentID var id: String?
+    let user_id: String
     var name: String
     var phone: String
     var line1: String

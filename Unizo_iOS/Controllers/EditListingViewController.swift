@@ -6,14 +6,13 @@
 //
 
 import UIKit
-import Supabase
+import FirebaseStorage
 
 final class EditListingViewController: UIViewController,
                                        UIImagePickerControllerDelegate,
                                        UINavigationControllerDelegate {
 
-    // MARK: - Supabase
-    private let supabase = SupabaseManager.shared.client
+    private let productRepository = ProductRepository()
 
     // MARK: - Product Data
     var product: ProductDTO!
@@ -534,11 +533,13 @@ final class EditListingViewController: UIViewController,
                     condition: condition
                 )
 
-                try await supabase
-                    .from("products")
-                    .update(updateData)
-                    .eq("id", value: product.id.uuidString)
-                    .execute()
+                guard let productId = product.id else {
+                    throw NSError(domain: "EditListingViewController", code: 404, userInfo: [
+                        NSLocalizedDescriptionKey: "Missing product id"
+                    ])
+                }
+
+                try await productRepository.updateProduct(productId: productId, update: updateData)
 
                 print("✅ Product updated successfully")
 
@@ -600,23 +601,18 @@ final class EditListingViewController: UIViewController,
         }
 
         let path = "products/\(UUID().uuidString).jpg"
+        let storageRef = Storage.storage().reference()
+            .child("product-images")
+            .child(path)
 
         var uploadError: Error?
         for attempt in 1...3 {
             do {
-                try await supabase.storage
-                    .from("product-images")
-                    .upload(path, data: data, options: .init(upsert: true))
+                _ = try await storageRef.putDataAsync(data)
                 uploadError = nil
                 print("✅ Storage upload complete (attempt \(attempt))")
                 break
             } catch {
-                let nsErr = error as NSError
-                if nsErr.domain == NSURLErrorDomain && nsErr.code == -1017 {
-                    print("⚠️ Supabase parse error ignored (upload succeeded)")
-                    uploadError = nil
-                    break
-                }
                 uploadError = error
                 print("⚠️ Upload attempt \(attempt) error: \(error.localizedDescription)")
                 if attempt < 3 {
@@ -626,9 +622,7 @@ final class EditListingViewController: UIViewController,
         }
         if let err = uploadError { throw err }
 
-        let publicURL = try supabase.storage
-            .from("product-images")
-            .getPublicURL(path: path)
+        let publicURL = try await storageRef.downloadURL()
 
         return publicURL.absoluteString
     }

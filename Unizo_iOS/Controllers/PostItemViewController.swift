@@ -4,16 +4,13 @@
 //
 
 import UIKit
-import Supabase
 import PhotosUI
+import FirebaseStorage
 
 final class PostItemViewController: UIViewController,
                                     UIImagePickerControllerDelegate,
                                     UINavigationControllerDelegate,
                                     PHPickerViewControllerDelegate {
-
-    // MARK: - Supabase
-    private let supabase = SupabaseManager.shared.client
 
     // MARK: - Scroll
     private let scrollView = TouchPassThroughScrollView()
@@ -164,10 +161,9 @@ final class PostItemViewController: UIViewController,
 
     private func checkAuthentication() {
         Task {
-            do {
-                _ = try await supabase.auth.session
+            if await AuthManager.shared.currentUserId != nil {
                 print("✅ User authenticated")
-            } catch {
+            } else {
                 print("❌ User not authenticated")
                 await MainActor.run {
                     let alert = UIAlertController(
@@ -464,7 +460,11 @@ final class PostItemViewController: UIViewController,
         Task {
             do {
                 // Get current user ID
-                let userId = try await supabase.auth.session.user.id.uuidString
+                guard let userId = await AuthManager.shared.currentUserId else {
+                    throw NSError(domain: "PostItemViewController", code: 401, userInfo: [
+                        NSLocalizedDescriptionKey: "User not authenticated"
+                    ])
+                }
 
                 // Upload all images
                 var imageURLs: [String] = []
@@ -494,7 +494,7 @@ final class PostItemViewController: UIViewController,
                     condition: condition
                 )
 
-                let repo = ProductRepository(supabase: supabase)
+                let repo = ProductRepository()
                 try await repo.insertProduct(product)
 
                 print("✅ Product uploaded successfully with \(imageURLs.count) images")
@@ -537,7 +537,7 @@ final class PostItemViewController: UIViewController,
         }
     }
 
-    // MARK: - Supabase Image Upload
+    // MARK: - Firebase Storage Image Upload
     private func uploadImage(_ image: UIImage) async throws -> String {
 
         // Downsample large camera images to prevent Supabase 413 Payload Too Large errors
@@ -559,23 +559,18 @@ final class PostItemViewController: UIViewController,
         }
 
         let path = "products/\(UUID().uuidString).jpg"
+        let storageRef = Storage.storage().reference()
+            .child("product-images")
+            .child(path)
 
         var uploadError: Error?
         for attempt in 1...3 {
             do {
-                try await supabase.storage
-                    .from("product-images")
-                    .upload(path, data: data, options: .init(upsert: true))
+                _ = try await storageRef.putDataAsync(data)
                 uploadError = nil
                 print("✅ Storage upload complete (attempt \(attempt))")
                 break
             } catch {
-                let nsErr = error as NSError
-                if nsErr.domain == NSURLErrorDomain && nsErr.code == -1017 {
-                    print("⚠️ Supabase parse error ignored (upload succeeded)")
-                    uploadError = nil
-                    break
-                }
                 uploadError = error
                 print("⚠️ Upload attempt \(attempt) error: \(error.localizedDescription)")
                 if attempt < 3 {
@@ -585,9 +580,7 @@ final class PostItemViewController: UIViewController,
         }
         if let err = uploadError { throw err }
 
-        let publicURL = try supabase.storage
-            .from("product-images")
-            .getPublicURL(path: path)
+        let publicURL = try await storageRef.downloadURL()
 
 
         return publicURL.absoluteString

@@ -2,20 +2,92 @@
 //  NotificationRepository.swift
 //  Unizo_iOS
 //
+//  Data access layer for Notifications using Firestore.
+//  Idempotency is native to Firestore using the eventKey as the DocumentID!
+//
 
 import Foundation
-import Supabase
+import FirebaseFirestore
 
 final class NotificationRepository {
 
-    private let client: SupabaseClient
+    private let db = Firestore.firestore()
+    private let iso8601WithFractionalSeconds: ISO8601DateFormatter = {
+        let formatter = ISO8601DateFormatter()
+        formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+        return formatter
+    }()
+    private let iso8601WithoutFractionalSeconds = ISO8601DateFormatter()
 
-    init(client: SupabaseClient = SupabaseManager.shared.client) {
-        self.client = client
+    init() { }
+
+    // MARK: - Decode Helpers
+    private func routeFallback(for type: String) -> String {
+        type == NotificationType.newOrder.rawValue ? "confirm_order_seller" : "order_details"
+    }
+
+    private func isoString(from value: Any?) -> String {
+        switch value {
+        case let timestamp as Timestamp:
+            return iso8601WithFractionalSeconds.string(from: timestamp.dateValue())
+        case let date as Date:
+            return iso8601WithFractionalSeconds.string(from: date)
+        case let string as String:
+            return string
+        default:
+            return iso8601WithFractionalSeconds.string(from: Date())
+        }
+    }
+
+    private func date(fromIsoString value: String) -> Date {
+        iso8601WithFractionalSeconds.date(from: value)
+            ?? iso8601WithoutFractionalSeconds.date(from: value)
+            ?? Date.distantPast
+    }
+
+    private func decodeNotification(document: QueryDocumentSnapshot) -> NotificationDTO? {
+        let data = document.data()
+
+        guard let recipientId = data["recipient_id"] as? String,
+              let senderId = data["sender_id"] as? String else {
+            return nil
+        }
+
+        let rawType = (data["type"] as? String) ?? NotificationType.newOrder.rawValue
+        let orderIdFromRoot = data["order_id"] as? String
+        let deeplinkDict = data["deeplink_payload"] as? [String: Any]
+        let orderIdFromDeeplink = deeplinkDict?["order_id"] as? String
+
+        guard let orderId = orderIdFromRoot ?? orderIdFromDeeplink else {
+            return nil
+        }
+
+        let route = (deeplinkDict?["route"] as? String) ?? routeFallback(for: rawType)
+        let sellerId = deeplinkDict?["seller_id"] as? String
+        let deeplinkPayload = DeeplinkPayload(
+            route: route,
+            orderId: orderIdFromDeeplink ?? orderId,
+            sellerId: sellerId
+        )
+
+        return NotificationDTO(
+            id: document.documentID,
+            recipient_id: recipientId,
+            sender_id: senderId,
+            order_id: orderId,
+            type: rawType,
+            title: (data["title"] as? String) ?? "Notification",
+            message: (data["message"] as? String) ?? "",
+            deeplink_payload: deeplinkPayload,
+            event_key: data["event_key"] as? String,
+            is_read: (data["is_read"] as? Bool) ?? false,
+            created_at: isoString(from: data["created_at"]),
+            sender: nil
+        )
     }
 
     // MARK: - Get Current User ID
-    private func getCurrentUserId() async throws -> UUID {
+    private func getCurrentUserId() async throws -> String {
         guard let userId = await AuthManager.shared.currentUserId else {
             throw NSError(domain: "NotificationRepository", code: 401, userInfo: [
                 NSLocalizedDescriptionKey: "User not authenticated"
@@ -31,34 +103,34 @@ final class NotificationRepository {
         }
     }
 
-    // MARK: - Create Notification (with idempotency)
+    // MARK: - Create Notification (with native idempotency)
     func createNotification(
-        recipientId: UUID,
-        senderId: UUID,
-        orderId: UUID,
+        recipientId: String,
+        senderId: String,
+        orderId: String,
         type: NotificationType,
         title: String,
         message: String,
         deeplinkPayload: DeeplinkPayload
     ) async throws {
         try requireNetwork()
-        // Generate event_key for idempotency (prevents duplicates)
-        let eventKey = "\(type.rawValue):\(orderId.uuidString):\(recipientId.uuidString)"
+        // Use eventKey directly as the Firestore Document ID.
+        // This guarantees idempotency natively because `.setData(merge: false)`
+        // or `.setData` will just overwrite or initialize the same document!
+        let eventKey = "\(type.rawValue)_\(orderId)_\(recipientId)"
 
-        // Get current user for debugging
         let currentUserId = try await getCurrentUserId()
 
         print("🔔 Creating notification:")
-        print("   - Current User ID (auth.uid): \(currentUserId.uuidString)")
-        print("   - Sender ID: \(senderId.uuidString)")
-        print("   - Recipient ID: \(recipientId.uuidString)")
-        print("   - Order ID: \(orderId.uuidString)")
+        print("   - Current User ID (auth.uid): \(currentUserId)")
+        print("   - Sender ID: \(senderId)")
+        print("   - Recipient ID: \(recipientId)")
+        print("   - Order ID: \(orderId)")
         print("   - Type: \(type.rawValue)")
-        print("   - Event Key: \(eventKey)")
-        print("   - sender_id == auth.uid: \(senderId == currentUserId)")
+        print("   - Event Key (Doc ID): \(eventKey)")
 
         let payload = NotificationInsertDTO(
-            id: UUID(),
+            id: eventKey,
             recipient_id: recipientId,
             sender_id: senderId,
             order_id: orderId,
@@ -70,16 +142,42 @@ final class NotificationRepository {
         )
 
         do {
-            // Upsert with ON CONFLICT DO NOTHING for idempotency
-            try await client
-                .from("notifications")
-                .upsert(payload, onConflict: "event_key")
-                .execute()
+            let data = try Firestore.Encoder().encode(payload)
+            var payloadData = data
+            payloadData["is_read"] = false
+            payloadData["created_at"] = FieldValue.serverTimestamp()
+            try await db.collection("notifications").document(eventKey).setData(payloadData)
             print("✅ Notification created successfully")
         } catch {
-            print("❌ Notification creation failed: \(error)")
-            print("❌ Error details: \(error.localizedDescription)")
+            print("❌ Notification creation failed: \(error.localizedDescription)")
             throw error
+        }
+    }
+
+    // MARK: - Helper: Attach Senders
+    private func attachSenders(to notifications: inout [NotificationDTO]) async throws {
+        let uniqueSenderIds = Array(Set(notifications.map { $0.sender_id }))
+        guard !uniqueSenderIds.isEmpty else { return }
+        
+        let chunks = uniqueSenderIds.chunked(into: 10)
+        var usersMap: [String: UserDTO] = [:]
+        
+        for chunk in chunks {
+            let snapshot = try await db.collection("users")
+                .whereField(FieldPath.documentID(), in: chunk)
+                .getDocuments()
+            for doc in snapshot.documents {
+                if let user = try? doc.data(as: UserDTO.self) {
+                    usersMap[doc.documentID] = user
+                }
+            }
+        }
+        
+        for index in notifications.indices {
+            let senderId = notifications[index].sender_id
+            if let user = usersMap[senderId] {
+                notifications[index].sender = user
+            }
         }
     }
 
@@ -88,28 +186,26 @@ final class NotificationRepository {
         try requireNetwork()
         let userId = try await getCurrentUserId()
 
-        let response: [NotificationDTO] = try await client
-            .from("notifications")
-            .select("""
-                id,
-                recipient_id,
-                sender_id,
-                order_id,
-                type,
-                title,
-                message,
-                deeplink_payload,
-                event_key,
-                is_read,
-                created_at,
-                sender:users!sender_id(id, first_name, last_name, email)
-            """)
-            .eq("recipient_id", value: userId.uuidString)
-            .order("created_at", ascending: false)
-            .execute()
-            .value
+        let documents: [QueryDocumentSnapshot]
 
-        return response
+        do {
+            let indexedSnapshot = try await db.collection("notifications")
+                .whereField("recipient_id", isEqualTo: userId)
+                .order(by: "created_at", descending: true)
+                .getDocuments()
+            documents = indexedSnapshot.documents
+        } catch {
+            print("⚠️ fetchNotifications indexed query failed, using fallback: \(error.localizedDescription)")
+            let fallbackSnapshot = try await db.collection("notifications")
+                .whereField("recipient_id", isEqualTo: userId)
+                .getDocuments()
+            documents = fallbackSnapshot.documents
+        }
+
+        var notifications = documents.compactMap { decodeNotification(document: $0) }
+        notifications.sort { date(fromIsoString: $0.created_at) > date(fromIsoString: $1.created_at) }
+        try await attachSenders(to: &notifications)
+        return notifications
     }
 
     // MARK: - Fetch Unread Count
@@ -117,28 +213,31 @@ final class NotificationRepository {
         try requireNetwork()
         let userId = try await getCurrentUserId()
 
-        let response = try await client
-            .from("notifications")
-            .select("id", head: true, count: .exact)
-            .eq("recipient_id", value: userId.uuidString)
-            .eq("is_read", value: false)
-            .execute()
-
-        return response.count ?? 0
+        do {
+            let snapshot = try await db.collection("notifications")
+                .whereField("recipient_id", isEqualTo: userId)
+                .whereField("is_read", isEqualTo: false)
+                .count
+                .getAggregation(source: .server)
+            return Int(truncating: snapshot.count)
+        } catch {
+            print("⚠️ fetchUnreadCount aggregate query failed, using fallback: \(error.localizedDescription)")
+            let fallbackSnapshot = try await db.collection("notifications")
+                .whereField("recipient_id", isEqualTo: userId)
+                .getDocuments()
+            return fallbackSnapshot.documents.reduce(into: 0) { count, doc in
+                let isRead = doc.data()["is_read"] as? Bool ?? false
+                if !isRead { count += 1 }
+            }
+        }
     }
 
     // MARK: - Mark Notification as Read
-    func markAsRead(notificationId: UUID) async throws {
+    func markAsRead(notificationId: String) async throws {
         try requireNetwork()
-        struct ReadUpdate: Encodable {
-            let is_read: Bool
-        }
-
-        try await client
-            .from("notifications")
-            .update(ReadUpdate(is_read: true))
-            .eq("id", value: notificationId.uuidString)
-            .execute()
+        try await db.collection("notifications").document(notificationId).updateData([
+            "is_read": true
+        ])
     }
 
     // MARK: - Mark All Notifications as Read
@@ -146,35 +245,37 @@ final class NotificationRepository {
         try requireNetwork()
         let userId = try await getCurrentUserId()
 
-        struct ReadUpdate: Encodable {
-            let is_read: Bool
-        }
+        let snapshot = try await db.collection("notifications")
+            .whereField("recipient_id", isEqualTo: userId)
+            .whereField("is_read", isEqualTo: false)
+            .getDocuments()
 
-        try await client
-            .from("notifications")
-            .update(ReadUpdate(is_read: true))
-            .eq("recipient_id", value: userId.uuidString)
-            .eq("is_read", value: false)
-            .execute()
+        let batch = db.batch()
+        for doc in snapshot.documents {
+            batch.updateData(["is_read": true], forDocument: doc.reference)
+        }
+        try await batch.commit()
     }
 
     // MARK: - Delete Notification
-    func deleteNotification(notificationId: UUID) async throws {
-        try await client
-            .from("notifications")
-            .delete()
-            .eq("id", value: notificationId.uuidString)
-            .execute()
+    func deleteNotification(notificationId: String) async throws {
+        try await db.collection("notifications").document(notificationId).delete()
     }
 
     // MARK: - Delete All Notifications for Current User
     func deleteAllNotifications() async throws {
         let userId = try await getCurrentUserId()
 
-        try await client
-            .from("notifications")
-            .delete()
-            .eq("recipient_id", value: userId.uuidString)
-            .execute()
+        let snapshot = try await db.collection("notifications")
+            .whereField("recipient_id", isEqualTo: userId)
+            .getDocuments()
+
+        let batch = db.batch()
+        // Note: Firestore batches are limited to 500 ops.
+        // Assuming user has < 500 notifications, otherwise needs chunking.
+        for doc in snapshot.documents {
+            batch.deleteDocument(doc.reference)
+        }
+        try await batch.commit()
     }
 }

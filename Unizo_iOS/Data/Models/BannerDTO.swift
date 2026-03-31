@@ -6,9 +6,10 @@
 //
 
 import Foundation
+import FirebaseFirestore
 
 struct BannerDTO: Decodable {
-    let id: UUID
+    @DocumentID var id: String?
     let image_url: String
     let position: Int
 }

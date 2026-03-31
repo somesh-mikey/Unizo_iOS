@@ -7,14 +7,15 @@
 //
 
 import UIKit
-import Supabase
 
 class DealRequestsViewController: UIViewController {
 
     // MARK: - Properties
-    private let productId: UUID
+    private let productId: String
     private let productTitle: String
-    private let supabase = SupabaseManager.shared.client
+    private let sellerDashboardRepository = SellerDashboardRepository()
+    private let orderRepository = OrderRepository()
+    private let userRepository = UserRepository()
 
     // MARK: - Data Model
     struct DealRequest {
@@ -109,7 +110,7 @@ class DealRequestsViewController: UIViewController {
     }()
 
     // MARK: - Init
-    init(productId: UUID, productTitle: String) {
+    init(productId: String, productTitle: String) {
         self.productId = productId
         self.productTitle = productTitle
         super.init(nibName: nil, bundle: nil)
@@ -199,106 +200,38 @@ class DealRequestsViewController: UIViewController {
 
         Task {
             do {
-                // Decode response model matching Supabase join
-                struct OrderItemResponse: Decodable {
-                    let product_id: UUID
-                    let quantity: Int
-                    let price_at_purchase: Double
+                let pendingOrdersForProduct = try await sellerDashboardRepository.fetchSellerOrders()
+                    .filter { $0.productId == productId && $0.status == .pending }
 
-                    struct OrderInfo: Decodable {
-                        let id: UUID
-                        let status: String
-                        let user_id: UUID
-                        let created_at: String
-                        let payment_method: String
-                        let total_amount: Double
+                var requests: [DealRequest] = []
 
-                        struct UserInfo: Decodable {
-                            let id: UUID
-                            let first_name: String?
-                            let last_name: String?
-                            let email: String?
-                        }
-                        
-                        struct AddressInfo: Decodable {
-                            let name: String?
-                            let phone: String?
-                            let line1: String?
-                            let city: String?
-                            let state: String?
-                            let postal_code: String?
-                        }
-                        
-                        // users removed from nested join due to potential relationship issues
-                        let addresses: AddressInfo?
-                    }
-                    let orders: OrderInfo
-                }
+                for sellerOrder in pendingOrdersForProduct {
+                    guard let orderUUID = UUID(uuidString: sellerOrder.id) else { continue }
 
-                let response = try await supabase
-                    .from("order_items")
-                    .select("product_id, quantity, price_at_purchase, orders!inner(id, status, user_id, created_at, payment_method, total_amount, addresses(name, phone, line1, city, state, postal_code))")
-                    .eq("product_id", value: productId.uuidString)
-                    .execute()
+                    let order = try await orderRepository.fetchOrderWithDetails(id: sellerOrder.id)
+                    let buyer = try await userRepository.fetchUser(id: order.user_id)
+                    let orderItem = (order.items ?? []).first { $0.product_id == productId } ?? order.items?.first
+                    let address = order.address
 
-                let items = try JSONDecoder().decode([OrderItemResponse].self, from: response.data)
-
-                // Filter for pending orders only
-                let pendingItems = items.filter { $0.orders.status == "pending" }
-                
-                // Fetch buyer profiles separately for names and emails
-                let buyerIds = Set(pendingItems.map { $0.orders.user_id.uuidString })
-                var buyerProfiles: [UUID: (name: String, email: String?)] = [:]
-                
-                if !buyerIds.isEmpty {
-                    struct ProfileResponse: Decodable {
-                        let id: UUID
-                        let first_name: String?
-                        let last_name: String?
-                        let email: String?
-                    }
-                    
-                    do {
-                        let profileResponse = try await supabase
-                            .from("users")
-                            .select("id, first_name, last_name, email")
-                            .in("id", values: Array(buyerIds))
-                            .execute()
-                            
-                        let profiles = try JSONDecoder().decode([ProfileResponse].self, from: profileResponse.data)
-                        for p in profiles {
-                            let first = p.first_name ?? ""
-                            let last = p.last_name ?? ""
-                            let fullName = "\(first) \(last)".trimmingCharacters(in: .whitespaces)
-                            buyerProfiles[p.id] = (fullName, p.email)
-                        }
-                    } catch {
-                        print("⚠️ Failed to fetch buyer profiles:", error)
-                    }
-                }
-
-                let requests = pendingItems.map { item -> DealRequest in
-                    let profile = buyerProfiles[item.orders.user_id]
-                    let buyerName = profile?.name ?? item.orders.addresses?.name ?? "Unknown Buyer".localized
-                    let buyerEmail = profile?.email
-                    
-                    let address = item.orders.addresses
                     let addressString = [address?.line1, address?.city, address?.state, address?.postal_code]
                         .compactMap { $0 }
                         .filter { !$0.isEmpty }
                         .joined(separator: ", ")
 
-                    return DealRequest(
-                        orderId: item.orders.id,
+                    let buyerName = buyer?.displayName ?? address?.name ?? "Unknown Buyer".localized
+                    let buyerEmail = buyer?.email
+
+                    requests.append(DealRequest(
+                        orderId: orderUUID,
                         buyerName: buyerName.isEmpty ? "Unknown Buyer".localized : buyerName,
                         buyerEmail: buyerEmail,
                         buyerPhone: address?.phone,
                         buyerAddress: addressString.isEmpty ? nil : addressString,
-                        orderDate: formatDate(item.orders.created_at),
-                        quantity: item.quantity,
-                        priceAtPurchase: item.price_at_purchase,
-                        paymentMethod: item.orders.payment_method
-                    )
+                        orderDate: formatDate(order.created_at),
+                        quantity: orderItem?.quantity ?? 1,
+                        priceAtPurchase: orderItem?.price_at_purchase ?? order.total_amount,
+                        paymentMethod: order.payment_method
+                    ))
                 }
 
                 await MainActor.run {

@@ -4,6 +4,7 @@
 //
 
 import Foundation
+import FirebaseFirestore
 
 struct EventInsertDTO: Encodable {
     let organizer_id: String

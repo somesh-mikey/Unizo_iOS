@@ -363,17 +363,20 @@ extension NotificationsViewController: UITableViewDataSource, UITableViewDelegat
         let notification = currentData[indexPath.row]
 
         // Mark as read
-        Task {
-            await NotificationManager.shared.markAsRead(notificationId: notification.id)
+        if let notificationId = notification.id {
+            Task {
+                await NotificationManager.shared.markAsRead(notificationId: notificationId)
 
-            // Update local data
-            await MainActor.run {
-                tableView.reloadRows(at: [indexPath], with: .automatic)
+                // Update local data
+                await MainActor.run {
+                    tableView.reloadRows(at: [indexPath], with: .automatic)
+                }
             }
         }
 
         // Determine the order ID from deeplink or notification
         let orderId = notification.deeplinkPayload.orderId ?? notification.orderId
+        let orderUUID = UUID(uuidString: orderId)
 
         // For seller "new order" notifications, check current order status
         // If order is already accepted/rejected, navigate to OrderDetails instead of ConfirmOrder
@@ -385,12 +388,12 @@ extension NotificationsViewController: UITableViewDataSource, UITableViewDelegat
                         if order.status == "pending" {
                             // Order still pending — seller can accept/reject
                             let vc = ConfirmOrderSellerViewController()
-                            vc.orderId = orderId
+                            vc.orderId = orderUUID
                             self.pushOrPresent(vc)
                         } else {
                             // Order already accepted/rejected — show details only
                             let vc = OrderDetailsViewController()
-                            vc.orderId = orderId
+                            vc.orderId = orderUUID
                             self.pushOrPresent(vc)
                         }
                     }
@@ -398,7 +401,7 @@ extension NotificationsViewController: UITableViewDataSource, UITableViewDelegat
                     // On error, fallback to ConfirmOrderSellerViewController
                     await MainActor.run {
                         let vc = ConfirmOrderSellerViewController()
-                        vc.orderId = orderId
+                        vc.orderId = orderUUID
                         self.pushOrPresent(vc)
                     }
                 }
@@ -406,7 +409,7 @@ extension NotificationsViewController: UITableViewDataSource, UITableViewDelegat
         } else {
             // Buyer notifications (accepted, rejected, shipped, delivered) → order details
             let vc = OrderDetailsViewController()
-            vc.orderId = orderId
+            vc.orderId = orderUUID
             pushOrPresent(vc)
         }
     }

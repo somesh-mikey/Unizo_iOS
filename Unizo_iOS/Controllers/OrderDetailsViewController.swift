@@ -4,7 +4,6 @@
 //
 
 import UIKit
-import Supabase
 
 class OrderDetailsViewController: UIViewController {
 
@@ -18,13 +17,14 @@ class OrderDetailsViewController: UIViewController {
     // MARK: - Fetched Data
     private var orderItems: [OrderItemDTO] = []
     private var handoffCode: String?
-    private var orderBuyerId: UUID?
+    private var orderBuyerId: String?
     private let orderRepository = OrderRepository()
     private let notificationRepository = NotificationRepository()
     private let chatRepository = ChatRepository()
+    private let userRepository = UserRepository()
 
     // MARK: - Role Detection
-    private var currentUserId: UUID?
+    private var currentUserId: String?
     private var currentUserIsSeller: Bool = false
 
     // MARK: - Colors
@@ -136,7 +136,7 @@ class OrderDetailsViewController: UIViewController {
         // Subscribe to realtime updates for this order
         if let id = orderId {
             Task {
-                await OrderRealtimeManager.shared.subscribeToOrder(id)
+                await OrderRealtimeManager.shared.subscribeToOrder(id.uuidString)
             }
             // Also do a one-time refresh in case status changed while away
             refreshOrderStatus()
@@ -151,7 +151,7 @@ class OrderDetailsViewController: UIViewController {
 
         Task {
             do {
-                let order = try await orderRepository.fetchOrderWithDetails(id: id)
+                let order = try await orderRepository.fetchOrderWithDetails(id: id.uuidString)
                 await MainActor.run {
                     print("🔄 Fetched order status: \(order.status)")
 
@@ -268,7 +268,7 @@ class OrderDetailsViewController: UIViewController {
         // Unsubscribe from realtime updates when leaving
         if let id = orderId {
             Task {
-                await OrderRealtimeManager.shared.unsubscribeFromOrder(id)
+                await OrderRealtimeManager.shared.unsubscribeFromOrder(id.uuidString)
             }
         }
     }
@@ -276,15 +276,15 @@ class OrderDetailsViewController: UIViewController {
     // MARK: - Realtime Order Update Handler
     @objc private func handleRealtimeOrderUpdate(_ notification: Notification) {
         guard let userInfo = notification.userInfo,
-              let updatedOrderId = userInfo["orderId"] as? UUID,
-              updatedOrderId == orderId,
+                            let updatedOrderId = userInfo["orderId"] as? String,
+                            updatedOrderId == orderId?.uuidString,
               let newStatus = userInfo["newStatus"] as? String else {
             return
         }
 
         let newHandoffCode = userInfo["handoffCode"] as? String
 
-        print("⚡ Realtime update: order \(updatedOrderId.uuidString.prefix(8)) → \(newStatus)")
+        print("⚡ Realtime update: order \(updatedOrderId.prefix(8)) → \(newStatus)")
 
         // Update local state and UI
         if self.orderStatus != newStatus {
@@ -330,7 +330,7 @@ class OrderDetailsViewController: UIViewController {
 
         Task {
             do {
-                let order = try await orderRepository.fetchOrderWithDetails(id: id)
+                let order = try await orderRepository.fetchOrderWithDetails(id: id.uuidString)
                 await MainActor.run {
                     // Update local properties with fetched data
                     self.orderAddress = order.address
@@ -362,7 +362,7 @@ class OrderDetailsViewController: UIViewController {
 
         Task {
             do {
-                let items = try await orderRepository.fetchOrderItems(orderId: id)
+                let items = try await orderRepository.fetchOrderItems(orderId: id.uuidString)
                 await MainActor.run {
                     self.orderItems = items
                     self.detectUserRole()
@@ -1249,7 +1249,7 @@ class OrderDetailsViewController: UIViewController {
     // MARK: - Actions
     @objc private func rateTapped() {
         let ratingVC = OrderRatingViewController()
-        ratingVC.orderId = self.orderId
+        ratingVC.orderId = self.orderId?.uuidString
         ratingVC.currentUserId = self.currentUserId
         ratingVC.ratedUserId = self.currentUserIsSeller ? self.orderBuyerId : (self.orderItems.first?.product?.seller?.id)
         ratingVC.orderRepository = self.orderRepository
@@ -1279,10 +1279,13 @@ class OrderDetailsViewController: UIViewController {
             return
         }
 
-        let productId = product.id
+        guard let productId = product.id else {
+            print("Unable to determine product id")
+            return
+        }
 
         // Determine which user to chat with based on current user's role
-        let otherUserId: UUID?
+        let otherUserId: String?
         if currentUserIsSeller {
             // If current user is seller, chat with buyer (who placed the order)
             otherUserId = orderBuyerId
@@ -1308,7 +1311,12 @@ class OrderDetailsViewController: UIViewController {
                 )
 
                 // Navigate to Chat tab
-                await navigateToChatConversation(conversationId: conversation.id)
+                guard let conversationId = conversation.id else {
+                    throw NSError(domain: "OrderDetailsViewController", code: 404, userInfo: [
+                        NSLocalizedDescriptionKey: "Conversation not found"
+                    ])
+                }
+                await navigateToChatConversation(conversationId: conversationId)
 
                 // Re-enable button
                 DispatchQueue.main.async {
@@ -1331,7 +1339,7 @@ class OrderDetailsViewController: UIViewController {
         }
     }
 
-    private func navigateToChatConversation(conversationId: UUID) async {
+    private func navigateToChatConversation(conversationId: String) async {
         DispatchQueue.main.async {
             // Get the main tab bar controller
             guard let tabBarController = UIApplication.shared.connectedScenes
@@ -1373,23 +1381,23 @@ class OrderDetailsViewController: UIViewController {
         Task {
             do {
                 // Save to DB
-                try await orderRepository.markReadyForHandoff(orderId: orderId, handoffCode: code)
+                try await orderRepository.markReadyForHandoff(orderId: orderId.uuidString, handoffCode: code)
 
                 // Send notification to buyer
                 if let currentUserId = currentUserId {
                     let sellerName = try await fetchSellerDisplayName()
-                    let order = try await orderRepository.fetchOrder(id: orderId)
+                    let order = try await orderRepository.fetchOrder(id: orderId.uuidString)
 
                     let deeplinkPayload = DeeplinkPayload(
                         route: "order_details",
-                        orderId: orderId,
+                        orderId: orderId.uuidString,
                         sellerId: currentUserId
                     )
 
                     try await notificationRepository.createNotification(
                         recipientId: order.user_id,
                         senderId: currentUserId,
-                        orderId: orderId,
+                        orderId: orderId.uuidString,
                         type: .orderShipped,
                         title: sellerName,
                         message: "is ready to hand off your order. Your handoff code: \(code)",
@@ -1432,18 +1440,18 @@ class OrderDetailsViewController: UIViewController {
 
         Task {
             do {
-                let isValid = try await orderRepository.verifyHandoffCode(orderId: orderId, enteredCode: enteredCode)
+                let isValid = try await orderRepository.verifyHandoffCode(orderId: orderId.uuidString, enteredCode: enteredCode)
 
                 if isValid {
                     // Send delivery notifications to both parties
                     if let currentUserId = currentUserId {
                         let sellerName = try await fetchSellerDisplayName()
-                        let order = try await orderRepository.fetchOrder(id: orderId)
+                        let order = try await orderRepository.fetchOrder(id: orderId.uuidString)
                         let buyerName = try await fetchBuyerName(buyerId: order.user_id)
 
                         let deeplinkPayload = DeeplinkPayload(
                             route: "order_details",
-                            orderId: orderId,
+                            orderId: orderId.uuidString,
                             sellerId: currentUserId
                         )
 
@@ -1451,7 +1459,7 @@ class OrderDetailsViewController: UIViewController {
                         try await notificationRepository.createNotification(
                             recipientId: order.user_id,
                             senderId: currentUserId,
-                            orderId: orderId,
+                            orderId: orderId.uuidString,
                             type: .orderDelivered,
                             title: sellerName,
                             message: "has delivered your order. Enjoy!",
@@ -1462,7 +1470,7 @@ class OrderDetailsViewController: UIViewController {
                         try await notificationRepository.createNotification(
                             recipientId: currentUserId,
                             senderId: order.user_id,
-                            orderId: orderId,
+                            orderId: orderId.uuidString,
                             type: .orderDelivered,
                             title: buyerName,
                             message: "confirmed receiving the order. Delivery complete!",
@@ -1503,45 +1511,15 @@ class OrderDetailsViewController: UIViewController {
     private func fetchSellerDisplayName() async throws -> String {
         guard let userId = currentUserId else { return "Seller" }
 
-        struct UserName: Codable {
-            let first_name: String?
-            let last_name: String?
-        }
-
-        let user: UserName = try await SupabaseManager.shared.client
-            .from("users")
-            .select("first_name, last_name")
-            .eq("id", value: userId.uuidString)
-            .single()
-            .execute()
-            .value
-
-        let name = [user.first_name, user.last_name]
-            .compactMap { $0 }
-            .joined(separator: " ")
-            .trimmingCharacters(in: .whitespaces)
+        let user = try await userRepository.fetchUser(id: userId)
+        let name = user?.displayName.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
         return name.isEmpty ? "Seller" : name
     }
 
     // MARK: - Helper: Fetch Buyer Name
-    private func fetchBuyerName(buyerId: UUID) async throws -> String {
-        struct UserName: Codable {
-            let first_name: String?
-            let last_name: String?
-        }
-
-        let user: UserName = try await SupabaseManager.shared.client
-            .from("users")
-            .select("first_name, last_name")
-            .eq("id", value: buyerId.uuidString)
-            .single()
-            .execute()
-            .value
-
-        let name = [user.first_name, user.last_name]
-            .compactMap { $0 }
-            .joined(separator: " ")
-            .trimmingCharacters(in: .whitespaces)
+    private func fetchBuyerName(buyerId: String) async throws -> String {
+        let user = try await userRepository.fetchUser(id: buyerId)
+        let name = user?.displayName.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
         return name.isEmpty ? "Buyer" : name
     }
 

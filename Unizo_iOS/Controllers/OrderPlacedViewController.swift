@@ -10,7 +10,7 @@ class OrderPlacedViewController: UIViewController {
 
     // MARK: - Suggested Products
     private var suggestedProducts: [ProductUIModel] = []
-    private let productRepository = ProductRepository(supabase: supabase)
+    private let productRepository = ProductRepository()
 
     // MARK: - Outlets from XIB
     @IBOutlet weak var topBarContainer: UIView!

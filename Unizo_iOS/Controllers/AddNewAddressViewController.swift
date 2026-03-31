@@ -8,7 +8,7 @@
 import UIKit
 
 class AddNewAddressViewController: UIViewController {
-    private let addressRepository = AddressRepository(client: supabase)
+    private let addressRepository = AddressRepository()
     var onSave: (() -> Void)?
 
     // MARK: - UI
@@ -364,7 +364,7 @@ class AddNewAddressViewController: UIViewController {
                 }
 
                 let newAddress = AddressDTO(
-                    id: UUID(),
+                    id: nil,
                     user_id: userId,
                     name: name,
                     phone: phone,

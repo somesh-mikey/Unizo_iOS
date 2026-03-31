@@ -8,9 +8,9 @@ import UIKit
 class OrderRatingViewController: UIViewController {
     
     // MARK: - Properties
-    var orderId: UUID?
-    var currentUserId: UUID?
-    var ratedUserId: UUID?
+    var orderId: String?
+    var currentUserId: String?
+    var ratedUserId: String?
     var orderRepository: OrderRepository?
     var onRatingSuccess: (() -> Void)?
     

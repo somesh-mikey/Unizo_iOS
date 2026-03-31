@@ -2,27 +2,24 @@
 //  OrderRepository.swift
 //  Unizo_iOS
 //
-//  Created by Soham on 22/01/26.
-//
-//  Data access layer for orders and order ratings. Handles the full
-//  lifecycle: creation, status updates, handoff verification, and
-//  post-delivery ratings.
+//  Data access layer for orders and order ratings using Firestore NoSQL.
+//  Because NoSQL does not support native JOINS, creating an order executes
+//  a Batch Write across `orders` and `order_items` collections, and fetching
+//  makes parallel requests to populate items and nested product data.
 //
 
 import Foundation
-import Supabase
+import FirebaseFirestore
 
 final class OrderRepository {
 
-    private let client: SupabaseClient
+    private let db = Firestore.firestore()
 
-    init(client: SupabaseClient = SupabaseManager.shared.client) {
-        self.client = client
-    }
+    init() { }
 
     // MARK: - Private Helpers
 
-    private func getCurrentUserId() async throws -> UUID {
+    private func getCurrentUserId() async throws -> String {
         guard let userId = await AuthManager.shared.currentUserId else {
             throw NSError(domain: "OrderRepository", code: 401, userInfo: [
                 NSLocalizedDescriptionKey: "User not authenticated"
@@ -39,17 +36,16 @@ final class OrderRepository {
 
     // MARK: - Order Creation
 
-    /// Creates the order record, inserts order items, then sends a notification
-    /// to each seller involved. Returns the new order's UUID.
     func createOrder(
-        addressId: UUID,
+        addressId: String,
         items: [OrderItem],
         totalAmount: Double,
         paymentMethod: String,
         instructions: String?
-    ) async throws -> UUID {
+    ) async throws -> String {
         try requireNetwork()
-        let orderId = UUID()
+        let orderRef = db.collection("orders").document()
+        let orderId = orderRef.documentID
         let userId  = try await getCurrentUserId()
 
         let orderPayload = OrderInsertDTO(
@@ -62,35 +58,36 @@ final class OrderRepository {
             instructions: instructions
         )
 
-        try await client.from("orders").insert(orderPayload).execute()
+        let batch = db.batch()
+        let orderData = try Firestore.Encoder().encode(orderPayload)
+        batch.setData(orderData, forDocument: orderRef)
+
+        var sellerItems: [String: [OrderItem]] = [:]
 
         for item in items {
+            let itemRef = db.collection("order_items").document()
             let itemPayload = OrderItemInsertDTO(
-                id: UUID(),
+                id: itemRef.documentID,
                 order_id: orderId,
-                product_id: item.product.id,
+                product_id: item.product.id ?? "",
                 quantity: item.quantity,
                 price_at_purchase: item.product.price,
                 colour: item.product.colour,
                 size: item.product.size
             )
-            try await client.from("order_items").insert(itemPayload).execute()
-        }
-
-        // Group by seller so each seller gets exactly one notification
-        var sellerItems: [UUID: [OrderItem]] = [:]
-        for item in items {
-            guard let sellerId = item.product.sellerId else {
-                print("⚠️ Product \(item.product.name) has no sellerId — skipping notification")
-                continue
+            let itemData = try Firestore.Encoder().encode(itemPayload)
+            batch.setData(itemData, forDocument: itemRef)
+            
+            if let sellerId = item.product.sellerId {
+                sellerItems[sellerId, default: []].append(item)
             }
-            sellerItems[sellerId, default: []].append(item)
         }
 
+        try await batch.commit()
         print("📦 Order created — notifying \(sellerItems.count) seller(s)")
 
         let buyerName = try await fetchCurrentUserName()
-        let notificationRepo = NotificationRepository(client: client)
+        let notificationRepo = NotificationRepository()
 
         for (sellerId, sellerOrderItems) in sellerItems {
             let productNames = sellerOrderItems.map { $0.product.name }.joined(separator: ", ")
@@ -119,24 +116,11 @@ final class OrderRepository {
         return orderId
     }
 
-    /// Returns a display name from the user's profile. Falls back to email
-    /// prefix, then "A buyer".
     private func fetchCurrentUserName() async throws -> String {
         let userId = try await getCurrentUserId()
 
-        struct UserName: Codable {
-            let first_name: String?
-            let last_name: String?
-            let email: String?
-        }
-
-        let user: UserName = try await client
-            .from("users")
-            .select("first_name, last_name, email")
-            .eq("id", value: userId.uuidString)
-            .single()
-            .execute()
-            .value
+        let doc = try await db.collection("users").document(userId).getDocument()
+        guard let user = try? doc.data(as: UserDTO.self) else { return "A buyer" }
 
         let first = user.first_name ?? ""
         let last  = user.last_name  ?? ""
@@ -152,254 +136,127 @@ final class OrderRepository {
 
     // MARK: - Fetching Orders
 
-    func fetchOrder(id: UUID) async throws -> OrderDTO {
+    func fetchOrder(id: String) async throws -> OrderDTO {
         try requireNetwork()
-        let response: OrderDTO = try await client
-            .from("orders")
-            .select("""
-                id,
-                user_id,
-                address_id,
-                status,
-                total_amount,
-                payment_method,
-                instructions,
-                created_at,
-                handoff_code,
-                handoff_code_generated_at
-            """)
-            .eq("id", value: id.uuidString)
-            .single()
-            .execute()
-            .value
-
-        return response
+        let snapshot = try await db.collection("orders").document(id).getDocument()
+        guard let order = try? snapshot.data(as: OrderDTO.self) else {
+            throw NSError(domain: "OrderRepository", code: 404, userInfo: nil)
+        }
+        return order
     }
 
-    func fetchOrderWithDetails(id: UUID) async throws -> OrderDTO {
+    func fetchOrderWithDetails(id: String) async throws -> OrderDTO {
         try requireNetwork()
-        let response: OrderDTO = try await client
-            .from("orders")
-            .select("""
-                id,
-                user_id,
-                address_id,
-                status,
-                total_amount,
-                payment_method,
-                instructions,
-                created_at,
-                handoff_code,
-                handoff_code_generated_at,
-                items:order_items(
-                    id,
-                    order_id,
-                    product_id,
-                    quantity,
-                    price_at_purchase,
-                    colour,
-                    size,
-                    product:products(
-                        id,
-                        title,
-                        description,
-                        price,
-                        image_url,
-                        is_negotiable,
-                        views_count,
-                        is_active,
-                        rating,
-                        colour,
-                        category,
-                        size,
-                        condition,
-                        seller:users!seller_id(id, first_name, last_name, email)
-                    )
-                ),
-                address:addresses(
-                    id,
-                    user_id,
-                    name,
-                    phone,
-                    line1,
-                    city,
-                    state,
-                    postal_code,
-                    country,
-                    is_default
-                )
-            """)
-            .eq("id", value: id.uuidString)
-            .single()
-            .execute()
-            .value
-
-        return response
+        let orderDoc = try await db.collection("orders").document(id).getDocument()
+        guard var order = try? orderDoc.data(as: OrderDTO.self) else {
+            throw NSError(domain: "OrderRepository", code: 404, userInfo: nil)
+        }
+        
+        // 1. Fetch Address
+        let addressDoc = try await db.collection("users").document(order.user_id).collection("addresses").document(order.address_id).getDocument()
+        order.address = try? addressDoc.data(as: AddressDTO.self)
+        
+        // 2. Fetch Order Items
+        var items = try await fetchOrderItems(orderId: id)
+        
+        // 3. Fetch Product Details + Sellers for each Item
+        let productRepo = ProductRepository()
+        for i in 0..<items.count {
+            let pId = items[i].product_id
+            items[i].product = try? await productRepo.fetchProduct(id: pId)
+        }
+        
+        order.items = items
+        return order
     }
 
     func fetchUserOrders() async throws -> [OrderDTO] {
         try requireNetwork()
         let userId = try await getCurrentUserId()
 
-        let response: [OrderDTO] = try await client
-            .from("orders")
-            .select("""
-                id,
-                user_id,
-                address_id,
-                status,
-                total_amount,
-                payment_method,
-                instructions,
-                created_at,
-                handoff_code,
-                handoff_code_generated_at
-            """)
-            .eq("user_id", value: userId.uuidString)
-            .order("created_at", ascending: false)
-            .execute()
-            .value
+        let snapshot = try await db.collection("orders")
+            .whereField("user_id", isEqualTo: userId)
+            .order(by: "created_at", descending: true)
+            .getDocuments()
 
-        return response
+        return snapshot.documents.compactMap { try? $0.data(as: OrderDTO.self) }
     }
 
-    func fetchOrderItems(orderId: UUID) async throws -> [OrderItemDTO] {
+    func fetchOrderItems(orderId: String) async throws -> [OrderItemDTO] {
         try requireNetwork()
-        let response: [OrderItemDTO] = try await client
-            .from("order_items")
-            .select("""
-                id,
-                order_id,
-                product_id,
-                quantity,
-                price_at_purchase,
-                colour,
-                size,
-                product:products(
-                    id,
-                    title,
-                    description,
-                    price,
-                    image_url,
-                    is_negotiable,
-                    views_count,
-                    is_active,
-                    rating,
-                    colour,
-                    category,
-                    size,
-                    condition,
-                    seller:users!seller_id(id, first_name, last_name, email)
-                )
-            """)
-            .eq("order_id", value: orderId.uuidString)
-            .execute()
-            .value
+        let snapshot = try await db.collection("order_items")
+            .whereField("order_id", isEqualTo: orderId)
+            .getDocuments()
 
-        return response
+        return snapshot.documents.compactMap { try? $0.data(as: OrderItemDTO.self) }
     }
 
     func fetchUserOrdersWithItems() async throws -> [OrderDTO] {
         try requireNetwork()
         let userId = try await getCurrentUserId()
 
-        let response: [OrderDTO] = try await client
-            .from("orders")
-            .select("""
-                id,
-                user_id,
-                address_id,
-                status,
-                total_amount,
-                payment_method,
-                instructions,
-                created_at,
-                handoff_code,
-                handoff_code_generated_at,
-                items:order_items(
-                    id,
-                    order_id,
-                    product_id,
-                    quantity,
-                    price_at_purchase,
-                    colour,
-                    size,
-                    product:products(
-                        id,
-                        title,
-                        description,
-                        price,
-                        image_url,
-                        is_negotiable,
-                        views_count,
-                        is_active,
-                        rating,
-                        colour,
-                        category,
-                        size,
-                        condition
-                    )
-                )
-            """)
-            .eq("user_id", value: userId.uuidString)
-            .order("created_at", ascending: false)
-            .execute()
-            .value
+        let snapshot = try await db.collection("orders")
+            .whereField("user_id", isEqualTo: userId)
+            .order(by: "created_at", descending: true)
+            .getDocuments()
 
-        return response
+        var orders = snapshot.documents.compactMap { try? $0.data(as: OrderDTO.self) }
+        let productRepo = ProductRepository()
+        
+        // Populate items in parallel
+        await withTaskGroup(of: (Int, [OrderItemDTO]).self) { group in
+            for i in 0..<orders.count {
+                if let oId = orders[i].id {
+                    group.addTask {
+                        do {
+                            var items = try await self.fetchOrderItems(orderId: oId)
+                            for j in 0..<items.count {
+                                let pId = items[j].product_id
+                                items[j].product = try? await productRepo.fetchProduct(id: pId)
+                            }
+                            return (i, items)
+                        } catch {
+                            return (i, [])
+                        }
+                    }
+                }
+            }
+            for await (index, fetchedItems) in group {
+                orders[index].items = fetchedItems
+            }
+        }
+        return orders
     }
 
     // MARK: - Status Updates
 
-    func updateOrderStatus(orderId: UUID, status: OrderStatus) async throws {
+    func updateOrderStatus(orderId: String, status: OrderStatus) async throws {
         try requireNetwork()
-        struct StatusUpdate: Encodable { let status: String }
+        print("📝 Updating order \(orderId) → \(status.rawValue)")
 
-        print("📝 Updating order \(orderId.uuidString) → \(status.rawValue)")
-
-        try await client
-            .from("orders")
-            .update(StatusUpdate(status: status.rawValue))
-            .eq("id", value: orderId.uuidString)
-            .execute()
-
-        let updatedOrder = try await fetchOrder(id: orderId)
-        print("🔍 Verified status in DB: \(updatedOrder.status)")
+        try await db.collection("orders").document(orderId).updateData([
+            "status": status.rawValue
+        ])
     }
 
-    /// Sets status to `shipped`, stores the handoff code and generation timestamp.
-    func markReadyForHandoff(orderId: UUID, handoffCode: String) async throws {
+    func markReadyForHandoff(orderId: String, handoffCode: String) async throws {
         try requireNetwork()
-        struct HandoffUpdate: Encodable {
-            let status: String
-            let handoff_code: String
-            let handoff_code_generated_at: String
-        }
-
         let now = ISO8601DateFormatter().string(from: Date())
+        print("🤝 Marking order \(orderId) ready for handoff — code: \(handoffCode)")
 
-        print("🤝 Marking order \(orderId.uuidString) ready for handoff — code: \(handoffCode)")
-
-        try await client
-            .from("orders")
-            .update(HandoffUpdate(
-                status: OrderStatus.shipped.rawValue,
-                handoff_code: handoffCode,
-                handoff_code_generated_at: now
-            ))
-            .eq("id", value: orderId.uuidString)
-            .execute()
-
+        try await db.collection("orders").document(orderId).updateData([
+            "status": OrderStatus.shipped.rawValue,
+            "handoff_code": handoffCode,
+            "handoff_code_generated_at": now
+        ])
         print("✅ Order marked ready for handoff")
     }
 
-    /// Compares `enteredCode` against the stored handoff code.
-    /// If they match, transitions the order to `.delivered` and returns `true`.
-    func verifyHandoffCode(orderId: UUID, enteredCode: String) async throws -> Bool {
+    func verifyHandoffCode(orderId: String, enteredCode: String) async throws -> Bool {
         let order = try await fetchOrder(id: orderId)
 
         guard let storedCode = order.handoff_code else {
-            print("❌ No handoff code found for order \(orderId.uuidString)")
+            print("❌ No handoff code found for order \(orderId)")
             return false
         }
 
@@ -415,11 +272,9 @@ final class OrderRepository {
 
     // MARK: - Ratings
 
-    /// Submits a 1–5 star rating for a user after order completion.
-    /// `review` is optional freeform text.
     func submitOrderRating(
-        orderId: UUID,
-        ratedUserId: UUID,
+        orderId: String,
+        ratedUserId: String,
         rating: Int,
         review: String? = nil
     ) async throws {
@@ -431,7 +286,7 @@ final class OrderRepository {
         }
 
         let raterId = try await getCurrentUserId()
-
+        let ref = db.collection("order_ratings").document()
         let ratingPayload = OrderRatingInsertDTO(
             order_id: orderId,
             rater_id: raterId,
@@ -440,85 +295,65 @@ final class OrderRepository {
             review: review
         )
 
-        try await client.from("order_ratings").insert(ratingPayload).execute()
-        print("✅ Rating submitted: \(rating)★ for user \(ratedUserId.uuidString.prefix(8))")
+        let data = try Firestore.Encoder().encode(ratingPayload)
+        try await ref.setData(data)
+        print("✅ Rating submitted: \(rating)★ for user \(ratedUserId.prefix(8))")
     }
 
-    func fetchOrderRating(orderId: UUID, raterId: UUID) async throws -> OrderRatingDTO? {
-        let response = try await client
-            .from("order_ratings")
-            .select()
-            .eq("order_id", value: orderId.uuidString)
-            .eq("rater_id", value: raterId.uuidString)
-            .single()
-            .execute()
+    func fetchOrderRating(orderId: String, raterId: String) async throws -> OrderRatingDTO? {
+        let snapshot = try await db.collection("order_ratings")
+            .whereField("order_id", isEqualTo: orderId)
+            .whereField("rater_id", isEqualTo: raterId)
+            .getDocuments()
 
-        return try JSONDecoder().decode(OrderRatingDTO.self, from: response.data)
+        return snapshot.documents.first.flatMap { try? $0.data(as: OrderRatingDTO.self) }
     }
 
-    func fetchUserRatings(userId: UUID) async throws -> [OrderRatingDTO] {
-        let response = try await client
-            .from("order_ratings")
-            .select()
-            .eq("rated_user_id", value: userId.uuidString)
-            .order("created_at", ascending: false)
-            .execute()
+    func fetchUserRatings(userId: String) async throws -> [OrderRatingDTO] {
+        let snapshot = try await db.collection("order_ratings")
+            .whereField("rated_user_id", isEqualTo: userId)
+            .order(by: "created_at", descending: true)
+            .getDocuments()
 
-        return try JSONDecoder().decode([OrderRatingDTO].self, from: response.data)
+        return snapshot.documents.compactMap { try? $0.data(as: OrderRatingDTO.self) }
     }
 
-    /// Reads `average_rating` and `total_ratings` from the `users` table
-    /// (these are denormalised columns updated by a DB trigger).
     struct UserRatingSummary: Decodable {
         let average_rating: Double?
         let total_ratings: Int?
     }
 
-    func fetchUserRatingSummary(userId: UUID) async throws -> UserRatingSummary {
-        let response = try await client
-            .from("users")
-            .select("average_rating, total_ratings")
-            .eq("id", value: userId.uuidString)
-            .single()
-            .execute()
-
-        return try JSONDecoder().decode(UserRatingSummary.self, from: response.data)
+    func fetchUserRatingSummary(userId: String) async throws -> UserRatingSummary {
+        let snapshot = try await db.collection("users").document(userId).getDocument()
+        guard let data = snapshot.data() else {
+            return UserRatingSummary(average_rating: 0, total_ratings: 0)
+        }
+        return UserRatingSummary(
+            average_rating: data["average_rating"] as? Double,
+            total_ratings: data["total_ratings"] as? Int
+        )
     }
 
-    func updateOrderRating(ratingId: UUID, newRating: Int, newReview: String? = nil) async throws {
-        struct RatingUpdate: Encodable {
-            let rating: Int
-            let review: String
-        }
-
+    func updateOrderRating(ratingId: String, newRating: Int, newReview: String? = nil) async throws {
         guard newRating >= 1 && newRating <= 5 else {
             throw NSError(domain: "OrderRepository", code: 400, userInfo: [
                 NSLocalizedDescriptionKey: "Rating must be between 1 and 5"
             ])
         }
 
-        try await client
-            .from("order_ratings")
-            .update(RatingUpdate(rating: newRating, review: newReview ?? ""))
-            .eq("id", value: ratingId.uuidString)
-            .execute()
-
+        try await db.collection("order_ratings").document(ratingId).updateData([
+            "rating": newRating,
+            "review": newReview ?? ""
+        ])
         print("✅ Rating updated: \(newRating)★")
     }
 
-    func deleteOrderRating(ratingId: UUID) async throws {
-        try await client
-            .from("order_ratings")
-            .delete()
-            .eq("id", value: ratingId.uuidString)
-            .execute()
-
+    func deleteOrderRating(ratingId: String) async throws {
+        try await db.collection("order_ratings").document(ratingId).delete()
         print("✅ Rating deleted")
     }
 
-    /// Returns `true` if the current user is the buyer or seller of `orderId`
-    /// and the order status is `delivered`.
-    func canRateOrder(_ orderId: UUID) async throws -> Bool {
+    func canRateOrder(_ orderId: String) async throws -> Bool {
         do {
             let order = try await fetchOrder(id: orderId)
             guard order.status == "delivered" else { return false }
@@ -532,31 +367,16 @@ final class OrderRepository {
         }
     }
 
-    private func isUserSellerInOrder(_ orderId: UUID, userId: UUID) async throws -> Bool {
-        let response = try await client
-            .from("order_items")
-            .select("product_id")
-            .eq("order_id", value: orderId.uuidString)
-            .execute()
-
-        struct OrderItem: Decodable { let product_id: UUID }
-
-        let items = try JSONDecoder().decode([OrderItem].self, from: response.data)
-
+    private func isUserSellerInOrder(_ orderId: String, userId: String) async throws -> Bool {
+        let items = try await fetchOrderItems(orderId: orderId)
+        
         for item in items {
-            let productResponse = try await client
-                .from("products")
-                .select("seller_id")
-                .eq("id", value: item.product_id.uuidString)
-                .single()
-                .execute()
-
-            struct Product: Decodable { let seller_id: UUID }
-
-            let product = try JSONDecoder().decode(Product.self, from: productResponse.data)
-            if product.seller_id == userId { return true }
+            let productId = item.product_id
+            let productDoc = try await db.collection("products").document(productId).getDocument()
+            if let sellerId = productDoc.data()?["seller_id"] as? String, sellerId == userId {
+                return true
+            }
         }
-
         return false
     }
 }

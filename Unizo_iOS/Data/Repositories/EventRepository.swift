@@ -4,15 +4,13 @@
 //
 
 import Foundation
-import Supabase
+import FirebaseFirestore
 
 final class EventRepository {
 
-    private let client: SupabaseClient
+    private let db = Firestore.firestore()
 
-    init(client: SupabaseClient = SupabaseManager.shared.client) {
-        self.client = client
-    }
+    init() {}
 
     // MARK: - Network Guard
     private func requireNetwork() throws {
@@ -24,86 +22,37 @@ final class EventRepository {
     // MARK: - Fetch All Active Events
     func fetchEvents() async throws -> [EventDTO] {
         try requireNetwork()
-        let response = try await client
-            .from("events")
-            .select("""
-                id,
-                title,
-                description,
-                venue,
-                event_date,
-                event_time,
-                price,
-                is_free,
-                image_url,
-                is_active,
-                created_at
-            """)
-            .eq("is_active", value: true)
-            .order("event_date", ascending: true)
-            .execute()
+        let snapshot = try await db.collection("events")
+            .whereField("is_active", isEqualTo: true)
+            .order(by: "event_date", descending: false)
+            .getDocuments()
 
-        return try JSONDecoder().decode([EventDTO].self, from: response.data)
+        return snapshot.documents.compactMap { try? $0.data(as: EventDTO.self) }
     }
 
     // MARK: - Fetch Featured Events
     func fetchFeaturedEvents() async throws -> [EventDTO] {
         try requireNetwork()
-        let response = try await client
-            .from("events")
-            .select("""
-                id,
-                title,
-                description,
-                venue,
-                event_date,
-                event_time,
-                price,
-                is_free,
-                image_url,
-                is_active,
-                created_at
-            """)
-            .eq("is_active", value: true)
-            .order("event_date", ascending: true)
-            .limit(10)
-            .execute()
+        let snapshot = try await db.collection("events")
+            .whereField("is_active", isEqualTo: true)
+            .order(by: "event_date", descending: false)
+            .limit(to: 10)
+            .getDocuments()
 
-        return try JSONDecoder().decode([EventDTO].self, from: response.data)
+        return snapshot.documents.compactMap { try? $0.data(as: EventDTO.self) }
     }
 
     // MARK: - Fetch Event by ID
-    func fetchEvent(id: UUID) async throws -> EventDTO {
+    func fetchEvent(id: String) async throws -> EventDTO {
         try requireNetwork()
-        let response: EventDTO = try await client
-            .from("events")
-            .select("""
-                id,
-                title,
-                description,
-                venue,
-                event_date,
-                event_time,
-                price,
-                is_free,
-                image_url,
-                is_active,
-                created_at
-            """)
-            .eq("id", value: id.uuidString)
-            .single()
-            .execute()
-            .value
-
-        return response
+        let document = try await db.collection("events").document(id).getDocument()
+        return try document.data(as: EventDTO.self)
     }
 
     // MARK: - Insert Event
     func insertEvent(_ event: EventInsertDTO) async throws {
         try requireNetwork()
-        try await client
-            .from("events")
-            .insert(event)
-            .execute()
+        let ref = db.collection("events").document()
+        try ref.setData(from: event)
     }
 }
