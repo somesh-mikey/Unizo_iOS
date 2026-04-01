@@ -261,14 +261,20 @@ final class NotificationsViewController: UIViewController {
                     // Show empty state if needed
                     self.emptyStateLabel.isHidden = !self.currentData.isEmpty
                     self.clearAllButton.isHidden = self.allNotifications.isEmpty
+
+                    print("🔔 [Stage 3 Complete] NotificationsVC showing \(mapped.count) notifications (selling: \(self.sellingNotifications.count), buying: \(self.buyingNotifications.count))")
                 }
             } catch {
-                print("Failed to load notifications: \(error)")
+                print("❌ [NotificationsVC] \(type(of: error)): \(error)")
                 await MainActor.run {
                     self.refreshControl.endRefreshing()
                     self.loadingIndicator.stopAnimating()
                     self.isLoading = false
+                    #if DEBUG
+                    self.emptyStateLabel.text = "Load failed:\n\(error.localizedDescription)"
+                    #else
                     self.emptyStateLabel.text = "Failed to load notifications".localized
+                    #endif
                     self.emptyStateLabel.isHidden = false
                 }
             }
@@ -376,7 +382,6 @@ extension NotificationsViewController: UITableViewDataSource, UITableViewDelegat
 
         // Determine the order ID from deeplink or notification
         let orderId = notification.deeplinkPayload.orderId ?? notification.orderId
-        let orderUUID = UUID(uuidString: orderId)
 
         // For seller "new order" notifications, check current order status
         // If order is already accepted/rejected, navigate to OrderDetails instead of ConfirmOrder
@@ -388,12 +393,12 @@ extension NotificationsViewController: UITableViewDataSource, UITableViewDelegat
                         if order.status == "pending" {
                             // Order still pending — seller can accept/reject
                             let vc = ConfirmOrderSellerViewController()
-                            vc.orderId = orderUUID
+                            vc.orderId = orderId
                             self.pushOrPresent(vc)
                         } else {
                             // Order already accepted/rejected — show details only
                             let vc = OrderDetailsViewController()
-                            vc.orderId = orderUUID
+                            vc.orderId = orderId
                             self.pushOrPresent(vc)
                         }
                     }
@@ -401,7 +406,7 @@ extension NotificationsViewController: UITableViewDataSource, UITableViewDelegat
                     // On error, fallback to ConfirmOrderSellerViewController
                     await MainActor.run {
                         let vc = ConfirmOrderSellerViewController()
-                        vc.orderId = orderUUID
+                        vc.orderId = orderId
                         self.pushOrPresent(vc)
                     }
                 }
@@ -409,7 +414,7 @@ extension NotificationsViewController: UITableViewDataSource, UITableViewDelegat
         } else {
             // Buyer notifications (accepted, rejected, shipped, delivered) → order details
             let vc = OrderDetailsViewController()
-            vc.orderId = orderUUID
+            vc.orderId = orderId
             pushOrPresent(vc)
         }
     }

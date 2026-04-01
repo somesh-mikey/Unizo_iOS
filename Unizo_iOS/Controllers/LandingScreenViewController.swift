@@ -727,8 +727,27 @@ class LandingScreenViewController: UIViewController {
             loader.stopAnimating()
             showOfflineOverlay()
         } catch {
-            print("❌ Failed to load products:", error)
+            print("❌ [LandingScreenVC] \(type(of: error)): \(error)")
             loader.stopAnimating()
+            loader.removeFromSuperview()
+            refreshControl.endRefreshing()
+            // Show empty state so user knows fetch failed
+            view.viewWithTag(8888)?.removeFromSuperview()
+            let label = UILabel()
+            label.tag = 8888
+            label.text = "Couldn't load products.\nPull down to retry."
+            label.numberOfLines = 0
+            label.textAlignment = .center
+            label.font = .preferredFont(forTextStyle: .subheadline)
+            label.textColor = .secondaryLabel
+            label.translatesAutoresizingMaskIntoConstraints = false
+            view.addSubview(label)
+            NSLayoutConstraint.activate([
+                label.centerXAnchor.constraint(equalTo: view.centerXAnchor),
+                label.centerYAnchor.constraint(equalTo: view.centerYAnchor),
+                label.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 32),
+                label.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -32)
+            ])
         }
     }
     @MainActor
@@ -739,9 +758,9 @@ class LandingScreenViewController: UIViewController {
 
             if dtos.isEmpty {
                 self.banners = [
-                    BannerUIModel(imageURL: "banner1"),
-                    BannerUIModel(imageURL: "banner2"),
-                    BannerUIModel(imageURL: "banner3")
+                    BannerUIModel(imageURL: ""),
+                    BannerUIModel(imageURL: ""),
+                    BannerUIModel(imageURL: "")
                 ]
             } else {
                 self.banners = dtos.map { BannerUIModel(imageURL: $0.image_url) }
@@ -894,7 +913,16 @@ class LandingScreenViewController: UIViewController {
                 )
 
             } catch {
-                print("❌ Category fetch failed:", error)
+                print("❌ [LandingScreenVC] Category fetch \(type(of: error)): \(error)")
+                await MainActor.run {
+                    let alert = UIAlertController(
+                        title: "Error".localized,
+                        message: "Couldn't load category. Please try again.".localized,
+                        preferredStyle: .alert
+                    )
+                    alert.addAction(UIAlertAction(title: "OK".localized, style: .default))
+                    self.present(alert, animated: true)
+                }
             }
         }
     }
@@ -942,7 +970,26 @@ class LandingScreenViewController: UIViewController {
 
         } catch {
             refreshControl.endRefreshing()
-            print("❌ Refresh failed:", error)
+            print("❌ [LandingScreenVC] Refresh \(type(of: error)): \(error)")
+            // Show inline error — products from previous load (if any) remain visible
+            view.viewWithTag(8888)?.removeFromSuperview()
+            if displayedProducts.isEmpty {
+                let label = UILabel()
+                label.tag = 8888
+                label.text = "Refresh failed.\nPull down to try again."
+                label.numberOfLines = 0
+                label.textAlignment = .center
+                label.font = .preferredFont(forTextStyle: .subheadline)
+                label.textColor = .secondaryLabel
+                label.translatesAutoresizingMaskIntoConstraints = false
+                view.addSubview(label)
+                NSLayoutConstraint.activate([
+                    label.centerXAnchor.constraint(equalTo: view.centerXAnchor),
+                    label.centerYAnchor.constraint(equalTo: view.centerYAnchor),
+                    label.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 32),
+                    label.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -32)
+                ])
+            }
         }
     }
     // MARK: - Native Pull-Down Menu (UIMenu)

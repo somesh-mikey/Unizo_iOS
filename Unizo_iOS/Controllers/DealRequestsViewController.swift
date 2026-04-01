@@ -19,7 +19,7 @@ class DealRequestsViewController: UIViewController {
 
     // MARK: - Data Model
     struct DealRequest {
-        let orderId: UUID
+        let orderId: String
         let buyerName: String
         let buyerEmail: String?
         let buyerPhone: String?
@@ -206,8 +206,6 @@ class DealRequestsViewController: UIViewController {
                 var requests: [DealRequest] = []
 
                 for sellerOrder in pendingOrdersForProduct {
-                    guard let orderUUID = UUID(uuidString: sellerOrder.id) else { continue }
-
                     let order = try await orderRepository.fetchOrderWithDetails(id: sellerOrder.id)
                     let buyer = try await userRepository.fetchUser(id: order.user_id)
                     let orderItem = (order.items ?? []).first { $0.product_id == productId } ?? order.items?.first
@@ -222,7 +220,7 @@ class DealRequestsViewController: UIViewController {
                     let buyerEmail = buyer?.email
 
                     requests.append(DealRequest(
-                        orderId: orderUUID,
+                        orderId: sellerOrder.id,
                         buyerName: buyerName.isEmpty ? "Unknown Buyer".localized : buyerName,
                         buyerEmail: buyerEmail,
                         buyerPhone: address?.phone,
@@ -243,10 +241,11 @@ class DealRequestsViewController: UIViewController {
                 }
 
             } catch {
-                print("❌ Failed to fetch deal requests:", error)
+                print("❌ [DealRequestsVC] \(type(of: error)): \(error)")
                 await MainActor.run {
                     self.loadingIndicator.stopAnimating()
                     self.refreshControl.endRefreshing()
+                    self.emptyStateLabel.text = "Couldn't load deal requests.\nPull to retry.".localized
                     self.updateEmptyState()
                 }
             }
@@ -309,7 +308,7 @@ extension DealRequestsViewController: UITableViewDelegate, UITableViewDataSource
         return 180
     }
 
-    private func navigateToConfirmOrder(orderId: UUID) {
+    private func navigateToConfirmOrder(orderId: String) {
         let confirmVC = ConfirmOrderSellerViewController()
         confirmVC.orderId = orderId
         navigationController?.pushViewController(confirmVC, animated: true)

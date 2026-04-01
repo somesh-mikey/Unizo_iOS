@@ -87,6 +87,25 @@ final class AuthManager {
         try await user.updatePassword(to: newPassword)
     }
 
+    /// Validates the current Firebase Auth session by refreshing the ID token.
+    /// Returns `true` if the session is valid and usable, `false` if expired/missing.
+    /// Call on app launch before starting any realtime listeners.
+    func validateSession() async -> Bool {
+        guard let user = auth.currentUser else {
+            print("⚠️ [AuthManager] No current user — session invalid")
+            return false
+        }
+        do {
+            _ = try await user.getIDToken()
+            print("✅ [AuthManager] Session valid for user: \(user.uid)")
+            return true
+        } catch {
+            print("⚠️ [AuthManager] Session token refresh failed: \(error)")
+            try? auth.signOut()
+            return false
+        }
+    }
+
     func signOut() async throws {
         try auth.signOut()
     }

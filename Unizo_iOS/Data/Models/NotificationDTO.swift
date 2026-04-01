@@ -34,7 +34,7 @@ struct DeeplinkPayload: Codable {
     }
 }
 
-// MARK: - Notification DTO (for fetching from Supabase)
+// MARK: - Notification DTO (for fetching from Firestore)
 struct NotificationDTO: Codable {
     @DocumentID var id: String?
     let recipient_id: String      // Who receives (seller or buyer)

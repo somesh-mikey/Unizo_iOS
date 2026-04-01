@@ -282,13 +282,13 @@ class EventDetailsViewController: UIViewController {
 
         titleLabel.text = event.title
         dateLabel.text = event.formattedDate
-        timeLabel.text = event.event_time
-        venueLabel.text = event.venue
+        timeLabel.text = event.event_time ?? "TBD"
+        venueLabel.text = event.venue ?? "TBD"
         descriptionLabel.text = event.description ?? "No description available.".localized
         priceLabel.text = event.priceDisplay
 
         // Update button title based on free/paid
-        bookButton.setTitle(event.is_free ? "Register".localized : "Book Now".localized, for: .normal)
+        bookButton.setTitle((event.is_free ?? false) ? "Register".localized : "Book Now".localized, for: .normal)
 
         // Load image
         if let imageURL = event.image_url, !imageURL.isEmpty {
@@ -305,8 +305,8 @@ class EventDetailsViewController: UIViewController {
     @objc private func bookButtonTapped() {
         // TODO: Implement booking/registration flow
         let alert = UIAlertController(
-            title: event.is_free ? "Registration".localized : "Booking".localized,
-            message: event.is_free ? "You have successfully registered for this event!".localized : "Proceed to payment for this event.".localized,
+            title: (event.is_free ?? false) ? "Registration".localized : "Booking".localized,
+            message: (event.is_free ?? false) ? "You have successfully registered for this event!".localized : "Proceed to payment for this event.".localized,
             preferredStyle: .alert
         )
         alert.addAction(UIAlertAction(title: "OK".localized, style: .default))

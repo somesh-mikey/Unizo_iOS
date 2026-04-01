@@ -8,7 +8,7 @@ import UIKit
 class OrderDetailsViewController: UIViewController {
 
     // MARK: - Order Data (passed from OrderPlacedViewController)
-    var orderId: UUID?
+    var orderId: String?
     var orderAddress: AddressDTO?
     var orderTotal: Double = 0
     var orderCreatedAt: String?  // ISO8601 timestamp
@@ -136,7 +136,7 @@ class OrderDetailsViewController: UIViewController {
         // Subscribe to realtime updates for this order
         if let id = orderId {
             Task {
-                await OrderRealtimeManager.shared.subscribeToOrder(id.uuidString)
+                await OrderRealtimeManager.shared.subscribeToOrder(id)
             }
             // Also do a one-time refresh in case status changed while away
             refreshOrderStatus()
@@ -147,11 +147,11 @@ class OrderDetailsViewController: UIViewController {
     private func refreshOrderStatus() {
         guard let id = orderId else { return }
 
-        print("🔄 Refreshing order status for order: \(id.uuidString)")
+        print("🔄 Refreshing order status for order: \(id)")
 
         Task {
             do {
-                let order = try await orderRepository.fetchOrderWithDetails(id: id.uuidString)
+                let order = try await orderRepository.fetchOrderWithDetails(id: id)
                 await MainActor.run {
                     print("🔄 Fetched order status: \(order.status)")
 
@@ -268,7 +268,7 @@ class OrderDetailsViewController: UIViewController {
         // Unsubscribe from realtime updates when leaving
         if let id = orderId {
             Task {
-                await OrderRealtimeManager.shared.unsubscribeFromOrder(id.uuidString)
+                await OrderRealtimeManager.shared.unsubscribeFromOrder(id)
             }
         }
     }
@@ -277,7 +277,7 @@ class OrderDetailsViewController: UIViewController {
     @objc private func handleRealtimeOrderUpdate(_ notification: Notification) {
         guard let userInfo = notification.userInfo,
                             let updatedOrderId = userInfo["orderId"] as? String,
-                            updatedOrderId == orderId?.uuidString,
+                            updatedOrderId == orderId,
               let newStatus = userInfo["newStatus"] as? String else {
             return
         }
@@ -305,7 +305,7 @@ class OrderDetailsViewController: UIViewController {
     private func updateUIWithOrderData() {
         // Update status card with real data
         if let id = orderId {
-            let shortId = String(id.uuidString.prefix(8)).uppercased()
+            let shortId = String(id.prefix(8)).uppercased()
             orderIdLabel.text = "#ORD-\(shortId)"
         }
         totalAmountLabel.text = "₹\(Int(orderTotal))"
@@ -330,7 +330,7 @@ class OrderDetailsViewController: UIViewController {
 
         Task {
             do {
-                let order = try await orderRepository.fetchOrderWithDetails(id: id.uuidString)
+                let order = try await orderRepository.fetchOrderWithDetails(id: id)
                 await MainActor.run {
                     // Update local properties with fetched data
                     self.orderAddress = order.address
@@ -362,7 +362,7 @@ class OrderDetailsViewController: UIViewController {
 
         Task {
             do {
-                let items = try await orderRepository.fetchOrderItems(orderId: id.uuidString)
+                let items = try await orderRepository.fetchOrderItems(orderId: id)
                 await MainActor.run {
                     self.orderItems = items
                     self.detectUserRole()
@@ -1249,7 +1249,7 @@ class OrderDetailsViewController: UIViewController {
     // MARK: - Actions
     @objc private func rateTapped() {
         let ratingVC = OrderRatingViewController()
-        ratingVC.orderId = self.orderId?.uuidString
+        ratingVC.orderId = self.orderId
         ratingVC.currentUserId = self.currentUserId
         ratingVC.ratedUserId = self.currentUserIsSeller ? self.orderBuyerId : (self.orderItems.first?.product?.seller?.id)
         ratingVC.orderRepository = self.orderRepository
@@ -1381,23 +1381,23 @@ class OrderDetailsViewController: UIViewController {
         Task {
             do {
                 // Save to DB
-                try await orderRepository.markReadyForHandoff(orderId: orderId.uuidString, handoffCode: code)
+                try await orderRepository.markReadyForHandoff(orderId: orderId, handoffCode: code)
 
                 // Send notification to buyer
                 if let currentUserId = currentUserId {
                     let sellerName = try await fetchSellerDisplayName()
-                    let order = try await orderRepository.fetchOrder(id: orderId.uuidString)
+                    let order = try await orderRepository.fetchOrder(id: orderId)
 
                     let deeplinkPayload = DeeplinkPayload(
                         route: "order_details",
-                        orderId: orderId.uuidString,
+                        orderId: orderId,
                         sellerId: currentUserId
                     )
 
                     try await notificationRepository.createNotification(
                         recipientId: order.user_id,
                         senderId: currentUserId,
-                        orderId: orderId.uuidString,
+                        orderId: orderId,
                         type: .orderShipped,
                         title: sellerName,
                         message: "is ready to hand off your order. Your handoff code: \(code)",
@@ -1440,18 +1440,18 @@ class OrderDetailsViewController: UIViewController {
 
         Task {
             do {
-                let isValid = try await orderRepository.verifyHandoffCode(orderId: orderId.uuidString, enteredCode: enteredCode)
+                let isValid = try await orderRepository.verifyHandoffCode(orderId: orderId, enteredCode: enteredCode)
 
                 if isValid {
                     // Send delivery notifications to both parties
                     if let currentUserId = currentUserId {
                         let sellerName = try await fetchSellerDisplayName()
-                        let order = try await orderRepository.fetchOrder(id: orderId.uuidString)
+                        let order = try await orderRepository.fetchOrder(id: orderId)
                         let buyerName = try await fetchBuyerName(buyerId: order.user_id)
 
                         let deeplinkPayload = DeeplinkPayload(
                             route: "order_details",
-                            orderId: orderId.uuidString,
+                            orderId: orderId,
                             sellerId: currentUserId
                         )
 
@@ -1459,7 +1459,7 @@ class OrderDetailsViewController: UIViewController {
                         try await notificationRepository.createNotification(
                             recipientId: order.user_id,
                             senderId: currentUserId,
-                            orderId: orderId.uuidString,
+                            orderId: orderId,
                             type: .orderDelivered,
                             title: sellerName,
                             message: "has delivered your order. Enjoy!",
@@ -1470,7 +1470,7 @@ class OrderDetailsViewController: UIViewController {
                         try await notificationRepository.createNotification(
                             recipientId: currentUserId,
                             senderId: order.user_id,
-                            orderId: orderId.uuidString,
+                            orderId: orderId,
                             type: .orderDelivered,
                             title: buyerName,
                             message: "confirmed receiving the order. Delivery complete!",

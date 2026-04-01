@@ -10,7 +10,7 @@ import UIKit
 class OrderAcceptedViewController: UIViewController {
 
     // MARK: - Data passed from ConfirmOrderSellerVC
-    var orderId: UUID?
+    var orderId: String?
     var buyerName: String?
 
     private let scrollView = UIScrollView()

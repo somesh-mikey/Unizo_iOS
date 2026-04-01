@@ -3,7 +3,7 @@ import UIKit
 class OrderPlacedViewController: UIViewController {
 
     // MARK: - Order Data (passed from ConfirmOrderViewController)
-    var orderId: UUID?
+    var orderId: String?
     var orderAddress: AddressDTO?
     var orderedCategories: [String] = []
     var orderTotal: Double = 0

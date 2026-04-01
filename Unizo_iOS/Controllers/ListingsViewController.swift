@@ -225,9 +225,12 @@ class ListingsViewController: UIViewController {
                     self.refreshControl.endRefreshing()
                 }
             } catch {
-                print("❌ Failed to fetch listings:", error)
+                print("❌ [ListingsVC] \(type(of: error)): \(error)")
                 await MainActor.run {
                     self.refreshControl.endRefreshing()
+                    self.emptyStateLabel.text = "Couldn't load listings.\nPull to retry."
+                    self.emptyStateContainer.isHidden = false
+                    self.collectionView.isHidden = true
                 }
             }
         }

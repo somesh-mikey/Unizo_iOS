@@ -137,10 +137,10 @@ class BrowseEventsViewController: UIViewController {
                     self.loadEventCards()
                 }
             } catch {
-                print("❌ Failed to fetch events:", error)
-                // Show empty state or error message
+                print("❌ [BrowseEventsVC] \(type(of: error)): \(error)")
+                // Show empty state with error message
                 await MainActor.run {
-                    self.showEmptyState()
+                    self.showEmptyState(message: "Couldn't load events.\nCheck your connection.")
                 }
             }
         }
@@ -156,11 +156,11 @@ class BrowseEventsViewController: UIViewController {
             let card = EventCardView(
                 imageURL: event.image_url,
                 title: event.title,
-                venue: event.venue,
-                time: event.event_time,
+                venue: event.venue ?? "TBD",
+                time: event.event_time ?? "",
                 date: event.formattedDate,
                 price: event.priceDisplay,
-                buttonTitle: event.is_free ? "Register".localized : "Book Now".localized
+                buttonTitle: (event.is_free ?? false) ? "Register".localized : "Book Now".localized
             )
 
             // Set tap handler to navigate to event details
@@ -182,11 +182,12 @@ class BrowseEventsViewController: UIViewController {
 
     // MARK: - Empty State
 
-    private func showEmptyState() {
+    private func showEmptyState(message: String = "No events available at the moment") {
         let emptyLabel = UILabel()
-        emptyLabel.text = "No events available at the moment".localized
+        emptyLabel.text = message.localized
         emptyLabel.textColor = .secondaryLabel
         emptyLabel.textAlignment = .center
+        emptyLabel.numberOfLines = 0
         emptyLabel.font = .systemFont(ofSize: 16)
         emptyLabel.translatesAutoresizingMaskIntoConstraints = false
 

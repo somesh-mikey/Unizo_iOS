@@ -17,7 +17,7 @@ enum OrderStatus: String, Codable {
     case cancelled = "cancelled"
 }
 
-// MARK: - Order DTO (for fetching from Supabase)
+// MARK: - Order DTO (for fetching from Firestore)
 struct OrderDTO: Codable {
     @DocumentID var id: String?
     let user_id: String

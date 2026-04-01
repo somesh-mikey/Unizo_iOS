@@ -332,7 +332,7 @@ class MyOrdersViewController: UIViewController {
     // MARK: - Navigate to Order Details
     private func navigateToOrderDetails(order: OrderDTO) {
         let vc = OrderDetailsViewController()
-        vc.orderId = order.id.flatMap(UUID.init(uuidString:))
+        vc.orderId = order.id
         vc.orderAddress = order.address
         vc.orderTotal = order.total_amount
         vc.orderCreatedAt = order.created_at

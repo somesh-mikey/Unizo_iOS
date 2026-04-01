@@ -10,7 +10,7 @@ import UIKit
 class ConfirmOrderSellerViewController: UIViewController {
 
     // MARK: - Order Data (passed from notification)
-    var orderId: UUID?
+    var orderId: String?
 
     // MARK: - Fetched Data
     private let orderRepository = OrderRepository()
@@ -265,7 +265,7 @@ class ConfirmOrderSellerViewController: UIViewController {
     }
 
     // MARK: - Load Order Details
-    private func loadOrderDetails(orderId: UUID) {
+    private func loadOrderDetails(orderId: String) {
         guard !isLoading else { return }
         isLoading = true
         loadingIndicator.startAnimating()
@@ -273,7 +273,7 @@ class ConfirmOrderSellerViewController: UIViewController {
         Task {
             do {
                 // Fetch full order with items and address
-                let order = try await orderRepository.fetchOrderWithDetails(id: orderId.uuidString)
+                let order = try await orderRepository.fetchOrderWithDetails(id: orderId)
                 self.orderDetails = order
                 self.buyerAddress = order.address
 
@@ -601,7 +601,7 @@ private extension ConfirmOrderSellerViewController {
 
         Task {
             do {
-                print("🛒 Seller accepting order: \(orderId.uuidString)")
+                print("🛒 Seller accepting order: \(orderId)")
 
                 // Guard: if sellerItems is empty, show error and bail
                 guard !sellerItems.isEmpty else {
@@ -615,7 +615,7 @@ private extension ConfirmOrderSellerViewController {
                 }
 
                 // Update order status to confirmed
-                try await orderRepository.updateOrderStatus(orderId: orderId.uuidString, status: .confirmed)
+                try await orderRepository.updateOrderStatus(orderId: orderId, status: .confirmed)
 
                 print("✅ Order status update completed")
 
@@ -667,19 +667,21 @@ private extension ConfirmOrderSellerViewController {
                     // Create notification for buyer
                     let deeplinkPayload = DeeplinkPayload(
                         route: "order_details",
-                        orderId: orderId.uuidString,
+                        orderId: orderId,
                         sellerId: currentSellerId
                     )
 
                     try await notificationRepository.createNotification(
                         recipientId: order.user_id,  // Buyer receives
                         senderId: currentSellerId,    // Seller triggered
-                        orderId: orderId.uuidString,
+                        orderId: orderId,
                         type: .orderAccepted,
                         title: sellerName,
                         message: "accepted your order for".localized + " \(productName).",
                         deeplinkPayload: deeplinkPayload
                     )
+
+                    print("🔔 [Stage 1 Complete] Notification written to Firestore for buyer: \(order.user_id)")
                 }
 
                 await MainActor.run {
@@ -727,7 +729,7 @@ private extension ConfirmOrderSellerViewController {
         Task {
             do {
                 // Update order status to cancelled
-                try await orderRepository.updateOrderStatus(orderId: orderId.uuidString, status: .cancelled)
+                try await orderRepository.updateOrderStatus(orderId: orderId, status: .cancelled)
 
                 // Notify the buyer that their order was rejected
                 if let order = orderDetails,
@@ -742,14 +744,14 @@ private extension ConfirmOrderSellerViewController {
                     // Create notification for buyer
                     let deeplinkPayload = DeeplinkPayload(
                         route: "order_details",
-                        orderId: orderId.uuidString,
+                        orderId: orderId,
                         sellerId: currentSellerId
                     )
 
                     try await notificationRepository.createNotification(
                         recipientId: order.user_id,  // Buyer receives
                         senderId: currentSellerId,    // Seller triggered
-                        orderId: orderId.uuidString,
+                        orderId: orderId,
                         type: .orderRejected,
                         title: sellerName,
                         message: "rejected your order for".localized + " \(productName).",

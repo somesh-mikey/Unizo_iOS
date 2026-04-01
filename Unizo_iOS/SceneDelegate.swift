@@ -36,11 +36,16 @@ class SceneDelegate: UIResponder, UIWindowSceneDelegate {
     func sceneDidDisconnect(_ scene: UIScene) {}
 
     func sceneDidBecomeActive(_ scene: UIScene) {
-        // Start notification listener if user is already logged in
+        // Validate session before starting realtime listeners.
+        // If the token is expired or corrupt, skip listeners — the auth flow
+        // (SplashViewController → WelcomeViewController) handles re-authentication.
         Task {
-            if await AuthManager.shared.isLoggedIn {
+            let sessionValid = await AuthManager.shared.validateSession()
+            if sessionValid {
                 await NotificationManager.shared.startListening()
                 await ChatManager.shared.startListening()
+            } else {
+                print("⚠️ [SceneDelegate] Session invalid — skipping notification/chat listeners")
             }
         }
 

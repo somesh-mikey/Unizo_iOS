@@ -45,6 +45,12 @@ final class NotificationManager {
     private var currentUserId: String?
     private var isListening = false
 
+    /// Tracks whether the initial Firestore snapshot has been received.
+    /// Firestore's `addSnapshotListener` fires immediately with ALL existing
+    /// documents as `.added` on first attach. We skip that batch to avoid
+    /// double-counting the unread count (already set by `refreshUnreadCount()`).
+    private var didReceiveInitialSnapshot = false
+
     weak var delegate: NotificationManagerDelegate?
 
     /// Current unread count. Assigning a new value notifies the delegate
@@ -69,36 +75,46 @@ final class NotificationManager {
     /// Starts the realtime subscription and fetches the initial unread count.
     /// Safe to call on every login — duplicate calls are no-ops.
     func startListening() async {
-        guard !isListening else { return }
+        guard !isListening else {
+            print("NotificationManager: Already listening — no-op")
+            return
+        }
 
         guard let userId = await AuthManager.shared.currentUserId else {
-            print("NotificationManager: User not authenticated, skipping")
+            print("❌ NotificationManager: Cannot start — user not authenticated")
             return
         }
 
         currentUserId = userId
         isListening   = true
 
+        print("NotificationManager: Starting for user \(userId)")
+
         await refreshUnreadCount()
         subscribeToRealtime(userId: userId)
 
-        print("NotificationManager: Started listening for user \(userId)")
+        print("NotificationManager: ✅ Fully started for user \(userId)")
     }
 
     /// Tears down the realtime listener and resets state. Call on sign-out.
     func stopListening() async {
-        guard isListening else { return }
+        guard isListening else {
+            print("NotificationManager: Not listening — stopListening is a no-op")
+            return
+        }
 
         if let listener = listenerRegistration {
             listener.remove()
             listenerRegistration = nil
+            print("NotificationManager: Removed Firestore snapshot listener")
         }
 
         currentUserId = nil
         isListening   = false
+        didReceiveInitialSnapshot = false
         unreadCount   = 0
 
-        print("NotificationManager: Stopped listening")
+        print("NotificationManager: ✅ Stopped")
     }
 
     func refreshUnreadCount() async {
@@ -137,30 +153,45 @@ final class NotificationManager {
     // MARK: - Realtime
 
     private func subscribeToRealtime(userId: String) {
+        // Prevent duplicate subscriptions
+        if listenerRegistration != nil {
+            print("NotificationManager: Listener already exists — skipping duplicate subscribe")
+            return
+        }
+
+        didReceiveInitialSnapshot = false
+
         listenerRegistration = db.collection("notifications")
             .whereField("recipient_id", isEqualTo: userId)
             .addSnapshotListener { [weak self] querySnapshot, error in
                 guard let self = self, let snapshot = querySnapshot else {
-                    print("NotificationManager: Error listening for notifications: \(error?.localizedDescription ?? "unknown error")")
+                    print("❌ NotificationManager: Snapshot listener error: \(error?.localizedDescription ?? "unknown")")
                     return
                 }
 
-                // Only process newly added documents
-                snapshot.documentChanges.forEach { diff in
-                    if (diff.type == .added) {
-                        if let notification = try? diff.document.data(as: NotificationDTO.self) {
-                            // Quick check to avoid reprocessing old notifications on initial load
-                            // We can check if `is_read` is false to increment badge
-                            Task { await self.handleNewNotification(notification) }
-                        }
+                // Skip the initial snapshot — it contains ALL existing documents
+                // as `.added`. The unread count is already set by refreshUnreadCount().
+                guard self.didReceiveInitialSnapshot else {
+                    self.didReceiveInitialSnapshot = true
+                    print("NotificationManager: Initial snapshot received (\(snapshot.documents.count) existing docs) — skipped")
+                    return
+                }
+
+                // Process only newly added documents (realtime inserts)
+                for diff in snapshot.documentChanges where diff.type == .added {
+                    if let notification = try? diff.document.data(as: NotificationDTO.self) {
+                        Task { await self.handleNewNotification(notification) }
+                    } else {
+                        print("⚠️ NotificationManager: Failed to decode notification from document \(diff.document.documentID)")
                     }
                 }
             }
-        print("NotificationManager: Subscribed to realtime for user \(userId)")
+
+        print("NotificationManager: ✅ Subscribed to Firestore realtime for user \(userId)")
     }
 
     private func handleNewNotification(_ notification: NotificationDTO) async {
-        print("NotificationManager: Received — \(notification.title)")
+        print("🔔 [Stage 2 Complete] Realtime notification received: \(notification.title) (id: \(notification.id ?? "nil"))")
 
         await MainActor.run {
             // Only increment if unread
@@ -211,7 +242,10 @@ final class NotificationManager {
     func navigateToRoute(route: String, orderId: String?) {
         guard let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
               let window = windowScene.windows.first(where: { $0.isKeyWindow }),
-              let rootVC = window.rootViewController else { return }
+              let rootVC = window.rootViewController else {
+            print("❌ NotificationManager: Cannot navigate — no key window")
+            return
+        }
 
         var navController: UINavigationController?
 
@@ -221,12 +255,32 @@ final class NotificationManager {
             navController = nav
         }
 
+        guard let nav = navController else {
+            print("❌ NotificationManager: Cannot navigate — no UINavigationController found")
+            return
+        }
+
         switch route {
         case "confirm_order_seller":
-            guard let orderId = orderId else { return }
-            _ = orderId // Normally we pass this to the View Controller
-            print("NotificationManager: Navigating to confirm_order_seller with \(orderId)")
-            // Implementation mapping for UI navigation skipped for backend migration focus
+            guard let orderId = orderId else {
+                print("⚠️ NotificationManager: confirm_order_seller route missing orderId")
+                return
+            }
+            let vc = ConfirmOrderSellerViewController()
+            vc.orderId = orderId
+            nav.pushViewController(vc, animated: true)
+            print("NotificationManager: Navigated to ConfirmOrderSeller with \(orderId)")
+
+        case "order_details":
+            guard let orderId = orderId else {
+                print("⚠️ NotificationManager: order_details route missing orderId")
+                return
+            }
+            let vc = OrderDetailsViewController()
+            vc.orderId = orderId
+            nav.pushViewController(vc, animated: true)
+            print("NotificationManager: Navigated to OrderDetails with \(orderId)")
+
         default:
             print("NotificationManager: Unknown route '\(route)'")
         }

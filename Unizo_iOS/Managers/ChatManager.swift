@@ -41,6 +41,12 @@ final class ChatManager {
     private var currentUserId: String?
     private var isListening = false
 
+    /// Tracks whether each snapshot listener has received its initial Firestore
+    /// snapshot. Firestore fires ALL existing docs as `.added` on first attach;
+    /// we skip that batch to avoid false notifications.
+    private var didReceiveInitialConversationsSnapshot = false
+    private var conversationInitialSnapshotReceived: Set<String> = []
+
     // Track which conversation is currently being viewed (to suppress notifications)
     var activeConversationId: String?
 
@@ -77,13 +83,17 @@ final class ChatManager {
         currentUserId = userId
         isListening = true
 
+        // Reset snapshot tracking for new session
+        didReceiveInitialConversationsSnapshot = false
+        conversationInitialSnapshotReceived.removeAll()
+
         // Fetch initial unread count
         await refreshUnreadCount()
 
         // Subscribe to New Conversations (which handles subscribing to messages)
         subscribeToNewConversations(userId: userId)
 
-        print("ChatManager: Started listening for user \(userId)")
+        print("ChatManager: ✅ Fully started for user \(userId)")
     }
 
     // MARK: - Stop Listening (Call on Logout)
@@ -104,9 +114,11 @@ final class ChatManager {
 
         currentUserId = nil
         isListening = false
+        didReceiveInitialConversationsSnapshot = false
+        conversationInitialSnapshotReceived.removeAll()
         totalUnreadCount = 0
 
-        print("ChatManager: Stopped listening")
+        print("ChatManager: ✅ Stopped")
     }
 
     // MARK: - Subscribe to New Conversations
@@ -146,6 +158,9 @@ final class ChatManager {
             return
         }
 
+        // Mark that the initial message snapshot hasn't been received yet
+        conversationInitialSnapshotReceived.remove(conversationId)
+
         let listener = db.collection("conversations")
             .document(conversationId)
             .collection("messages")
@@ -153,11 +168,15 @@ final class ChatManager {
             .addSnapshotListener { [weak self] snapshot, error in
                 guard let self = self, let docs = snapshot?.documentChanges else { return }
                 
-                for diff in docs {
-                    if diff.type == .added {
-                        if let message = try? diff.document.data(as: MessageDTO.self) {
-                            Task { await self.handleNewMessage(message, conversationId: conversationId) }
-                        }
+                // Skip the initial snapshot — it contains all existing messages
+                guard self.conversationInitialSnapshotReceived.contains(conversationId) else {
+                    self.conversationInitialSnapshotReceived.insert(conversationId)
+                    return
+                }
+
+                for diff in docs where diff.type == .added {
+                    if let message = try? diff.document.data(as: MessageDTO.self) {
+                        Task { await self.handleNewMessage(message, conversationId: conversationId) }
                     }
                 }
             }

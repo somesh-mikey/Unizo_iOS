@@ -596,7 +596,7 @@ class ConfirmOrderViewController: UIViewController {
 
         Task {
             do {
-                // Create order in Supabase
+                // Create order in Firestore
                 let orderId = try await orderRepository.createOrder(
                     addressId: addressId,
                     items: orderItems,
@@ -611,7 +611,7 @@ class ConfirmOrderViewController: UIViewController {
                 await MainActor.run {
                     // Navigate to OrderPlacedViewController with order data
                     let vc = OrderPlacedViewController()
-                    vc.orderId = UUID(uuidString: orderId)
+                    vc.orderId = orderId
                     vc.orderAddress = address
                     vc.orderedCategories = orderedCategories
                     vc.orderTotal = savedTotal
