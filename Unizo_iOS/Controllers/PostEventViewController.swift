@@ -497,6 +497,11 @@ final class PostEventViewController: UIViewController,
                 timeFmt.dateFormat = "HH:mm"
                 let timeString = timeFmt.string(from: timePicker.date)
 
+                // Generate ISO8601 created_at for query ordering
+                let iso = ISO8601DateFormatter()
+                iso.formatOptions = [.withInternetDateTime]
+                let createdAt = iso.string(from: Date())
+
                 let dto = EventInsertDTO(
                     organizer_id: userId,
                     title: eventTitle,
@@ -507,7 +512,8 @@ final class PostEventViewController: UIViewController,
                     price: price,
                     is_free: isFree,
                     image_url: imageURL,
-                    is_active: true
+                    is_active: true,
+                    created_at: createdAt
                 )
 
                 let repo = EventRepository()

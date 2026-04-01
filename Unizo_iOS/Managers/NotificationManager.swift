@@ -179,11 +179,61 @@ final class NotificationManager {
 
                 // Process only newly added documents (realtime inserts)
                 for diff in snapshot.documentChanges where diff.type == .added {
-                    if let notification = try? diff.document.data(as: NotificationDTO.self) {
-                        Task { await self.handleNewNotification(notification) }
-                    } else {
-                        print("⚠️ NotificationManager: Failed to decode notification from document \(diff.document.documentID)")
+                    let doc = diff.document
+                    let data = doc.data()
+
+                    // Manual decode — Codable fails because Firestore stores
+                    // created_at as a Timestamp, not String
+                    guard let recipientId = data["recipient_id"] as? String,
+                          let senderId = data["sender_id"] as? String,
+                          let type = data["type"] as? String,
+                          let title = data["title"] as? String,
+                          let message = data["message"] as? String else {
+                        print("⚠️ NotificationManager: Failed to decode notification from document \(doc.documentID)")
+                        continue
                     }
+
+                    // Convert Timestamp → ISO8601 String
+                    let createdAt: String
+                    if let ts = data["created_at"] as? Timestamp {
+                        let iso = ISO8601DateFormatter()
+                        iso.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+                        createdAt = iso.string(from: ts.dateValue())
+                    } else if let str = data["created_at"] as? String {
+                        createdAt = str
+                    } else {
+                        createdAt = ISO8601DateFormatter().string(from: Date())
+                    }
+
+                    // Parse deeplink payload
+                    let deeplinkPayload: DeeplinkPayload
+                    if let dict = data["deeplink_payload"] as? [String: Any],
+                       let route = dict["route"] as? String {
+                        deeplinkPayload = DeeplinkPayload(
+                            route: route,
+                            orderId: dict["order_id"] as? String,
+                            sellerId: dict["seller_id"] as? String
+                        )
+                    } else {
+                        deeplinkPayload = DeeplinkPayload(route: "home")
+                    }
+
+                    let notification = NotificationDTO(
+                        id: doc.documentID,
+                        recipient_id: recipientId,
+                        sender_id: senderId,
+                        order_id: data["order_id"] as? String,
+                        type: type,
+                        title: title,
+                        message: message,
+                        deeplink_payload: deeplinkPayload,
+                        event_key: data["event_key"] as? String,
+                        is_read: data["is_read"] as? Bool ?? false,
+                        created_at: createdAt,
+                        sender: nil
+                    )
+
+                    Task { await self.handleNewNotification(notification) }
                 }
             }
 
@@ -195,7 +245,7 @@ final class NotificationManager {
 
         await MainActor.run {
             // Only increment if unread
-            if !notification.is_read {
+            if !notification.safeIsRead {
                 self.unreadCount += 1
             }
             self.delegate?.notificationManager(self, didReceiveNotification: notification)
@@ -206,7 +256,7 @@ final class NotificationManager {
             )
         }
 
-        if !notification.is_read {
+        if !notification.safeIsRead {
             await scheduleLocalNotification(for: notification)
         }
     }
@@ -220,8 +270,8 @@ final class NotificationManager {
         content.sound = .default
         content.userInfo = [
             "type": "order",
-            "route": notification.deeplink_payload.route,
-            "orderId": notification.order_id
+            "route": notification.safeDeeplinkPayload.route,
+            "orderId": notification.safeOrderId
         ]
 
         let request = UNNotificationRequest(
