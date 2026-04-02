@@ -496,22 +496,33 @@ final class SettingsViewController: UIViewController {
 
         alert.addAction(UIAlertAction(title: "Cancel".localized, style: .cancel))
         alert.addAction(UIAlertAction(title: "Delete".localized, style: .destructive) { [weak self] _ in
-            self?.performDeleteAccount()
+            self?.presentDeleteAccountReauthScreen()
         })
 
         present(alert, animated: true)
     }
 
-    private func performDeleteAccount() {
+    private func presentDeleteAccountReauthScreen() {
+        let reauthVC = DeleteAccountReauthViewController()
+        reauthVC.onDeleteTapped = { [weak self] password, onFailure in
+            self?.performDeleteAccount(password: password, onFailure: onFailure)
+        }
+
+        let nav = UINavigationController(rootViewController: reauthVC)
+        nav.modalPresentationStyle = .fullScreen
+        present(nav, animated: true)
+    }
+
+    private func performDeleteAccount(password: String, onFailure: @escaping (Error?) -> Void) {
         Task {
             do {
-                // Stop realtime listeners first
+                // Delete user account from Firebase
+                try await AuthManager.shared.deleteAccount(reauthPassword: password)
+
+                // Stop realtime listeners after successful deletion.
                 await NotificationManager.shared.stopListening()
                 await ChatManager.shared.stopListening()
                 await OrderRealtimeManager.shared.unsubscribeAll()
-
-                // Delete user account from Firebase
-                try await AuthManager.shared.deleteAccount()
 
                 print("✅ Account deleted successfully")
 
@@ -522,13 +533,7 @@ final class SettingsViewController: UIViewController {
             } catch {
                 print("❌ Delete account failed:", error)
                 await MainActor.run {
-                    let alert = UIAlertController(
-                        title: "Error".localized,
-                        message: String(format: "Failed to delete account: %@".localized, error.localizedDescription),
-                        preferredStyle: .alert
-                    )
-                    alert.addAction(UIAlertAction(title: "OK".localized, style: .default))
-                    self.present(alert, animated: true)
+                    onFailure(error)
                 }
             }
         }
@@ -548,5 +553,189 @@ final class SettingsViewController: UIViewController {
                           options: .transitionCrossDissolve,
                           animations: nil,
                           completion: nil)
+    }
+}
+
+private final class DeleteAccountReauthViewController: UIViewController {
+
+    var onDeleteTapped: ((String, @escaping (Error?) -> Void) -> Void)?
+    private var isSubmitting = false
+
+    private let subtitleLabel: UILabel = {
+        let label = UILabel()
+        label.translatesAutoresizingMaskIntoConstraints = false
+        label.numberOfLines = 0
+        label.textAlignment = .center
+        label.textColor = .secondaryLabel
+        label.font = .systemFont(ofSize: 15, weight: .regular)
+        label.text = "For security, please re-enter your password to delete your account.".localized
+        return label
+    }()
+
+    private let passwordField: UITextField = {
+        let tf = UITextField()
+        tf.translatesAutoresizingMaskIntoConstraints = false
+        tf.isSecureTextEntry = true
+        tf.placeholder = "Password".localized
+        tf.backgroundColor = .secondarySystemBackground
+        tf.layer.cornerRadius = 12
+        tf.autocorrectionType = .no
+        tf.autocapitalizationType = .none
+        tf.leftView = UIView(frame: CGRect(x: 0, y: 0, width: 14, height: 0))
+        tf.leftViewMode = .always
+        return tf
+    }()
+
+    private let infoLabel: UILabel = {
+        let label = UILabel()
+        label.translatesAutoresizingMaskIntoConstraints = false
+        label.numberOfLines = 0
+        label.textAlignment = .center
+        label.textColor = .systemRed
+        label.font = .systemFont(ofSize: 13, weight: .regular)
+        label.text = ""
+        return label
+    }()
+
+    private let loadingIndicator: UIActivityIndicatorView = {
+        let indicator = UIActivityIndicatorView(style: .medium)
+        indicator.translatesAutoresizingMaskIntoConstraints = false
+        indicator.hidesWhenStopped = true
+        return indicator
+    }()
+
+    private let deleteButton: UIButton = {
+        let button = UIButton(type: .system)
+        button.translatesAutoresizingMaskIntoConstraints = false
+        button.setTitle("Delete Account".localized, for: .normal)
+        button.setTitleColor(.white, for: .normal)
+        button.backgroundColor = .systemRed
+        button.layer.cornerRadius = 12
+        button.titleLabel?.font = .systemFont(ofSize: 17, weight: .semibold)
+        return button
+    }()
+
+    private let cancelButton: UIButton = {
+        let button = UIButton(type: .system)
+        button.translatesAutoresizingMaskIntoConstraints = false
+        button.setTitle("Cancel".localized, for: .normal)
+        button.setTitleColor(.label, for: .normal)
+        button.backgroundColor = .tertiarySystemBackground
+        button.layer.cornerRadius = 12
+        button.titleLabel?.font = .systemFont(ofSize: 17, weight: .semibold)
+        return button
+    }()
+
+    override func viewDidLoad() {
+        super.viewDidLoad()
+        view.backgroundColor = UIColor(red: 0.95, green: 0.96, blue: 0.98, alpha: 1)
+        title = "Re-authenticate".localized
+
+        navigationItem.leftBarButtonItem = UIBarButtonItem(
+            title: "Close".localized,
+            style: .plain,
+            target: self,
+            action: #selector(closeTapped)
+        )
+
+        setupUI()
+        setupKeyboardDismissTap()
+        deleteButton.addTarget(self, action: #selector(deleteTapped), for: .touchUpInside)
+        cancelButton.addTarget(self, action: #selector(closeTapped), for: .touchUpInside)
+        setLoading(false)
+    }
+
+    private func setupUI() {
+        let titleLabel = UILabel()
+        titleLabel.translatesAutoresizingMaskIntoConstraints = false
+        titleLabel.text = "Confirm Account Deletion".localized
+        titleLabel.font = .systemFont(ofSize: 24, weight: .bold)
+        titleLabel.textAlignment = .center
+
+        let stack = UIStackView(arrangedSubviews: [titleLabel, subtitleLabel, passwordField, infoLabel, loadingIndicator, deleteButton, cancelButton])
+        stack.translatesAutoresizingMaskIntoConstraints = false
+        stack.axis = .vertical
+        stack.spacing = 14
+        view.addSubview(stack)
+
+        NSLayoutConstraint.activate([
+            passwordField.heightAnchor.constraint(equalToConstant: 52),
+            deleteButton.heightAnchor.constraint(equalToConstant: 50),
+            cancelButton.heightAnchor.constraint(equalToConstant: 50),
+            loadingIndicator.heightAnchor.constraint(equalToConstant: 20),
+
+            stack.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 24),
+            stack.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -24),
+            stack.centerYAnchor.constraint(equalTo: view.centerYAnchor)
+        ])
+    }
+
+    private func setupKeyboardDismissTap() {
+        let tap = UITapGestureRecognizer(target: self, action: #selector(dismissKeyboard))
+        tap.cancelsTouchesInView = false
+        view.addGestureRecognizer(tap)
+    }
+
+    @objc private func dismissKeyboard() {
+        view.endEditing(true)
+    }
+
+    @objc private func closeTapped() {
+        guard !isSubmitting else { return }
+        dismiss(animated: true)
+    }
+
+    @objc private func deleteTapped() {
+        guard !isSubmitting else { return }
+        dismissKeyboard()
+
+        let password = passwordField.text?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        guard !password.isEmpty else {
+            infoLabel.text = "Password is required".localized
+            return
+        }
+
+        infoLabel.text = ""
+        setLoading(true)
+
+        onDeleteTapped?(password) { [weak self] error in
+            guard let self else { return }
+            guard let error else { return }
+            self.setLoading(false)
+            self.infoLabel.text = self.userFriendlyMessage(for: error)
+        }
+
+        if onDeleteTapped == nil {
+            setLoading(false)
+            infoLabel.text = "Unable to process this request right now.".localized
+        }
+    }
+
+    private func setLoading(_ loading: Bool) {
+        isSubmitting = loading
+        passwordField.isEnabled = !loading
+        deleteButton.isEnabled = !loading
+        cancelButton.isEnabled = !loading
+        navigationItem.leftBarButtonItem?.isEnabled = !loading
+
+        if loading {
+            loadingIndicator.startAnimating()
+            deleteButton.alpha = 0.7
+            cancelButton.alpha = 0.7
+        } else {
+            loadingIndicator.stopAnimating()
+            deleteButton.alpha = 1
+            cancelButton.alpha = 1
+        }
+    }
+
+    private func userFriendlyMessage(for error: Error) -> String {
+        if let authError = error as? AuthManagerError {
+            return authError.localizedDescription
+        }
+        if AuthManager.isRequiresRecentLoginError(error) {
+            return "Session expired. Please log in again and retry account deletion.".localized
+        }
+        return error.localizedDescription
     }
 }

@@ -1,5 +1,6 @@
 import UIKit
 import FirebaseStorage
+import FirebaseAuth
 
 final class ProfileViewController: UIViewController {
 
@@ -10,6 +11,7 @@ final class ProfileViewController: UIViewController {
     private let userRepository = UserRepository()
     private let addressRepository = AddressRepository()
     private var currentUser: UserDTO?
+    private var currentAddress: AddressDTO?
 
     // MARK: - ScrollView & Content
     private let scrollView: UIScrollView = {
@@ -415,33 +417,54 @@ final class ProfileViewController: UIViewController {
     // MARK: - Load User Data
     private func loadUserData() {
         Task {
-            do {
-                // Fetch user profile
-                let user = try await userRepository.fetchCurrentUser()
-                // Fetch default address
-                let addresses = try await addressRepository.fetchAddresses()
-                let defaultAddress = addresses.first(where: { $0.is_default }) ?? addresses.first
+            var user: UserDTO?
+            var defaultAddress: AddressDTO?
 
-                await MainActor.run {
-                    self.currentUser = user
-                    self.populateUserData(user, address: defaultAddress)
-                }
+            do {
+                user = try await userRepository.fetchCurrentUser()
             } catch {
-                print("Failed to load user data:", error)
+                print("Failed to load profile user:", error)
+            }
+
+            do {
+                let addresses = try await addressRepository.fetchAddresses()
+                defaultAddress = addresses.first(where: { $0.is_default }) ?? addresses.first
+            } catch {
+                print("Failed to load hotspot info:", error)
+            }
+
+            await MainActor.run {
+                self.currentUser = user
+                self.currentAddress = defaultAddress
+                self.populateUserData(user, address: defaultAddress)
             }
         }
     }
 
     private func populateUserData(_ user: UserDTO?, address: AddressDTO?) {
-        guard let user = user else { return }
+        let authUser = Auth.auth().currentUser
+
+        let authDisplayName = authUser?.displayName?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        let nameParts = authDisplayName
+            .split(separator: " ", omittingEmptySubsequences: true)
+            .map(String.init)
+        let fallbackFirstName = nameParts.first ?? ""
+        let fallbackLastName = nameParts.dropFirst().joined(separator: " ")
+        let fallbackEmail = authUser?.email ?? ""
+        let fallbackPhone = authUser?.phoneNumber ?? ""
+
+        let resolvedFirstName = user?.first_name?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        let resolvedLastName = user?.last_name?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        let resolvedEmail = user?.email?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        let resolvedPhone = user?.phone?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
 
         // Personal info
-        firstNameTF.text = user.first_name ?? ""
-        lastNameTF.text = user.last_name ?? ""
-        emailTF.text = user.email ?? ""
-        phoneTF.text = user.phone ?? ""
-        dobTF.text = user.date_of_birth ?? ""
-        genderTF.text = user.gender ?? ""
+        firstNameTF.text = resolvedFirstName.isEmpty ? fallbackFirstName : resolvedFirstName
+        lastNameTF.text = resolvedLastName.isEmpty ? fallbackLastName : resolvedLastName
+        emailTF.text = resolvedEmail.isEmpty ? fallbackEmail : resolvedEmail
+        phoneTF.text = resolvedPhone.isEmpty ? fallbackPhone : resolvedPhone
+        dobTF.text = user?.date_of_birth ?? ""
+        genderTF.text = user?.gender ?? ""
 
         // Address info (from default address)
         if let address = address {
@@ -457,11 +480,11 @@ final class ProfileViewController: UIViewController {
         }
 
         // Notification preferences
-        emailSwitch.isOn = user.email_notifications ?? false
-        smsSwitch.isOn = user.sms_notifications ?? false
+        emailSwitch.isOn = user?.email_notifications ?? false
+        smsSwitch.isOn = user?.sms_notifications ?? false
 
         // Profile image
-        if let imageUrlString = user.profile_image_url,
+        if let imageUrlString = user?.profile_image_url,
            let imageUrl = URL(string: imageUrlString) {
             loadProfileImage(from: imageUrl)
         }
@@ -548,7 +571,17 @@ final class ProfileViewController: UIViewController {
 
         Task {
             do {
+                let addressUpdate = try await buildAddressUpdateIfNeeded()
+
                 try await userRepository.updateProfile(profileUpdate)
+
+                if let addressUpdate {
+                    if addressUpdate.id == nil {
+                        try await addressRepository.createAddress(addressUpdate)
+                    } else {
+                        try await addressRepository.updateAddress(addressUpdate)
+                    }
+                }
 
                 await MainActor.run {
                     // Update local currentUser
@@ -558,6 +591,10 @@ final class ProfileViewController: UIViewController {
                     currentUser?.date_of_birth = profileUpdate.date_of_birth
                     currentUser?.gender = profileUpdate.gender
 
+                    if let addressUpdate {
+                        currentAddress = addressUpdate
+                    }
+
                     // Reset button state
                     saveButton.isEnabled = true
                     saveButton.setTitle("Save Changes".localized, for: .normal)
@@ -565,6 +602,9 @@ final class ProfileViewController: UIViewController {
 
                     // Exit edit mode after successful save
                     setEditMode(false)
+
+                    // Reload to sync with server state (especially new address IDs).
+                    loadUserData()
 
                     // Show success feedback (brief toast or just visual change)
                     print("✅ Profile updated successfully")
@@ -579,6 +619,68 @@ final class ProfileViewController: UIViewController {
                 }
             }
         }
+    }
+
+    private func buildAddressUpdateIfNeeded() async throws -> AddressDTO? {
+        let line1 = addressTF.text?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        let city = cityTF.text?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        let state = stateTF.text?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        let postalCode = zipTF.text?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+
+        let hasAnyHotspotInput = ![line1, city, state, postalCode].allSatisfy { $0.isEmpty }
+        guard hasAnyHotspotInput else { return nil }
+
+        guard !line1.isEmpty, !city.isEmpty, !state.isEmpty, !postalCode.isEmpty else {
+            throw NSError(
+                domain: "ProfileViewController",
+                code: 400,
+                userInfo: [NSLocalizedDescriptionKey: "Please complete all hotspot fields before saving.".localized]
+            )
+        }
+
+        let profileName = [
+            firstNameTF.text?.trimmingCharacters(in: .whitespacesAndNewlines) ?? "",
+            lastNameTF.text?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        ]
+            .joined(separator: " ")
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+
+        let fallbackName = currentUser?.displayName ?? "Home"
+        let resolvedName = profileName.isEmpty ? fallbackName : profileName
+
+        let profilePhone = phoneTF.text?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        let resolvedPhone = profilePhone.isEmpty ? (currentUser?.phone ?? "") : profilePhone
+
+        if var existingAddress = currentAddress {
+            existingAddress.name = resolvedName
+            existingAddress.phone = resolvedPhone
+            existingAddress.line1 = line1
+            existingAddress.city = city
+            existingAddress.state = state
+            existingAddress.postal_code = postalCode
+            return existingAddress
+        }
+
+        guard let userId = await AuthManager.shared.currentUserId else {
+            throw NSError(
+                domain: "ProfileViewController",
+                code: 401,
+                userInfo: [NSLocalizedDescriptionKey: "User not authenticated".localized]
+            )
+        }
+
+        return AddressDTO(
+            id: nil,
+            user_id: userId,
+            name: resolvedName,
+            phone: resolvedPhone,
+            line1: line1,
+            city: city,
+            state: state,
+            postal_code: postalCode,
+            country: currentAddress?.country ?? "India",
+            is_default: true
+        )
     }
 
     private func showAlert(title: String, message: String) {

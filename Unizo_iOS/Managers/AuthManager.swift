@@ -11,6 +11,29 @@ import Foundation
 import FirebaseAuth
 import FirebaseFirestore
 
+enum AuthManagerError: LocalizedError {
+    case userNotAuthenticated
+    case emailUnavailableForReauth
+    case passwordRequiredForDeletion
+    case reauthenticationFailed
+    case requiresRecentLogin
+
+    var errorDescription: String? {
+        switch self {
+        case .userNotAuthenticated:
+            return "User not authenticated"
+        case .emailUnavailableForReauth:
+            return "Unable to verify your account email for re-authentication."
+        case .passwordRequiredForDeletion:
+            return "Please enter your password to delete your account."
+        case .reauthenticationFailed:
+            return "Re-authentication failed. Please check your password and try again."
+        case .requiresRecentLogin:
+            return "This operation is sensitive and requires recent authentication. Log in again before retrying this request."
+        }
+    }
+}
+
 final class AuthManager {
     static let shared = AuthManager()
 
@@ -110,18 +133,55 @@ final class AuthManager {
         try auth.signOut()
     }
 
+    static func isRequiresRecentLoginError(_ error: Error) -> Bool {
+        if let authError = error as? AuthManagerError,
+           case .requiresRecentLogin = authError {
+            return true
+        }
+        let nsError = error as NSError
+        return nsError.domain == AuthErrorDomain
+            && nsError.code == AuthErrorCode.requiresRecentLogin.rawValue
+    }
+
+    private func reauthenticateCurrentUser(withPassword password: String) async throws {
+        guard let user = auth.currentUser else {
+            throw AuthManagerError.userNotAuthenticated
+        }
+        guard let email = user.email, !email.isEmpty else {
+            throw AuthManagerError.emailUnavailableForReauth
+        }
+
+        let trimmedPassword = password.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmedPassword.isEmpty else {
+            throw AuthManagerError.passwordRequiredForDeletion
+        }
+
+        do {
+            let credential = EmailAuthProvider.credential(withEmail: email, password: trimmedPassword)
+            try await user.reauthenticate(with: credential)
+        } catch {
+            throw AuthManagerError.reauthenticationFailed
+        }
+    }
+
     // MARK: - Account Deletion
 
     /// Permanently deletes all user data from Firestore then deletes the Auth user.
-    func deleteAccount() async throws {
+    func deleteAccount(reauthPassword: String? = nil) async throws {
         guard let user = auth.currentUser else {
-            throw NSError(domain: "AuthManager", code: 401, userInfo: [
-                NSLocalizedDescriptionKey: "User not authenticated"
-            ])
+            throw AuthManagerError.userNotAuthenticated
         }
         
         let userId = user.uid
-        let batch = db.batch()
+
+        // For email/password users, always require a fresh password before deletion.
+        let usesPasswordProvider = user.providerData.contains { $0.providerID == "password" }
+        if usesPasswordProvider {
+            guard let reauthPassword else {
+                throw AuthManagerError.passwordRequiredForDeletion
+            }
+            try await reauthenticateCurrentUser(withPassword: reauthPassword)
+        }
         
         // Note: Firestore doesn't easily support "delete all documents where field == X" in a single query
         // without fetching them first. For a complete robust deletion, Cloud Functions are recommended.
@@ -131,10 +191,16 @@ final class AuthManager {
         // For brevity and to prevent massive client-side reads, we will just delete the user document.
         // In a real Firebase app, account deletion triggers are handled by Firebase Extensions or Cloud Functions.
         
-        try await db.collection("users").document(userId).delete()
-        
-        // Delete the authentication user
-        try await user.delete()
+        do {
+            try await db.collection("users").document(userId).delete()
+            // Delete the authentication user
+            try await user.delete()
+        } catch {
+            if Self.isRequiresRecentLoginError(error) {
+                throw AuthManagerError.requiresRecentLogin
+            }
+            throw error
+        }
 
         print("✅ Account and all associated data deleted successfully")
     }
