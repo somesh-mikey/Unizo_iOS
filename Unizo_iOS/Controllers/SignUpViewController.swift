@@ -243,17 +243,7 @@ final class SignUpViewController: UIViewController {
             tf.tag = index
         }
 
-        // Create a toolbar with a "Done" button for all text fields
-        let toolbar = UIToolbar()
-        toolbar.sizeToFit()
-        let flexSpace = UIBarButtonItem(barButtonSystemItem: .flexibleSpace, target: nil, action: nil)
-        let doneButton = UIBarButtonItem(title: "Done".localized, style: .done,
-                                         target: self, action: #selector(dismissKeyboard))
-        toolbar.items = [flexSpace, doneButton]
-
-        for tf in allFields {
-            tf.inputAccessoryView = toolbar
-        }
+        // (Removed input accessory toolbar with "Done" button as per user request to remove unnecessary popup)
     }
 
     private func setupHierarchy() {
