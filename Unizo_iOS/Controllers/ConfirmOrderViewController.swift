@@ -186,36 +186,46 @@ class ConfirmOrderViewController: UIViewController {
 
     // MARK: - Step Indicator
 
-    // ---------- STEP INDICATOR FIX ----------
     private func setupStepIndicator() {
-
         stepIndicatorContainer.backgroundColor = bgColor
+
+        stepStack.arrangedSubviews.forEach {
+            stepStack.removeArrangedSubview($0)
+            $0.removeFromSuperview()
+        }
 
         stepStack.axis = .horizontal
         stepStack.alignment = .center
-        stepStack.spacing = 45     // ⭐ SHIFT "Confirm Order" RIGHT (previously ~20–22)
+        stepStack.distribution = .equalCentering
+        stepStack.spacing = 0
         stepStack.translatesAutoresizingMaskIntoConstraints = false
 
+        let makeStepCircle: (String, UIColor, UIColor) -> UIView = { number, bg, textColor in
+            let circle = UIView()
+            circle.backgroundColor = bg
+            circle.layer.cornerRadius = 10
+            circle.translatesAutoresizingMaskIntoConstraints = false
+            circle.widthAnchor.constraint(equalToConstant: 20).isActive = true
+            circle.heightAnchor.constraint(equalToConstant: 20).isActive = true
+
+            let label = UILabel()
+            label.text = number
+            label.textColor = textColor
+            label.font = UIFont.systemFont(ofSize: 12, weight: .semibold)
+            label.textAlignment = .center
+            label.translatesAutoresizingMaskIntoConstraints = false
+            circle.addSubview(label)
+
+            NSLayoutConstraint.activate([
+                label.centerXAnchor.constraint(equalTo: circle.centerXAnchor),
+                label.centerYAnchor.constraint(equalTo: circle.centerYAnchor)
+            ])
+
+            return circle
+        }
+
         // --- STEP 1 ---
-        let step1Circle = UIView()
-        step1Circle.backgroundColor = UIColor(white: 0.85, alpha: 1.0) // light gray circle
-        step1Circle.layer.cornerRadius = 10
-        step1Circle.translatesAutoresizingMaskIntoConstraints = false
-        step1Circle.widthAnchor.constraint(equalToConstant: 20).isActive = true
-        step1Circle.heightAnchor.constraint(equalToConstant: 20).isActive = true
-
-        let step1Number = UILabel()
-        step1Number.text = "1"
-        step1Number.textColor = .white
-        step1Number.font = UIFont.systemFont(ofSize: 12, weight: .semibold)
-        step1Number.textAlignment = .center
-        step1Number.translatesAutoresizingMaskIntoConstraints = false
-        step1Circle.addSubview(step1Number)
-
-        NSLayoutConstraint.activate([
-            step1Number.centerXAnchor.constraint(equalTo: step1Circle.centerXAnchor),
-            step1Number.centerYAnchor.constraint(equalTo: step1Circle.centerYAnchor)
-        ])
+        let step1Circle = makeStepCircle("1", UIColor(white: 0.85, alpha: 1.0), .white)
 
         let step1Label = UILabel()
         step1Label.text = "Set Hotspot".localized
@@ -225,53 +235,49 @@ class ConfirmOrderViewController: UIViewController {
         let step1Stack = UIStackView(arrangedSubviews: [step1Circle, step1Label])
         step1Stack.axis = .horizontal
         step1Stack.spacing = 6
+        step1Stack.alignment = .center
 
         // Arrow →
         let arrow = UILabel()
         arrow.text = "›"
-        arrow.textColor = UIColor.gray
-        arrow.font = UIFont.systemFont(ofSize: 16, weight: .regular)
+        arrow.textColor = .gray
+        arrow.font = UIFont.systemFont(ofSize: 20, weight: .regular)
+        arrow.textAlignment = .center
+
+        let arrowContainer = UIView()
+        arrowContainer.translatesAutoresizingMaskIntoConstraints = false
+        arrow.translatesAutoresizingMaskIntoConstraints = false
+        arrowContainer.addSubview(arrow)
+        NSLayoutConstraint.activate([
+            arrow.centerXAnchor.constraint(equalTo: arrowContainer.centerXAnchor),
+            arrow.centerYAnchor.constraint(equalTo: arrowContainer.centerYAnchor),
+            arrowContainer.widthAnchor.constraint(equalToConstant: 28)
+        ])
 
         // --- STEP 2 ---
-        let step2Circle = UIView()
-        step2Circle.backgroundColor = UIColor(red: 0.45, green: 0.91, blue: 0.85, alpha: 1.0) // #74E7DA
-        step2Circle.layer.cornerRadius = 10
-        step2Circle.translatesAutoresizingMaskIntoConstraints = false
-        step2Circle.widthAnchor.constraint(equalToConstant: 20).isActive = true
-        step2Circle.heightAnchor.constraint(equalToConstant: 20).isActive = true
-
-        let step2Number = UILabel()
-        step2Number.text = "2"
-        step2Number.textColor = .black
-        step2Number.font = UIFont.systemFont(ofSize: 12, weight: .semibold)
-        step2Number.textAlignment = .center
-        step2Number.translatesAutoresizingMaskIntoConstraints = false
-        step2Circle.addSubview(step2Number)
-
-        NSLayoutConstraint.activate([
-            step2Number.centerXAnchor.constraint(equalTo: step2Circle.centerXAnchor),
-            step2Number.centerYAnchor.constraint(equalTo: step2Circle.centerYAnchor)
-        ])
+        let step2Circle = makeStepCircle("2", UIColor(red: 0.45, green: 0.91, blue: 0.85, alpha: 1.0), .black)
 
         let step2Label = UILabel()
         step2Label.text = "Confirm Order".localized
         step2Label.font = UIFont.systemFont(ofSize: 14, weight: .semibold)
-        step2Label.textColor = UIColor.black
+        step2Label.textColor = .black
 
         let step2Stack = UIStackView(arrangedSubviews: [step2Circle, step2Label])
         step2Stack.axis = .horizontal
         step2Stack.spacing = 6
+        step2Stack.alignment = .center
 
         // Add everything to main stack
         stepStack.addArrangedSubview(step1Stack)
-        stepStack.addArrangedSubview(arrow)
+        stepStack.addArrangedSubview(arrowContainer)
         stepStack.addArrangedSubview(step2Stack)
 
         stepIndicatorContainer.addSubview(stepStack)
 
         NSLayoutConstraint.activate([
-            stepStack.leadingAnchor.constraint(equalTo: stepIndicatorContainer.leadingAnchor, constant: 20),
-            stepStack.topAnchor.constraint(equalTo: stepIndicatorContainer.topAnchor)
+            stepStack.centerYAnchor.constraint(equalTo: stepIndicatorContainer.centerYAnchor),
+            stepStack.leadingAnchor.constraint(equalTo: stepIndicatorContainer.leadingAnchor, constant: 24),
+            stepStack.trailingAnchor.constraint(equalTo: stepIndicatorContainer.trailingAnchor, constant: -24)
         ])
     }
 
@@ -594,6 +600,12 @@ class ConfirmOrderViewController: UIViewController {
 
         let savedTotal = totalAmount
 
+        let debugItems = orderItems.map {
+            "productId=\($0.product.id ?? "nil"), sellerId=\($0.product.sellerId ?? "nil"), qty=\($0.quantity), price=\($0.product.price)"
+        }.joined(separator: " | ")
+        print("🟪 [DealDebug] ConfirmOrderViewController.placeOrderTapped addressId=\(addressId), total=\(savedTotal), itemsCount=\(orderItems.count)")
+        print("🟪 [DealDebug] ConfirmOrderViewController.items \(debugItems)")
+
         Task {
             do {
                 // Create order in Firestore
@@ -604,6 +616,8 @@ class ConfirmOrderViewController: UIViewController {
                     paymentMethod: "Cash",  // Default payment method
                     instructions: nil
                 )
+
+                print("🟪 [DealDebug] ConfirmOrderViewController.orderCreated orderId=\(orderId)")
 
                 // Get categories from ordered items for suggestions
                 let orderedCategories = orderItems.compactMap { $0.product.category }
@@ -622,6 +636,7 @@ class ConfirmOrderViewController: UIViewController {
                     self.present(vc, animated: true)
                 }
             } catch {
+                print("🟥 [DealDebug] ConfirmOrderViewController.createOrder failed: \(error)")
                 print("❌ Failed to create order:", error)
                 await MainActor.run {
                     self.placeOrderButton.isEnabled = true

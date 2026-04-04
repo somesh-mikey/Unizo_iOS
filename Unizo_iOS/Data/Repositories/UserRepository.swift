@@ -5,6 +5,7 @@
 
 import Foundation
 import FirebaseFirestore
+import FirebaseAuth
 
 final class UserRepository {
 
@@ -65,7 +66,7 @@ final class UserRepository {
 
         guard !updateData.isEmpty else { return }
 
-        try await db.collection("users").document(userId).updateData(updateData)
+        try await db.collection("users").document(userId).setData(updateData, merge: true)
     }
 
     // MARK: - Update User Profile
@@ -76,7 +77,7 @@ final class UserRepository {
         let userId = try await getCurrentUserId()
 
         let data = try Firestore.Encoder().encode(update)
-        try await db.collection("users").document(userId).updateData(data)
+        try await db.collection("users").document(userId).setData(data, merge: true)
     }
 
     // MARK: - Update Profile Image URL
@@ -84,8 +85,57 @@ final class UserRepository {
         try requireNetwork()
         let userId = try await getCurrentUserId()
 
-        try await db.collection("users").document(userId).updateData([
+        try await db.collection("users").document(userId).setData([
             "profile_image_url": url
-        ])
+        ], merge: true)
+    }
+
+    // MARK: - Ensure Current User Profile Exists
+    /// Creates or updates the current user profile with the minimum
+    /// required identity fields so Account/Profile can always render.
+    func ensureCurrentUserProfile(seedEmail: String? = nil) async throws {
+        try requireNetwork()
+        let userId = try await getCurrentUserId()
+
+        let authUser = Auth.auth().currentUser
+        let resolvedEmail = authUser?.email ?? seedEmail
+        let resolvedPhone = authUser?.phoneNumber
+        let displayName = authUser?.displayName?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+
+        var firstName = ""
+        var lastName = ""
+        if !displayName.isEmpty {
+            let parts = displayName
+                .split(separator: " ", omittingEmptySubsequences: true)
+                .map(String.init)
+            if let first = parts.first {
+                firstName = first
+                if parts.count > 1 {
+                    lastName = parts.dropFirst().joined(separator: " ")
+                }
+            }
+        }
+
+        var payload: [String: Any] = [
+            "role": "buyer",
+            "email_notifications": true,
+            "sms_notifications": false,
+            "created_at": ISO8601DateFormatter().string(from: Date())
+        ]
+
+        if let resolvedEmail, !resolvedEmail.isEmpty {
+            payload["email"] = resolvedEmail
+        }
+        if let resolvedPhone, !resolvedPhone.isEmpty {
+            payload["phone"] = resolvedPhone
+        }
+        if !firstName.isEmpty {
+            payload["first_name"] = firstName
+        }
+        if !lastName.isEmpty {
+            payload["last_name"] = lastName
+        }
+
+        try await db.collection("users").document(userId).setData(payload, merge: true)
     }
 }

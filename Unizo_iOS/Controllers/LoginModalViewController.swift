@@ -8,6 +8,8 @@ import FirebaseAuth
 
 final class LoginModalViewController: UIViewController {
 
+    private let userRepository = UserRepository()
+
     // MARK: - Containers (Card + Group)
     private let cardView: UIView = {
         let v = UIView()
@@ -302,6 +304,14 @@ final class LoginModalViewController: UIViewController {
                 _ = try await Auth.auth().signIn(withEmail: email, password: password)
 
                 print("✅ Login successful")
+
+                do {
+                    try await userRepository.ensureCurrentUserProfile(seedEmail: email)
+                    print("✅ Profile synced after login")
+                } catch {
+                    // Non-fatal: user is authenticated, so continue into app.
+                    print("⚠️ Failed to sync profile after login:", error)
+                }
 
                 // Start notification listeners
                 await NotificationManager.shared.startListening()

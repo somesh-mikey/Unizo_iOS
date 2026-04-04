@@ -58,6 +58,7 @@ struct OrderInsertDTO: Encodable {
     let total_amount: Double
     let payment_method: String
     let instructions: String?
+    let created_at: String
 }
 
 struct OrderItemInsertDTO: Encodable {

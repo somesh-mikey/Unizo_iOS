@@ -276,6 +276,52 @@ final class ChatRepository {
         return ref.documentID
     }
 
+    func getOrCreateConversationForSeller(productId: String, buyerId: String) async throws -> ConversationDTO {
+        try requireNetwork()
+        let sellerId = try await getCurrentUserId()
+
+        print("🟦 [ChatDebug] ChatRepository.getOrCreateConversationForSeller buyerId=\(buyerId), sellerId=\(sellerId), productId=\(productId)")
+
+        guard buyerId != sellerId else { throw ChatError.cannotChatWithSelf }
+
+        let snapshot = try await db.collection("conversations")
+            .whereField("product_id", isEqualTo: productId)
+            .whereField("buyer_id", isEqualTo: buyerId)
+            .limit(to: 1)
+            .getDocuments()
+
+        if let doc = snapshot.documents.first, let existing = decodeConversation(from: doc) {
+            print("🟩 [ChatDebug] Existing conversation found docId=\(doc.documentID), decodedId=\(existing.id ?? "nil")")
+            return existing
+        }
+
+        // Create new
+        let ref = db.collection("conversations").document()
+        let insertDTO = ConversationInsertDTO(
+            product_id: productId,
+            buyer_id: buyerId,
+            seller_id: sellerId
+        )
+
+        try ref.setData(from: insertDTO)
+        
+        let newConversation = ConversationDTO(
+            id: ref.documentID,
+            product_id: productId,
+            buyer_id: buyerId,
+            seller_id: sellerId,
+            created_at: Date(),
+            product: nil,
+            buyer: nil,
+            seller: nil,
+            last_message: nil
+        )
+
+        var singleConvoArray = [newConversation]
+        try await attachJoins(to: &singleConvoArray)
+        return singleConvoArray.first ?? newConversation
+    }
+
     func getOrCreateConversation(productId: String, sellerId: String) async throws -> ConversationDTO {
         try requireNetwork()
         let buyerId = try await getCurrentUserId()

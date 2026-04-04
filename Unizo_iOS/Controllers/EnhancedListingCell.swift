@@ -14,6 +14,7 @@ protocol EnhancedListingCellDelegate: AnyObject {
     func didTapView(on cell: EnhancedListingCell)
     func didTapDealRequests(on cell: EnhancedListingCell)
     func didTapInterestedBuyers(on cell: EnhancedListingCell)
+    func didTapManageOrder(on cell: EnhancedListingCell)
 }
 
 final class EnhancedListingCell: UICollectionViewCell {
@@ -118,60 +119,23 @@ final class EnhancedListingCell: UICollectionViewCell {
         return lbl
     }()
 
-    // Interested buyers indicator
-    private let interestedBuyersContainer: UIView = {
+    // Activity menu for Interested Buyers + Deal Requests
+    private let activityMenuButton: UIButton = {
+        let btn = UIButton(type: .system)
+        btn.setImage(UIImage(systemName: "ellipsis.circle"), for: .normal)
+        btn.tintColor = .brandPrimary
+        btn.showsMenuAsPrimaryAction = true
+        btn.translatesAutoresizingMaskIntoConstraints = false
+        return btn
+    }()
+
+    private let menuBadgeView: UIView = {
         let v = UIView()
-        v.backgroundColor = .systemOrange.withAlphaComponent(0.12)
-        v.layer.cornerRadius = 12
+        v.backgroundColor = .systemRed
+        v.layer.cornerRadius = 5
         v.translatesAutoresizingMaskIntoConstraints = false
         v.isHidden = true
-        v.isUserInteractionEnabled = true
         return v
-    }()
-
-    private let interestedBuyersIcon: UIImageView = {
-        let iv = UIImageView()
-        iv.image = UIImage(systemName: "person.2.fill")
-        iv.tintColor = .systemOrange
-        iv.contentMode = .scaleAspectFit
-        iv.translatesAutoresizingMaskIntoConstraints = false
-        return iv
-    }()
-
-    private let interestedBuyersLabel: UILabel = {
-        let lbl = UILabel()
-        lbl.font = UIFont.systemFont(ofSize: 12, weight: .semibold)
-        lbl.textColor = .systemOrange
-        lbl.translatesAutoresizingMaskIntoConstraints = false
-        return lbl
-    }()
-
-    // Deal requests indicator
-    private let dealRequestsContainer: UIView = {
-        let v = UIView()
-        v.backgroundColor = .systemGreen.withAlphaComponent(0.12)
-        v.layer.cornerRadius = 12
-        v.translatesAutoresizingMaskIntoConstraints = false
-        v.isHidden = true
-        v.isUserInteractionEnabled = true
-        return v
-    }()
-
-    private let dealRequestsIcon: UIImageView = {
-        let iv = UIImageView()
-        iv.image = UIImage(systemName: "cart.fill")
-        iv.tintColor = .systemGreen
-        iv.contentMode = .scaleAspectFit
-        iv.translatesAutoresizingMaskIntoConstraints = false
-        return iv
-    }()
-
-    private let dealRequestsLabel: UILabel = {
-        let lbl = UILabel()
-        lbl.font = UIFont.systemFont(ofSize: 12, weight: .semibold)
-        lbl.textColor = .systemGreen
-        lbl.translatesAutoresizingMaskIntoConstraints = false
-        return lbl
     }()
 
     // Buyer info section (shown for sold/pending items)
@@ -204,23 +168,6 @@ final class EnhancedListingCell: UICollectionViewCell {
         return lbl
     }()
 
-    // Action buttons
-    private let editButton: UIButton = {
-        let btn = UIButton(type: .system)
-        btn.setImage(UIImage(systemName: "square.and.pencil"), for: .normal)
-        btn.tintColor = .brandPrimary
-        btn.translatesAutoresizingMaskIntoConstraints = false
-        return btn
-    }()
-
-    private let deleteButton: UIButton = {
-        let btn = UIButton(type: .system)
-        btn.setImage(UIImage(systemName: "trash"), for: .normal)
-        btn.tintColor = .systemRed
-        btn.translatesAutoresizingMaskIntoConstraints = false
-        return btn
-    }()
-
     // MARK: - Init
 
     override init(frame: CGRect) {
@@ -245,19 +192,9 @@ final class EnhancedListingCell: UICollectionViewCell {
         contentView.addSubview(nameLabel)
         contentView.addSubview(priceLabel)
         contentView.addSubview(statsStackView)
-        contentView.addSubview(interestedBuyersContainer)
-        contentView.addSubview(dealRequestsContainer)
+        contentView.addSubview(activityMenuButton)
+        contentView.addSubview(menuBadgeView)
         contentView.addSubview(buyerContainerView)
-        contentView.addSubview(editButton)
-        contentView.addSubview(deleteButton)
-
-        // Interested buyers container
-        interestedBuyersContainer.addSubview(interestedBuyersIcon)
-        interestedBuyersContainer.addSubview(interestedBuyersLabel)
-
-        // Deal requests container
-        dealRequestsContainer.addSubview(dealRequestsIcon)
-        dealRequestsContainer.addSubview(dealRequestsLabel)
 
         // Stats stack
         let viewsStack = UIStackView(arrangedSubviews: [viewsIcon, viewsLabel])
@@ -291,12 +228,12 @@ final class EnhancedListingCell: UICollectionViewCell {
             // Category
             categoryLabel.topAnchor.constraint(equalTo: contentView.topAnchor, constant: Spacing.md),
             categoryLabel.leadingAnchor.constraint(equalTo: productImageView.trailingAnchor, constant: Spacing.md),
-            categoryLabel.trailingAnchor.constraint(lessThanOrEqualTo: editButton.leadingAnchor, constant: -Spacing.sm),
+            categoryLabel.trailingAnchor.constraint(lessThanOrEqualTo: activityMenuButton.leadingAnchor, constant: -Spacing.sm),
 
             // Name
             nameLabel.topAnchor.constraint(equalTo: categoryLabel.bottomAnchor, constant: Spacing.xs),
             nameLabel.leadingAnchor.constraint(equalTo: productImageView.trailingAnchor, constant: Spacing.md),
-            nameLabel.trailingAnchor.constraint(equalTo: editButton.leadingAnchor, constant: -Spacing.sm),
+            nameLabel.trailingAnchor.constraint(equalTo: activityMenuButton.leadingAnchor, constant: -Spacing.sm),
 
             // Price
             priceLabel.topAnchor.constraint(equalTo: nameLabel.bottomAnchor, constant: Spacing.xs),
@@ -312,33 +249,16 @@ final class EnhancedListingCell: UICollectionViewCell {
             quantityIcon.widthAnchor.constraint(equalToConstant: 14),
             quantityIcon.heightAnchor.constraint(equalToConstant: 14),
 
-            // Interested buyers container (shown for available items with interested buyers)
-            interestedBuyersContainer.leadingAnchor.constraint(equalTo: productImageView.trailingAnchor, constant: Spacing.md),
-            interestedBuyersContainer.bottomAnchor.constraint(equalTo: contentView.bottomAnchor, constant: -Spacing.md),
-            interestedBuyersContainer.heightAnchor.constraint(equalToConstant: 24),
+            // Activity menu button at old delete position (top-right) and red badge
+            activityMenuButton.topAnchor.constraint(equalTo: contentView.topAnchor, constant: Spacing.sm),
+            activityMenuButton.trailingAnchor.constraint(equalTo: contentView.trailingAnchor, constant: -Spacing.sm),
+            activityMenuButton.widthAnchor.constraint(equalToConstant: Spacing.minTouchTarget),
+            activityMenuButton.heightAnchor.constraint(equalToConstant: Spacing.minTouchTarget),
 
-            interestedBuyersIcon.leadingAnchor.constraint(equalTo: interestedBuyersContainer.leadingAnchor, constant: 8),
-            interestedBuyersIcon.centerYAnchor.constraint(equalTo: interestedBuyersContainer.centerYAnchor),
-            interestedBuyersIcon.widthAnchor.constraint(equalToConstant: 16),
-            interestedBuyersIcon.heightAnchor.constraint(equalToConstant: 14),
-
-            interestedBuyersLabel.leadingAnchor.constraint(equalTo: interestedBuyersIcon.trailingAnchor, constant: 4),
-            interestedBuyersLabel.trailingAnchor.constraint(equalTo: interestedBuyersContainer.trailingAnchor, constant: -10),
-            interestedBuyersLabel.centerYAnchor.constraint(equalTo: interestedBuyersContainer.centerYAnchor),
-
-            // Deal requests container (next to interested buyers or at the same position)
-            dealRequestsContainer.leadingAnchor.constraint(equalTo: interestedBuyersContainer.trailingAnchor, constant: 8),
-            dealRequestsContainer.bottomAnchor.constraint(equalTo: contentView.bottomAnchor, constant: -Spacing.md),
-            dealRequestsContainer.heightAnchor.constraint(equalToConstant: 24),
-
-            dealRequestsIcon.leadingAnchor.constraint(equalTo: dealRequestsContainer.leadingAnchor, constant: 8),
-            dealRequestsIcon.centerYAnchor.constraint(equalTo: dealRequestsContainer.centerYAnchor),
-            dealRequestsIcon.widthAnchor.constraint(equalToConstant: 16),
-            dealRequestsIcon.heightAnchor.constraint(equalToConstant: 14),
-
-            dealRequestsLabel.leadingAnchor.constraint(equalTo: dealRequestsIcon.trailingAnchor, constant: 4),
-            dealRequestsLabel.trailingAnchor.constraint(equalTo: dealRequestsContainer.trailingAnchor, constant: -10),
-            dealRequestsLabel.centerYAnchor.constraint(equalTo: dealRequestsContainer.centerYAnchor),
+            menuBadgeView.widthAnchor.constraint(equalToConstant: 10),
+            menuBadgeView.heightAnchor.constraint(equalToConstant: 10),
+            menuBadgeView.topAnchor.constraint(equalTo: activityMenuButton.topAnchor, constant: 2),
+            menuBadgeView.trailingAnchor.constraint(equalTo: activityMenuButton.trailingAnchor, constant: -4),
 
             // Buyer container (shown below views)
             buyerContainerView.leadingAnchor.constraint(equalTo: productImageView.trailingAnchor, constant: Spacing.md),
@@ -353,59 +273,20 @@ final class EnhancedListingCell: UICollectionViewCell {
 
             buyerLabel.leadingAnchor.constraint(equalTo: buyerIcon.trailingAnchor, constant: 4),
             buyerLabel.trailingAnchor.constraint(equalTo: buyerContainerView.trailingAnchor, constant: -Spacing.sm),
-            buyerLabel.centerYAnchor.constraint(equalTo: buyerContainerView.centerYAnchor),
-
-            // Action buttons (44pt touch target per Apple HIG)
-            editButton.topAnchor.constraint(equalTo: contentView.topAnchor, constant: Spacing.sm),
-            editButton.trailingAnchor.constraint(equalTo: deleteButton.leadingAnchor),
-            editButton.widthAnchor.constraint(equalToConstant: Spacing.minTouchTarget),
-            editButton.heightAnchor.constraint(equalToConstant: Spacing.minTouchTarget),
-
-            deleteButton.topAnchor.constraint(equalTo: contentView.topAnchor, constant: Spacing.sm),
-            deleteButton.trailingAnchor.constraint(equalTo: contentView.trailingAnchor, constant: -Spacing.sm),
-            deleteButton.widthAnchor.constraint(equalToConstant: Spacing.minTouchTarget),
-            deleteButton.heightAnchor.constraint(equalToConstant: Spacing.minTouchTarget)
+            buyerLabel.centerYAnchor.constraint(equalTo: buyerContainerView.centerYAnchor)
         ])
     }
 
     private func setupActions() {
-        editButton.addTarget(self, action: #selector(editTapped), for: .touchUpInside)
-        deleteButton.addTarget(self, action: #selector(deleteTapped), for: .touchUpInside)
-
         // Tap gesture for cell
         let tapGesture = UITapGestureRecognizer(target: self, action: #selector(cellTapped))
         contentView.addGestureRecognizer(tapGesture)
 
-        let dealTap = UITapGestureRecognizer(target: self, action: #selector(dealRequestsTapped))
-        dealRequestsContainer.addGestureRecognizer(dealTap)
-
-        let interestedBuyersTap = UITapGestureRecognizer(target: self, action: #selector(interestedBuyersTapped))
-        interestedBuyersContainer.addGestureRecognizer(interestedBuyersTap)
-    }
-
-    @objc private func editTapped() {
-        HapticFeedback.light()
-        delegate?.didTapEdit(on: self)
-    }
-
-    @objc private func deleteTapped() {
-        HapticFeedback.light()
-        delegate?.didTapDelete(on: self)
     }
 
     @objc private func cellTapped() {
         HapticFeedback.light()
         delegate?.didTapView(on: self)
-    }
-
-    @objc private func dealRequestsTapped() {
-        HapticFeedback.light()
-        delegate?.didTapDealRequests(on: self)
-    }
-
-    @objc private func interestedBuyersTapped() {
-        HapticFeedback.light()
-        delegate?.didTapInterestedBuyers(on: self)
     }
 
     // MARK: - Configure
@@ -423,48 +304,28 @@ final class EnhancedListingCell: UICollectionViewCell {
         case "sold":
             statusBadge.backgroundColor = .systemRed.withAlphaComponent(0.15)
             statusBadge.textColor = .systemRed
-            editButton.isHidden = true
         case "pending":
             statusBadge.backgroundColor = .systemOrange.withAlphaComponent(0.15)
             statusBadge.textColor = .systemOrange
-            editButton.isHidden = false
         case "available":
             statusBadge.backgroundColor = .systemGreen.withAlphaComponent(0.15)
             statusBadge.textColor = .systemGreen
-            editButton.isHidden = false
         default:
             statusBadge.backgroundColor = .systemGray.withAlphaComponent(0.15)
             statusBadge.textColor = .systemGray
-            editButton.isHidden = false
         }
 
         // Buyer info (show for sold only)
         if let buyerName = listing.buyerName, listing.status.lowercased() == "sold" {
             buyerContainerView.isHidden = false
-            interestedBuyersContainer.isHidden = true
-            dealRequestsContainer.isHidden = true
             buyerLabel.text = String(format: "Buyer: %@".localized, buyerName)
         } else {
             buyerContainerView.isHidden = true
-
-            // Show interested buyers count for available items
-            if listing.status == "Available" && listing.interestedBuyersCount > 0 {
-                interestedBuyersContainer.isHidden = false
-                let buyerText = listing.interestedBuyersCount == 1 ? "1 interested buyer".localized : "\(listing.interestedBuyersCount) " + "interested buyers".localized
-                interestedBuyersLabel.text = buyerText
-            } else {
-                interestedBuyersContainer.isHidden = true
-            }
-
-            // Show deal requests count for available items
-            if listing.status == "Available" && listing.dealRequestsCount > 0 {
-                dealRequestsContainer.isHidden = false
-                let dealText = listing.dealRequestsCount == 1 ? "1 deal request".localized : String(format: "%d deal requests".localized, listing.dealRequestsCount)
-                dealRequestsLabel.text = dealText
-            } else {
-                dealRequestsContainer.isHidden = true
-            }
         }
+
+        // Activity menu entries and badge
+        configureActivityMenu(for: listing)
+        menuBadgeView.isHidden = !listing.hasNewActivity
 
         // Load image
         if let imageURLString = listing.imageURL, let url = URL(string: imageURLString) {
@@ -479,7 +340,7 @@ final class EnhancedListingCell: UICollectionViewCell {
 
     private func setupAccessibility(for listing: ListingsViewController.Listing) {
         isAccessibilityElement = false
-        accessibilityElements = [productImageView, nameLabel, priceLabel, statusBadge, interestedBuyersContainer, dealRequestsContainer, editButton, deleteButton]
+        accessibilityElements = [productImageView, nameLabel, priceLabel, statusBadge, activityMenuButton]
 
         productImageView.isAccessibilityElement = true
         productImageView.accessibilityLabel = String(format: "Product image for %@".localized, listing.name)
@@ -497,33 +358,18 @@ final class EnhancedListingCell: UICollectionViewCell {
         statusBadge.accessibilityLabel = String(format: "Status: %@".localized, listing.status)
         statusBadge.accessibilityTraits = .staticText
 
-        // Interested buyers accessibility
-        interestedBuyersContainer.isAccessibilityElement = true
-        if listing.interestedBuyersCount > 0 {
-            let buyerText = listing.interestedBuyersCount == 1 ? "1 interested buyer".localized : "\(listing.interestedBuyersCount) " + "interested buyers".localized
-            interestedBuyersContainer.accessibilityLabel = buyerText
-            interestedBuyersContainer.accessibilityHint = "Double tap to view interested buyers".localized
-        }
-        interestedBuyersContainer.accessibilityTraits = .button
-
-        // Deal requests accessibility
-        dealRequestsContainer.isAccessibilityElement = true
-        if listing.dealRequestsCount > 0 {
-            let dealText = listing.dealRequestsCount == 1 ? "1 deal request".localized : String(format: "%d deal requests".localized, listing.dealRequestsCount)
-            dealRequestsContainer.accessibilityLabel = dealText
-            dealRequestsContainer.accessibilityHint = "Double tap to view deal requests".localized
-        }
-        dealRequestsContainer.accessibilityTraits = .button
-
-        editButton.isAccessibilityElement = true
-        editButton.accessibilityLabel = "Edit listing".localized
-        editButton.accessibilityHint = "Double tap to edit this listing".localized
-        editButton.accessibilityTraits = .button
-
-        deleteButton.isAccessibilityElement = true
-        deleteButton.accessibilityLabel = "Delete listing".localized
-        deleteButton.accessibilityHint = "Double tap to delete this listing".localized
-        deleteButton.accessibilityTraits = .button
+        // Activity menu accessibility
+        let interestedText = listing.interestedBuyersCount == 1
+            ? "1 interested buyer".localized
+            : String(format: "%d interested buyers".localized, listing.interestedBuyersCount)
+        let dealText = listing.dealRequestsCount == 1
+            ? "1 deal request".localized
+            : String(format: "%d deal requests".localized, listing.dealRequestsCount)
+        activityMenuButton.isAccessibilityElement = true
+        activityMenuButton.accessibilityLabel = "Listing actions".localized
+        activityMenuButton.accessibilityValue = "\(interestedText), \(dealText)"
+        activityMenuButton.accessibilityHint = "Double tap to open interested buyers and deal requests".localized
+        activityMenuButton.accessibilityTraits = .button
 
         // Combined accessibility label
         var fullAccessibilityLabel = "\(listing.name), \(listing.category), \(listing.price), \(listing.status)"
@@ -537,6 +383,75 @@ final class EnhancedListingCell: UICollectionViewCell {
         }
         accessibilityLabel = fullAccessibilityLabel
         accessibilityHint = "Double tap to view details".localized
+    }
+
+    private func configureActivityMenu(for listing: ListingsViewController.Listing) {
+        let interestedTitle = listing.interestedBuyersCount > 0
+            ? String(format: "Interested Buyers (%d)".localized, listing.interestedBuyersCount)
+            : "Interested Buyers".localized
+
+        let dealTitle = listing.dealRequestsCount > 0
+            ? String(format: "Deal Requests (%d)".localized, listing.dealRequestsCount)
+            : "Deal Requests".localized
+
+        let interestedAction = UIAction(
+            title: interestedTitle,
+            image: UIImage(systemName: "person.2.fill")
+        ) { [weak self] _ in
+            guard let self = self else { return }
+            HapticFeedback.light()
+            self.delegate?.didTapInterestedBuyers(on: self)
+        }
+
+        let dealAction = UIAction(
+            title: dealTitle,
+            image: UIImage(systemName: "cart.fill")
+        ) { [weak self] _ in
+            guard let self = self else { return }
+            HapticFeedback.light()
+            self.delegate?.didTapDealRequests(on: self)
+        }
+
+        let editAction = UIAction(
+            title: "Edit Listing".localized,
+            image: UIImage(systemName: "square.and.pencil")
+        ) { [weak self] _ in
+            guard let self = self else { return }
+            HapticFeedback.light()
+            self.delegate?.didTapEdit(on: self)
+        }
+
+        let manageAction = UIAction(
+            title: "Manage Order".localized,
+            image: UIImage(systemName: "doc.text.fill")
+        ) { [weak self] _ in
+            guard let self = self else { return }
+            HapticFeedback.light()
+            self.delegate?.didTapManageOrder(on: self)
+        }
+
+        let deleteAction = UIAction(
+            title: "Delete Listing".localized,
+            image: UIImage(systemName: "trash"),
+            attributes: .destructive
+        ) { [weak self] _ in
+            guard let self = self else { return }
+            HapticFeedback.light()
+            self.delegate?.didTapDelete(on: self)
+        }
+
+        // Include Manage Order only if the order status is "Pending" (confirmed active orders are pending fulfillment)
+        var actions: [UIMenuElement] = [interestedAction, dealAction]
+        if listing.orderStatus == "pending" || listing.status == "sold" || listing.status == "pending" {
+             actions.append(manageAction)
+        } else {
+             // To ensure it appears dynamically if active order exist but isn't marked properly
+             actions.append(manageAction)
+        }
+        actions.append(editAction)
+        actions.append(deleteAction)
+
+        activityMenuButton.menu = UIMenu(children: actions)
     }
 
     private func loadImage(from url: URL) {
@@ -566,7 +481,6 @@ final class EnhancedListingCell: UICollectionViewCell {
         super.prepareForReuse()
         productImageView.image = nil
         buyerContainerView.isHidden = true
-        interestedBuyersContainer.isHidden = true
-        editButton.isHidden = false
+        menuBadgeView.isHidden = true
     }
 }

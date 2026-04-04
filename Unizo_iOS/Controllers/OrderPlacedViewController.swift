@@ -156,7 +156,7 @@ class OrderPlacedViewController: UIViewController {
         scrollView.addSubview(contentView)
 
         NSLayoutConstraint.activate([
-            scrollView.topAnchor.constraint(equalTo: view.topAnchor),
+            scrollView.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor),
             scrollView.leadingAnchor.constraint(equalTo: view.leadingAnchor),
             scrollView.trailingAnchor.constraint(equalTo: view.trailingAnchor),
             scrollView.bottomAnchor.constraint(equalTo: view.bottomAnchor),
@@ -190,7 +190,7 @@ class OrderPlacedViewController: UIViewController {
 
         NSLayoutConstraint.activate([
 
-            topBarContainer.topAnchor.constraint(equalTo: contentView.topAnchor, constant: 10),
+            topBarContainer.topAnchor.constraint(equalTo: contentView.topAnchor),
             topBarContainer.leadingAnchor.constraint(equalTo: contentView.leadingAnchor),
             topBarContainer.trailingAnchor.constraint(equalTo: contentView.trailingAnchor),
             topBarContainer.heightAnchor.constraint(equalToConstant: 60),

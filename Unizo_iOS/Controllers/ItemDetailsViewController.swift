@@ -353,11 +353,22 @@ class ItemDetailsViewController: UIViewController {
     private func updatePurchaseButtonsState() {
         guard let product = product else { return }
 
-        if !product.isAvailable {
-            // Product is sold or out of stock - disable Deal button but keep Chat enabled
-            buyNowButton.isEnabled = false
-            buyNowButton.setTitle("Sold".localized, for: .normal)
-            buyNowButton.backgroundColor = .systemGray3
+        Task { @MainActor in
+            let currentUserId = await AuthManager.shared.currentUserId
+            let isOwnProduct = currentUserId == product.sellerId
+
+            if isOwnProduct {
+                addToCartButton.isHidden = true
+                buyNowButton.isHidden = true
+            } else if !product.isAvailable {
+                // Product is sold or out of stock - disable Deal button but keep Chat enabled
+                buyNowButton.isEnabled = false
+                buyNowButton.setTitle("Sold".localized, for: .normal)
+                buyNowButton.backgroundColor = .systemGray3
+            } else {
+                addToCartButton.isHidden = false
+                buyNowButton.isHidden = false
+            }
         }
     }
 
@@ -720,11 +731,39 @@ class ItemDetailsViewController: UIViewController {
 
     // MARK: - Report & Block (App Store Requirement)
     @objc private func showMoreOptions() {
+        Task { @MainActor in
+            var activeOrderId: String? = nil
+            do {
+                if let productId = product.id {
+                    activeOrderId = try await OrderRepository().getActiveOrderId(for: productId)
+                }
+            } catch {
+                print("Error fetching active order: \(error)")
+            }
+            
+            self.presentMoreOptionsSheet(withOrderId: activeOrderId)
+        }
+    }
+    
+    private func presentMoreOptionsSheet(withOrderId orderId: String?) {
         let actionSheet = UIAlertController(
             title: nil,
             message: nil,
             preferredStyle: .actionSheet
         )
+
+        // Manage Order action (only if there is an active order)
+        if let orderId = orderId {
+            actionSheet.addAction(UIAlertAction(
+                title: "Manage Order".localized,
+                style: .default,
+                handler: { [weak self] _ in
+                    let vc = OrderDetailsViewController()
+                    vc.orderId = orderId
+                    self?.navigationController?.pushViewController(vc, animated: true)
+                }
+            ))
+        }
 
         // Report Listing action
         actionSheet.addAction(UIAlertAction(
@@ -983,74 +1022,87 @@ class ItemDetailsViewController: UIViewController {
             return
         }
 
-        print("🟦 [ChatDebug] Preparing chat. productId=\(productId), sellerId=\(sellerId), sellerName=\(product.sellerName)")
-
-        HapticFeedback.selection()
-
-        // Show loading indicator
-        let loadingAlert = UIAlertController(title: nil, message: "Opening chat...".localized, preferredStyle: .alert)
-        let loadingIndicator = UIActivityIndicatorView(style: .medium)
-        loadingIndicator.translatesAutoresizingMaskIntoConstraints = false
-        loadingIndicator.startAnimating()
-        loadingAlert.view.addSubview(loadingIndicator)
-
-        NSLayoutConstraint.activate([
-            loadingIndicator.centerXAnchor.constraint(equalTo: loadingAlert.view.centerXAnchor),
-            loadingIndicator.bottomAnchor.constraint(equalTo: loadingAlert.view.bottomAnchor, constant: -20)
-        ])
-
-        present(loadingAlert, animated: true)
-
         Task {
-            do {
-                // Get or create conversation id for this product
-                print("🟦 [ChatDebug] Calling ChatManager.getOrCreateConversationId")
-                let conversationId = try await ChatManager.shared.getOrCreateConversationId(
-                    productId: productId,
-                    sellerId: sellerId
-                )
-                print("🟩 [ChatDebug] Conversation id received=\(conversationId)")
-
+            guard let currentUserId = await AuthManager.shared.currentUserId, currentUserId != sellerId else {
                 await MainActor.run {
-                    loadingAlert.dismiss(animated: true) { [weak self] in
-                        print("🟦 [ChatDebug] Pushing ChatDetailViewController with conversationId=\(conversationId)")
-                        let chatVC = ChatDetailViewController()
-                        chatVC.conversationIdString = conversationId
-                        chatVC.productIdString = productId
-                        chatVC.chatTitle = product.name
-                        chatVC.otherUserName = product.sellerName
-                        chatVC.isSeller = false  // Current user is buyer, chatting with seller
-
-                        self?.navigationController?.pushViewController(chatVC, animated: true)
-                    }
+                    let alert = UIAlertController(title: "Cannot Chat".localized, message: "You cannot chat with yourself about your own listing.".localized, preferredStyle: .alert)
+                    alert.addAction(UIAlertAction(title: "OK".localized, style: .default))
+                    self.present(alert, animated: true)
                 }
+                return
+            }
 
-            } catch ChatError.cannotChatWithSelf {
-                await MainActor.run {
-                    loadingAlert.dismiss(animated: true) { [weak self] in
-                        let alert = UIAlertController(
-                            title: "Cannot Chat".localized,
-                            message: "You cannot chat with yourself about your own listing.".localized,
-                            preferredStyle: .alert
-                        )
-                        alert.addAction(UIAlertAction(title: "OK".localized, style: .default))
-                        self?.present(alert, animated: true)
-                    }
-                }
+            await MainActor.run {
+                print("🟦 [ChatDebug] Preparing chat. productId=\(productId), sellerId=\(sellerId), sellerName=\(product.sellerName)")
 
-            } catch {
-                print("🟥 [ChatDebug] Failed to open chat: \(error)")
-                await MainActor.run {
-                    loadingAlert.dismiss(animated: true) { [weak self] in
-                        let alert = UIAlertController(
-                            title: "Error".localized,
-                            message: String(format: "%@\n%@", "Could not open chat. Please try again.".localized, error.localizedDescription),
-                            preferredStyle: .alert
+                HapticFeedback.selection()
+
+                // Show loading indicator
+                let loadingAlert = UIAlertController(title: nil, message: "Opening chat...".localized, preferredStyle: .alert)
+                let loadingIndicator = UIActivityIndicatorView(style: .medium)
+                loadingIndicator.translatesAutoresizingMaskIntoConstraints = false
+                loadingIndicator.startAnimating()
+                loadingAlert.view.addSubview(loadingIndicator)
+
+                NSLayoutConstraint.activate([
+                    loadingIndicator.centerXAnchor.constraint(equalTo: loadingAlert.view.centerXAnchor),
+                    loadingIndicator.bottomAnchor.constraint(equalTo: loadingAlert.view.bottomAnchor, constant: -20)
+                ])
+
+                self.present(loadingAlert, animated: true)
+
+                Task {
+                    do {
+                        // Get or create conversation id for this product
+                        print("🟦 [ChatDebug] Calling ChatManager.getOrCreateConversationId")
+                        let conversationId = try await ChatManager.shared.getOrCreateConversationId(
+                            productId: productId,
+                            sellerId: sellerId
                         )
-                        alert.addAction(UIAlertAction(title: "OK".localized, style: .default))
-                        self?.present(alert, animated: true)
+                        print("🟩 [ChatDebug] Conversation id received=\(conversationId)")
+
+                        await MainActor.run {
+                            loadingAlert.dismiss(animated: true) { [weak self] in
+                                print("🟦 [ChatDebug] Pushing ChatDetailViewController with conversationId=\(conversationId)")
+                                let chatVC = ChatDetailViewController()
+                                chatVC.conversationIdString = conversationId
+                                chatVC.productIdString = productId
+                                chatVC.chatTitle = product.name
+                                chatVC.otherUserName = product.sellerName
+                                chatVC.isSeller = false  // Current user is buyer, chatting with seller
+
+                                self?.navigationController?.pushViewController(chatVC, animated: true)
+                            }
+                        }
+
+                    } catch ChatError.cannotChatWithSelf {
+                        await MainActor.run {
+                            loadingAlert.dismiss(animated: true) { [weak self] in
+                                let alert = UIAlertController(
+                                    title: "Cannot Chat".localized,
+                                    message: "You cannot chat with yourself about your own listing.".localized,
+                                    preferredStyle: .alert
+                                )
+                                alert.addAction(UIAlertAction(title: "OK".localized, style: .default))
+                                self?.present(alert, animated: true)
+                            }
+                        }
+
+                    } catch {
+                        print("🟥 [ChatDebug] Failed to open chat: \(error)")
+                        await MainActor.run {
+                            loadingAlert.dismiss(animated: true) { [weak self] in
+                                let alert = UIAlertController(
+                                    title: "Error".localized,
+                                    message: String(format: "%@\n%@", "Could not open chat. Please try again.".localized, error.localizedDescription),
+                                    preferredStyle: .alert
+                                )
+                                alert.addAction(UIAlertAction(title: "OK".localized, style: .default))
+                                self?.present(alert, animated: true)
+                            }
+                            HapticFeedback.error()
+                        }
                     }
-                    HapticFeedback.error()
                 }
             }
         }
@@ -1062,19 +1114,32 @@ class ItemDetailsViewController: UIViewController {
 
         guard let product else { return }
 
-        // Check if product is still available
-        guard product.isAvailable else {
-            HapticFeedback.error()
-            showUnavailableAlert()
-            return
+        Task {
+            guard let currentUserId = await AuthManager.shared.currentUserId, currentUserId != product.sellerId else {
+                await MainActor.run {
+                    let alert = UIAlertController(title: "Cannot Place Deal".localized, message: "You cannot place a deal on your own product.".localized, preferredStyle: .alert)
+                    alert.addAction(UIAlertAction(title: "OK".localized, style: .default))
+                    self.present(alert, animated: true)
+                }
+                return
+            }
+
+            await MainActor.run {
+                // Check if product is still available
+                guard product.isAvailable else {
+                    HapticFeedback.error()
+                    self.showUnavailableAlert()
+                    return
+                }
+
+                HapticFeedback.placeOrder()
+
+                let vc = AddressViewController()
+                vc.flowSource = .fromCheckout
+                vc.orderItems = [OrderItem(product: product)]
+                self.navigationController?.pushViewController(vc, animated: true)
+            }
         }
-
-        HapticFeedback.placeOrder()
-
-        let vc = AddressViewController()
-        vc.flowSource = .fromCheckout
-        vc.orderItems = [OrderItem(product: product)]
-        navigationController?.pushViewController(vc, animated: true)
     }
     @objc private func heartTapped() {
         if showGuestGateIfNeeded() { return }

@@ -179,41 +179,8 @@ final class NotificationManager {
 
                 // Process only newly added documents (realtime inserts)
                 for diff in snapshot.documentChanges where diff.type == .added {
-                    let doc = diff.document
-                    let data = doc.data()
-
-                    // Manual decode — Codable fails because Firestore stores
-                    // created_at as a Timestamp, not String
-                    guard let recipientId = data["recipient_id"] as? String,
-                          let senderId = data["sender_id"] as? String,
-                          let type = data["type"] as? String,
-                          let title = data["title"] as? String,
-                          let message = data["message"] as? String else {
-                        print("⚠️ NotificationManager: Failed to decode notification from document \(doc.documentID)")
-                        continue
-                    }
-
-                    // Convert Timestamp → ISO8601 String
-                    let createdAt: String
-                    if let ts = data["created_at"] as? Timestamp {
-                        let iso = ISO8601DateFormatter()
-                        iso.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
-                        createdAt = iso.string(from: ts.dateValue())
-                    } else if let str = data["created_at"] as? String {
-                        createdAt = str
-                    } else {
-                        createdAt = ISO8601DateFormatter().string(from: Date())
-                    }
-
-                    // Parse deeplink payload
-                    let deeplinkPayload: DeeplinkPayload
-                    if let dict = data["deeplink_payload"] as? [String: Any],
-                       let route = dict["route"] as? String {
-                        deeplinkPayload = DeeplinkPayload(
-                            route: route,
-                            orderId: dict["order_id"] as? String,
-                            sellerId: dict["seller_id"] as? String
-                        )
+                    if let notification = self.repository.decodeNotification(document: diff.document) {
+                        Task { await self.handleNewNotification(notification) }
                     } else {
                         deeplinkPayload = DeeplinkPayload(route: "home")
                     }

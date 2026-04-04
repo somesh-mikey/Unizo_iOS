@@ -13,6 +13,7 @@ enum NotificationType: String, Codable {
     case orderRejected = "order_rejected"
     case orderShipped = "order_shipped"
     case orderDelivered = "order_delivered"
+    case newRating = "new_rating"
 }
 
 // MARK: - Deeplink Payload
@@ -105,6 +106,8 @@ struct NotificationUIModel {
             return "shippingbox.fill"
         case .orderDelivered:
             return "checkmark.seal.fill"
+        case .newRating:
+            return "star.fill"
         }
     }
 
@@ -121,6 +124,8 @@ struct NotificationUIModel {
             return "systemOrange"
         case .orderDelivered:
             return "systemGreen"
+        case .newRating:
+            return "systemYellow"
         }
     }
 }

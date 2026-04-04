@@ -119,16 +119,21 @@ final class SellerDashboardRepository {
         try requireNetwork()
         let userId = try await getCurrentUserId()
 
-        let indexedQuery = db.collection("products")
-            .whereField("seller_id", isEqualTo: userId)
-            .order(by: "created_at", descending: true)
-
         do {
+            let indexedQuery = db.collection("products")
+                .whereField("seller_id", isEqualTo: userId)
+                .order(by: "created_at", descending: true)
+                
             let snapshot = try await indexedQuery.getDocuments()
-            return snapshot.documents.compactMap { decodeProduct(from: $0) }
+            let results = snapshot.documents.compactMap { decodeProduct(from: $0) }
+            
+            // If empty, fallback because order(by) silently drops documents missing the field
+            if results.isEmpty {
+                throw NSError(domain: "SellerDashboard", code: 404, userInfo: nil)
+            }
+            return results
+            
         } catch {
-            print("⚠️ fetchSellerProducts indexed query failed, using fallback: \(error.localizedDescription)")
-
             // Fallback avoids requiring a composite index and sorts in memory.
             let fallbackSnapshot = try await db.collection("products")
                 .whereField("seller_id", isEqualTo: userId)
@@ -166,12 +171,17 @@ final class SellerDashboardRepository {
     func fetchSellerOrders() async throws -> [SellerOrder] {
         try requireNetwork()
         let userId = try await getCurrentUserId()
+        print("🟪 [DealDebug] SellerDashboardRepository.fetchSellerOrders start sellerId=\(userId)")
 
         // 1. Fetch products owned by seller
         let products = try await fetchSellerProducts()
         let productIds = products.compactMap { $0.id }
+        print("🟪 [DealDebug] SellerDashboardRepository.fetchSellerOrders sellerProducts=\(products.count), productIds=\(productIds.count)")
         
-        guard !productIds.isEmpty else { return [] }
+        guard !productIds.isEmpty else {
+            print("🟨 [DealDebug] SellerDashboardRepository.fetchSellerOrders no products for sellerId=\(userId)")
+            return []
+        }
         
         // 2. Fetch order items that map to these products (Chunked by 10)
         var orderItems: [OrderItemDTO] = []
@@ -185,12 +195,17 @@ final class SellerDashboardRepository {
             let dtos = itemSnapshot.documents.compactMap { try? $0.data(as: OrderItemDTO.self) }
             orderItems.append(contentsOf: dtos)
         }
+        print("🟪 [DealDebug] SellerDashboardRepository.fetchSellerOrders matchedOrderItems=\(orderItems.count)")
         
-        guard !orderItems.isEmpty else { return [] }
+        guard !orderItems.isEmpty else {
+            print("🟨 [DealDebug] SellerDashboardRepository.fetchSellerOrders no order_items found for seller products")
+            return []
+        }
         
         // 3. Fetch associated orders
         let orderIds = Array(Set(orderItems.map { $0.order_id }))
         var orders: [String: OrderDTO] = [:]
+        print("🟪 [DealDebug] SellerDashboardRepository.fetchSellerOrders uniqueOrderIds=\(orderIds.count)")
         
         for oChunk in orderIds.chunked(into: 10) {
             let orderSnapshot = try await db.collection("orders")
@@ -200,13 +215,53 @@ final class SellerDashboardRepository {
             for doc in orderSnapshot.documents {
                 if let dto = try? doc.data(as: OrderDTO.self) {
                     orders[doc.documentID] = dto
+                } else {
+                    let data = doc.data()
+                    print("🟨 [DealDebug] SellerDashboardRepository.fetchSellerOrders OrderDTO decode failed for orderId=\(doc.documentID). Falling back to manual parse. dataKeys=\(Array(data.keys))")
+
+                    guard let userId = data["user_id"] as? String,
+                          let addressId = data["address_id"] as? String,
+                          let status = data["status"] as? String,
+                          let paymentMethod = data["payment_method"] as? String else {
+                        print("🟥 [DealDebug] SellerDashboardRepository.fetchSellerOrders fallback parse failed for orderId=\(doc.documentID)")
+                        continue
+                    }
+
+                    let totalAmount: Double = {
+                        if let d = data["total_amount"] as? Double { return d }
+                        if let i = data["total_amount"] as? Int { return Double(i) }
+                        return 0
+                    }()
+
+                    let createdAt = (data["created_at"] as? String) ?? ISO8601DateFormatter().string(from: Date(timeIntervalSince1970: 0))
+                    let instructions = data["instructions"] as? String
+                    let handoffCode = data["handoff_code"] as? String
+                    let handoffGeneratedAt = data["handoff_code_generated_at"] as? String
+
+                    let fallback = OrderDTO(
+                        id: nil,
+                        user_id: userId,
+                        address_id: addressId,
+                        status: status,
+                        total_amount: totalAmount,
+                        payment_method: paymentMethod,
+                        instructions: instructions,
+                        created_at: createdAt,
+                        handoff_code: handoffCode,
+                        handoff_code_generated_at: handoffGeneratedAt,
+                        items: nil,
+                        address: nil
+                    )
+                    orders[doc.documentID] = fallback
                 }
             }
         }
+        print("🟪 [DealDebug] SellerDashboardRepository.fetchSellerOrders fetchedOrders=\(orders.count)")
         
         // 4. Fetch buyer details
         let buyerIds = Array(Set(orders.values.map { $0.user_id }))
         var buyers: [String: UserDTO] = [:]
+        print("🟪 [DealDebug] SellerDashboardRepository.fetchSellerOrders uniqueBuyerIds=\(buyerIds.count)")
         
         for bChunk in buyerIds.chunked(into: 10) {
             let userSnapshot = try await db.collection("users")
@@ -233,7 +288,7 @@ final class SellerDashboardRepository {
             let buyer = buyers[order.user_id]
             
             sellerOrders.append(SellerOrder(
-                id: item.id ?? UUID().uuidString,
+                id: item.order_id,
                 productId: productId,
                 buyerId: order.user_id,
                 category: product.category ?? "General",
@@ -244,6 +299,15 @@ final class SellerDashboardRepository {
                 buyerName: buyer?.displayName ?? "Buyer",
                 createdAt: dateFormatter.date(from: order.created_at) ?? dateFormatter.date(from: order.created_at.replacingOccurrences(of: "\\.\\d+", with: "", options: .regularExpression)) ?? Date()
             ))
+        }
+
+        let pending = sellerOrders.filter { $0.status == .pending }
+        print("🟪 [DealDebug] SellerDashboardRepository.fetchSellerOrders assembled=\(sellerOrders.count), pending=\(pending.count)")
+        if !pending.isEmpty {
+            let pendingSummary = pending.prefix(10).map {
+                "orderId=\($0.id), productId=\($0.productId), buyerId=\($0.buyerId ?? "nil")"
+            }.joined(separator: " | ")
+            print("🟪 [DealDebug] SellerDashboardRepository.fetchSellerOrders pendingSummary \(pendingSummary)")
         }
 
         return sellerOrders.sorted { $0.createdAt > $1.createdAt }

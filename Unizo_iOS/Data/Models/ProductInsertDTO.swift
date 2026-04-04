@@ -18,9 +18,12 @@ struct ProductInsertDTO: Encodable {
     let is_negotiable: Bool
     let views_count: Int
     let is_active: Bool
-    let rating: Int
+    let rating: Double
     let colour: String
     let category: String
     let size: String
     let condition: String
+    let status: String = "available"
+    let quantity: Int = 1
+    let created_at: String = ISO8601DateFormatter().string(from: Date())
 }

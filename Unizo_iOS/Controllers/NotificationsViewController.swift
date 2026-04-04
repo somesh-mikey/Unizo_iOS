@@ -42,11 +42,11 @@ final class NotificationsViewController: UIViewController {
         return lbl
     }()
 
-    private let clearAllButton: UIButton = {
+    private let menuButton: UIButton = {
         let btn = UIButton(type: .system)
-        btn.setTitle("Clear All".localized, for: .normal)
-        btn.titleLabel?.font = UIFont.systemFont(ofSize: 17, weight: .regular)
-        btn.setTitleColor(.systemRed, for: .normal)
+        btn.setImage(UIImage(systemName: "ellipsis.circle"), for: .normal)
+        btn.tintColor = UIColor.label
+        btn.showsMenuAsPrimaryAction = true
         btn.translatesAutoresizingMaskIntoConstraints = false
         return btn
     }()
@@ -128,10 +128,18 @@ final class NotificationsViewController: UIViewController {
     private func setupNavigation() {
         view.addSubview(backButton)
         view.addSubview(titleLabel)
-        view.addSubview(clearAllButton)
+        view.addSubview(menuButton)
 
         backButton.addTarget(self, action: #selector(backPressed), for: .touchUpInside)
-        clearAllButton.addTarget(self, action: #selector(clearAllTapped), for: .touchUpInside)
+        
+        let clearAction = UIAction(
+            title: "Clear All".localized,
+            image: UIImage(systemName: "trash"),
+            attributes: .destructive
+        ) { [weak self] _ in
+            self?.clearAllTapped()
+        }
+        menuButton.menu = UIMenu(children: [clearAction])
 
         NSLayoutConstraint.activate([
             backButton.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor, constant: 10),
@@ -142,15 +150,17 @@ final class NotificationsViewController: UIViewController {
             titleLabel.centerYAnchor.constraint(equalTo: backButton.centerYAnchor),
             titleLabel.leadingAnchor.constraint(equalTo: backButton.trailingAnchor, constant: 16),
 
-            clearAllButton.centerYAnchor.constraint(equalTo: backButton.centerYAnchor),
-            clearAllButton.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -20)
+            menuButton.centerYAnchor.constraint(equalTo: backButton.centerYAnchor),
+            menuButton.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -20),
+            menuButton.widthAnchor.constraint(equalToConstant: 44),
+            menuButton.heightAnchor.constraint(equalToConstant: 44)
         ])
 
         // Accessibility
         backButton.accessibilityLabel = "Go back".localized
         backButton.accessibilityHint = "Return to previous screen".localized
         titleLabel.accessibilityTraits = .header
-        clearAllButton.accessibilityLabel = "Clear all notifications".localized
+        menuButton.accessibilityLabel = "Options".localized
     }
 
     @objc private func backPressed() {
@@ -190,7 +200,7 @@ final class NotificationsViewController: UIViewController {
                     self.tableView.reloadData()
                     self.loadingIndicator.stopAnimating()
                     self.emptyStateLabel.isHidden = false
-                    self.clearAllButton.isHidden = true
+                    self.menuButton.isHidden = true
                     // Reset badge count
                     NotificationManager.shared.resetUnreadCount()
                 }
@@ -260,7 +270,7 @@ final class NotificationsViewController: UIViewController {
 
                     // Show empty state if needed
                     self.emptyStateLabel.isHidden = !self.currentData.isEmpty
-                    self.clearAllButton.isHidden = self.allNotifications.isEmpty
+                    self.menuButton.isHidden = self.allNotifications.isEmpty
 
                     print("🔔 [Stage 3 Complete] NotificationsVC showing \(mapped.count) notifications (selling: \(self.sellingNotifications.count), buying: \(self.buyingNotifications.count))")
                 }

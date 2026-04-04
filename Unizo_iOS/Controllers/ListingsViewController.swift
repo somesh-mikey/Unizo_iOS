@@ -125,11 +125,18 @@ class ListingsViewController: UIViewController {
         let orderStatus: String?
         let interestedBuyersCount: Int
         let dealRequestsCount: Int
+        var hasNewInterestedBuyers: Bool
+        var hasNewDealRequests: Bool
+
+        var hasNewActivity: Bool {
+            hasNewInterestedBuyers || hasNewDealRequests
+        }
     }
 
     private var allListings: [Listing] = []
     private var filteredListings: [Listing] = []
     private var products: [ProductDTO] = []
+    private var currentUserId: String?
 
     private var currentSearchText: String = ""
     private var currentFilter: String = "All"
@@ -156,9 +163,12 @@ class ListingsViewController: UIViewController {
                     return
                 }
 
+                print("🟪 [DealDebug] ListingsViewController.fetchUserListings start sellerId=\(userId)")
+
                 let fetchedProducts = try await sellerDashboardRepository.fetchSellerProducts()
                 let conversations = try await chatRepository.fetchConversations()
                 let sellerOrders = try await sellerDashboardRepository.fetchSellerOrders()
+                print("🟪 [DealDebug] ListingsViewController.fetchUserListings fetchedProducts=\(fetchedProducts.count), conversations=\(conversations.count), sellerOrders=\(sellerOrders.count)")
 
                 var productBuyersSet: [String: Set<String>] = [:]
                 for conv in conversations where conv.seller_id == userId {
@@ -181,9 +191,17 @@ class ListingsViewController: UIViewController {
                     dealRequestsMap[productId] = buyersSet.count
                 }
 
+                let pendingOrdersCount = sellerOrders.filter { $0.status == .pending }.count
+                let dealSummary = dealRequestsMap.map { "\($0.key):\($0.value)" }.joined(separator: ", ")
+                print("🟪 [DealDebug] ListingsViewController.fetchUserListings pendingOrders=\(pendingOrdersCount), dealRequestsMapCount=\(dealRequestsMap.count)")
+                if !dealSummary.isEmpty {
+                    print("🟪 [DealDebug] ListingsViewController.fetchUserListings dealRequestsByProduct \(dealSummary)")
+                }
+
                 let deletedIDs = DeletedListingsStore.all()
 
                 await MainActor.run {
+                    self.currentUserId = userId
                     self.products = fetchedProducts.filter {
                         guard let id = $0.id else { return false }
                         return !deletedIDs.contains(id)
@@ -216,7 +234,9 @@ class ListingsViewController: UIViewController {
                             buyerName: nil,
                             orderStatus: nil,
                             interestedBuyersCount: interestedBuyersMap[productId] ?? 0,
-                            dealRequestsCount: dealRequestsMap[productId] ?? 0
+                            dealRequestsCount: dealRequestsMap[productId] ?? 0,
+                            hasNewInterestedBuyers: (interestedBuyersMap[productId] ?? 0) > ListingMenuBadgeStore.lastSeenInterestedCount(for: productId, userId: userId),
+                            hasNewDealRequests: (dealRequestsMap[productId] ?? 0) > ListingMenuBadgeStore.lastSeenDealRequestsCount(for: productId, userId: userId)
                         )
                     }
 
@@ -453,6 +473,38 @@ extension ListingsViewController: EnhancedListingCellDelegate {
         navigationController?.pushViewController(editVC, animated: true)
     }
 
+    func didTapManageOrder(on cell: EnhancedListingCell) {
+        guard let indexPath = collectionView.indexPath(for: cell) else { return }
+        let listing = filteredListings[indexPath.row]
+        
+        Task { @MainActor in
+            let loadingAlert = UIAlertController(title: nil, message: "Validating order...", preferredStyle: .alert)
+            present(loadingAlert, animated: true)
+            
+            do {
+                if let activeOrderId = try await OrderRepository().getActiveOrderId(for: listing.productId) {
+                    loadingAlert.dismiss(animated: true) {
+                        let vc = OrderDetailsViewController()
+                        vc.orderId = activeOrderId
+                        self.navigationController?.pushViewController(vc, animated: true)
+                    }
+                } else {
+                    loadingAlert.dismiss(animated: true) {
+                        let errorAlert = UIAlertController(title: "No Active Order", message: "There is no confirmed active order for this listing yet.", preferredStyle: .alert)
+                        errorAlert.addAction(UIAlertAction(title: "OK", style: .default))
+                        self.present(errorAlert, animated: true)
+                    }
+                }
+            } catch {
+                loadingAlert.dismiss(animated: true) {
+                    let errorAlert = UIAlertController(title: "Error", message: "Failed to validate order status.", preferredStyle: .alert)
+                    errorAlert.addAction(UIAlertAction(title: "OK", style: .default))
+                    self.present(errorAlert, animated: true)
+                }
+            }
+        }
+    }
+
     func didTapDelete(on cell: EnhancedListingCell) {
         guard let indexPath = collectionView.indexPath(for: cell) else { return }
         let listing = filteredListings[indexPath.row]
@@ -477,6 +529,8 @@ extension ListingsViewController: EnhancedListingCellDelegate {
         guard let indexPath = collectionView.indexPath(for: cell) else { return }
         let listing = filteredListings[indexPath.row]
 
+        markDealRequestsSeen(for: listing)
+
         let dealRequestsVC = DealRequestsViewController(productId: listing.productId, productTitle: listing.name)
         navigationController?.pushViewController(dealRequestsVC, animated: true)
     }
@@ -485,7 +539,50 @@ extension ListingsViewController: EnhancedListingCellDelegate {
         guard let indexPath = collectionView.indexPath(for: cell) else { return }
         let listing = filteredListings[indexPath.row]
 
+        markInterestedBuyersSeen(for: listing)
+
         fetchInterestedBuyerNames(for: listing.productId, productName: listing.name)
+    }
+
+    private func markInterestedBuyersSeen(for listing: Listing) {
+        guard let userId = currentUserId else { return }
+
+        ListingMenuBadgeStore.setLastSeenInterestedCount(
+            listing.interestedBuyersCount,
+            for: listing.productId,
+            userId: userId
+        )
+
+        updateBadgeState(for: listing.productId) { item in
+            item.hasNewInterestedBuyers = false
+        }
+    }
+
+    private func markDealRequestsSeen(for listing: Listing) {
+        guard let userId = currentUserId else { return }
+
+        ListingMenuBadgeStore.setLastSeenDealRequestsCount(
+            listing.dealRequestsCount,
+            for: listing.productId,
+            userId: userId
+        )
+
+        updateBadgeState(for: listing.productId) { item in
+            item.hasNewDealRequests = false
+        }
+    }
+
+    private func updateBadgeState(for productId: String, mutate: (inout Listing) -> Void) {
+        if let allIndex = allListings.firstIndex(where: { $0.productId == productId }) {
+            mutate(&allListings[allIndex])
+        }
+
+        if let filteredIndex = filteredListings.firstIndex(where: { $0.productId == productId }) {
+            mutate(&filteredListings[filteredIndex])
+            collectionView.reloadItems(at: [IndexPath(row: filteredIndex, section: 0)])
+        } else {
+            collectionView.reloadData()
+        }
     }
 
     private func fetchInterestedBuyerNames(for productId: String, productName: String) {
@@ -591,5 +688,30 @@ enum DeletedListingsStore {
         var set = all()
         set.insert(id)
         UserDefaults.standard.set(Array(set), forKey: key)
+    }
+}
+
+enum ListingMenuBadgeStore {
+    private static let interestedKeyPrefix = "listings_last_seen_interested"
+    private static let dealKeyPrefix = "listings_last_seen_deal"
+
+    static func lastSeenInterestedCount(for productId: String, userId: String) -> Int {
+        let key = "\(interestedKeyPrefix)_\(userId)_\(productId)"
+        return UserDefaults.standard.integer(forKey: key)
+    }
+
+    static func setLastSeenInterestedCount(_ count: Int, for productId: String, userId: String) {
+        let key = "\(interestedKeyPrefix)_\(userId)_\(productId)"
+        UserDefaults.standard.set(count, forKey: key)
+    }
+
+    static func lastSeenDealRequestsCount(for productId: String, userId: String) -> Int {
+        let key = "\(dealKeyPrefix)_\(userId)_\(productId)"
+        return UserDefaults.standard.integer(forKey: key)
+    }
+
+    static func setLastSeenDealRequestsCount(_ count: Int, for productId: String, userId: String) {
+        let key = "\(dealKeyPrefix)_\(userId)_\(productId)"
+        UserDefaults.standard.set(count, forKey: key)
     }
 }

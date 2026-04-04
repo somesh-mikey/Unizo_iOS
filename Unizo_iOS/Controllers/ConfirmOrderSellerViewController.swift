@@ -14,12 +14,13 @@ class ConfirmOrderSellerViewController: UIViewController {
 
     // MARK: - Fetched Data
     private let orderRepository = OrderRepository()
-    private let notificationRepository = NotificationRepository()
     private let chatRepository = ChatRepository()
     private let productRepository = ProductRepository()
+    private let userRepository = UserRepository()
     private var orderDetails: OrderDTO?
     private var sellerItems: [OrderItemDTO] = []
     private var buyerAddress: AddressDTO?
+    private var buyerUser: UserDTO?
     private var isLoading = false
 
     // MARK: - Loading Indicator
@@ -276,6 +277,7 @@ class ConfirmOrderSellerViewController: UIViewController {
                 let order = try await orderRepository.fetchOrderWithDetails(id: orderId)
                 self.orderDetails = order
                 self.buyerAddress = order.address
+                self.buyerUser = try? await userRepository.fetchUser(id: order.user_id)
 
                 // Get current seller ID
                 guard let currentSellerId = await AuthManager.shared.currentUserId else {
@@ -313,9 +315,17 @@ class ConfirmOrderSellerViewController: UIViewController {
         guard let order = orderDetails else { return }
 
         // Update buyer info
+        let fallbackName = buyerUser?.displayName ?? "Unknown Buyer".localized
+        
         if let address = buyerAddress {
-            buyerNameLabel.text = address.name
-            buyerAddressLabel.text = "\(address.line1), \(address.city), \(address.state) \(address.postal_code)"
+            buyerNameLabel.text = address.name.isEmpty ? fallbackName : address.name
+            buyerAddressLabel.text = [address.line1, address.city, address.state, address.postal_code]
+                .compactMap { $0 }
+                .filter { !$0.isEmpty }
+                .joined(separator: ", ")
+        } else {
+            buyerNameLabel.text = fallbackName
+            buyerAddressLabel.text = "Address restricted for privacy".localized
         }
 
         // Display first seller item (or summary if multiple)
@@ -615,7 +625,8 @@ private extension ConfirmOrderSellerViewController {
                 }
 
                 // Update order status to confirmed
-                try await orderRepository.updateOrderStatus(orderId: orderId, status: .confirmed)
+                let code = String(format: "%06d", Int.random(in: 0...999999))
+                try await orderRepository.confirmOrderAndGenerateHandoff(orderId: orderId, handoffCode: code)
 
                 print("✅ Order status update completed")
 
@@ -654,35 +665,7 @@ private extension ConfirmOrderSellerViewController {
                     }
                 }
 
-                // Notify the buyer that their order was accepted
-                if let order = orderDetails,
-                   let currentSellerId = await AuthManager.shared.currentUserId {
-
-                    // Get seller name for notification
-                    let sellerName = await getSellerDisplayName()
-
-                    // Get product name for message
-                    let productName = sellerItems.first?.product?.title ?? "your item".localized
-
-                    // Create notification for buyer
-                    let deeplinkPayload = DeeplinkPayload(
-                        route: "order_details",
-                        orderId: orderId,
-                        sellerId: currentSellerId
-                    )
-
-                    try await notificationRepository.createNotification(
-                        recipientId: order.user_id,  // Buyer receives
-                        senderId: currentSellerId,    // Seller triggered
-                        orderId: orderId,
-                        type: .orderAccepted,
-                        title: sellerName,
-                        message: "accepted your order for".localized + " \(productName).",
-                        deeplinkPayload: deeplinkPayload
-                    )
-
-                    print("🔔 [Stage 1 Complete] Notification written to Firestore for buyer: \(order.user_id)")
-                }
+                print("🔔 Order accepted notification is handled by OrderRepository.updateOrderStatus")
 
                 await MainActor.run {
                     self.loadingIndicator.stopAnimating()
@@ -731,33 +714,7 @@ private extension ConfirmOrderSellerViewController {
                 // Update order status to cancelled
                 try await orderRepository.updateOrderStatus(orderId: orderId, status: .cancelled)
 
-                // Notify the buyer that their order was rejected
-                if let order = orderDetails,
-                   let currentSellerId = await AuthManager.shared.currentUserId {
-
-                    // Get seller name for notification
-                    let sellerName = await getSellerDisplayName()
-
-                    // Get product name for message
-                    let productName = sellerItems.first?.product?.title ?? "your item".localized
-
-                    // Create notification for buyer
-                    let deeplinkPayload = DeeplinkPayload(
-                        route: "order_details",
-                        orderId: orderId,
-                        sellerId: currentSellerId
-                    )
-
-                    try await notificationRepository.createNotification(
-                        recipientId: order.user_id,  // Buyer receives
-                        senderId: currentSellerId,    // Seller triggered
-                        orderId: orderId,
-                        type: .orderRejected,
-                        title: sellerName,
-                        message: "rejected your order for".localized + " \(productName).",
-                        deeplinkPayload: deeplinkPayload
-                    )
-                }
+                print("🔔 Order rejected notification is handled by OrderRepository.updateOrderStatus")
 
                 await MainActor.run {
                     self.loadingIndicator.stopAnimating()
@@ -800,17 +757,16 @@ extension ConfirmOrderSellerViewController {
 
         Task {
             do {
-                // Get the current user's ID (seller)
-                guard let currentUserId = await AuthManager.shared.currentUserId else {
-                    throw NSError(domain: "ConfirmOrderSellerViewController", code: 401, userInfo: [
-                        NSLocalizedDescriptionKey: "Not authenticated"
+                guard let buyerId = self.orderDetails?.user_id else {
+                    throw NSError(domain: "ConfirmOrderSellerViewController", code: 404, userInfo: [
+                        NSLocalizedDescriptionKey: "Buyer ID not found"
                     ])
                 }
 
                 // Get or create conversation with buyer
-                let conversation = try await chatRepository.getOrCreateConversation(
+                let conversation = try await chatRepository.getOrCreateConversationForSeller(
                     productId: productId,
-                    sellerId: currentUserId
+                    buyerId: buyerId
                 )
                 guard let conversationId = conversation.id else {
                     throw NSError(domain: "ConfirmOrderSellerViewController", code: 404, userInfo: [
