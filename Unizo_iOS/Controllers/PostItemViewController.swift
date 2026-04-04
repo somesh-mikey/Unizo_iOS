@@ -466,6 +466,11 @@ final class PostItemViewController: UIViewController,
                     ])
                 }
 
+                // Fetch user's current rating summary
+                let orderRepository = OrderRepository()
+                let ratingSummary = try? await orderRepository.fetchUserRatingSummary(userId: userId)
+                let currentRating = ratingSummary?.average_rating ?? 0.0
+
                 // Upload all images
                 var imageURLs: [String] = []
                 for image in selectedImages {
@@ -487,7 +492,7 @@ final class PostItemViewController: UIViewController,
                     is_negotiable: isNegotiable,
                     views_count: 0,
                     is_active: true,
-                    rating: 0,
+                    rating: currentRating,
                     colour: colour,
                     category: category,
                     size: size,

@@ -127,7 +127,22 @@ class DealRequestsViewController: UIViewController {
         subtitleLabel.text = productTitle
         setupUI()
         setupTableView()
+    }
+
+    override func viewWillAppear(_ animated: Bool) {
+        super.viewWillAppear(animated)
+        navigationController?.setNavigationBarHidden(false, animated: animated)
+        (tabBarController as? MainTabBarController)?.hideFloatingTabBar()
+        tabBarController?.tabBar.isHidden = true
         fetchDealRequests()
+    }
+
+    override func viewWillDisappear(_ animated: Bool) {
+        super.viewWillDisappear(animated)
+        if isMovingFromParent || isBeingDismissed {
+            (tabBarController as? MainTabBarController)?.showFloatingTabBar()
+            tabBarController?.tabBar.isHidden = false
+        }
     }
 
     // MARK: - Setup UI
@@ -197,40 +212,58 @@ class DealRequestsViewController: UIViewController {
     // MARK: - Data Fetching
     private func fetchDealRequests() {
         loadingIndicator.startAnimating()
+        print("🟪 [DealDebug] DealRequestsViewController.fetchDealRequests start productId=\(productId), productTitle=\(productTitle)")
 
         Task {
             do {
-                let pendingOrdersForProduct = try await sellerDashboardRepository.fetchSellerOrders()
+                let sellerOrders = try await sellerDashboardRepository.fetchSellerOrders()
+                let pendingOrdersForProduct = sellerOrders
                     .filter { $0.productId == productId && $0.status == .pending }
+
+                print("🟪 [DealDebug] DealRequestsViewController.fetchDealRequests sellerOrders=\(sellerOrders.count), pendingForProduct=\(pendingOrdersForProduct.count)")
+                if !pendingOrdersForProduct.isEmpty {
+                    let summary = pendingOrdersForProduct.map {
+                        "orderId=\($0.id), buyerId=\($0.buyerId ?? "nil")"
+                    }.joined(separator: " | ")
+                    print("🟪 [DealDebug] DealRequestsViewController.pendingOrderSummary \(summary)")
+                }
 
                 var requests: [DealRequest] = []
 
                 for sellerOrder in pendingOrdersForProduct {
-                    let order = try await orderRepository.fetchOrderWithDetails(id: sellerOrder.id)
-                    let buyer = try await userRepository.fetchUser(id: order.user_id)
-                    let orderItem = (order.items ?? []).first { $0.product_id == productId } ?? order.items?.first
-                    let address = order.address
+                    do {
+                        let order = try await orderRepository.fetchOrderWithDetails(id: sellerOrder.id)
+                        let buyer = try? await userRepository.fetchUser(id: order.user_id)
+                        let orderItem = (order.items ?? []).first { $0.product_id == productId } ?? order.items?.first
+                        let address = order.address
 
-                    let addressString = [address?.line1, address?.city, address?.state, address?.postal_code]
-                        .compactMap { $0 }
-                        .filter { !$0.isEmpty }
-                        .joined(separator: ", ")
+                        let addressString = [address?.line1, address?.city, address?.state, address?.postal_code]
+                            .compactMap { $0 }
+                            .filter { !$0.isEmpty }
+                            .joined(separator: ", ")
 
-                    let buyerName = buyer?.displayName ?? address?.name ?? "Unknown Buyer".localized
-                    let buyerEmail = buyer?.email
+                        // Prefer the address name since it's explicitly typed during checkout
+                        let buyerName = address?.name ?? buyer?.displayName ?? "Unknown Buyer".localized
+                        let buyerEmail = buyer?.email
 
-                    requests.append(DealRequest(
-                        orderId: sellerOrder.id,
-                        buyerName: buyerName.isEmpty ? "Unknown Buyer".localized : buyerName,
-                        buyerEmail: buyerEmail,
-                        buyerPhone: address?.phone,
-                        buyerAddress: addressString.isEmpty ? nil : addressString,
-                        orderDate: formatDate(order.created_at),
-                        quantity: orderItem?.quantity ?? 1,
-                        priceAtPurchase: orderItem?.price_at_purchase ?? order.total_amount,
-                        paymentMethod: order.payment_method
-                    ))
+                        requests.append(DealRequest(
+                            orderId: sellerOrder.id,
+                            buyerName: buyerName.isEmpty ? "Unknown Buyer".localized : buyerName,
+                            buyerEmail: buyerEmail,
+                            buyerPhone: address?.phone,
+                            buyerAddress: addressString.isEmpty ? nil : addressString,
+                            orderDate: formatDate(order.created_at),
+                            quantity: orderItem?.quantity ?? 1,
+                            priceAtPurchase: orderItem?.price_at_purchase ?? order.total_amount,
+                            paymentMethod: order.payment_method
+                        ))
+                        print("🟪 [DealDebug] DealRequestsViewController.appendedRequest orderId=\(sellerOrder.id), buyer=\(buyerName), qty=\(orderItem?.quantity ?? 1)")
+                    } catch {
+                        print("⚠️ [DealRequestsVC] Skipping invalid order \(sellerOrder.id): \(error)")
+                    }
                 }
+
+                print("🟪 [DealDebug] DealRequestsViewController.fetchDealRequests finalRequests=\(requests.count)")
 
                 await MainActor.run {
                     self.dealRequests = requests
@@ -263,6 +296,7 @@ class DealRequestsViewController: UIViewController {
         isoFormatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
 
         if let date = isoFormatter.date(from: dateString) {
+            if date.timeIntervalSince1970 <= 0 { return "Unknown Date".localized }
             let displayFormatter = DateFormatter()
             displayFormatter.dateStyle = .medium
             displayFormatter.timeStyle = .short
@@ -272,6 +306,7 @@ class DealRequestsViewController: UIViewController {
         // Fallback: try without fractional seconds
         isoFormatter.formatOptions = [.withInternetDateTime]
         if let date = isoFormatter.date(from: dateString) {
+            if date.timeIntervalSince1970 <= 0 { return "Unknown Date".localized }
             let displayFormatter = DateFormatter()
             displayFormatter.dateStyle = .medium
             displayFormatter.timeStyle = .short

@@ -402,11 +402,7 @@ final class ProductRepository {
                 return nil
             }
             
-            guard let oldQuantity = document.data()?["quantity"] as? Int else {
-                let error = NSError(domain: "ProductRepository", code: 404, userInfo: [NSLocalizedDescriptionKey: "Product or quantity not found"])
-                errorPointer?.pointee = error
-                return nil
-            }
+            let oldQuantity = document.data()?["quantity"] as? Int ?? 1
             
             let newQuantity = max(0, oldQuantity - quantitySold)
             let newStatus: String = newQuantity == 0 ? "sold" : "available"

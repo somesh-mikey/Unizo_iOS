@@ -179,7 +179,7 @@ final class NotificationManager {
 
                 // Process only newly added documents (realtime inserts)
                 for diff in snapshot.documentChanges where diff.type == .added {
-                    if let notification = try? diff.document.data(as: NotificationDTO.self) {
+                    if let notification = self.repository.decodeNotification(document: diff.document) {
                         Task { await self.handleNewNotification(notification) }
                     } else {
                         print("⚠️ NotificationManager: Failed to decode notification from document \(diff.document.documentID)")

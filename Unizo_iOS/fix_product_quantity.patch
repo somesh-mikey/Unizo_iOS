@@ -1,0 +1,13 @@
+--- /Users/user57/Documents/Swift/Unizo_iOS/Unizo_iOS/Data/Repositories/ProductRepository.swift
++++ /Users/user57/Documents/Swift/Unizo_iOS/Unizo_iOS/Data/Repositories/ProductRepository.swift
+@@ -402,8 +402,7 @@
+             }
+             
+-            guard let oldQuantity = document.data()?["quantity"] as? Int else {
+-                let error = NSError(domain: "ProductRepository", code: 404, userInfo: [NSLocalizedDescriptionKey: "Product or quantity not found"])
+-                errorPointer?.pointee = error
+-                return nil
+-            }
++            let oldQuantity = document.data()?["quantity"] as? Int ?? 1
+             
+             let newQuantity = max(0, oldQuantity - quantitySold)

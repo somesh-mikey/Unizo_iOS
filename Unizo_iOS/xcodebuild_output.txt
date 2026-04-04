@@ -1,0 +1,6 @@
+Command line invocation:
+    /Applications/Xcode.app/Contents/Developer/usr/bin/xcodebuild clean build -scheme Unizo_iOS -sdk iphonesimulator -destination "generic/platform=iOS Simulator"
+
+Build settings from command line:
+    SDKROOT = iphonesimulator26.2
+

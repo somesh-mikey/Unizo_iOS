@@ -14,6 +14,7 @@ import FirebaseFirestore
 final class OrderRepository {
 
     private let db = Firestore.firestore()
+    private let notificationRepository = NotificationRepository()
 
     init() { }
 
@@ -34,6 +35,242 @@ final class OrderRepository {
         }
     }
 
+    private func decodeOrder(from snapshot: DocumentSnapshot) -> OrderDTO? {
+        if var order = try? snapshot.data(as: OrderDTO.self) {
+            if order.id == nil {
+                order.id = snapshot.documentID
+            }
+            return order
+        }
+
+        guard let data = snapshot.data(),
+              let userId = (data["user_id"] as? String) ?? (data["buyerId"] as? String),
+              let status = data["status"] as? String else {
+            let keys = snapshot.data()?.keys.map { String($0) } ?? []
+            print("🟥 [DealDebug] OrderRepository.decodeOrder fallback failed orderId=\(snapshot.documentID), keys=\(keys)")
+            return nil
+        }
+        
+        let addressId = (data["address_id"] as? String) ?? "unknown_address"
+        let paymentMethod = (data["payment_method"] as? String) ?? "Cash"
+
+        let totalAmount: Double = {
+            if let d = data["total_amount"] as? Double { return d }
+            if let i = data["total_amount"] as? Int { return Double(i) }
+            return 0
+        }()
+
+        let createdAt = (data["created_at"] as? String) ?? ISO8601DateFormatter().string(from: Date(timeIntervalSince1970: 0))
+        let instructions = data["instructions"] as? String
+        let handoffCode = data["handoff_code"] as? String
+        let handoffGeneratedAt = data["handoff_code_generated_at"] as? String
+
+        print("🟨 [DealDebug] OrderRepository.decodeOrder used fallback for orderId=\(snapshot.documentID), created_at_present=\(data["created_at"] != nil)")
+
+        return OrderDTO(
+            id: nil,
+            user_id: userId,
+            address_id: addressId,
+            status: status,
+            total_amount: totalAmount,
+            payment_method: paymentMethod,
+            instructions: instructions,
+            created_at: createdAt,
+            handoff_code: handoffCode,
+            handoff_code_generated_at: handoffGeneratedAt,
+            items: nil,
+            address: nil
+        )
+    }
+
+    private func hasExistingDealRequest(
+        buyerId: String,
+        productId: String,
+        disallowedStatuses: [String]
+    ) async throws -> Bool {
+        let orderIds: [String]
+
+        do {
+            let ordersSnapshot = try await db.collection("orders")
+                .whereField("user_id", isEqualTo: buyerId)
+                .whereField("status", in: disallowedStatuses)
+                .getDocuments()
+            orderIds = ordersSnapshot.documents.map { $0.documentID }
+        } catch {
+            // Fallback when a composite index is missing.
+            print("🟨 [DealDebug] OrderRepository.hasExistingDealRequest primary orders query failed, fallback to user-only query: \(error)")
+            let fallbackSnapshot = try await db.collection("orders")
+                .whereField("user_id", isEqualTo: buyerId)
+                .getDocuments()
+
+            orderIds = fallbackSnapshot.documents
+                .filter { doc in
+                    let status = (doc.data()["status"] as? String) ?? ""
+                    return disallowedStatuses.contains(status)
+                }
+                .map { $0.documentID }
+        }
+
+        guard !orderIds.isEmpty else { return false }
+
+        for chunk in orderIds.chunked(into: 10) {
+            do {
+                let itemsSnapshot = try await db.collection("order_items")
+                    .whereField("order_id", in: chunk)
+                    .whereField("product_id", isEqualTo: productId)
+                    .limit(to: 1)
+                    .getDocuments()
+
+                if !itemsSnapshot.documents.isEmpty {
+                    return true
+                }
+            } catch {
+                // Fallback when composite index for (order_id in, product_id ==) is missing.
+                print("🟨 [DealDebug] OrderRepository.hasExistingDealRequest primary order_items query failed, fallback to order_id-only query: \(error)")
+                let fallbackItemsSnapshot = try await db.collection("order_items")
+                    .whereField("order_id", in: chunk)
+                    .getDocuments()
+
+                let hasMatch = fallbackItemsSnapshot.documents.contains { doc in
+                    (doc.data()["product_id"] as? String) == productId
+                }
+
+                if hasMatch {
+                    return true
+                }
+            }
+        }
+
+        return false
+    }
+
+    private struct StatusNotificationTemplate {
+        let type: NotificationType
+        let buyerMessageFormat: String
+        let sellerMessageFormat: String
+    }
+
+    private static let statusNotificationTemplates: [OrderStatus: StatusNotificationTemplate] = [
+        .confirmed: StatusNotificationTemplate(
+            type: .orderAccepted,
+            buyerMessageFormat: "%@ accepted your deal request.",
+            sellerMessageFormat: "%@ confirmed this order."
+        ),
+        .cancelled: StatusNotificationTemplate(
+            type: .orderRejected,
+            buyerMessageFormat: "%@ rejected your deal request.",
+            sellerMessageFormat: "%@ cancelled this order."
+        ),
+        .shipped: StatusNotificationTemplate(
+            type: .orderShipped,
+            buyerMessageFormat: "%@ marked your order as ready for handoff.",
+            sellerMessageFormat: "%@ marked this order as ready for handoff."
+        ),
+        .delivered: StatusNotificationTemplate(
+            type: .orderDelivered,
+            buyerMessageFormat: "%@ marked your order as delivered.",
+            sellerMessageFormat: "%@ confirmed delivery for this order."
+        )
+    ]
+
+    private func fetchDisplayName(userId: String) async -> String {
+        do {
+            let doc = try await db.collection("users").document(userId).getDocument()
+            if let user = try? doc.data(as: UserDTO.self) {
+                let first = user.first_name ?? ""
+                let last = user.last_name ?? ""
+                let full = "\(first) \(last)".trimmingCharacters(in: .whitespaces)
+                if !full.isEmpty { return full }
+                if let email = user.email, !email.isEmpty {
+                    return email.components(separatedBy: "@").first ?? "A user"
+                }
+            }
+        } catch {
+            print("🟨 [DealDebug] OrderRepository.fetchDisplayName failed for userId=\(userId): \(error)")
+        }
+        return "A user"
+    }
+
+    private func fetchSellerIds(for orderItems: [OrderItemDTO]) async throws -> [String] {
+        let productIds = Array(Set(orderItems.map { $0.product_id }))
+        guard !productIds.isEmpty else { return [] }
+
+        var sellerIds = Set<String>()
+        for chunk in productIds.chunked(into: 10) {
+            let productSnapshot = try await db.collection("products")
+                .whereField(FieldPath.documentID(), in: chunk)
+                .getDocuments()
+
+            for doc in productSnapshot.documents {
+                if let sellerId = doc.data()["seller_id"] as? String, !sellerId.isEmpty {
+                    sellerIds.insert(sellerId)
+                }
+            }
+        }
+
+        return Array(sellerIds)
+    }
+
+    private func sendStatusUpdateNotifications(orderId: String, status: OrderStatus, handoffCode: String? = nil) async {
+        guard let template = Self.statusNotificationTemplates[status] else { return }
+
+        do {
+            let actorId = try await getCurrentUserId()
+            let order = try await fetchOrder(id: orderId)
+            let items = try await fetchOrderItems(orderId: orderId)
+            let sellerIds = try await fetchSellerIds(for: items)
+            let actorName = await fetchDisplayName(userId: actorId)
+
+            var recipients = Set<String>()
+            if status == .delivered {
+                recipients.insert(order.user_id)
+                sellerIds.forEach { recipients.insert($0) }
+                recipients.remove(actorId)
+            } else if sellerIds.contains(actorId) {
+                recipients.insert(order.user_id)
+            } else if actorId == order.user_id {
+                sellerIds.forEach { recipients.insert($0) }
+            } else {
+                recipients.insert(order.user_id)
+                sellerIds.forEach { recipients.insert($0) }
+                recipients.remove(actorId)
+            }
+
+            print("🟪 [DealDebug] OrderRepository.sendStatusUpdateNotifications orderId=\(orderId), status=\(status.rawValue), actorId=\(actorId), recipients=\(Array(recipients))")
+
+            for recipientId in recipients {
+                let isBuyerRecipient = recipientId == order.user_id
+                let messageFormat = isBuyerRecipient ? template.buyerMessageFormat : template.sellerMessageFormat
+                var message = String(format: messageFormat, actorName)
+                if status == .shipped,
+                   isBuyerRecipient,
+                   let handoffCode,
+                   !handoffCode.isEmpty {
+                    message += " Handoff code: \(handoffCode)."
+                }
+
+                let deeplinkPayload = DeeplinkPayload(
+                    route: "order_details",
+                    orderId: orderId,
+                    sellerId: sellerIds.first
+                )
+
+                try await notificationRepository.createNotification(
+                    recipientId: recipientId,
+                    senderId: actorId,
+                    orderId: orderId,
+                    type: template.type,
+                    title: actorName,
+                    message: message,
+                    deeplinkPayload: deeplinkPayload
+                )
+            }
+        } catch {
+            // Best effort: order updates should not fail if notification fails.
+            print("🟥 [DealDebug] OrderRepository.sendStatusUpdateNotifications failed orderId=\(orderId), status=\(status.rawValue), error=\(error)")
+        }
+    }
+
     // MARK: - Order Creation
 
     func createOrder(
@@ -47,6 +284,50 @@ final class OrderRepository {
         let orderRef = db.collection("orders").document()
         let orderId = orderRef.documentID
         let userId  = try await getCurrentUserId()
+        let createdAt = ISO8601DateFormatter().string(from: Date())
+
+        print("🟪 [DealDebug] OrderRepository.createOrder start orderId=\(orderId), buyerId=\(userId), addressId=\(addressId), itemsCount=\(items.count), totalAmount=\(totalAmount), createdAt=\(createdAt)")
+
+        let disallowedStatuses = [
+            OrderStatus.pending.rawValue,
+            OrderStatus.confirmed.rawValue,
+            OrderStatus.shipped.rawValue,
+            OrderStatus.delivered.rawValue
+        ]
+
+        // Prevent duplicate deals for the same product from the same buyer.
+        var uniqueProducts: [(productId: String, productName: String)] = []
+        var seenProductIds = Set<String>()
+        for item in items {
+            guard let productId = item.product.id, !productId.isEmpty else {
+                throw NSError(domain: "OrderRepository", code: 422, userInfo: [
+                    NSLocalizedDescriptionKey: "Invalid product reference while placing deal."
+                ])
+            }
+
+            if !seenProductIds.contains(productId) {
+                seenProductIds.insert(productId)
+                uniqueProducts.append((productId: productId, productName: item.product.name))
+            }
+        }
+
+        for product in uniqueProducts {
+            let alreadyPlaced = try await hasExistingDealRequest(
+                buyerId: userId,
+                productId: product.productId,
+                disallowedStatuses: disallowedStatuses
+            )
+
+            print("🟪 [DealDebug] OrderRepository.createOrder duplicateCheck buyerId=\(userId), productId=\(product.productId), alreadyPlaced=\(alreadyPlaced)")
+
+            if alreadyPlaced {
+                let message = "You already placed a deal for \(product.productName)."
+                print("🟥 [DealDebug] OrderRepository.createOrder blocked duplicate deal buyerId=\(userId), productId=\(product.productId)")
+                throw NSError(domain: "OrderRepository", code: 409, userInfo: [
+                    NSLocalizedDescriptionKey: message
+                ])
+            }
+        }
 
         let orderPayload = OrderInsertDTO(
             id: orderId,
@@ -55,7 +336,8 @@ final class OrderRepository {
             status: OrderStatus.pending.rawValue,
             total_amount: totalAmount,
             payment_method: paymentMethod,
-            instructions: instructions
+            instructions: instructions,
+            created_at: createdAt
         )
 
         let batch = db.batch()
@@ -66,6 +348,7 @@ final class OrderRepository {
 
         for item in items {
             let itemRef = db.collection("order_items").document()
+            print("🟪 [DealDebug] OrderRepository.createOrder item orderItemId=\(itemRef.documentID), productId=\(item.product.id ?? "nil"), sellerId=\(item.product.sellerId ?? "nil"), qty=\(item.quantity)")
             let itemPayload = OrderItemInsertDTO(
                 id: itemRef.documentID,
                 order_id: orderId,
@@ -83,7 +366,15 @@ final class OrderRepository {
             }
         }
 
+        if sellerItems.isEmpty {
+            print("🟥 [DealDebug] OrderRepository.createOrder sellerItems is EMPTY. No seller notification can be sent.")
+        } else {
+            let sellerSummary = sellerItems.map { "\($0.key):\($0.value.count)" }.joined(separator: ", ")
+            print("🟪 [DealDebug] OrderRepository.createOrder sellerItems grouped -> \(sellerSummary)")
+        }
+
         try await batch.commit()
+        print("🟪 [DealDebug] OrderRepository.createOrder batch committed orderId=\(orderId)")
         print("📦 Order created — notifying \(sellerItems.count) seller(s)")
 
         let buyerName = try await fetchCurrentUserName()
@@ -102,16 +393,24 @@ final class OrderRepository {
                 sellerId: sellerId
             )
 
-            try await notificationRepo.createNotification(
-                recipientId: sellerId,
-                senderId: userId,
-                orderId: orderId,
-                type: .newOrder,
-                title: buyerName,
-                message: message,
-                deeplinkPayload: deeplinkPayload
-            )
+            do {
+                try await notificationRepo.createNotification(
+                    recipientId: sellerId,
+                    senderId: userId,
+                    orderId: orderId,
+                    type: .newOrder,
+                    title: buyerName,
+                    message: message,
+                    deeplinkPayload: deeplinkPayload
+                )
+                print("🟪 [DealDebug] OrderRepository.createOrder notification sent sellerId=\(sellerId), orderId=\(orderId)")
+            } catch {
+                print("🟥 [DealDebug] OrderRepository.createOrder notification failed sellerId=\(sellerId), orderId=\(orderId), error=\(error)")
+                throw error
+            }
         }
+
+        print("🟪 [DealDebug] OrderRepository.createOrder done orderId=\(orderId)")
 
         return orderId
     }
@@ -139,7 +438,7 @@ final class OrderRepository {
     func fetchOrder(id: String) async throws -> OrderDTO {
         try requireNetwork()
         let snapshot = try await db.collection("orders").document(id).getDocument()
-        guard let order = try? snapshot.data(as: OrderDTO.self) else {
+        guard let order = decodeOrder(from: snapshot) else {
             throw NSError(domain: "OrderRepository", code: 404, userInfo: nil)
         }
         return order
@@ -148,13 +447,18 @@ final class OrderRepository {
     func fetchOrderWithDetails(id: String) async throws -> OrderDTO {
         try requireNetwork()
         let orderDoc = try await db.collection("orders").document(id).getDocument()
-        guard var order = try? orderDoc.data(as: OrderDTO.self) else {
+        guard var order = decodeOrder(from: orderDoc) else {
             throw NSError(domain: "OrderRepository", code: 404, userInfo: nil)
         }
         
         // 1. Fetch Address
-        let addressDoc = try await db.collection("users").document(order.user_id).collection("addresses").document(order.address_id).getDocument()
-        order.address = try? addressDoc.data(as: AddressDTO.self)
+        do {
+            let addressDoc = try await db.collection("users").document(order.user_id).collection("addresses").document(order.address_id).getDocument()
+            order.address = try? addressDoc.data(as: AddressDTO.self)
+        } catch {
+            print("⚠️ [DealDebug] OrderRepository failed to fetch address for order \(id): \(error.localizedDescription)")
+            // Continue execution, do not throw, since the address may be hidden by security rules
+        }
         
         // 2. Fetch Order Items
         var items = try await fetchOrderItems(orderId: id)
@@ -174,12 +478,25 @@ final class OrderRepository {
         try requireNetwork()
         let userId = try await getCurrentUserId()
 
-        let snapshot = try await db.collection("orders")
-            .whereField("user_id", isEqualTo: userId)
-            .order(by: "created_at", descending: true)
-            .getDocuments()
-
-        return snapshot.documents.compactMap { try? $0.data(as: OrderDTO.self) }
+        do {
+            let snapshot = try await db.collection("orders")
+                .whereField("user_id", isEqualTo: userId)
+                .order(by: "created_at", descending: true)
+                .getDocuments()
+            return snapshot.documents.compactMap { try? $0.data(as: OrderDTO.self) }
+        } catch {
+            print("⚠️ fetchUserOrders index error, using fallback sorting: \(error.localizedDescription)")
+            let fallbackSnapshot = try await db.collection("orders")
+                .whereField("user_id", isEqualTo: userId)
+                .getDocuments()
+            
+            let sortedDocs = fallbackSnapshot.documents.sorted {
+                let d1 = $0.data()["created_at"] as? String ?? ""
+                let d2 = $1.data()["created_at"] as? String ?? ""
+                return d1 > d2
+            }
+            return sortedDocs.compactMap { try? $0.data(as: OrderDTO.self) }
+        }
     }
 
     func fetchOrderItems(orderId: String) async throws -> [OrderItemDTO] {
@@ -193,14 +510,7 @@ final class OrderRepository {
 
     func fetchUserOrdersWithItems() async throws -> [OrderDTO] {
         try requireNetwork()
-        let userId = try await getCurrentUserId()
-
-        let snapshot = try await db.collection("orders")
-            .whereField("user_id", isEqualTo: userId)
-            .order(by: "created_at", descending: true)
-            .getDocuments()
-
-        var orders = snapshot.documents.compactMap { try? $0.data(as: OrderDTO.self) }
+        var orders = try await fetchUserOrders()
         let productRepo = ProductRepository()
         
         // Populate items in parallel
@@ -237,6 +547,8 @@ final class OrderRepository {
         try await db.collection("orders").document(orderId).updateData([
             "status": status.rawValue
         ])
+
+        await sendStatusUpdateNotifications(orderId: orderId, status: status)
     }
 
     func markReadyForHandoff(orderId: String, handoffCode: String) async throws {
@@ -249,6 +561,7 @@ final class OrderRepository {
             "handoff_code": handoffCode,
             "handoff_code_generated_at": now
         ])
+        await sendStatusUpdateNotifications(orderId: orderId, status: .shipped, handoffCode: handoffCode)
         print("✅ Order marked ready for handoff")
     }
 
@@ -298,6 +611,26 @@ final class OrderRepository {
         let data = try Firestore.Encoder().encode(ratingPayload)
         try await ref.setData(data)
         print("✅ Rating submitted: \(rating)★ for user \(ratedUserId.prefix(8))")
+        
+        // Recalculate average and total
+        try await recalculateUserRating(userId: ratedUserId)
+        
+        // Send notification to the rated user
+        do {
+            let raterName = await fetchDisplayName(userId: raterId)
+            let deeplinkPayload = DeeplinkPayload(route: "order_details", orderId: orderId, sellerId: ratedUserId)
+            try await notificationRepository.createNotification(
+                recipientId: ratedUserId,
+                senderId: raterId,
+                orderId: orderId,
+                type: .newRating,
+                title: "New Rating",
+                message: "\(raterName) gave you a \(rating)-star rating.",
+                deeplinkPayload: deeplinkPayload
+            )
+        } catch {
+            print("⚠️ Failed to send rating notification: \(error)")
+        }
     }
 
     func fetchOrderRating(orderId: String, raterId: String) async throws -> OrderRatingDTO? {
@@ -378,5 +711,71 @@ final class OrderRepository {
             }
         }
         return false
+    }
+    func getActiveOrderId(for productId: String) async throws -> String? {
+        let itemsSnapshot = try await db.collection("order_items")
+            .whereField("product_id", isEqualTo: productId)
+            .getDocuments()
+
+        for doc in itemsSnapshot.documents {
+            if let orderId = doc.data()["order_id"] as? String {
+                let orderDoc = try await db.collection("orders").document(orderId).getDocument()
+                if let statusString = orderDoc.data()?["status"] as? String, let status = OrderStatus(rawValue: statusString) {
+                    if status != .cancelled {
+                        return orderId
+                    }
+                }
+            }
+        }
+        return nil
+    }
+
+}
+extension OrderRepository {
+    func confirmOrderAndGenerateHandoff(orderId: String, handoffCode: String) async throws {
+        try requireNetwork()
+        print("📝 Confirming order \(orderId) and generating handoff code \(handoffCode)")
+
+        let now = ISO8601DateFormatter().string(from: Date())
+        try await db.collection("orders").document(orderId).updateData([
+            "status": OrderStatus.confirmed.rawValue,
+            "handoff_code": handoffCode,
+            "handoff_code_generated_at": now
+        ])
+
+        do {
+            let itemsSnapshot = try await db.collection("order_items")
+                .whereField("order_id", isEqualTo: orderId)
+                .getDocuments()
+            
+            let productRepo = ProductRepository()
+            for doc in itemsSnapshot.documents {
+                if let productId = doc.data()["product_id"] as? String {
+                    let quantity = doc.data()["quantity"] as? Int ?? 1
+                    try await productRepo.markProductAsSold(productId: productId, quantitySold: quantity)
+                    print("📉 Deducted \(quantity) from product \(productId)")
+                }
+            }
+        } catch {
+            print("⚠️ Failed to update product inventory after confirmation: \(error.localizedDescription)")
+        }
+
+        await sendStatusUpdateNotifications(orderId: orderId, status: .confirmed, handoffCode: handoffCode)
+    }
+
+    private func recalculateUserRating(userId: String) async throws {
+        let snapshot = try await db.collection("order_ratings")
+            .whereField("rated_user_id", isEqualTo: userId)
+            .getDocuments()
+
+        let ratings = snapshot.documents.compactMap { try? $0.data(as: OrderRatingDTO.self) }
+        let totalRatings = ratings.count
+        let averageRating = totalRatings > 0 ? ratings.reduce(0.0) { $0 + Double($1.rating) } / Double(totalRatings) : 0.0
+
+        try await db.collection("users").document(userId).setData([
+            "average_rating": averageRating,
+            "total_ratings": totalRatings
+        ], merge: true)
+        print("✅ Recalculated rating for \(userId.prefix(8)): average \(averageRating), total \(totalRatings)")
     }
 }

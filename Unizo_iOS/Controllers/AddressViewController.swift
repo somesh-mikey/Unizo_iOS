@@ -161,13 +161,15 @@ class AddressViewController: UIViewController {
 
         stepStack.axis = .horizontal
         stepStack.alignment = .center
-        stepStack.spacing = 40      // big gap so "Confirm Order" shifts to the right
+        stepStack.distribution = .equalCentering
+        stepStack.spacing = 0
         stepStack.translatesAutoresizingMaskIntoConstraints = false
         stepContainer.addSubview(stepStack)
 
         NSLayoutConstraint.activate([
-            stepStack.leadingAnchor.constraint(equalTo: stepContainer.leadingAnchor, constant: 20),
-            stepStack.centerYAnchor.constraint(equalTo: stepContainer.centerYAnchor)
+            stepStack.centerYAnchor.constraint(equalTo: stepContainer.centerYAnchor),
+            stepStack.leadingAnchor.constraint(equalTo: stepContainer.leadingAnchor, constant: 24),
+            stepStack.trailingAnchor.constraint(equalTo: stepContainer.trailingAnchor, constant: -24)
         ])
 
         // STEP 1
@@ -200,12 +202,24 @@ class AddressViewController: UIViewController {
         let step1Stack = UIStackView(arrangedSubviews: [step1Circle, step1Text])
         step1Stack.axis = .horizontal
         step1Stack.spacing = 6
+        step1Stack.alignment = .center
 
         // Arrow
         let arrowLabel = UILabel()
         arrowLabel.text = "›"
         arrowLabel.textColor = .gray
-        arrowLabel.font = UIFont.systemFont(ofSize: 16, weight: .regular)
+        arrowLabel.font = UIFont.systemFont(ofSize: 20, weight: .regular)
+        arrowLabel.textAlignment = .center
+
+        let arrowContainer = UIView()
+        arrowContainer.translatesAutoresizingMaskIntoConstraints = false
+        arrowLabel.translatesAutoresizingMaskIntoConstraints = false
+        arrowContainer.addSubview(arrowLabel)
+        NSLayoutConstraint.activate([
+            arrowLabel.centerXAnchor.constraint(equalTo: arrowContainer.centerXAnchor),
+            arrowLabel.centerYAnchor.constraint(equalTo: arrowContainer.centerYAnchor),
+            arrowContainer.widthAnchor.constraint(equalToConstant: 28)
+        ])
 
         // STEP 2
         let step2Circle = UIView()
@@ -237,9 +251,10 @@ class AddressViewController: UIViewController {
         let step2Stack = UIStackView(arrangedSubviews: [step2Circle, step2Text])
         step2Stack.axis = .horizontal
         step2Stack.spacing = 6
+        step2Stack.alignment = .center
 
         stepStack.addArrangedSubview(step1Stack)
-        stepStack.addArrangedSubview(arrowLabel)
+        stepStack.addArrangedSubview(arrowContainer)
         stepStack.addArrangedSubview(step2Stack)
     }
 

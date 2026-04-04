@@ -19,7 +19,6 @@ class OrderDetailsViewController: UIViewController {
     private var handoffCode: String?
     private var orderBuyerId: String?
     private let orderRepository = OrderRepository()
-    private let notificationRepository = NotificationRepository()
     private let chatRepository = ChatRepository()
     private let userRepository = UserRepository()
 
@@ -314,6 +313,16 @@ class OrderDetailsViewController: UIViewController {
         if let address = orderAddress {
             deliveryNameLabel.text = "\(address.name)  \(address.phone)"
             deliveryAddressLabel.text = "\(address.line1),\n\(address.city), \(address.state) \(address.postal_code)"
+            deliveryNameLabel.textColor = .darkGray
+            deliveryAddressLabel.textColor = lightGrayText
+        } else if currentUserIsSeller {
+            deliveryNameLabel.text = "Delivery details restricted".localized
+            deliveryAddressLabel.text = "Buyer will share location during chat".localized
+            deliveryNameLabel.textColor = .secondaryLabel
+            deliveryAddressLabel.textColor = .tertiaryLabel
+        } else {
+            deliveryNameLabel.text = ""
+            deliveryAddressLabel.text = ""
         }
 
         // Format actual order creation time for status card
@@ -656,12 +665,7 @@ class OrderDetailsViewController: UIViewController {
             timelineStack.addArrangedSubview(makeTimelineRow(title: "Order Confirmed".localized, subtitle: orderTime, completed: true))
             timelineStack.addArrangedSubview(makeTimelineRow(title: "Order Placed".localized, subtitle: orderTime, completed: true))
 
-        case .confirmed:
-            timelineStack.addArrangedSubview(makeTimelineRow(title: "Order Delivered".localized, subtitle: "Awaiting handoff".localized, completed: false))
-            timelineStack.addArrangedSubview(makeTimelineRow(title: "Order Confirmed".localized, subtitle: orderTime, completed: true))
-            timelineStack.addArrangedSubview(makeTimelineRow(title: "Order Placed".localized, subtitle: orderTime, completed: true))
-
-        case .shipped:
+        case .confirmed, .shipped:
             let deliverySubtitle = currentUserIsSeller ? "Enter handoff code".localized : "Share code with seller".localized
             timelineStack.addArrangedSubview(makeTimelineRow(title: "Order Delivered".localized, subtitle: deliverySubtitle, completed: false))
             timelineStack.addArrangedSubview(makeTimelineRow(title: "Order Confirmed".localized, subtitle: orderTime, completed: true))
@@ -880,12 +884,12 @@ class OrderDetailsViewController: UIViewController {
         deliveryTitle.translatesAutoresizingMaskIntoConstraints = false
         contentView.addSubview(deliveryTitle)
 
-        deliveryNameLabel.text = "Jonathan (+91) 90078 91599"
+        deliveryNameLabel.text = ""
         deliveryNameLabel.font = .systemFont(ofSize: 16, weight: .semibold)
         deliveryNameLabel.textColor = .darkGray
         deliveryNameLabel.translatesAutoresizingMaskIntoConstraints = false
 
-        deliveryAddressLabel.text = "4517 Washington Ave,\nManchester, Kentucky 39495"
+        deliveryAddressLabel.text = ""
         deliveryAddressLabel.font = .systemFont(ofSize: 13)
         deliveryAddressLabel.numberOfLines = 0
         deliveryAddressLabel.textColor = lightGrayText
@@ -1164,19 +1168,7 @@ class OrderDetailsViewController: UIViewController {
         let status = OrderStatus(rawValue: orderStatus) ?? .pending
 
         switch status {
-        case .confirmed where currentUserIsSeller:
-            // Seller sees "Get Code" button replacing "Chat"
-            hideHandoffCard()
-            helpButton.setTitle("Get Code".localized, for: .normal)
-            helpButton.setTitleColor(.white, for: .normal)
-            helpButton.backgroundColor = darkTeal
-            helpButton.layer.borderWidth = 0
-            helpButton.removeTarget(nil, action: nil, for: .touchUpInside)
-            helpButton.addTarget(self, action: #selector(readyToMeetTapped), for: .touchUpInside)
-            rateButton.isEnabled = false
-            rateButton.alpha = 0.4
-
-        case .shipped where !currentUserIsSeller:
+        case .confirmed where !currentUserIsSeller, .shipped where !currentUserIsSeller:
             // Buyer sees the handoff code
             handoffCard.isHidden = false
             handoffCardHeightConstraint?.isActive = false
@@ -1199,10 +1191,11 @@ class OrderDetailsViewController: UIViewController {
             handoffInstructionLabel.text = "Show this code to the seller when you meet to confirm delivery.".localized
 
             resetHelpButton()
+            rateButton.isHidden = currentUserIsSeller
             rateButton.isEnabled = false
             rateButton.alpha = 0.4
 
-        case .shipped where currentUserIsSeller:
+        case .confirmed where currentUserIsSeller, .shipped where currentUserIsSeller:
             // Seller sees code input
             handoffCard.isHidden = false
             handoffCardHeightConstraint?.isActive = false
@@ -1225,6 +1218,7 @@ class OrderDetailsViewController: UIViewController {
             helpButton.layer.borderWidth = 0
             helpButton.removeTarget(nil, action: nil, for: .touchUpInside)
             helpButton.addTarget(self, action: #selector(verifyCodeTapped), for: .touchUpInside)
+            rateButton.isHidden = currentUserIsSeller
             rateButton.isEnabled = false
             rateButton.alpha = 0.4
 
@@ -1232,15 +1226,17 @@ class OrderDetailsViewController: UIViewController {
             // Both see original buttons
             hideHandoffCard()
             resetHelpButton()
-            rateButton.isEnabled = true
-            rateButton.alpha = 1.0
+            rateButton.isHidden = currentUserIsSeller
+            rateButton.isEnabled = !currentUserIsSeller
+            rateButton.alpha = currentUserIsSeller ? 0.0 : 1.0
 
         default:
-            // pending, cancelled, or confirmed (buyer) -- keep defaults
+            // pending, cancelled
             hideHandoffCard()
             resetHelpButton()
-            rateButton.isEnabled = true
-            rateButton.alpha = 1.0
+            rateButton.isHidden = currentUserIsSeller
+            rateButton.isEnabled = !currentUserIsSeller
+            rateButton.alpha = currentUserIsSeller ? 0.0 : 1.0
         }
 
         view.layoutIfNeeded()
@@ -1304,11 +1300,18 @@ class OrderDetailsViewController: UIViewController {
 
         Task {
             do {
-                // Get or create conversation
-                let conversation = try await chatRepository.getOrCreateConversation(
-                    productId: productId,
-                    sellerId: product.seller?.id ?? otherUserId
-                )
+                let conversation: ConversationDTO
+                if currentUserIsSeller {
+                    conversation = try await chatRepository.getOrCreateConversationForSeller(
+                        productId: productId,
+                        buyerId: otherUserId
+                    )
+                } else {
+                    conversation = try await chatRepository.getOrCreateConversation(
+                        productId: productId,
+                        sellerId: otherUserId
+                    )
+                }
 
                 // Navigate to Chat tab
                 guard let conversationId = conversation.id else {
@@ -1382,28 +1385,7 @@ class OrderDetailsViewController: UIViewController {
             do {
                 // Save to DB
                 try await orderRepository.markReadyForHandoff(orderId: orderId, handoffCode: code)
-
-                // Send notification to buyer
-                if let currentUserId = currentUserId {
-                    let sellerName = try await fetchSellerDisplayName()
-                    let order = try await orderRepository.fetchOrder(id: orderId)
-
-                    let deeplinkPayload = DeeplinkPayload(
-                        route: "order_details",
-                        orderId: orderId,
-                        sellerId: currentUserId
-                    )
-
-                    try await notificationRepository.createNotification(
-                        recipientId: order.user_id,
-                        senderId: currentUserId,
-                        orderId: orderId,
-                        type: .orderShipped,
-                        title: sellerName,
-                        message: "is ready to hand off your order. Your handoff code: \(code)",
-                        deeplinkPayload: deeplinkPayload
-                    )
-                }
+                print("🔔 Order shipped notification is handled by OrderRepository.markReadyForHandoff")
 
                 await MainActor.run {
                     self.loadingSpinner.stopAnimating()
@@ -1443,40 +1425,7 @@ class OrderDetailsViewController: UIViewController {
                 let isValid = try await orderRepository.verifyHandoffCode(orderId: orderId, enteredCode: enteredCode)
 
                 if isValid {
-                    // Send delivery notifications to both parties
-                    if let currentUserId = currentUserId {
-                        let sellerName = try await fetchSellerDisplayName()
-                        let order = try await orderRepository.fetchOrder(id: orderId)
-                        let buyerName = try await fetchBuyerName(buyerId: order.user_id)
-
-                        let deeplinkPayload = DeeplinkPayload(
-                            route: "order_details",
-                            orderId: orderId,
-                            sellerId: currentUserId
-                        )
-
-                        // Notify buyer
-                        try await notificationRepository.createNotification(
-                            recipientId: order.user_id,
-                            senderId: currentUserId,
-                            orderId: orderId,
-                            type: .orderDelivered,
-                            title: sellerName,
-                            message: "has delivered your order. Enjoy!",
-                            deeplinkPayload: deeplinkPayload
-                        )
-
-                        // Notify seller (self)
-                        try await notificationRepository.createNotification(
-                            recipientId: currentUserId,
-                            senderId: order.user_id,
-                            orderId: orderId,
-                            type: .orderDelivered,
-                            title: buyerName,
-                            message: "confirmed receiving the order. Delivery complete!",
-                            deeplinkPayload: deeplinkPayload
-                        )
-                    }
+                    print("🔔 Order delivered notification is handled by OrderRepository.verifyHandoffCode/updateOrderStatus")
 
                     await MainActor.run {
                         self.loadingSpinner.stopAnimating()
@@ -1505,22 +1454,6 @@ class OrderDetailsViewController: UIViewController {
                 }
             }
         }
-    }
-
-    // MARK: - Helper: Fetch Seller Display Name
-    private func fetchSellerDisplayName() async throws -> String {
-        guard let userId = currentUserId else { return "Seller" }
-
-        let user = try await userRepository.fetchUser(id: userId)
-        let name = user?.displayName.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
-        return name.isEmpty ? "Seller" : name
-    }
-
-    // MARK: - Helper: Fetch Buyer Name
-    private func fetchBuyerName(buyerId: String) async throws -> String {
-        let user = try await userRepository.fetchUser(id: buyerId)
-        let name = user?.displayName.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
-        return name.isEmpty ? "Buyer" : name
     }
 
     // FINAL → ALWAYS GO TO HOME TAB

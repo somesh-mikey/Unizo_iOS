@@ -45,8 +45,8 @@ final class NotificationRepository {
             ?? Date.distantPast
     }
 
-    private func decodeNotification(document: QueryDocumentSnapshot) -> NotificationDTO? {
-        let data = document.data()
+    func decodeNotification(document: DocumentSnapshot) -> NotificationDTO? {
+        guard let data = document.data() else { return nil }
 
         guard let recipientId = data["recipient_id"] as? String,
               let senderId = data["sender_id"] as? String else {
