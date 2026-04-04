@@ -6,18 +6,17 @@
 //
 
 import UIKit
-import Supabase
 
 class ConfirmOrderSellerViewController: UIViewController {
 
     // MARK: - Order Data (passed from notification)
-    var orderId: UUID?
+    var orderId: String?
 
     // MARK: - Fetched Data
     private let orderRepository = OrderRepository()
     private let notificationRepository = NotificationRepository()
     private let chatRepository = ChatRepository()
-    private let productRepository = ProductRepository(supabase: supabase)
+    private let productRepository = ProductRepository()
     private var orderDetails: OrderDTO?
     private var sellerItems: [OrderItemDTO] = []
     private var buyerAddress: AddressDTO?
@@ -266,7 +265,7 @@ class ConfirmOrderSellerViewController: UIViewController {
     }
 
     // MARK: - Load Order Details
-    private func loadOrderDetails(orderId: UUID) {
+    private func loadOrderDetails(orderId: String) {
         guard !isLoading else { return }
         isLoading = true
         loadingIndicator.startAnimating()
@@ -602,7 +601,7 @@ private extension ConfirmOrderSellerViewController {
 
         Task {
             do {
-        print("🛒 Seller accepting order: \(orderId.uuidString)")
+                print("🛒 Seller accepting order: \(orderId)")
 
                 // Guard: if sellerItems is empty, show error and bail
                 guard !sellerItems.isEmpty else {
@@ -630,8 +629,8 @@ private extension ConfirmOrderSellerViewController {
                             )
                             print("✅ Product \(productId) marked as sold (qty: \(item.quantity))")
 
-                            // RULE G — Prevent re-appearance on refresh before Supabase propagates
-                            DeletedListingsStore.add(productId.uuidString)
+                            // RULE G — Prevent re-appearance on refresh before backend propagation
+                            DeletedListingsStore.add(productId)
 
                             // RULE H — Clear in-memory product cache
                             await MainActor.run {
@@ -681,6 +680,8 @@ private extension ConfirmOrderSellerViewController {
                         message: "accepted your order for".localized + " \(productName).",
                         deeplinkPayload: deeplinkPayload
                     )
+
+                    print("🔔 [Stage 1 Complete] Notification written to Firestore for buyer: \(order.user_id)")
                 }
 
                 await MainActor.run {
@@ -788,12 +789,11 @@ extension ConfirmOrderSellerViewController {
     @objc private func chatTapped() {
         // Get the first order item to initiate chat
         guard let firstItem = orderDetails?.items?.first,
-              let product = firstItem.product else {
+              let product = firstItem.product,
+              let productId = product.id else {
             self.showErrorAlert(message: "No product available for chat. Please try again.".localized)
             return
         }
-
-        let productId = product.id
 
         // Disable button to prevent multiple taps
         chatButton.isEnabled = false
@@ -801,17 +801,26 @@ extension ConfirmOrderSellerViewController {
         Task {
             do {
                 // Get the current user's ID (seller)
-                let currentUserId = try await supabase.auth.session.user.id
+                guard let currentUserId = await AuthManager.shared.currentUserId else {
+                    throw NSError(domain: "ConfirmOrderSellerViewController", code: 401, userInfo: [
+                        NSLocalizedDescriptionKey: "Not authenticated"
+                    ])
+                }
 
                 // Get or create conversation with buyer
                 let conversation = try await chatRepository.getOrCreateConversation(
                     productId: productId,
                     sellerId: currentUserId
                 )
+                guard let conversationId = conversation.id else {
+                    throw NSError(domain: "ConfirmOrderSellerViewController", code: 404, userInfo: [
+                        NSLocalizedDescriptionKey: "Conversation not found"
+                    ])
+                }
 
                 // Navigate to chat
                 await MainActor.run {
-                    self.navigateToChatConversation(conversationId: conversation.id)
+                    self.navigateToChatConversation(conversationId: conversationId)
                     self.chatButton.isEnabled = true
                 }
             } catch {
@@ -823,7 +832,7 @@ extension ConfirmOrderSellerViewController {
         }
     }
     
-    private func navigateToChatConversation(conversationId: UUID) {
+    private func navigateToChatConversation(conversationId: String) {
         // Switch to Chat tab (index 1) and navigate to specific conversation
         if let tabBarController = self.tabBarController {
             tabBarController.selectedIndex = 1 // Chat tab

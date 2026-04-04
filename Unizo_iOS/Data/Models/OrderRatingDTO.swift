@@ -4,20 +4,20 @@
 //
 
 import Foundation
+import FirebaseFirestore
 
 // MARK: - Order Rating DTO
 struct OrderRatingDTO: Codable {
-    let id: UUID
-    let order_id: UUID
-    let rater_id: UUID  // User who is rating (buyer or seller)
-    let rated_user_id: UUID  // User being rated
+    @DocumentID var id: String?
+    let order_id: String
+    let rater_id: String  // User who is rating (buyer or seller)
+    let rated_user_id: String  // User being rated
     let rating: Int  // 1-5 stars
     let review: String?  // Optional written review
     let created_at: String
     
     enum CodingKeys: String, CodingKey {
-        case id
-        case order_id
+                case order_id
         case rater_id
         case rated_user_id
         case rating
@@ -28,9 +28,9 @@ struct OrderRatingDTO: Codable {
 
 // MARK: - Order Rating Insert DTO (for creating)
 struct OrderRatingInsertDTO: Encodable {
-    let order_id: UUID
-    let rater_id: UUID
-    let rated_user_id: UUID
+    let order_id: String
+    let rater_id: String
+    let rated_user_id: String
     let rating: Int
     let review: String?
     

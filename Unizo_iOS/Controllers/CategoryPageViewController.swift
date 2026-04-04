@@ -97,7 +97,7 @@ class CategoryPageViewController: UIViewController, UITabBarDelegate, UIScrollVi
     }
 
     @objc private func handleProductDeleted(_ notification: Notification) {
-        guard let productId = notification.userInfo?["productId"] as? UUID else { return }
+        guard let productId = notification.userInfo?["productId"] as? String else { return }
         items.removeAll { $0.id == productId }
         filteredItems.removeAll { $0.id == productId }
         collectionView.reloadData()
@@ -555,7 +555,7 @@ class CategoryPageViewController: UIViewController, UITabBarDelegate, UIScrollVi
         ]
 
         let selectedCategory = categories[index]
-        let productRepository = ProductRepository(supabase: supabase)
+        let productRepository = ProductRepository()
 
         Task {
             do {

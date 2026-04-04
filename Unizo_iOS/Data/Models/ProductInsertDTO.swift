@@ -6,6 +6,7 @@
 //
 
 import Foundation
+import FirebaseFirestore
 
 struct ProductInsertDTO: Encodable {
     let seller_id: String

@@ -1,5 +1,5 @@
 import UIKit
-import Supabase
+import FirebaseStorage
 
 final class ProfileViewController: UIViewController {
 
@@ -762,31 +762,27 @@ extension ProfileViewController: UIImagePickerControllerDelegate, UINavigationCo
                     throw NSError(domain: "ProfileImage", code: 401,
                                   userInfo: [NSLocalizedDescriptionKey: "User not authenticated"])
                 }
-                print("👤 Uploading for user: \(userId.uuidString)")
+                print("👤 Uploading for user: \(userId)")
 
-                // Fixed per-user path with upsert=true so repeated saves overwrite the same file
-                let filePath = "profiles/\(userId.uuidString)/avatar.jpg"
+                // Fixed per-user path so repeated saves overwrite the same file
+                let filePath = "profiles/\(userId)/avatar.jpg"
                 print("📁 Storage path: \(filePath)")
 
-                // Retry upload up to 3 times to handle transient network drops (-1005)
+                let storageRef = Storage.storage().reference()
+                    .child("product-images")
+                    .child(filePath)
+
+                // Retry upload up to 3 times to handle transient network drops.
                 var uploadError: Error?
                 for attempt in 1...3 {
                     do {
-                        try await SupabaseManager.shared.client.storage
-                            .from("product-images")
-                            .upload(filePath, data: imageData, options: .init(upsert: true))
+                        _ = try await storageRef.putDataAsync(imageData)
                         print("✅ Storage upload complete (attempt \(attempt))")
                         uploadError = nil
                         break
                     } catch {
                         let nsErr = error as NSError
                         print("⚠️ Upload attempt \(attempt) error — domain:\(nsErr.domain) code:\(nsErr.code)")
-                        // -1017 = Supabase SDK parse quirk on successful upload
-                        if nsErr.domain == NSURLErrorDomain && nsErr.code == -1017 {
-                            print("✅ Treating as success (Supabase SDK parse quirk)")
-                            uploadError = nil
-                            break
-                        }
                         uploadError = error
                         if attempt < 3 {
                             print("🔄 Retrying in 1.5s...")
@@ -796,21 +792,13 @@ extension ProfileViewController: UIImagePickerControllerDelegate, UINavigationCo
                 }
                 if let err = uploadError { throw err }
 
-                let publicURL = try SupabaseManager.shared.client.storage
-                    .from("product-images")
-                    .getPublicURL(path: filePath)
+                let publicURL = try await storageRef.downloadURL()
 
                 // Cache-bust so UIImageView reloads even when URL string is identical
                 let cacheBusted = publicURL.absoluteString + "?v=\(Int(Date().timeIntervalSince1970))"
                 print("🌐 Public URL: \(cacheBusted)")
 
-                // Write directly to DB (bypasses requireNetwork guard)
-                struct ImageUpdate: Encodable { let profile_image_url: String }
-                try await SupabaseManager.shared.client
-                    .from("users")
-                    .update(ImageUpdate(profile_image_url: cacheBusted))
-                    .eq("id", value: userId.uuidString)
-                    .execute()
+                try await userRepository.updateProfileImageURL(cacheBusted)
                 print("✅ DB row updated")
 
                 await MainActor.run {

@@ -6,6 +6,7 @@
 //
 
 import Foundation
+import FirebaseFirestore
 
 struct ProductUpdateDTO: Encodable {
     let title: String

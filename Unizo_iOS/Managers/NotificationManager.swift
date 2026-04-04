@@ -2,7 +2,7 @@
 //  NotificationManager.swift
 //  Unizo_iOS
 //
-//  Singleton that owns the Supabase Realtime subscription for in-app
+//  Singleton that owns the Firestore Realtime subscription for in-app
 //  notifications. Call startListening() after sign-in and stopListening()
 //  on sign-out. Consumers can either conform to the delegate or observe
 //  the NotificationCenter names defined below.
@@ -10,7 +10,7 @@
 
 import Foundation
 import UIKit
-import Supabase
+import FirebaseFirestore
 import UserNotifications
 
 // MARK: - Delegate
@@ -38,12 +38,18 @@ final class NotificationManager {
 
     static let shared = NotificationManager()
 
-    private let client     = SupabaseManager.shared.client
+    private let db = Firestore.firestore()
     private let repository = NotificationRepository()
 
-    private var realtimeChannel: RealtimeChannelV2?
-    private var currentUserId: UUID?
+    private var listenerRegistration: ListenerRegistration?
+    private var currentUserId: String?
     private var isListening = false
+
+    /// Tracks whether the initial Firestore snapshot has been received.
+    /// Firestore's `addSnapshotListener` fires immediately with ALL existing
+    /// documents as `.added` on first attach. We skip that batch to avoid
+    /// double-counting the unread count (already set by `refreshUnreadCount()`).
+    private var didReceiveInitialSnapshot = false
 
     weak var delegate: NotificationManagerDelegate?
 
@@ -69,36 +75,46 @@ final class NotificationManager {
     /// Starts the realtime subscription and fetches the initial unread count.
     /// Safe to call on every login — duplicate calls are no-ops.
     func startListening() async {
-        guard !isListening else { return }
+        guard !isListening else {
+            print("NotificationManager: Already listening — no-op")
+            return
+        }
 
         guard let userId = await AuthManager.shared.currentUserId else {
-            print("NotificationManager: User not authenticated, skipping")
+            print("❌ NotificationManager: Cannot start — user not authenticated")
             return
         }
 
         currentUserId = userId
         isListening   = true
 
-        await refreshUnreadCount()
-        await subscribeToRealtime(userId: userId)
+        print("NotificationManager: Starting for user \(userId)")
 
-        print("NotificationManager: Started listening for user \(userId)")
+        await refreshUnreadCount()
+        subscribeToRealtime(userId: userId)
+
+        print("NotificationManager: ✅ Fully started for user \(userId)")
     }
 
-    /// Tears down the realtime channel and resets state. Call on sign-out.
+    /// Tears down the realtime listener and resets state. Call on sign-out.
     func stopListening() async {
-        guard isListening else { return }
+        guard isListening else {
+            print("NotificationManager: Not listening — stopListening is a no-op")
+            return
+        }
 
-        if let channel = realtimeChannel {
-            await client.realtimeV2.removeChannel(channel)
-            realtimeChannel = nil
+        if let listener = listenerRegistration {
+            listener.remove()
+            listenerRegistration = nil
+            print("NotificationManager: Removed Firestore snapshot listener")
         }
 
         currentUserId = nil
         isListening   = false
+        didReceiveInitialSnapshot = false
         unreadCount   = 0
 
-        print("NotificationManager: Stopped listening")
+        print("NotificationManager: ✅ Stopped")
     }
 
     func refreshUnreadCount() async {
@@ -110,7 +126,7 @@ final class NotificationManager {
         }
     }
 
-    func markAsRead(notificationId: UUID) async {
+    func markAsRead(notificationId: String) async {
         do {
             try await repository.markAsRead(notificationId: notificationId)
             await MainActor.run {
@@ -136,50 +152,112 @@ final class NotificationManager {
 
     // MARK: - Realtime
 
-    private func subscribeToRealtime(userId: UUID) async {
-        let channel = client.realtimeV2.channel("notifications:\(userId.uuidString)")
-
-        // Row-level filter so we only receive this user's rows, not every insert.
-        let insertions = channel.postgresChange(
-            InsertAction.self,
-            schema: "public",
-            table: "notifications",
-            filter: "recipient_id=eq.\(userId.uuidString)"
-        )
-
-        Task {
-            for await insertion in insertions {
-                await handleNewNotification(insertion)
-            }
+    private func subscribeToRealtime(userId: String) {
+        // Prevent duplicate subscriptions
+        if listenerRegistration != nil {
+            print("NotificationManager: Listener already exists — skipping duplicate subscribe")
+            return
         }
 
-        await channel.subscribe()
-        realtimeChannel = channel
+        didReceiveInitialSnapshot = false
 
-        print("NotificationManager: Subscribed to realtime for user \(userId)")
-    }
+        listenerRegistration = db.collection("notifications")
+            .whereField("recipient_id", isEqualTo: userId)
+            .addSnapshotListener { [weak self] querySnapshot, error in
+                guard let self = self, let snapshot = querySnapshot else {
+                    print("❌ NotificationManager: Snapshot listener error: \(error?.localizedDescription ?? "unknown")")
+                    return
+                }
 
-    private func handleNewNotification(_ insertion: InsertAction) async {
-        do {
-            let data = try JSONEncoder().encode(insertion.record)
-            let notification = try JSONDecoder().decode(NotificationDTO.self, from: data)
+                // Skip the initial snapshot — it contains ALL existing documents
+                // as `.added`. The unread count is already set by refreshUnreadCount().
+                guard self.didReceiveInitialSnapshot else {
+                    self.didReceiveInitialSnapshot = true
+                    print("NotificationManager: Initial snapshot received (\(snapshot.documents.count) existing docs) — skipped")
+                    return
+                }
 
-            print("NotificationManager: Received — \(notification.title)")
+                // Process only newly added documents (realtime inserts)
+                for diff in snapshot.documentChanges where diff.type == .added {
+                    let doc = diff.document
+                    let data = doc.data()
 
-            await MainActor.run {
-                self.unreadCount += 1
-                self.delegate?.notificationManager(self, didReceiveNotification: notification)
-                NotificationCenter.default.post(
-                    name: .newNotificationReceived,
-                    object: nil,
-                    userInfo: ["notification": notification]
-                )
+                    // Manual decode — Codable fails because Firestore stores
+                    // created_at as a Timestamp, not String
+                    guard let recipientId = data["recipient_id"] as? String,
+                          let senderId = data["sender_id"] as? String,
+                          let type = data["type"] as? String,
+                          let title = data["title"] as? String,
+                          let message = data["message"] as? String else {
+                        print("⚠️ NotificationManager: Failed to decode notification from document \(doc.documentID)")
+                        continue
+                    }
+
+                    // Convert Timestamp → ISO8601 String
+                    let createdAt: String
+                    if let ts = data["created_at"] as? Timestamp {
+                        let iso = ISO8601DateFormatter()
+                        iso.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+                        createdAt = iso.string(from: ts.dateValue())
+                    } else if let str = data["created_at"] as? String {
+                        createdAt = str
+                    } else {
+                        createdAt = ISO8601DateFormatter().string(from: Date())
+                    }
+
+                    // Parse deeplink payload
+                    let deeplinkPayload: DeeplinkPayload
+                    if let dict = data["deeplink_payload"] as? [String: Any],
+                       let route = dict["route"] as? String {
+                        deeplinkPayload = DeeplinkPayload(
+                            route: route,
+                            orderId: dict["order_id"] as? String,
+                            sellerId: dict["seller_id"] as? String
+                        )
+                    } else {
+                        deeplinkPayload = DeeplinkPayload(route: "home")
+                    }
+
+                    let notification = NotificationDTO(
+                        id: doc.documentID,
+                        recipient_id: recipientId,
+                        sender_id: senderId,
+                        order_id: data["order_id"] as? String,
+                        type: type,
+                        title: title,
+                        message: message,
+                        deeplink_payload: deeplinkPayload,
+                        event_key: data["event_key"] as? String,
+                        is_read: data["is_read"] as? Bool ?? false,
+                        created_at: createdAt,
+                        sender: nil
+                    )
+
+                    Task { await self.handleNewNotification(notification) }
+                }
             }
 
-            await scheduleLocalNotification(for: notification)
+        print("NotificationManager: ✅ Subscribed to Firestore realtime for user \(userId)")
+    }
 
-        } catch {
-            print("NotificationManager: Failed to decode notification: \(error)")
+    private func handleNewNotification(_ notification: NotificationDTO) async {
+        print("🔔 [Stage 2 Complete] Realtime notification received: \(notification.title) (id: \(notification.id ?? "nil"))")
+
+        await MainActor.run {
+            // Only increment if unread
+            if !notification.safeIsRead {
+                self.unreadCount += 1
+            }
+            self.delegate?.notificationManager(self, didReceiveNotification: notification)
+            NotificationCenter.default.post(
+                name: .newNotificationReceived,
+                object: nil,
+                userInfo: ["notification": notification]
+            )
+        }
+
+        if !notification.safeIsRead {
+            await scheduleLocalNotification(for: notification)
         }
     }
 
@@ -192,12 +270,12 @@ final class NotificationManager {
         content.sound = .default
         content.userInfo = [
             "type": "order",
-            "route": notification.deeplink_payload.route,
-            "orderId": notification.order_id.uuidString
+            "route": notification.safeDeeplinkPayload.route,
+            "orderId": notification.safeOrderId
         ]
 
         let request = UNNotificationRequest(
-            identifier: "order-\(notification.id.uuidString)",
+            identifier: "order-\(notification.id ?? UUID().uuidString)",
             content: content,
             trigger: nil
         )
@@ -211,10 +289,13 @@ final class NotificationManager {
 
     /// Routes to a screen based on deeplink route information.
     @MainActor
-    func navigateToRoute(route: String, orderId: UUID?) {
+    func navigateToRoute(route: String, orderId: String?) {
         guard let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
               let window = windowScene.windows.first(where: { $0.isKeyWindow }),
-              let rootVC = window.rootViewController else { return }
+              let rootVC = window.rootViewController else {
+            print("❌ NotificationManager: Cannot navigate — no key window")
+            return
+        }
 
         var navController: UINavigationController?
 
@@ -224,18 +305,31 @@ final class NotificationManager {
             navController = nav
         }
 
+        guard let nav = navController else {
+            print("❌ NotificationManager: Cannot navigate — no UINavigationController found")
+            return
+        }
+
         switch route {
         case "confirm_order_seller":
-            guard let orderId = orderId else { return }
+            guard let orderId = orderId else {
+                print("⚠️ NotificationManager: confirm_order_seller route missing orderId")
+                return
+            }
             let vc = ConfirmOrderSellerViewController()
             vc.orderId = orderId
+            nav.pushViewController(vc, animated: true)
+            print("NotificationManager: Navigated to ConfirmOrderSeller with \(orderId)")
 
-            if let nav = navController {
-                nav.pushViewController(vc, animated: true)
-            } else {
-                vc.modalPresentationStyle = .fullScreen
-                rootVC.present(vc, animated: true)
+        case "order_details":
+            guard let orderId = orderId else {
+                print("⚠️ NotificationManager: order_details route missing orderId")
+                return
             }
+            let vc = OrderDetailsViewController()
+            vc.orderId = orderId
+            nav.pushViewController(vc, animated: true)
+            print("NotificationManager: Navigated to OrderDetails with \(orderId)")
 
         default:
             print("NotificationManager: Unknown route '\(route)'")

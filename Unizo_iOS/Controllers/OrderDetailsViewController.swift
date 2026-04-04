@@ -4,12 +4,11 @@
 //
 
 import UIKit
-import Supabase
 
 class OrderDetailsViewController: UIViewController {
 
     // MARK: - Order Data (passed from OrderPlacedViewController)
-    var orderId: UUID?
+    var orderId: String?
     var orderAddress: AddressDTO?
     var orderTotal: Double = 0
     var orderCreatedAt: String?  // ISO8601 timestamp
@@ -18,13 +17,14 @@ class OrderDetailsViewController: UIViewController {
     // MARK: - Fetched Data
     private var orderItems: [OrderItemDTO] = []
     private var handoffCode: String?
-    private var orderBuyerId: UUID?
+    private var orderBuyerId: String?
     private let orderRepository = OrderRepository()
     private let notificationRepository = NotificationRepository()
     private let chatRepository = ChatRepository()
+    private let userRepository = UserRepository()
 
     // MARK: - Role Detection
-    private var currentUserId: UUID?
+    private var currentUserId: String?
     private var currentUserIsSeller: Bool = false
 
     // MARK: - Colors
@@ -147,7 +147,7 @@ class OrderDetailsViewController: UIViewController {
     private func refreshOrderStatus() {
         guard let id = orderId else { return }
 
-        print("🔄 Refreshing order status for order: \(id.uuidString)")
+        print("🔄 Refreshing order status for order: \(id)")
 
         Task {
             do {
@@ -276,15 +276,15 @@ class OrderDetailsViewController: UIViewController {
     // MARK: - Realtime Order Update Handler
     @objc private func handleRealtimeOrderUpdate(_ notification: Notification) {
         guard let userInfo = notification.userInfo,
-              let updatedOrderId = userInfo["orderId"] as? UUID,
-              updatedOrderId == orderId,
+                            let updatedOrderId = userInfo["orderId"] as? String,
+                            updatedOrderId == orderId,
               let newStatus = userInfo["newStatus"] as? String else {
             return
         }
 
         let newHandoffCode = userInfo["handoffCode"] as? String
 
-        print("⚡ Realtime update: order \(updatedOrderId.uuidString.prefix(8)) → \(newStatus)")
+        print("⚡ Realtime update: order \(updatedOrderId.prefix(8)) → \(newStatus)")
 
         // Update local state and UI
         if self.orderStatus != newStatus {
@@ -305,7 +305,7 @@ class OrderDetailsViewController: UIViewController {
     private func updateUIWithOrderData() {
         // Update status card with real data
         if let id = orderId {
-            let shortId = String(id.uuidString.prefix(8)).uppercased()
+            let shortId = String(id.prefix(8)).uppercased()
             orderIdLabel.text = "#ORD-\(shortId)"
         }
         totalAmountLabel.text = "₹\(Int(orderTotal))"
@@ -1279,10 +1279,13 @@ class OrderDetailsViewController: UIViewController {
             return
         }
 
-        let productId = product.id
+        guard let productId = product.id else {
+            print("Unable to determine product id")
+            return
+        }
 
         // Determine which user to chat with based on current user's role
-        let otherUserId: UUID?
+        let otherUserId: String?
         if currentUserIsSeller {
             // If current user is seller, chat with buyer (who placed the order)
             otherUserId = orderBuyerId
@@ -1308,7 +1311,12 @@ class OrderDetailsViewController: UIViewController {
                 )
 
                 // Navigate to Chat tab
-                await navigateToChatConversation(conversationId: conversation.id)
+                guard let conversationId = conversation.id else {
+                    throw NSError(domain: "OrderDetailsViewController", code: 404, userInfo: [
+                        NSLocalizedDescriptionKey: "Conversation not found"
+                    ])
+                }
+                await navigateToChatConversation(conversationId: conversationId)
 
                 // Re-enable button
                 DispatchQueue.main.async {
@@ -1331,7 +1339,7 @@ class OrderDetailsViewController: UIViewController {
         }
     }
 
-    private func navigateToChatConversation(conversationId: UUID) async {
+    private func navigateToChatConversation(conversationId: String) async {
         DispatchQueue.main.async {
             // Get the main tab bar controller
             guard let tabBarController = UIApplication.shared.connectedScenes
@@ -1503,45 +1511,15 @@ class OrderDetailsViewController: UIViewController {
     private func fetchSellerDisplayName() async throws -> String {
         guard let userId = currentUserId else { return "Seller" }
 
-        struct UserName: Codable {
-            let first_name: String?
-            let last_name: String?
-        }
-
-        let user: UserName = try await SupabaseManager.shared.client
-            .from("users")
-            .select("first_name, last_name")
-            .eq("id", value: userId.uuidString)
-            .single()
-            .execute()
-            .value
-
-        let name = [user.first_name, user.last_name]
-            .compactMap { $0 }
-            .joined(separator: " ")
-            .trimmingCharacters(in: .whitespaces)
+        let user = try await userRepository.fetchUser(id: userId)
+        let name = user?.displayName.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
         return name.isEmpty ? "Seller" : name
     }
 
     // MARK: - Helper: Fetch Buyer Name
-    private func fetchBuyerName(buyerId: UUID) async throws -> String {
-        struct UserName: Codable {
-            let first_name: String?
-            let last_name: String?
-        }
-
-        let user: UserName = try await SupabaseManager.shared.client
-            .from("users")
-            .select("first_name, last_name")
-            .eq("id", value: buyerId.uuidString)
-            .single()
-            .execute()
-            .value
-
-        let name = [user.first_name, user.last_name]
-            .compactMap { $0 }
-            .joined(separator: " ")
-            .trimmingCharacters(in: .whitespaces)
+    private func fetchBuyerName(buyerId: String) async throws -> String {
+        let user = try await userRepository.fetchUser(id: buyerId)
+        let name = user?.displayName.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
         return name.isEmpty ? "Buyer" : name
     }
 

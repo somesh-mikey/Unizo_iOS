@@ -3,14 +3,14 @@ import UIKit
 class OrderPlacedViewController: UIViewController {
 
     // MARK: - Order Data (passed from ConfirmOrderViewController)
-    var orderId: UUID?
+    var orderId: String?
     var orderAddress: AddressDTO?
     var orderedCategories: [String] = []
     var orderTotal: Double = 0
 
     // MARK: - Suggested Products
     private var suggestedProducts: [ProductUIModel] = []
-    private let productRepository = ProductRepository(supabase: supabase)
+    private let productRepository = ProductRepository()
 
     // MARK: - Outlets from XIB
     @IBOutlet weak var topBarContainer: UIView!

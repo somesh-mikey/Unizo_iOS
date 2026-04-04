@@ -16,7 +16,10 @@ final class NetworkMonitor {
     // Thread-safety note: `isConnected` is written on `queue` and read from main thread.
     // Bool is 1 byte — on ARM64, single-byte aligned reads/writes are naturally atomic.
     // Worst case is a stale read (benign TOCTOU), which is caught by requireNetwork().
-    private(set) var isConnected: Bool = true
+    //
+    // Starts as `false` to prevent a race condition where the first API call passes
+    // the network guard before NWPathMonitor has fired its initial callback.
+    private(set) var isConnected: Bool = false
 
     var onStatusChange: ((Bool) -> Void)?
 

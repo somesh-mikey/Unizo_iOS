@@ -6,6 +6,7 @@
 //
 
 import Foundation
+import FirebaseFirestore
 
 struct WishlistRowDTO: Codable {
     let products: ProductDTO

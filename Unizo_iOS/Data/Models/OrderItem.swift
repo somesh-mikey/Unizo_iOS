@@ -6,6 +6,7 @@
 //
 
 import Foundation
+import FirebaseFirestore
 
 /// Represents an item in an order (replacing CartItem)
 struct OrderItem {

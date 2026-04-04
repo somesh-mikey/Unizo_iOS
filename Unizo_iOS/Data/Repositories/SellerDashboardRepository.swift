@@ -6,7 +6,7 @@
 //
 
 import Foundation
-import Supabase
+import FirebaseFirestore
 
 // MARK: - Seller Statistics Model
 struct SellerStatistics {
@@ -32,8 +32,9 @@ struct UpcomingPayment {
 
 // MARK: - Seller Order Model (for dashboard display)
 struct SellerOrder {
-    let id: UUID
-    let productId: UUID
+    let id: String
+    let productId: String
+    let buyerId: String?
     let category: String
     let title: String
     let status: OrderStatus
@@ -65,14 +66,30 @@ struct SellerOrder {
 // MARK: - Repository
 final class SellerDashboardRepository {
 
-    private let client: SupabaseClient
+    private let db = Firestore.firestore()
+    private let iso8601WithFractionalSeconds: ISO8601DateFormatter = {
+        let formatter = ISO8601DateFormatter()
+        formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+        return formatter
+    }()
+    private let iso8601WithoutFractionalSeconds = ISO8601DateFormatter()
 
-    init(client: SupabaseClient = SupabaseManager.shared.client) {
-        self.client = client
+    init() {}
+
+    private func decodeProduct(from document: DocumentSnapshot) -> ProductDTO? {
+        guard var product = try? document.data(as: ProductDTO.self) else {
+            return nil
+        }
+
+        if product.id == nil {
+            product.id = document.documentID
+        }
+
+        return product
     }
 
     // MARK: - Get Current User ID
-    private func getCurrentUserId() async throws -> UUID {
+    private func getCurrentUserId() async throws -> String {
         guard let userId = await AuthManager.shared.currentUserId else {
             throw NSError(domain: "SellerDashboardRepository", code: 401, userInfo: [
                 NSLocalizedDescriptionKey: "User not authenticated"
@@ -93,15 +110,8 @@ final class SellerDashboardRepository {
         try requireNetwork()
         let userId = try await getCurrentUserId()
 
-        let users: [UserDTO] = try await client
-            .from("users")
-            .select()
-            .eq("id", value: userId.uuidString)
-            .limit(1)
-            .execute()
-            .value
-
-        return users.first
+        let doc = try await db.collection("users").document(userId).getDocument()
+        return try? doc.data(as: UserDTO.self)
     }
 
     // MARK: - Fetch Seller's Products
@@ -109,31 +119,47 @@ final class SellerDashboardRepository {
         try requireNetwork()
         let userId = try await getCurrentUserId()
 
-        let response = try await client
-            .from("products")
-            .select("""
-                id,
-                title,
-                description,
-                price,
-                image_url,
-                is_negotiable,
-                views_count,
-                is_active,
-                rating,
-                colour,
-                category,
-                size,
-                condition,
-                quantity,
-                status,
-                seller_id
-            """)
-            .eq("seller_id", value: userId.uuidString)
-            .order("created_at", ascending: false)
-            .execute()
+        let indexedQuery = db.collection("products")
+            .whereField("seller_id", isEqualTo: userId)
+            .order(by: "created_at", descending: true)
 
-        return try JSONDecoder().decode([ProductDTO].self, from: response.data)
+        do {
+            let snapshot = try await indexedQuery.getDocuments()
+            return snapshot.documents.compactMap { decodeProduct(from: $0) }
+        } catch {
+            print("⚠️ fetchSellerProducts indexed query failed, using fallback: \(error.localizedDescription)")
+
+            // Fallback avoids requiring a composite index and sorts in memory.
+            let fallbackSnapshot = try await db.collection("products")
+                .whereField("seller_id", isEqualTo: userId)
+                .getDocuments()
+
+            let sortedDocuments = fallbackSnapshot.documents.sorted {
+                createdAtDate(for: $0) > createdAtDate(for: $1)
+            }
+
+            return sortedDocuments.compactMap { decodeProduct(from: $0) }
+        }
+    }
+
+    private func createdAtDate(for document: DocumentSnapshot) -> Date {
+        let raw = document.data()?["created_at"]
+
+        if let timestamp = raw as? Timestamp {
+            return timestamp.dateValue()
+        }
+
+        if let date = raw as? Date {
+            return date
+        }
+
+        if let string = raw as? String {
+            if let parsed = iso8601WithFractionalSeconds.date(from: string) ?? iso8601WithoutFractionalSeconds.date(from: string) {
+                return parsed
+            }
+        }
+
+        return .distantPast
     }
 
     // MARK: - Fetch Orders Where Seller's Products Were Ordered
@@ -141,124 +167,90 @@ final class SellerDashboardRepository {
         try requireNetwork()
         let userId = try await getCurrentUserId()
 
-        // Fetch order items where the product belongs to the current seller
-        // Simplified query without nested user join (Supabase may not have the FK relationship)
-        struct SellerOrderItemDTO: Codable {
-            let id: UUID
-            let order_id: UUID
-            let product_id: UUID
-            let quantity: Int
-            let price_at_purchase: Double
-            let product: SellerProductInfo?
-            let order: SellerOrderInfo?
-
-            struct SellerProductInfo: Codable {
-                let id: UUID
-                let title: String
-                let category: String?
-                let image_url: String?
-                let seller_id: UUID?  // Can be null for some products
-            }
-
-            struct SellerOrderInfo: Codable {
-                let id: UUID
-                let user_id: UUID
-                let status: String
-                let created_at: String
-            }
+        // 1. Fetch products owned by seller
+        let products = try await fetchSellerProducts()
+        let productIds = products.compactMap { $0.id }
+        
+        guard !productIds.isEmpty else { return [] }
+        
+        // 2. Fetch order items that map to these products (Chunked by 10)
+        var orderItems: [OrderItemDTO] = []
+        let chunks = productIds.chunked(into: 10)
+        
+        for chunk in chunks {
+            let itemSnapshot = try await db.collection("order_items")
+                .whereField("product_id", in: chunk)
+                .getDocuments()
+            
+            let dtos = itemSnapshot.documents.compactMap { try? $0.data(as: OrderItemDTO.self) }
+            orderItems.append(contentsOf: dtos)
         }
-
-        let response = try await client
-            .from("order_items")
-            .select("""
-                id,
-                order_id,
-                product_id,
-                quantity,
-                price_at_purchase,
-                product:products!product_id(
-                    id,
-                    title,
-                    category,
-                    image_url,
-                    seller_id
-                ),
-                order:orders!order_id(
-                    id,
-                    user_id,
-                    status,
-                    created_at
-                )
-            """)
-            .execute()
-
-        let items = try JSONDecoder().decode([SellerOrderItemDTO].self, from: response.data)
-
-        // Filter to only include items where product belongs to current seller
-        let sellerItems = items.filter { item in
-            item.product?.seller_id == userId
-        }
-
-        // Collect unique buyer IDs to fetch their names
-        let buyerIds = Set(sellerItems.compactMap { $0.order?.user_id })
-        var buyerNames: [UUID: String] = [:]
-
-        // Fetch buyer names if there are any
-        if !buyerIds.isEmpty {
-            struct BuyerInfo: Codable {
-                let id: UUID
-                let first_name: String?
-                let last_name: String?
-                let email: String?
-            }
-
-            do {
-                let buyers: [BuyerInfo] = try await client
-                    .from("users")
-                    .select("id, first_name, last_name, email")
-                    .in("id", values: buyerIds.map { $0.uuidString })
-                    .execute()
-                    .value
-
-                for buyer in buyers {
-                    let first = buyer.first_name ?? ""
-                    let last = buyer.last_name ?? ""
-                    let fullName = "\(first) \(last)".trimmingCharacters(in: .whitespaces)
-                    buyerNames[buyer.id] = fullName.isEmpty ? (buyer.email?.components(separatedBy: "@").first ?? "Buyer") : fullName
+        
+        guard !orderItems.isEmpty else { return [] }
+        
+        // 3. Fetch associated orders
+        let orderIds = Array(Set(orderItems.map { $0.order_id }))
+        var orders: [String: OrderDTO] = [:]
+        
+        for oChunk in orderIds.chunked(into: 10) {
+            let orderSnapshot = try await db.collection("orders")
+                .whereField(FieldPath.documentID(), in: oChunk)
+                .getDocuments()
+                
+            for doc in orderSnapshot.documents {
+                if let dto = try? doc.data(as: OrderDTO.self) {
+                    orders[doc.documentID] = dto
                 }
-            } catch {
-                print("⚠️ Failed to fetch buyer names: \(error)")
             }
         }
-
-        // Convert to SellerOrder models
+        
+        // 4. Fetch buyer details
+        let buyerIds = Array(Set(orders.values.map { $0.user_id }))
+        var buyers: [String: UserDTO] = [:]
+        
+        for bChunk in buyerIds.chunked(into: 10) {
+            let userSnapshot = try await db.collection("users")
+                .whereField(FieldPath.documentID(), in: bChunk)
+                .getDocuments()
+                
+            for doc in userSnapshot.documents {
+                if let dto = try? doc.data(as: UserDTO.self) {
+                    buyers[doc.documentID] = dto
+                }
+            }
+        }
+        
+        // 5. Assemble to SellerOrder
+        var sellerOrders: [SellerOrder] = []
+        
         let dateFormatter = ISO8601DateFormatter()
-        dateFormatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
-
-        return sellerItems.compactMap { item -> SellerOrder? in
-            guard let product = item.product,
-                  let order = item.order else { return nil }
-
-            let buyerName = buyerNames[order.user_id] ?? "Buyer"
-            let createdAt = dateFormatter.date(from: order.created_at) ?? Date()
-
-            return SellerOrder(
-                id: item.id,
-                productId: product.id,
+        
+        for item in orderItems {
+            let productId = item.product_id
+            guard let product = products.first(where: { $0.id == productId }),
+                  let order = orders[item.order_id] else { continue }
+            
+            let buyer = buyers[order.user_id]
+            
+            sellerOrders.append(SellerOrder(
+                id: item.id ?? UUID().uuidString,
+                productId: productId,
+                buyerId: order.user_id,
                 category: product.category ?? "General",
                 title: product.title,
                 status: OrderStatus(rawValue: order.status) ?? .pending,
                 price: item.price_at_purchase,
-                imageUrl: product.image_url,
-                buyerName: buyerName,
-                createdAt: createdAt
-            )
-        }.sorted { $0.createdAt > $1.createdAt }
+                imageUrl: product.imageUrl,
+                buyerName: buyer?.displayName ?? "Buyer",
+                createdAt: dateFormatter.date(from: order.created_at) ?? dateFormatter.date(from: order.created_at.replacingOccurrences(of: "\\.\\d+", with: "", options: .regularExpression)) ?? Date()
+            ))
+        }
+
+        return sellerOrders.sorted { $0.createdAt > $1.createdAt }
     }
 
     // MARK: - Calculate Seller Statistics
     func fetchSellerStatistics() async throws -> SellerStatistics {
-        let products = try await fetchSellerProducts()
         let orders = try await fetchSellerOrders()
 
         // Calculate total sales (from delivered orders)
@@ -271,13 +263,12 @@ final class SellerDashboardRepository {
         // Pending orders count
         let pendingOrders = orders.filter { $0.status == .pending || $0.status == .confirmed }.count
 
-        // Category breakdown (from all orders, not just delivered)
+        // Category breakdown (from all orders)
         var categoryCount: [String: Int] = [:]
         for order in orders {
             categoryCount[order.category, default: 0] += 1
         }
 
-        // Map categories to colors
         let categoryColors: [String: String] = [
             "Hostel Essentials": "systemGreen",
             "Fashion": "systemBlue",
@@ -305,12 +296,9 @@ final class SellerDashboardRepository {
             )
         }
 
-        // Sales goal (could be fetched from user preferences, using default for now)
-        let salesGoal: Double = 5000.0
-
         return SellerStatistics(
             totalSales: totalSales,
-            salesGoal: salesGoal,
+            salesGoal: 5000.0,
             itemsSold: itemsSold,
             pendingOrders: pendingOrders,
             categoryBreakdown: categoryBreakdown,

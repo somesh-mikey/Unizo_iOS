@@ -16,7 +16,7 @@ class LandingScreenViewController: UIViewController {
     private var hasMorePages = true
     private let refreshControl = UIRefreshControl()
     private let loader = UIActivityIndicatorView(style: .medium)
-    private let productRepository = ProductRepository(supabase: supabase)
+    private let productRepository = ProductRepository()
 
     private var allProducts: [ProductUIModel] = []
     private var popularProducts: [ProductUIModel] = []
@@ -667,7 +667,7 @@ class LandingScreenViewController: UIViewController {
     }
 
     @objc private func handleProductDeleted(_ notification: Notification) {
-        guard let productId = notification.userInfo?["productId"] as? UUID else { return }
+        guard let productId = notification.userInfo?["productId"] as? String else { return }
 
         // Remove the deleted product from all product arrays immediately
         allProducts.removeAll { $0.id == productId }
@@ -698,11 +698,9 @@ class LandingScreenViewController: UIViewController {
         hasMorePages = true
         isLoadingMore = false
         do {
-            async let allDTOs = productRepository.fetchAllProducts(page: 1)
-            async let popularDTOs = productRepository.fetchPopularProducts()
-            async let negotiableDTOs = productRepository.fetchNegotiableProducts()
-
-            let (all, popular, negotiable) = try await (allDTOs, popularDTOs, negotiableDTOs)
+            let all = try await productRepository.fetchAllProducts(page: 1)
+            let popular = (try? await productRepository.fetchPopularProducts()) ?? []
+            let negotiable = (try? await productRepository.fetchNegotiableProducts()) ?? []
 
             self.allProducts = all.map(ProductMapper.toUIModel)
             self.popularProducts = popular.map(ProductMapper.toUIModel)
@@ -719,6 +717,9 @@ class LandingScreenViewController: UIViewController {
             refreshControl.endRefreshing()
 
             print("✅ Products loaded:", displayedProducts.count)
+            if displayedProducts.isEmpty {
+                print("⚠️ Product list is empty after fetch; check Firestore documents/filters.")
+            }
 
         } catch let error as NetworkError {
             // RULE 4C — Show offline overlay instead of silent print
@@ -726,8 +727,27 @@ class LandingScreenViewController: UIViewController {
             loader.stopAnimating()
             showOfflineOverlay()
         } catch {
-            print("❌ Failed to load products:", error)
+            print("❌ [LandingScreenVC] \(type(of: error)): \(error)")
             loader.stopAnimating()
+            loader.removeFromSuperview()
+            refreshControl.endRefreshing()
+            // Show empty state so user knows fetch failed
+            view.viewWithTag(8888)?.removeFromSuperview()
+            let label = UILabel()
+            label.tag = 8888
+            label.text = "Couldn't load products.\nPull down to retry."
+            label.numberOfLines = 0
+            label.textAlignment = .center
+            label.font = .preferredFont(forTextStyle: .subheadline)
+            label.textColor = .secondaryLabel
+            label.translatesAutoresizingMaskIntoConstraints = false
+            view.addSubview(label)
+            NSLayoutConstraint.activate([
+                label.centerXAnchor.constraint(equalTo: view.centerXAnchor),
+                label.centerYAnchor.constraint(equalTo: view.centerYAnchor),
+                label.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 32),
+                label.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -32)
+            ])
         }
     }
     @MainActor
@@ -736,28 +756,40 @@ class LandingScreenViewController: UIViewController {
             let dtos = try await productRepository.fetchBanners()
             print("🟢 Banner DTOs:", dtos)
 
-            self.banners = dtos.map {
-                BannerUIModel(imageURL: $0.image_url)
+            if dtos.isEmpty {
+                self.banners = [
+                    BannerUIModel(imageURL: ""),
+                    BannerUIModel(imageURL: ""),
+                    BannerUIModel(imageURL: "")
+                ]
+            } else {
+                self.banners = dtos.map { BannerUIModel(imageURL: $0.image_url) }
             }
 
             print("🟢 Banner URLs:", banners.map { $0.imageURL })
 
-            guard !banners.isEmpty else {
-                print("❌ No banners returned from DB")
-                return
-            }
             // Setup carousel after banners are loaded
-                        if !didSetupCarousel {
-                            didSetupCarousel = true
-                            setupCarousel()
-                            startAutoScroll()
-                        }
+            if !didSetupCarousel {
+                didSetupCarousel = true
+                setupCarousel()
+                startAutoScroll()
+            }
 
         } catch let error as NetworkError {
             print("❌ Network error loading banners:", error)
             // Overlay already shown by loadProducts catch — no double-show needed
         } catch {
             print("❌ Failed to load banners:", error)
+            self.banners = [
+                BannerUIModel(imageURL: "banner1"),
+                BannerUIModel(imageURL: "banner2"),
+                BannerUIModel(imageURL: "banner3")
+            ]
+            if !didSetupCarousel {
+                didSetupCarousel = true
+                setupCarousel()
+                startAutoScroll()
+            }
         }
     }
     @MainActor
@@ -881,7 +913,16 @@ class LandingScreenViewController: UIViewController {
                 )
 
             } catch {
-                print("❌ Category fetch failed:", error)
+                print("❌ [LandingScreenVC] Category fetch \(type(of: error)): \(error)")
+                await MainActor.run {
+                    let alert = UIAlertController(
+                        title: "Error".localized,
+                        message: "Couldn't load category. Please try again.".localized,
+                        preferredStyle: .alert
+                    )
+                    alert.addAction(UIAlertAction(title: "OK".localized, style: .default))
+                    self.present(alert, animated: true)
+                }
             }
         }
     }
@@ -929,7 +970,26 @@ class LandingScreenViewController: UIViewController {
 
         } catch {
             refreshControl.endRefreshing()
-            print("❌ Refresh failed:", error)
+            print("❌ [LandingScreenVC] Refresh \(type(of: error)): \(error)")
+            // Show inline error — products from previous load (if any) remain visible
+            view.viewWithTag(8888)?.removeFromSuperview()
+            if displayedProducts.isEmpty {
+                let label = UILabel()
+                label.tag = 8888
+                label.text = "Refresh failed.\nPull down to try again."
+                label.numberOfLines = 0
+                label.textAlignment = .center
+                label.font = .preferredFont(forTextStyle: .subheadline)
+                label.textColor = .secondaryLabel
+                label.translatesAutoresizingMaskIntoConstraints = false
+                view.addSubview(label)
+                NSLayoutConstraint.activate([
+                    label.centerXAnchor.constraint(equalTo: view.centerXAnchor),
+                    label.centerYAnchor.constraint(equalTo: view.centerYAnchor),
+                    label.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 32),
+                    label.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -32)
+                ])
+            }
         }
     }
     // MARK: - Native Pull-Down Menu (UIMenu)

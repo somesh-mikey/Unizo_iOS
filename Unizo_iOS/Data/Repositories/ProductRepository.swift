@@ -2,64 +2,96 @@
 //  ProductRepository.swift
 //  Unizo_iOS
 //
-//  Data access layer for the `products` table. All fetch methods that
-//  target the buyer feed auto-exclude the current user's own listings,
-//  sold items, and zero-quantity stock. Seller-facing queries (e.g.
-//  fetchSellerProducts) do not apply these filters.
+//  Data access layer for the `products` collection in Firestore. 
+//  All fetch methods that target the buyer feed auto-exclude the current user's 
+//  own listings, sold items, and zero-quantity stock using client-side 
+//  filtering due to NoSQL inequality limitations.
 //
 
 import Foundation
-import Supabase
+import FirebaseFirestore
 
 final class ProductRepository {
 
-    private let supabase: SupabaseClient
+    private let db = Firestore.firestore()
     private let pageSize = 20
-
-    // Shared select field list. `gallery_images` is optional in ProductDTO
-    // to handle older database schemas that predate that column.
-    private let productSelectFields = """
-        id,
-        title,
-        description,
-        price,
-        image_url,
-        is_negotiable,
-        views_count,
-        is_active,
-        rating,
-        colour,
-        category,
-        size,
-        condition,
-        quantity,
-        status,
-        seller_id,
-        seller:users!seller_id(id, first_name, last_name, email)
-    """
+    private let iso8601WithFractionalSeconds: ISO8601DateFormatter = {
+        let formatter = ISO8601DateFormatter()
+        formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+        return formatter
+    }()
+    private let iso8601WithoutFractionalSeconds = ISO8601DateFormatter()
 
     /// In-memory cache populated on page 1. Used for cart suggestions and
     /// category reuse across screens without a round-trip.
     private(set) var cachedProducts: [ProductDTO] = []
+    
+    /// Pagination cursor
+    private var lastDocument: DocumentSnapshot?
 
-    init(supabase: SupabaseClient) {
-        self.supabase = supabase
-    }
+    init() {}
 
     /// Removes a single product from the in-memory cache (call after deletion).
-    func removeFromCache(productId: UUID) {
+    func removeFromCache(productId: String) {
         cachedProducts.removeAll { $0.id == productId }
     }
 
     // MARK: - Helpers
 
-    private func getCurrentUserId() async -> UUID? {
+    private func getCurrentUserId() async -> String? {
         await AuthManager.shared.currentUserId
     }
 
     private func requireNetwork() throws {
         guard NetworkMonitor.shared.isReachable() else {
             throw NetworkError.noConnection
+        }
+    }
+
+    private func decodeProduct(from document: DocumentSnapshot) -> ProductDTO? {
+        guard var product = try? document.data(as: ProductDTO.self) else {
+            return nil
+        }
+
+        if product.id == nil {
+            product.id = document.documentID
+        }
+
+        return product
+    }
+
+    private func decodeProducts(from documents: [QueryDocumentSnapshot]) -> [ProductDTO] {
+        documents.compactMap { decodeProduct(from: $0) }
+    }
+
+    /// Helper to attach UserDTO seller profiles to each ProductDTO manually,
+    /// mimicking the behavior of Supabase relational joins.
+    private func attachSellers(to products: inout [ProductDTO]) async throws {
+        let uniqueSellerIds = Array(Set(products.compactMap { $0.seller_id }))
+        guard !uniqueSellerIds.isEmpty else { return }
+        
+        // Fetch all sellers in one go (chunked by 10 to respect Firestore 'in' limits if needed, 
+        // but since pageSize is 20, max possible is 20).
+        let sellerChunks = uniqueSellerIds.chunked(into: 10)
+        var usersMap: [String: UserDTO] = [:]
+        
+        for chunk in sellerChunks {
+            let snapshot = try await db.collection("users")
+                .whereField(FieldPath.documentID(), in: chunk)
+                .getDocuments()
+            
+            for doc in snapshot.documents {
+                if let user = try? doc.data(as: UserDTO.self) {
+                    usersMap[doc.documentID] = user
+                }
+            }
+        }
+        
+        // Map sellers back to their products
+        for index in products.indices {
+            if let seller_id = products[index].seller_id, let user = usersMap[seller_id] {
+                products[index].seller = ProductSellerDTO(id: user.id, first_name: user.first_name, last_name: user.last_name, email: user.email)
+            }
         }
     }
 
@@ -73,54 +105,73 @@ final class ProductRepository {
             return []
         }
 
-        let from = (page - 1) * pageSize
-        let to   = from + pageSize - 1
-
         let currentUserId = await getCurrentUserId()
 
-        var query = supabase
-            .from("products")
-            .select(productSelectFields)
-            .eq("is_active", value: true)
-            .neq("status", value: "sold")
-            .gt("quantity", value: 0)
+        var query = db.collection("products")
+            .whereField("is_active", isEqualTo: true)
+            .order(by: "created_at", descending: true)
+            .limit(to: pageSize * 3)
 
+        var fallbackQuery = db.collection("products")
+            .limit(to: pageSize * 3)
+
+        if page > 1, let lastDoc = lastDocument {
+            query = query.start(afterDocument: lastDoc)
+            fallbackQuery = fallbackQuery.start(afterDocument: lastDoc)
+        } else {
+            lastDocument = nil // reset cursor
+        }
+
+        var snapshot: QuerySnapshot
+        do {
+            snapshot = try await query.getDocuments()
+        } catch {
+            print("⚠️ fetchAllProducts primary query failed, using fallback: \(error.localizedDescription)")
+            snapshot = try await fallbackQuery.getDocuments()
+        }
+
+        if snapshot.documents.isEmpty {
+            snapshot = try await fallbackQuery.getDocuments()
+        }
+
+        guard !snapshot.documents.isEmpty else { return [] }
+        
+        lastDocument = snapshot.documents.last
+        
+        var products = decodeProducts(from: snapshot.documents)
+
+        // 1. Memory Filter: Active + Quantity + Status
+        products = products.filter { ($0.is_active ?? true) && ($0.quantity ?? 1) > 0 && $0.status != .sold }
+
+        // 2. Memory Filter: Remove current user's listings
         if let userId = currentUserId {
-            query = query.neq("seller_id", value: userId.uuidString)
+            products = products.filter { $0.seller_id != userId }
         }
 
-        let response = try await query.range(from: from, to: to).execute()
-
-        if let jsonString = String(data: response.data, encoding: .utf8) {
-            print("🔍 Raw Supabase response (first 2000 chars):", String(jsonString.prefix(2000)))
-        }
-
-        var products = try JSONDecoder().decode([ProductDTO].self, from: response.data)
-
-        // Apply local blocked-user filter for immediate effect while the
-        // Row-Level Security policy propagates.
+        // Apply local blocked-user filter
         let blockedUsers = BlockedUsersStore.all()
         if !blockedUsers.isEmpty {
             products = products.filter { product in
-                guard let sellerId = product.seller?.id.uuidString else { return true }
-                return !blockedUsers.contains(sellerId)
+                guard let seller_id = product.seller_id else { return true }
+                return !blockedUsers.contains(seller_id)
             }
         }
 
-        // Filter out locally-deleted product IDs so they never reappear
+        // Filter out locally-deleted product IDs
         let deletedIds = DeletedListingsStore.all()
         if !deletedIds.isEmpty {
-            products = products.filter { !deletedIds.contains($0.id.uuidString) }
+            products = products.filter { product in
+                guard let id = product.id else { return false }
+                return !deletedIds.contains(id)
+            }
         }
 
-        print("📥 Supabase returned:", products.count)
+        products = Array(products.prefix(pageSize))
+        try await attachSellers(to: &products)
 
-        if let first = products.first {
-            print("🔍 First product seller:", first.seller ?? "nil")
-            print("🔍 First product sellerDisplayName:", first.sellerDisplayName)
-        }
+        print("📥 Firestore returned:", products.count)
 
-        if page == 1 && cachedProducts.isEmpty {
+        if page == 1 {
             cachedProducts = products
             print("📦 Cached products:", cachedProducts.count)
         }
@@ -134,218 +185,322 @@ final class ProductRepository {
         try requireNetwork()
         let currentUserId = await getCurrentUserId()
 
-        var query = supabase
-            .from("products")
-            .select(productSelectFields)
-            .eq("is_active", value: true)
-            .neq("status", value: "sold")
-            .gt("quantity", value: 0)
+        let query = db.collection("products")
+            .whereField("is_active", isEqualTo: true)
+            .order(by: "views_count", descending: true)
+            .limit(to: pageSize * 2)
 
-        if let userId = currentUserId {
-            query = query.neq("seller_id", value: userId.uuidString)
+        let fallbackQuery = db.collection("products").limit(to: pageSize * 3)
+
+        var snapshot: QuerySnapshot
+        do {
+            snapshot = try await query.getDocuments()
+        } catch {
+            print("⚠️ fetchPopularProducts primary query failed, using fallback: \(error.localizedDescription)")
+            snapshot = try await fallbackQuery.getDocuments()
         }
 
-        let response = try await query
-            .order("views_count", ascending: false)
-            .limit(pageSize)
-            .execute()
+        if snapshot.documents.isEmpty {
+            snapshot = try await fallbackQuery.getDocuments()
+        }
 
-        var dtos = try JSONDecoder().decode([ProductDTO].self, from: response.data)
+        var products = decodeProducts(from: snapshot.documents)
+
+        products = products.filter { ($0.is_active ?? true) && ($0.quantity ?? 1) > 0 && $0.status != .sold }
+        if let userId = currentUserId { products = products.filter { $0.seller_id != userId } }
+
+        products.sort { ($0.viewsCount ?? 0) > ($1.viewsCount ?? 0) }
+
         let deletedIds = DeletedListingsStore.all()
         if !deletedIds.isEmpty {
-            dtos = dtos.filter { !deletedIds.contains($0.id.uuidString) }
+            products = products.filter { p in guard let id = p.id else { return false }; return !deletedIds.contains(id) }
         }
-        return dtos
+
+        products = Array(products.prefix(pageSize))
+        try await attachSellers(to: &products)
+        return products
     }
 
     func fetchNegotiableProducts() async throws -> [ProductDTO] {
         try requireNetwork()
         let currentUserId = await getCurrentUserId()
 
-        var query = supabase
-            .from("products")
-            .select(productSelectFields)
-            .eq("is_active", value: true)
-            .eq("is_negotiable", value: true)
-            .neq("status", value: "sold")
-            .gt("quantity", value: 0)
+        let query = db.collection("products")
+            .whereField("is_active", isEqualTo: true)
+            .whereField("is_negotiable", isEqualTo: true)
+            .order(by: "created_at", descending: true)
+            .limit(to: pageSize * 2)
 
-        if let userId = currentUserId {
-            query = query.neq("seller_id", value: userId.uuidString)
+        let fallbackQuery = db.collection("products").limit(to: pageSize * 3)
+
+        var snapshot: QuerySnapshot
+        do {
+            snapshot = try await query.getDocuments()
+        } catch {
+            print("⚠️ fetchNegotiableProducts primary query failed, using fallback: \(error.localizedDescription)")
+            snapshot = try await fallbackQuery.getDocuments()
         }
 
-        let response = try await query.execute()
-        var dtos = try JSONDecoder().decode([ProductDTO].self, from: response.data)
-        let deletedIds = DeletedListingsStore.all()
-        if !deletedIds.isEmpty {
-            dtos = dtos.filter { !deletedIds.contains($0.id.uuidString) }
+        if snapshot.documents.isEmpty {
+            snapshot = try await fallbackQuery.getDocuments()
         }
-        return dtos
+
+        var products = decodeProducts(from: snapshot.documents)
+
+        products = products.filter {
+            ($0.is_active ?? true) &&
+            ($0.isNegotiable ?? false) &&
+            ($0.quantity ?? 1) > 0 &&
+            $0.status != .sold
+        }
+        if let userId = currentUserId { products = products.filter { $0.seller_id != userId } }
+
+        products = Array(products.prefix(pageSize))
+        try await attachSellers(to: &products)
+        return products
     }
 
     func fetchProductsByCategory(_ category: String) async throws -> [ProductDTO] {
         try requireNetwork()
         let currentUserId = await getCurrentUserId()
 
-        var query = supabase
-            .from("products")
-            .select(productSelectFields)
-            .eq("category", value: category)
-            .eq("is_active", value: true)
-            .neq("status", value: "sold")
-            .gt("quantity", value: 0)
+        let query = db.collection("products")
+            .whereField("category", isEqualTo: category)
+            .whereField("is_active", isEqualTo: true)
+            .order(by: "created_at", descending: true)
+            .limit(to: pageSize * 2)
 
-        if let userId = currentUserId {
-            query = query.neq("seller_id", value: userId.uuidString)
+        let fallbackQuery = db.collection("products").limit(to: pageSize * 3)
+
+        var snapshot: QuerySnapshot
+        do {
+            snapshot = try await query.getDocuments()
+        } catch {
+            print("⚠️ fetchProductsByCategory primary query failed, using fallback: \(error.localizedDescription)")
+            snapshot = try await fallbackQuery.getDocuments()
         }
 
-        let response = try await query.execute()
-        var dtos = try JSONDecoder().decode([ProductDTO].self, from: response.data)
-        let deletedIds = DeletedListingsStore.all()
-        if !deletedIds.isEmpty {
-            dtos = dtos.filter { !deletedIds.contains($0.id.uuidString) }
+        if snapshot.documents.isEmpty {
+            snapshot = try await fallbackQuery.getDocuments()
         }
-        return dtos
+
+        var products = decodeProducts(from: snapshot.documents)
+
+        products = products.filter {
+            ($0.is_active ?? true) &&
+            (($0.category ?? "").caseInsensitiveCompare(category) == .orderedSame) &&
+            ($0.quantity ?? 1) > 0 &&
+            $0.status != .sold
+        }
+        if let userId = currentUserId { products = products.filter { $0.seller_id != userId } }
+
+        products = Array(products.prefix(pageSize))
+        try await attachSellers(to: &products)
+        return products
     }
 
     func fetchBanners() async throws -> [BannerDTO] {
         try requireNetwork()
-        let response = try await supabase
-            .from("banners")
-            .select("id, image_url, position")
-            .eq("is_active", value: true)
-            .order("position", ascending: true)
-            .execute()
+        do {
+            let response = try await db.collection("banners")
+                .whereField("is_active", isEqualTo: true)
+                .order(by: "position", descending: false)
+                .getDocuments()
 
-        return try JSONDecoder().decode([BannerDTO].self, from: response.data)
+            let decoded = response.documents.compactMap { try? $0.data(as: BannerDTO.self) }
+            if !decoded.isEmpty {
+                return decoded
+            }
+        } catch {
+            print("⚠️ fetchBanners primary query failed, using fallback: \(error.localizedDescription)")
+        }
+
+        let fallback = try await db.collection("banners").getDocuments()
+        return fallback.documents
+            .compactMap { try? $0.data(as: BannerDTO.self) }
+            .sorted { $0.position < $1.position }
     }
 
     // MARK: - Search
-
+    
+    /// Searching relies strictly on a prefix/exact match query on the `category` 
+    /// per NoSQL limitations, rather than an expensive ILIKE query across all fields.
     func searchProducts(keyword: String) async throws -> [ProductDTO] {
         try requireNetwork()
 
         let trimmed = keyword.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else { return [] }
+        
+        // Exact category search fallback mapping
+        let queryCategory = trimmed.capitalized
 
-        let pattern       = "%\(trimmed)%"
         let currentUserId = await getCurrentUserId()
 
-        var query = supabase
-            .from("products")
-            .select(productSelectFields)
-            .eq("is_active", value: true)
-            .neq("status", value: "sold")
-            .gt("quantity", value: 0)
-            .or(
-                "title.ilike.\(pattern)," +
-                "description.ilike.\(pattern)," +
-                "category.ilike.\(pattern)"
-            )
+        let query = db.collection("products")
+            .whereField("category", isEqualTo: queryCategory)
+            .whereField("is_active", isEqualTo: true)
+            .limit(to: pageSize * 2)
 
-        if let userId = currentUserId {
-            query = query.neq("seller_id", value: userId.uuidString)
-        }
+        let snapshot = try await query.getDocuments()
+        var products = decodeProducts(from: snapshot.documents)
+        
+        products = products.filter { $0.quantity ?? 0 > 0 && $0.status != .sold }
+        if let userId = currentUserId { products = products.filter { $0.seller_id != userId } }
 
-        let response = try await query.execute()
-        var dtos = try JSONDecoder().decode([ProductDTO].self, from: response.data)
         let deletedIds = DeletedListingsStore.all()
         if !deletedIds.isEmpty {
-            dtos = dtos.filter { !deletedIds.contains($0.id.uuidString) }
+            products = products.filter { p in guard let id = p.id else { return false }; return !deletedIds.contains(id) }
         }
-        return dtos
+
+        products = Array(products.prefix(pageSize))
+        try await attachSellers(to: &products)
+        return products
     }
 
     // MARK: - Write
 
     func insertProduct(_ product: ProductInsertDTO) async throws {
         try requireNetwork()
-        try await supabase.from("products").insert(product).execute()
+        let data = try Firestore.Encoder().encode(product)
+        try await db.collection("products").addDocument(data: data)
+    }
+
+    func updateProduct(productId: String, update: ProductUpdateDTO) async throws {
+        try requireNetwork()
+        let data = try Firestore.Encoder().encode(update)
+        try await db.collection("products").document(productId).updateData(data)
+    }
+
+    func softDeleteProduct(productId: String) async throws {
+        try requireNetwork()
+        try await db.collection("products").document(productId).updateData([
+            "is_active": false
+        ])
+    }
+
+    func deleteProduct(productId: String) async throws {
+        try requireNetwork()
+        try await db.collection("products").document(productId).delete()
     }
 
     // MARK: - Inventory
 
-    private struct ProductInventoryUpdate: Codable {
-        let quantity: Int
-        let status: String
-    }
-
     /// Decrements quantity by `quantitySold` and marks the product as
     /// "sold" if the resulting quantity reaches zero.
-    func markProductAsSold(productId: UUID, quantitySold: Int = 1) async throws {
+    func markProductAsSold(productId: String, quantitySold: Int = 1) async throws {
         try requireNetwork()
 
-        let response = try await supabase
-            .from("products")
-            .select("quantity")
-            .eq("id", value: productId.uuidString)
-            .single()
-            .execute()
+        let ref = db.collection("products").document(productId)
+        
+        // Run a Firestore transaction to ensure we atomically read & update quantity
+        _ = try await db.runTransaction({ (transaction, errorPointer) -> Any? in
+            let document: DocumentSnapshot
+            do {
+                try document = transaction.getDocument(ref)
+            } catch let fetchError as NSError {
+                errorPointer?.pointee = fetchError
+                return nil
+            }
+            
+            guard let oldQuantity = document.data()?["quantity"] as? Int else {
+                let error = NSError(domain: "ProductRepository", code: 404, userInfo: [NSLocalizedDescriptionKey: "Product or quantity not found"])
+                errorPointer?.pointee = error
+                return nil
+            }
+            
+            let newQuantity = max(0, oldQuantity - quantitySold)
+            let newStatus: String = newQuantity == 0 ? "sold" : "available"
+            
+            transaction.updateData([
+                "quantity": newQuantity,
+                "status": newStatus
+            ], forDocument: ref)
+            
+            return nil
+        })
 
-        struct QuantityResult: Codable { let quantity: Int }
-
-        let result      = try JSONDecoder().decode(QuantityResult.self, from: response.data)
-        let newQuantity = max(0, result.quantity - quantitySold)
-        let newStatus: String = newQuantity == 0 ? "sold" : "available"
-
-        try await supabase
-            .from("products")
-            .update(ProductInventoryUpdate(quantity: newQuantity, status: newStatus))
-            .eq("id", value: productId.uuidString)
-            .execute()
-
-        print("📦 Product \(productId) → quantity=\(newQuantity), status=\(newStatus)")
+        print("📦 Product \(productId) marked as sold/decremented")
     }
 
     // MARK: - Single-Item Fetches
 
-    func fetchProduct(id: UUID) async throws -> ProductDTO? {
-        let response = try await supabase
-            .from("products")
-            .select(productSelectFields)
-            .eq("id", value: id.uuidString)
-            .single()
-            .execute()
-
-        return try JSONDecoder().decode(ProductDTO.self, from: response.data)
+    func fetchProduct(id: String) async throws -> ProductDTO? {
+        let snapshot = try await db.collection("products").document(id).getDocument()
+        guard snapshot.exists, var product = decodeProduct(from: snapshot) else {
+            return nil
+        }
+        
+        // Populate seller
+        if let seller_id = product.seller_id {
+            let sellerDoc = try await db.collection("users").document(seller_id).getDocument()
+            if let u = try? sellerDoc.data(as: UserDTO.self) { product.seller = ProductSellerDTO(id: u.id, first_name: u.first_name, last_name: u.last_name, email: u.email) }
+        }
+        
+        return product
     }
 
-    /// Returns all listings for `sellerId`, including the seller's own.
-    /// Used by ListingsViewController and SellerDashboard.
-    func fetchSellerProducts(sellerId: UUID) async throws -> [ProductDTO] {
-        let response = try await supabase
-            .from("products")
-            .select(productSelectFields)
-            .eq("seller_id", value: sellerId.uuidString)
-            .eq("is_active", value: true)
-            .order("created_at", ascending: false)
-            .execute()
+    /// Returns all listings for `seller_id`, including the seller's own.
+    func fetchSellerProducts(seller_id: String) async throws -> [ProductDTO] {
+        let indexedQuery = db.collection("products")
+            .whereField("seller_id", isEqualTo: seller_id)
+            .whereField("is_active", isEqualTo: true)
+            .order(by: "created_at", descending: true)
 
-        return try JSONDecoder().decode([ProductDTO].self, from: response.data)
+        let documents: [QueryDocumentSnapshot]
+        do {
+            let snapshot = try await indexedQuery.getDocuments()
+            documents = snapshot.documents
+        } catch {
+            print("⚠️ fetchSellerProducts(seller_id:) indexed query failed, using fallback: \(error.localizedDescription)")
+
+            // Fallback avoids composite index requirements and sorts client-side.
+            let fallbackSnapshot = try await db.collection("products")
+                .whereField("seller_id", isEqualTo: seller_id)
+                .getDocuments()
+
+            documents = fallbackSnapshot.documents
+                .filter { ($0.data()["is_active"] as? Bool) ?? true }
+                .sorted { createdAtDate(for: $0) > createdAtDate(for: $1) }
+        }
+
+        var products = decodeProducts(from: documents)
+        try await attachSellers(to: &products) // Overkill since it's the same seller, but conforms
+        return products
     }
 
-    /// Increments views_count by 1. Called when a buyer opens a product detail screen.
-    func incrementViewCount(productId: UUID) async throws {
-        let response = try await supabase
-            .from("products")
-            .select("views_count")
-            .eq("id", value: productId.uuidString)
-            .single()
-            .execute()
+    private func createdAtDate(for document: DocumentSnapshot) -> Date {
+        let raw = document.data()?["created_at"]
 
-        struct ViewsResult: Codable { let views_count: Int? }
+        if let timestamp = raw as? Timestamp {
+            return timestamp.dateValue()
+        }
 
-        let result    = try JSONDecoder().decode(ViewsResult.self, from: response.data)
-        let newViews  = (result.views_count ?? 0) + 1
+        if let date = raw as? Date {
+            return date
+        }
 
-        struct ViewsUpdate: Codable { let views_count: Int }
+        if let string = raw as? String {
+            if let parsed = iso8601WithFractionalSeconds.date(from: string) ?? iso8601WithoutFractionalSeconds.date(from: string) {
+                return parsed
+            }
+        }
 
-        try await supabase
-            .from("products")
-            .update(ViewsUpdate(views_count: newViews))
-            .eq("id", value: productId.uuidString)
-            .execute()
+        return .distantPast
+    }
 
-        print("👁️ Product \(productId) views: \(newViews)")
+    /// Increments views_count by 1 using FieldValue.increment
+    func incrementViewCount(productId: String) async throws {
+        try await db.collection("products").document(productId).updateData([
+            "views_count": FieldValue.increment(Int64(1))
+        ])
+        print("👁️ Product \(productId) view incremented")
+    }
+}
+
+extension Array {
+    func chunked(into size: Int) -> [[Element]] {
+        return stride(from: 0, to: count, by: size).map {
+            Array(self[$0 ..< Swift.min($0 + size, count)])
+        }
     }
 }

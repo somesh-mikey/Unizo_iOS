@@ -2,19 +2,15 @@
 //  ListingsViewController.swift
 //  Unizo_iOS
 //
-//  Created by Somesh on 26/11/25.
-//  Enhanced with search, filters, and buyer information
-//
 
 import UIKit
-import Supabase
 
 class ListingsViewController: UIViewController {
 
-    // MARK: - Supabase
-    private let supabase = SupabaseManager.shared.client
+    private let sellerDashboardRepository = SellerDashboardRepository()
+    private let chatRepository = ChatRepository()
+    private let productRepository = ProductRepository()
 
-    // MARK: - UI Components
     private let titleLabel: UILabel = {
         let label = UILabel()
         label.text = "My Listings".localized
@@ -46,22 +42,15 @@ class ListingsViewController: UIViewController {
         let sc = UISegmentedControl(items: items)
         sc.selectedSegmentIndex = 0
         sc.translatesAutoresizingMaskIntoConstraints = false
-
-        // Match Landing Screen style - pill-shaped selected segment
         sc.selectedSegmentTintColor = .brandPrimary
-
-        // Text color for unselected segments
         sc.setTitleTextAttributes([
             .foregroundColor: UIColor.brandPrimary,
             .font: UIFont.systemFont(ofSize: 14, weight: .medium)
         ], for: .normal)
-
-        // Text color for selected segment
         sc.setTitleTextAttributes([
             .foregroundColor: UIColor.white,
             .font: UIFont.systemFont(ofSize: 14, weight: .semibold)
         ], for: .selected)
-
         return sc
     }()
 
@@ -82,7 +71,6 @@ class ListingsViewController: UIViewController {
 
     private let refreshControl = UIRefreshControl()
 
-    // MARK: - Empty State
     private let emptyStateContainer: UIView = {
         let v = UIView()
         v.isHidden = true
@@ -122,7 +110,6 @@ class ListingsViewController: UIViewController {
         return l
     }()
 
-    // MARK: - Enhanced Listing Model
     struct Listing {
         let image: UIImage?
         let imageURL: String?
@@ -130,17 +117,16 @@ class ListingsViewController: UIViewController {
         let name: String
         let status: String
         let price: String
-        let productId: UUID
+        let productId: String
         let viewsCount: Int
         let createdAt: Date?
         let quantity: Int
         let buyerName: String?
         let orderStatus: String?
-        let interestedBuyersCount: Int  // Number of buyers who started a conversation/deal
-        let dealRequestsCount: Int      // Number of buyers who placed a pending order (Deal)
+        let interestedBuyersCount: Int
+        let dealRequestsCount: Int
     }
 
-    // MARK: - Listings Data
     private var allListings: [Listing] = []
     private var filteredListings: [Listing] = []
     private var products: [ProductDTO] = []
@@ -148,7 +134,6 @@ class ListingsViewController: UIViewController {
     private var currentSearchText: String = ""
     private var currentFilter: String = "All"
 
-    // MARK: - Lifecycle
     override func viewDidLoad() {
         super.viewDidLoad()
         view.backgroundColor = .systemGroupedBackground
@@ -163,97 +148,50 @@ class ListingsViewController: UIViewController {
         fetchUserListings()
     }
 
-    // MARK: - Fetch User Listings
     private func fetchUserListings() {
         Task {
             do {
-                let userId = try await supabase.auth.session.user.id.uuidString
-
-                // Fetch products with seller join
-                let response = try await supabase
-                    .from("products")
-                    .select("*, seller:users!seller_id(*)")
-                    .eq("seller_id", value: userId)
-                    .order("created_at", ascending: false)
-                    .execute()
-
-                let fetchedProducts = try JSONDecoder().decode([ProductDTO].self, from: response.data)
-
-                // Fetch interested buyers count for each product (conversations where user is seller)
-                let conversationsResponse = try await supabase
-                    .from("conversations")
-                    .select("product_id, buyer_id")
-                    .eq("seller_id", value: userId)
-                    .execute()
-
-                // Parse conversations and count unique buyers per product
-                struct ConversationCount: Decodable {
-                    let product_id: UUID
-                    let buyer_id: UUID
+                guard let userId = await AuthManager.shared.currentUserId else {
+                    await MainActor.run { self.refreshControl.endRefreshing() }
+                    return
                 }
 
-                let conversations = try JSONDecoder().decode([ConversationCount].self, from: conversationsResponse.data)
+                let fetchedProducts = try await sellerDashboardRepository.fetchSellerProducts()
+                let conversations = try await chatRepository.fetchConversations()
+                let sellerOrders = try await sellerDashboardRepository.fetchSellerOrders()
 
-                // Group by product_id and count unique buyers
-                var interestedBuyersMap: [UUID: Int] = [:]
-                var productBuyersSet: [UUID: Set<UUID>] = [:]
-
-                for conv in conversations {
-                    if productBuyersSet[conv.product_id] == nil {
-                        productBuyersSet[conv.product_id] = Set<UUID>()
-                    }
-                    productBuyersSet[conv.product_id]?.insert(conv.buyer_id)
+                var productBuyersSet: [String: Set<String>] = [:]
+                for conv in conversations where conv.seller_id == userId {
+                    productBuyersSet[conv.product_id, default: Set<String>()].insert(conv.buyer_id)
                 }
 
+                var interestedBuyersMap: [String: Int] = [:]
                 for (productId, buyersSet) in productBuyersSet {
                     interestedBuyersMap[productId] = buyersSet.count
                 }
 
-                // Fetch pending deal requests (orders with status "pending") for seller's products
-                let productIds = fetchedProducts.map { $0.id.uuidString }
-                var dealRequestsMap: [UUID: Int] = [:]
+                var dealBuyersSet: [String: Set<String>] = [:]
+                for order in sellerOrders where order.status == .pending {
+                    guard let buyerId = order.buyerId else { continue }
+                    dealBuyersSet[order.productId, default: Set<String>()].insert(buyerId)
+                }
 
-                if !productIds.isEmpty {
-                    struct OrderItemWithOrder: Decodable {
-                        let product_id: UUID
-                        struct OrderInfo: Decodable {
-                            let id: UUID
-                            let status: String
-                            let user_id: UUID
-                        }
-                        let orders: OrderInfo
-                    }
-
-                    let orderItemsResponse = try await supabase
-                        .from("order_items")
-                        .select("product_id, orders!inner(id, status, user_id)")
-                        .in("product_id", values: productIds)
-                        .execute()
-
-                    let orderItems = try JSONDecoder().decode([OrderItemWithOrder].self, from: orderItemsResponse.data)
-
-                    // Filter for pending orders only and count unique buyers per product
-                    var dealBuyersSet: [UUID: Set<UUID>] = [:]
-                    for item in orderItems {
-                        if item.orders.status == "pending" {
-                            dealBuyersSet[item.product_id, default: Set<UUID>()].insert(item.orders.user_id)
-                        }
-                    }
-
-                    for (productId, buyersSet) in dealBuyersSet {
-                        dealRequestsMap[productId] = buyersSet.count
-                    }
+                var dealRequestsMap: [String: Int] = [:]
+                for (productId, buyersSet) in dealBuyersSet {
+                    dealRequestsMap[productId] = buyersSet.count
                 }
 
                 let deletedIDs = DeletedListingsStore.all()
 
                 await MainActor.run {
-                    // Filter deleted products
                     self.products = fetchedProducts.filter {
-                        !deletedIDs.contains($0.id.uuidString)
+                        guard let id = $0.id else { return false }
+                        return !deletedIDs.contains(id)
                     }
 
-                    self.allListings = self.products.map { product in
+                    self.allListings = self.products.compactMap { product in
+                        guard let productId = product.id else { return nil }
+
                         let displayStatus: String
                         switch product.status {
                         case .sold:
@@ -271,14 +209,14 @@ class ListingsViewController: UIViewController {
                             name: product.title,
                             status: displayStatus,
                             price: "₹\(Int(product.price))",
-                            productId: product.id,
+                            productId: productId,
                             viewsCount: product.viewsCount ?? 0,
                             createdAt: nil,
                             quantity: product.quantity ?? 1,
                             buyerName: nil,
                             orderStatus: nil,
-                            interestedBuyersCount: interestedBuyersMap[product.id] ?? 0,
-                            dealRequestsCount: dealRequestsMap[product.id] ?? 0
+                            interestedBuyersCount: interestedBuyersMap[productId] ?? 0,
+                            dealRequestsCount: dealRequestsMap[productId] ?? 0
                         )
                     }
 
@@ -286,26 +224,25 @@ class ListingsViewController: UIViewController {
                     self.updateListingsCount()
                     self.refreshControl.endRefreshing()
                 }
-
             } catch {
-                print("❌ Failed to fetch listings:", error)
+                print("❌ [ListingsVC] \(type(of: error)): \(error)")
                 await MainActor.run {
                     self.refreshControl.endRefreshing()
+                    self.emptyStateLabel.text = "Couldn't load listings.\nPull to retry."
+                    self.emptyStateContainer.isHidden = false
+                    self.collectionView.isHidden = true
                 }
             }
         }
     }
 
-    // MARK: - Filter Logic
     private func applyFilters() {
         var result = allListings
 
-        // Apply status filter
         if currentFilter != "All" {
             result = result.filter { $0.status == currentFilter }
         }
 
-        // Apply search filter
         if !currentSearchText.isEmpty {
             result = result.filter {
                 $0.name.localizedCaseInsensitiveContains(currentSearchText) ||
@@ -349,7 +286,6 @@ class ListingsViewController: UIViewController {
         listingsCountLabel.text = String(format: "%d listings • %d available • %d sold".localized, total, available, sold)
     }
 
-    // MARK: - UI Setup
     private func setupUI() {
         view.addSubview(titleLabel)
         view.addSubview(listingsCountLabel)
@@ -363,31 +299,26 @@ class ListingsViewController: UIViewController {
         emptyStateContainer.addSubview(emptyStateSubtitle)
 
         NSLayoutConstraint.activate([
-            // Title
-            titleLabel.topAnchor.constraint(equalTo: view.topAnchor, constant: 75),        titleLabel.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: Spacing.contentMargin),
+            titleLabel.topAnchor.constraint(equalTo: view.topAnchor, constant: 75),
+            titleLabel.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: Spacing.contentMargin),
 
-            // Listings count
             listingsCountLabel.topAnchor.constraint(equalTo: titleLabel.bottomAnchor, constant: Spacing.xs),
             listingsCountLabel.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: Spacing.contentMargin),
 
-            // Search bar
             searchBar.topAnchor.constraint(equalTo: listingsCountLabel.bottomAnchor, constant: Spacing.md),
             searchBar.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: Spacing.sm),
             searchBar.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -Spacing.sm),
 
-            // Filter segmented control (matching Landing Screen style)
             filterSegmentedControl.topAnchor.constraint(equalTo: searchBar.bottomAnchor, constant: Spacing.sm),
             filterSegmentedControl.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: Spacing.contentMargin),
             filterSegmentedControl.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -Spacing.contentMargin),
             filterSegmentedControl.heightAnchor.constraint(equalToConstant: 35),
 
-            // Collection view
             collectionView.topAnchor.constraint(equalTo: filterSegmentedControl.bottomAnchor, constant: Spacing.md),
             collectionView.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: Spacing.contentMargin),
             collectionView.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -Spacing.contentMargin),
             collectionView.bottomAnchor.constraint(equalTo: view.bottomAnchor),
 
-            // Empty state container
             emptyStateContainer.centerXAnchor.constraint(equalTo: view.centerXAnchor),
             emptyStateContainer.centerYAnchor.constraint(equalTo: view.centerYAnchor, constant: 50),
 
@@ -404,7 +335,6 @@ class ListingsViewController: UIViewController {
             emptyStateSubtitle.bottomAnchor.constraint(equalTo: emptyStateContainer.bottomAnchor)
         ])
 
-        // Accessibility
         titleLabel.accessibilityTraits = .header
         filterSegmentedControl.accessibilityLabel = "Filter listings".localized
         searchBar.accessibilityLabel = "Search listings".localized
@@ -416,7 +346,6 @@ class ListingsViewController: UIViewController {
         collectionView.dataSource = self
         collectionView.register(EnhancedListingCell.self, forCellWithReuseIdentifier: EnhancedListingCell.reuseIdentifier)
 
-        // Pull-to-refresh
         refreshControl.addTarget(self, action: #selector(handleRefresh), for: .valueChanged)
         collectionView.refreshControl = refreshControl
     }
@@ -442,7 +371,6 @@ class ListingsViewController: UIViewController {
     }
 }
 
-// MARK: - UISearchBarDelegate
 extension ListingsViewController: UISearchBarDelegate {
     func searchBar(_ searchBar: UISearchBar, textDidChange searchText: String) {
         currentSearchText = searchText
@@ -461,7 +389,6 @@ extension ListingsViewController: UISearchBarDelegate {
     }
 }
 
-// MARK: - CollectionView
 extension ListingsViewController: UICollectionViewDelegateFlowLayout, UICollectionViewDataSource {
 
     func collectionView(_ collectionView: UICollectionView, numberOfItemsInSection section: Int) -> Int {
@@ -485,19 +412,16 @@ extension ListingsViewController: UICollectionViewDelegateFlowLayout, UICollecti
                         layout collectionViewLayout: UICollectionViewLayout,
                         sizeForItemAt indexPath: IndexPath) -> CGSize {
 
-        // Taller cells to accommodate more info
         CGSize(width: collectionView.frame.width, height: 160)
     }
 }
 
-// MARK: - EnhancedListingCellDelegate
 extension ListingsViewController: EnhancedListingCellDelegate {
 
     func didTapView(on cell: EnhancedListingCell) {
         guard let indexPath = collectionView.indexPath(for: cell) else { return }
         let listing = filteredListings[indexPath.row]
 
-        // Find the original product
         guard let product = products.first(where: { $0.id == listing.productId }) else { return }
 
         let productUIModel = ProductMapper.toUIModel(product)
@@ -564,37 +488,20 @@ extension ListingsViewController: EnhancedListingCellDelegate {
         fetchInterestedBuyerNames(for: listing.productId, productName: listing.name)
     }
 
-    private func fetchInterestedBuyerNames(for productId: UUID, productName: String) {
+    private func fetchInterestedBuyerNames(for productId: String, productName: String) {
         Task { [weak self] in
             guard let self = self else { return }
             do {
-                struct ConversationWithBuyer: Decodable {
-                    let buyer_id: UUID
-                    struct UserInfo: Decodable {
-                        let first_name: String?
-                        let last_name: String?
-                    }
-                    let users: UserInfo
-                }
+                let conversations = try await self.chatRepository.fetchConversations()
+                    .filter { $0.product_id == productId }
 
-                let response = try await self.supabase
-                    .from("conversations")
-                    .select("buyer_id, users:buyer_id!inner(first_name, last_name)")
-                    .eq("product_id", value: productId.uuidString)
-                    .execute()
-
-                let conversations = try JSONDecoder().decode([ConversationWithBuyer].self, from: response.data)
-
-                // Deduplicate by buyer_id
-                var seenBuyerIds = Set<UUID>()
+                var seenBuyerIds = Set<String>()
                 var buyerNames: [String] = []
                 for conv in conversations {
-                    guard !seenBuyerIds.contains(conv.buyer_id) else { continue }
-                    seenBuyerIds.insert(conv.buyer_id)
-
-                    let firstName = conv.users.first_name ?? ""
-                    let lastName = conv.users.last_name ?? ""
-                    let fullName = "\(firstName) \(lastName)".trimmingCharacters(in: .whitespaces)
+                    let buyerId = conv.buyer_id
+                    guard !seenBuyerIds.contains(buyerId) else { continue }
+                    seenBuyerIds.insert(buyerId)
+                    let fullName = conv.buyer?.displayName ?? ""
                     buyerNames.append(fullName.isEmpty ? "Unknown Buyer".localized : fullName)
                 }
 
@@ -640,49 +547,32 @@ extension ListingsViewController: EnhancedListingCellDelegate {
     private func deleteProduct(_ product: ProductDTO, listing: Listing) {
         HapticFeedback.delete()
 
-        // Mark locally deleted FIRST so the local UI stops showing it immediately
-        DeletedListingsStore.add(product.id.uuidString)
+        guard let productId = product.id else { return }
 
-        // Remove from local data sources immediately (no waiting for network)
-        products.removeAll { $0.id == product.id }
-        allListings.removeAll { $0.productId == product.id }
+        DeletedListingsStore.add(productId)
+
+        products.removeAll { $0.id == productId }
+        allListings.removeAll { $0.productId == listing.productId }
         applyFilters()
         updateListingsCount()
 
-        // Broadcast deletion to Home, Search, Category screens right away
         NotificationCenter.default.post(
             name: .productDeleted,
             object: nil,
-            userInfo: ["productId": product.id]
+            userInfo: ["productId": listing.productId]
         )
 
         Task {
-            let idStr = product.id.uuidString
-
-            // STEP 1: Soft-delete — set is_active = false
-            // All buyer-facing queries already filter `.eq("is_active", true)`
-            // so this instantly hides the product from Home/Search/Category
-            // even if the hard DELETE below is blocked by an RLS policy.
             do {
-                struct SoftDelete: Encodable { let is_active: Bool }
-                try await supabase
-                    .from("products")
-                    .update(SoftDelete(is_active: false))
-                    .eq("id", value: idStr)
-                    .execute()
-                print("✅ Product soft-deleted (is_active=false): \(idStr)")
+                try await productRepository.softDeleteProduct(productId: productId)
+                print("✅ Product soft-deleted (is_active=false): \(productId)")
             } catch {
                 print("⚠️ Soft-delete failed: \(error)")
             }
 
-            // STEP 2: Hard DELETE — removes the row entirely
             do {
-                try await supabase
-                    .from("products")
-                    .delete()
-                    .eq("id", value: idStr)
-                    .execute()
-                print("✅ Product hard-deleted: \(idStr)")
+                try await productRepository.deleteProduct(productId: productId)
+                print("✅ Product hard-deleted: \(productId)")
             } catch {
                 print("⚠️ Hard-delete failed (soft-delete already hides it): \(error)")
             }
@@ -690,7 +580,6 @@ extension ListingsViewController: EnhancedListingCellDelegate {
     }
 }
 
-// MARK: - Local Deleted Listings Store
 enum DeletedListingsStore {
     private static let key = "deleted_listing_ids"
 

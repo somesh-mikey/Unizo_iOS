@@ -3,7 +3,7 @@ import UIKit
 final class SearchResultsViewController: UIViewController {
 
     // MARK: - Data
-    private let productRepository = ProductRepository(supabase: supabase)
+    private let productRepository = ProductRepository()
     private var results: [ProductUIModel] = []
     private let keyword: String
 
@@ -96,7 +96,7 @@ final class SearchResultsViewController: UIViewController {
     }
 
     @objc private func handleProductDeleted(_ notification: Notification) {
-        guard let productId = notification.userInfo?["productId"] as? UUID else { return }
+        guard let productId = notification.userInfo?["productId"] as? String else { return }
         results.removeAll { $0.id == productId }
         collectionView.reloadData()
         updateCollectionHeight()

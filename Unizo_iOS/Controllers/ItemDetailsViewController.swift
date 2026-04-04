@@ -8,9 +8,9 @@
 
 
 import UIKit
-import Supabase
+import FirebaseFirestore
 
-// MARK: - Supabase Insert DTOs (for Report & Block features)
+// MARK: - Report/Block DTOs
 private struct ReportInsertDTO: Encodable {
     let reporter_id: String
     let product_id: String
@@ -30,7 +30,7 @@ class ItemDetailsViewController: UIViewController {
     var product: ProductUIModel!
 
     // MARK: - Repository
-    private let productRepository = ProductRepository(supabase: supabase)
+    private let productRepository = ProductRepository()
 
     // MARK: - Image Gallery
     private var galleryImages: [String] = []
@@ -72,7 +72,7 @@ class ItemDetailsViewController: UIViewController {
     // MARK: - Programmatic UI (Figma-like sections)
     private let scrollView = UIScrollView()
     private let contentView = UIView()
-    private let wishlistRepo = WishlistRepository(supabase: supabase)
+    private let wishlistRepo = WishlistRepository()
     private var isWishlisted = false
 
     private let descriptionHeaderLabel: UILabel = {
@@ -306,7 +306,7 @@ class ItemDetailsViewController: UIViewController {
     /// When the currently displayed product is sold, disable Deal button and show sold banner.
     /// Does NOT auto-dismiss the VC — lets the user navigate back themselves (avoids jarring UX).
     @objc private func handleProductDeleted(_ notification: Notification) {
-        guard let productId = notification.userInfo?["productId"] as? UUID,
+        guard let productId = notification.userInfo?["productId"] as? String,
               productId == product?.id else { return }
 
         // Mutate product state so isAvailable returns false
@@ -331,7 +331,7 @@ class ItemDetailsViewController: UIViewController {
 
     // MARK: - View Count
     private func incrementProductViewCount() {
-        guard let product = product else { return }
+        guard let product = product, let productId = product.id else { return }
 
         Task {
             do {
@@ -342,7 +342,7 @@ class ItemDetailsViewController: UIViewController {
                     return
                 }
 
-                try await productRepository.incrementViewCount(productId: product.id)
+                try await productRepository.incrementViewCount(productId: productId)
             } catch {
                 // Silently fail - view count is not critical
                 print("⚠️ Failed to increment view count: \(error)")
@@ -795,9 +795,10 @@ class ItemDetailsViewController: UIViewController {
     }
 
     private func submitReport(reason: String) {
-        guard let product = product else { return }
+        guard let product = product,
+              let productId = product.id else { return }
 
-        // TODO: Send report to backend (Supabase reports table)
+        // TODO: Persist report through repository once reports are centralized.
         // For now, show confirmation
         Task {
             do {
@@ -806,18 +807,23 @@ class ItemDetailsViewController: UIViewController {
                     return
                 }
 
-                // Create report in Supabase
+                // Create report in Firestore
                 let reportDTO = ReportInsertDTO(
-                    reporter_id: userId.uuidString,
-                    product_id: product.id.uuidString,
-                    seller_id: product.sellerId?.uuidString ?? "",
+                    reporter_id: userId,
+                    product_id: productId,
+                    seller_id: product.sellerId ?? "",
                     reason: reason,
                     status: "pending"
                 )
-                try await supabase
-                    .from("reports")
-                    .insert(reportDTO)
-                    .execute()
+
+                try await Firestore.firestore().collection("reports").addDocument(data: [
+                    "reporter_id": reportDTO.reporter_id,
+                    "product_id": reportDTO.product_id,
+                    "seller_id": reportDTO.seller_id,
+                    "reason": reportDTO.reason,
+                    "status": reportDTO.status,
+                    "created_at": ISO8601DateFormatter().string(from: Date())
+                ])
 
                 await MainActor.run {
                     self.showAlert(
@@ -858,7 +864,7 @@ class ItemDetailsViewController: UIViewController {
         present(confirmAlert, animated: true)
     }
 
-    private func performBlockSeller(sellerId: UUID, sellerName: String) {
+    private func performBlockSeller(sellerId: String, sellerName: String) {
         Task {
             do {
                 guard let userId = await AuthManager.shared.currentUserId else {
@@ -866,15 +872,19 @@ class ItemDetailsViewController: UIViewController {
                     return
                 }
 
-                // Add to blocked_users table in Supabase
+                // Add to blocked_users collection in Firestore
                 let blockDTO = BlockedUserInsertDTO(
-                    user_id: userId.uuidString,
-                    blocked_user_id: sellerId.uuidString
+                    user_id: userId,
+                    blocked_user_id: sellerId
                 )
-                try await supabase
-                    .from("blocked_users")
-                    .insert(blockDTO)
-                    .execute()
+                let documentId = "\(blockDTO.user_id)_\(blockDTO.blocked_user_id)"
+                try await Firestore.firestore().collection("blocked_users").document(documentId).setData([
+                    "user_id": blockDTO.user_id,
+                    "blocked_user_id": blockDTO.blocked_user_id,
+                    "created_at": ISO8601DateFormatter().string(from: Date())
+                ])
+
+                BlockedUsersStore.add(sellerId)
 
                 await MainActor.run {
                     self.showAlert(
@@ -889,7 +899,7 @@ class ItemDetailsViewController: UIViewController {
                 print("❌ Failed to block seller: \(error)")
                 await MainActor.run {
                     // Still show success for MVP (local blocking)
-                    BlockedUsersStore.add(sellerId.uuidString)
+                    BlockedUsersStore.add(sellerId)
                     self.showAlert(
                         title: "Seller Blocked".localized,
                         message: String(format: "You won't see listings from %@ anymore.".localized, sellerName)
@@ -963,12 +973,17 @@ class ItemDetailsViewController: UIViewController {
 
     /// Navigate to chat with the seller
     @objc private func chatWithSellerTapped() {
+        print("🟦 [ChatDebug] chatWithSellerTapped triggered")
         if showGuestGateIfNeeded() { return }
 
         guard let product = product,
+                            let productId = product.id,
               let sellerId = product.sellerId else {
+            print("🟥 [ChatDebug] Missing product/seller info. productId=\(product?.id ?? "nil"), sellerId=\(product?.sellerId ?? "nil")")
             return
         }
+
+        print("🟦 [ChatDebug] Preparing chat. productId=\(productId), sellerId=\(sellerId), sellerName=\(product.sellerName)")
 
         HapticFeedback.selection()
 
@@ -988,16 +1003,20 @@ class ItemDetailsViewController: UIViewController {
 
         Task {
             do {
-                // Get or create conversation for this product
-                let conversation = try await ChatManager.shared.getOrCreateConversation(
-                    productId: product.id,
+                // Get or create conversation id for this product
+                print("🟦 [ChatDebug] Calling ChatManager.getOrCreateConversationId")
+                let conversationId = try await ChatManager.shared.getOrCreateConversationId(
+                    productId: productId,
                     sellerId: sellerId
                 )
+                print("🟩 [ChatDebug] Conversation id received=\(conversationId)")
 
                 await MainActor.run {
                     loadingAlert.dismiss(animated: true) { [weak self] in
+                        print("🟦 [ChatDebug] Pushing ChatDetailViewController with conversationId=\(conversationId)")
                         let chatVC = ChatDetailViewController()
-                        chatVC.conversationId = conversation.id
+                        chatVC.conversationIdString = conversationId
+                        chatVC.productIdString = productId
                         chatVC.chatTitle = product.name
                         chatVC.otherUserName = product.sellerName
                         chatVC.isSeller = false  // Current user is buyer, chatting with seller
@@ -1020,12 +1039,12 @@ class ItemDetailsViewController: UIViewController {
                 }
 
             } catch {
-                print("❌ Failed to open chat: \(error)")
+                print("🟥 [ChatDebug] Failed to open chat: \(error)")
                 await MainActor.run {
                     loadingAlert.dismiss(animated: true) { [weak self] in
                         let alert = UIAlertController(
                             title: "Error".localized,
-                            message: "Could not open chat. Please try again.".localized,
+                            message: String(format: "%@\n%@", "Could not open chat. Please try again.".localized, error.localizedDescription),
                             preferredStyle: .alert
                         )
                         alert.addAction(UIAlertAction(title: "OK".localized, style: .default))
@@ -1060,7 +1079,7 @@ class ItemDetailsViewController: UIViewController {
     @objc private func heartTapped() {
         if showGuestGateIfNeeded() { return }
 
-        guard let product else { return }
+        guard let product, let productId = product.id else { return }
 
         Task {
             do {
@@ -1072,13 +1091,13 @@ class ItemDetailsViewController: UIViewController {
 
                 if isWishlisted {
                     try await wishlistRepo.remove(
-                        productId: product.id,
+                        productId: productId,
                         userId: userId
                     )
                     HapticFeedback.removeFromWishlist()
                 } else {
                     try await wishlistRepo.add(
-                        productId: product.id,
+                        productId: productId,
                         userId: userId
                     )
                     HapticFeedback.addToWishlist()

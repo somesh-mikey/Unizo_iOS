@@ -261,14 +261,20 @@ final class NotificationsViewController: UIViewController {
                     // Show empty state if needed
                     self.emptyStateLabel.isHidden = !self.currentData.isEmpty
                     self.clearAllButton.isHidden = self.allNotifications.isEmpty
+
+                    print("🔔 [Stage 3 Complete] NotificationsVC showing \(mapped.count) notifications (selling: \(self.sellingNotifications.count), buying: \(self.buyingNotifications.count))")
                 }
             } catch {
-                print("Failed to load notifications: \(error)")
+                print("❌ [NotificationsVC] \(type(of: error)): \(error)")
                 await MainActor.run {
                     self.refreshControl.endRefreshing()
                     self.loadingIndicator.stopAnimating()
                     self.isLoading = false
+                    #if DEBUG
+                    self.emptyStateLabel.text = "Load failed:\n\(error.localizedDescription)"
+                    #else
                     self.emptyStateLabel.text = "Failed to load notifications".localized
+                    #endif
                     self.emptyStateLabel.isHidden = false
                 }
             }
@@ -363,17 +369,22 @@ extension NotificationsViewController: UITableViewDataSource, UITableViewDelegat
         let notification = currentData[indexPath.row]
 
         // Mark as read
-        Task {
-            await NotificationManager.shared.markAsRead(notificationId: notification.id)
+        if let notificationId = notification.id {
+            Task {
+                await NotificationManager.shared.markAsRead(notificationId: notificationId)
 
-            // Update local data
-            await MainActor.run {
-                tableView.reloadRows(at: [indexPath], with: .automatic)
+                // Update local data
+                await MainActor.run {
+                    tableView.reloadRows(at: [indexPath], with: .automatic)
+                }
             }
         }
 
         // Determine the order ID from deeplink or notification
-        let orderId = notification.deeplinkPayload.orderId ?? notification.orderId
+        guard let orderId = notification.deeplinkPayload.orderId ?? notification.orderId else {
+            print("⚠️ NotificationsVC: Notification has no order_id — cannot navigate")
+            return
+        }
 
         // For seller "new order" notifications, check current order status
         // If order is already accepted/rejected, navigate to OrderDetails instead of ConfirmOrder

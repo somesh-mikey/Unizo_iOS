@@ -2,11 +2,10 @@
 //  ChatViewController.swift
 //  Unizo_iOS
 //
-//  Real-time chat list screen with Supabase integration
+//  Real-time chat list screen.
 //
 
 import UIKit
-import Supabase
 
 // MARK: - Chat Cell
 private final class ChatCell: UITableViewCell {
@@ -358,7 +357,7 @@ final class ChatViewController: UIViewController {
     private var activeConversations: [ConversationUIModel] = []
     private var archivedConversations: [ConversationUIModel] = []
     private var isArchivedExpanded = false
-    private var currentUserId: UUID?
+    private var currentUserId: String?
 
     // MARK: - Lifecycle
     override func viewDidLoad() {
@@ -469,15 +468,19 @@ final class ChatViewController: UIViewController {
                 let conversations = try await ChatManager.shared.fetchConversations()
                 var uiModels: [ConversationUIModel] = []
                 for conv in conversations {
+                    guard let conversationId = conv.id else {
+                        print("🟥 [ChatDebug] ChatView dropped conversation with nil id product_id=\(conv.product_id)")
+                        continue
+                    }
                     let isSeller = conv.seller_id == userId
                     let otherUser = isSeller ? conv.buyer : conv.seller
-                    let unreadCount = try await ChatRepository().getUnreadCount(conversationId: conv.id)
+                    let unreadCount = try await ChatRepository().getUnreadCount(conversationId: conversationId)
                     let uiModel = ConversationUIModel(
-                        id: conv.id,
+                        id: conversationId,
                         productId: conv.product_id,
                         productTitle: conv.product?.title ?? "Product",
                         productImageURL: conv.product?.image_url,
-                        otherUserId: otherUser?.id ?? UUID(),
+                        otherUserId: otherUser?.id ?? "",
                         otherUserName: otherUser?.displayName ?? "User",
                         otherUserImageURL: otherUser?.profile_image_url,
                         lastMessage: conv.last_message?.previewText ?? "",
@@ -519,11 +522,68 @@ final class ChatViewController: UIViewController {
                         segmentedControl.selectedSegmentIndex == 2 ? .buying : .all
         applyFilters()
     }
+
+    private func previewText(for message: MessageDTO) -> String {
+        message.message_type == "image" ? "📷 Photo" : (message.content ?? "")
+    }
+
+    @discardableResult
+    private func applyIncomingMessageToList(message: MessageDTO, conversationId: String) -> Bool {
+        guard let index = allConversations.firstIndex(where: { $0.id == conversationId }) else {
+            return false
+        }
+
+        let existing = allConversations[index]
+        let isIncomingForCurrentUser = message.sender_id != currentUserId
+        let isChatCurrentlyOpen = ChatManager.shared.activeConversationId == conversationId
+        let shouldIncrementUnread = isIncomingForCurrentUser && !isChatCurrentlyOpen
+
+        let updated = ConversationUIModel(
+            id: existing.id,
+            productId: existing.productId,
+            productTitle: existing.productTitle,
+            productImageURL: existing.productImageURL,
+            otherUserId: existing.otherUserId,
+            otherUserName: existing.otherUserName,
+            otherUserImageURL: existing.otherUserImageURL,
+            lastMessage: previewText(for: message),
+            lastMessageTime: message.created_at ?? Date(),
+            unreadCount: existing.unreadCount + (shouldIncrementUnread ? 1 : 0),
+            isSeller: existing.isSeller,
+            productStatus: existing.productStatus
+        )
+
+        allConversations[index] = updated
+        allConversations.sort { ($0.lastMessageTime ?? Date.distantPast) > ($1.lastMessageTime ?? Date.distantPast) }
+        applyFilters()
+        return true
+    }
+
     @objc private func searchChanged() { applyFilters() }
     @objc private func handleRefresh() { HapticFeedback.pullToRefresh(); fetchConversations() }
-    @objc private func handleNewMessage(_ notification: Notification) { fetchConversations() }
+    @objc private func handleNewMessage(_ notification: Notification) {
+        guard let userInfo = notification.userInfo,
+              let message = userInfo["message"] as? MessageDTO,
+              let conversationId = userInfo["conversationId"] as? String else {
+            fetchConversations()
+            return
+        }
+
+        let updatedImmediately = applyIncomingMessageToList(message: message, conversationId: conversationId)
+        if !updatedImmediately {
+            // New conversation may not exist in-memory yet.
+            fetchConversations()
+            return
+        }
+
+        // Keep local optimistic update in sync with server unread counts.
+        Task { [weak self] in
+            try? await Task.sleep(nanoseconds: 700_000_000)
+            self?.fetchConversations()
+        }
+    }
     @objc private func handleProductDeleted(_ notification: Notification) {
-        guard let productId = notification.userInfo?["productId"] as? UUID else { return }
+        guard let productId = notification.userInfo?["productId"] as? String else { return }
         allConversations.removeAll { $0.productId == productId }
         applyFilters()
     }
@@ -556,12 +616,13 @@ final class ChatViewController: UIViewController {
     }
 
     private func openConversation(_ conversation: ConversationUIModel) {
+        guard let conversationId = conversation.id else { return }
         let detailVC = ChatDetailViewController()
-        detailVC.conversationId = conversation.id
+        detailVC.conversationIdString = conversationId
         detailVC.chatTitle = conversation.productTitle
         detailVC.otherUserName = conversation.otherUserName
         detailVC.isSeller = conversation.isSeller
-        detailVC.productId = conversation.productId
+        detailVC.productIdString = conversation.productId
         detailVC.otherUserImageURL = conversation.otherUserImageURL
         detailVC.productStatus = conversation.productStatus ?? "available"
         navigationController?.pushViewController(detailVC, animated: true)
@@ -618,11 +679,25 @@ extension ChatViewController: UITableViewDataSource, UITableViewDelegate {
     // MARK: - External Navigation
     func navigateToConversation(id conversationId: UUID) {
         let allVisible = activeConversations + archivedConversations
-        if let conversation = allVisible.first(where: { $0.id == conversationId }) {
+        if let conversation = allVisible.first(where: { UUID(uuidString: $0.id ?? "") == conversationId }) {
             openConversation(conversation)
         } else {
             let detailVC = ChatDetailViewController()
             detailVC.conversationId = conversationId
+            navigationController?.pushViewController(detailVC, animated: true)
+        }
+    }
+
+    func navigateToConversation(id conversationId: String) {
+        print("🟦 [ChatDebug] ChatView.navigateToConversation(id: String) requested conversationId=\(conversationId)")
+        let allVisible = activeConversations + archivedConversations
+        if let conversation = allVisible.first(where: { $0.id == conversationId }) {
+            print("🟩 [ChatDebug] Conversation found in list; opening existing row")
+            openConversation(conversation)
+        } else {
+            print("🟨 [ChatDebug] Conversation not found in current list; opening detail directly")
+            let detailVC = ChatDetailViewController()
+            detailVC.conversationIdString = conversationId
             navigationController?.pushViewController(detailVC, animated: true)
         }
     }

@@ -579,6 +579,11 @@ class ConfirmOrderViewController: UIViewController {
             return
         }
 
+        guard let addressId = address.id else {
+            showAlert(title: "Error".localized, message: "Selected hotspot is invalid".localized)
+            return
+        }
+
         guard !orderItems.isEmpty else {
             showAlert(title: "Error".localized, message: "No items to order".localized)
             return
@@ -591,9 +596,9 @@ class ConfirmOrderViewController: UIViewController {
 
         Task {
             do {
-                // Create order in Supabase
+                // Create order in Firestore
                 let orderId = try await orderRepository.createOrder(
-                    addressId: address.id,
+                    addressId: addressId,
                     items: orderItems,
                     totalAmount: savedTotal,
                     paymentMethod: "Cash",  // Default payment method

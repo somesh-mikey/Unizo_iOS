@@ -63,6 +63,10 @@ class BrowseEventsViewController: UIViewController {
         navigationController?.setNavigationBarHidden(false, animated: animated)
         (tabBarController as? MainTabBarController)?.hideFloatingTabBar()
         self.tabBarController?.tabBar.isHidden = true
+
+        // Refresh events every time the screen appears
+        // This ensures newly posted events are always visible
+        fetchEvents()
     }
 
     override func viewWillDisappear(_ animated: Bool) {
@@ -129,18 +133,25 @@ class BrowseEventsViewController: UIViewController {
     // MARK: - Fetch Events from Backend
 
     private func fetchEvents() {
+        // Clear existing cards immediately while loading to prevent duplicates
+        contentStack.arrangedSubviews.dropFirst().forEach { $0.removeFromSuperview() }
+
         Task {
             do {
                 let fetchedEvents = try await eventRepository.fetchFeaturedEvents()
                 await MainActor.run {
                     self.events = fetchedEvents
-                    self.loadEventCards()
+                    if fetchedEvents.isEmpty {
+                        self.showEmptyState()
+                    } else {
+                        self.loadEventCards()
+                    }
                 }
             } catch {
-                print("❌ Failed to fetch events:", error)
-                // Show empty state or error message
+                print("❌ [BrowseEventsVC] \(type(of: error)): \(error)")
+                print("❌ Full error: \(error.localizedDescription)")
                 await MainActor.run {
-                    self.showEmptyState()
+                    self.showEmptyState(message: "Couldn't load events.\nCheck your connection.")
                 }
             }
         }
@@ -156,11 +167,11 @@ class BrowseEventsViewController: UIViewController {
             let card = EventCardView(
                 imageURL: event.image_url,
                 title: event.title,
-                venue: event.venue,
-                time: event.event_time,
+                venue: event.venue ?? "TBD",
+                time: event.event_time ?? "",
                 date: event.formattedDate,
                 price: event.priceDisplay,
-                buttonTitle: event.is_free ? "Register".localized : "Book Now".localized
+                buttonTitle: (event.is_free ?? false) ? "Register".localized : "Book Now".localized
             )
 
             // Set tap handler to navigate to event details
@@ -182,11 +193,12 @@ class BrowseEventsViewController: UIViewController {
 
     // MARK: - Empty State
 
-    private func showEmptyState() {
+    private func showEmptyState(message: String = "No events available at the moment") {
         let emptyLabel = UILabel()
-        emptyLabel.text = "No events available at the moment".localized
+        emptyLabel.text = message.localized
         emptyLabel.textColor = .secondaryLabel
         emptyLabel.textAlignment = .center
+        emptyLabel.numberOfLines = 0
         emptyLabel.font = .systemFont(ofSize: 16)
         emptyLabel.translatesAutoresizingMaskIntoConstraints = false
 

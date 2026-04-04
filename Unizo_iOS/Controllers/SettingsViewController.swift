@@ -184,10 +184,23 @@ final class SettingsViewController: UIViewController {
         rateRow.addGestureRecognizer(rateTap)
         rateRow.isUserInteractionEnabled = true
 
+        #if DEBUG
+        let testRow = makeArrowRow(icon: "flask", title: "🧪 Run Integration Tests")
+        let testTap = UITapGestureRecognizer(target: self, action: #selector(runIntegrationTests))
+        testRow.addGestureRecognizer(testTap)
+        testRow.isUserInteractionEnabled = true
+
+        stackRows(card, rows: [
+            contactRow,
+            rateRow,
+            testRow
+        ])
+        #else
         stackRows(card, rows: [
             contactRow,
             rateRow
         ])
+        #endif
         return card
     }
 
@@ -402,6 +415,13 @@ final class SettingsViewController: UIViewController {
         }
     }
 
+    #if DEBUG
+    @objc private func runIntegrationTests() {
+        print("🧪 Integration tests triggered from Settings")
+        UnizoIntegrationTests.runAll()
+    }
+    #endif
+
     @objc private func rateAppTapped() {
         if let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene {
             SKStoreReviewController.requestReview(in: windowScene)
@@ -439,9 +459,10 @@ final class SettingsViewController: UIViewController {
             do {
                 // Stop realtime listeners first
                 await NotificationManager.shared.stopListening()
+                await ChatManager.shared.stopListening()
                 await OrderRealtimeManager.shared.unsubscribeAll()
 
-                // Sign out from Supabase
+                // Sign out from Firebase
                 try await AuthManager.shared.signOut()
 
                 print("✅ User signed out successfully")
@@ -486,9 +507,10 @@ final class SettingsViewController: UIViewController {
             do {
                 // Stop realtime listeners first
                 await NotificationManager.shared.stopListening()
+                await ChatManager.shared.stopListening()
                 await OrderRealtimeManager.shared.unsubscribeAll()
 
-                // Delete user account from Supabase
+                // Delete user account from Firebase
                 try await AuthManager.shared.deleteAccount()
 
                 print("✅ Account deleted successfully")

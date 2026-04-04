@@ -18,7 +18,7 @@ class AddressViewController: UIViewController {
 
     /// The items to be ordered (passed from ItemDetailsViewController)
     var orderItems: [OrderItem] = []
-    private let addressRepository = AddressRepository(client: supabase)
+    private let addressRepository = AddressRepository()
     private var addresses: [AddressDTO] = []
 
     // MARK: - Colors
@@ -450,7 +450,8 @@ class AddressViewController: UIViewController {
         alert.addAction(UIAlertAction(title: "Delete".localized, style: .destructive) { _ in
             Task {
                 do {
-                    try await self.addressRepository.deleteAddress(id: address.id)
+                    guard let addressId = address.id else { return }
+                    try await self.addressRepository.deleteAddress(id: addressId)
                     print("🗑️ Hotspot deleted:", address.id)
                     await self.loadAddresses()
                 } catch let error as AddressError {

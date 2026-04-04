@@ -4,14 +4,11 @@
 //
 
 import UIKit
-import Supabase
 import PhotosUI
+import FirebaseStorage
 
 final class PostEventViewController: UIViewController,
                                      PHPickerViewControllerDelegate {
-
-    // MARK: - Supabase
-    private let supabase = SupabaseManager.shared.client
 
     // MARK: - Scroll
     private let scrollView = TouchPassThroughScrollView()
@@ -479,7 +476,11 @@ final class PostEventViewController: UIViewController,
 
         Task {
             do {
-                let userId = try await supabase.auth.session.user.id.uuidString
+                guard let userId = await AuthManager.shared.currentUserId else {
+                    throw NSError(domain: "PostEventViewController", code: 401, userInfo: [
+                        NSLocalizedDescriptionKey: "User not authenticated"
+                    ])
+                }
 
                 // Upload image if selected
                 var imageURL: String?
@@ -496,6 +497,11 @@ final class PostEventViewController: UIViewController,
                 timeFmt.dateFormat = "HH:mm"
                 let timeString = timeFmt.string(from: timePicker.date)
 
+                // Generate ISO8601 created_at for query ordering
+                let iso = ISO8601DateFormatter()
+                iso.formatOptions = [.withInternetDateTime]
+                let createdAt = iso.string(from: Date())
+
                 let dto = EventInsertDTO(
                     organizer_id: userId,
                     title: eventTitle,
@@ -506,7 +512,8 @@ final class PostEventViewController: UIViewController,
                     price: price,
                     is_free: isFree,
                     image_url: imageURL,
-                    is_active: true
+                    is_active: true,
+                    created_at: createdAt
                 )
 
                 let repo = EventRepository()
@@ -568,23 +575,18 @@ final class PostEventViewController: UIViewController,
         }
 
         let path = "events/\(UUID().uuidString).jpg"
+        let storageRef = Storage.storage().reference()
+            .child("event-images")
+            .child(path)
 
         var uploadError: Error?
         for attempt in 1...3 {
             do {
-                try await supabase.storage
-                    .from("event-images")
-                    .upload(path, data: data, options: .init(upsert: true))
+                _ = try await storageRef.putDataAsync(data)
                 uploadError = nil
                 print("✅ Event image upload complete (attempt \(attempt))")
                 break
             } catch {
-                let nsErr = error as NSError
-                if nsErr.domain == NSURLErrorDomain && nsErr.code == -1017 {
-                    print("⚠️ Supabase parse error ignored (upload succeeded)")
-                    uploadError = nil
-                    break
-                }
                 uploadError = error
                 print("⚠️ Event image upload attempt \(attempt) error: \(error.localizedDescription)")
                 if attempt < 3 {
@@ -594,9 +596,7 @@ final class PostEventViewController: UIViewController,
         }
         if let err = uploadError { throw err }
 
-        let publicURL = try supabase.storage
-            .from("event-images")
-            .getPublicURL(path: path)
+        let publicURL = try await storageRef.downloadURL()
 
         return publicURL.absoluteString
     }

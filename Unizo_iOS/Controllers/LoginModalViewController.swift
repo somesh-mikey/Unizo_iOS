@@ -4,12 +4,9 @@
 //
 
 import UIKit
-import Supabase
+import FirebaseAuth
 
 final class LoginModalViewController: UIViewController {
-
-    // MARK: - Supabase
-    private let supabase = SupabaseManager.shared.client
 
     // MARK: - Containers (Card + Group)
     private let cardView: UIView = {
@@ -296,16 +293,13 @@ final class LoginModalViewController: UIViewController {
         loginButton.isEnabled = false
         loginButton.setTitle("Logging in...".localized, for: .normal)
 
-        // Authenticate with Supabase
+        // Authenticate with Firebase Auth
         Task {
             do {
                 print("🔐 Attempting login with email: \(email)")
                 print("🔐 Password length: \(password.count) characters")
 
-                try await supabase.auth.signIn(
-                    email: email,
-                    password: password
-                )
+                _ = try await Auth.auth().signIn(withEmail: email, password: password)
 
                 print("✅ Login successful")
 

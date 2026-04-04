@@ -6,9 +6,10 @@
 //
 
 import Foundation
+import FirebaseFirestore
 
 struct AddressUIModel {
-    let id: UUID
+    @DocumentID var id: String?
     let nameLine: String
     let addressText: String
     let isDefault: Bool

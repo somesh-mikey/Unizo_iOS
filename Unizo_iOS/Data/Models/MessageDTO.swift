@@ -6,12 +6,13 @@
 //
 
 import Foundation
+import FirebaseFirestore
 
 // MARK: - Message DTO
 struct MessageDTO: Codable, Identifiable {
-    let id: UUID
-    let conversation_id: UUID
-    let sender_id: UUID
+    @DocumentID var id: String?
+    let conversation_id: String
+    let sender_id: String
     let content: String?
     let message_type: String  // "text" or "image"
     let image_url: String?
@@ -35,17 +36,17 @@ struct MessageInsertDTO: Encodable {
     let message_type: String
     let image_url: String?
 
-    init(conversationId: UUID, senderId: UUID, content: String) {
-        self.conversation_id = conversationId.uuidString
-        self.sender_id = senderId.uuidString
+    init(conversationId: String, senderId: String, content: String) {
+        self.conversation_id = conversationId
+        self.sender_id = senderId
         self.content = content
         self.message_type = "text"
         self.image_url = nil
     }
 
-    init(conversationId: UUID, senderId: UUID, imageURL: String) {
-        self.conversation_id = conversationId.uuidString
-        self.sender_id = senderId.uuidString
+    init(conversationId: String, senderId: String, imageURL: String) {
+        self.conversation_id = conversationId
+        self.sender_id = senderId
         self.content = nil
         self.message_type = "image"
         self.image_url = imageURL
@@ -63,9 +64,9 @@ struct MarkMessagesReadDTO: Encodable {
 
 // MARK: - Message UI Model
 struct MessageUIModel: Identifiable, Equatable {
-    let id: UUID
-    let conversationId: UUID
-    let senderId: UUID
+    let id: String?
+    let conversationId: String
+    let senderId: String
     let content: String?
     let messageType: MessageType
     let imageURL: String?
@@ -99,7 +100,7 @@ struct MessageUIModel: Identifiable, Equatable {
 
 // MARK: - Message Mapper
 enum MessageMapper {
-    static func toUIModel(_ dto: MessageDTO, currentUserId: UUID) -> MessageUIModel {
+    static func toUIModel(_ dto: MessageDTO, currentUserId: String) -> MessageUIModel {
         return MessageUIModel(
             id: dto.id,
             conversationId: dto.conversation_id,

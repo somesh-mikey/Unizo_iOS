@@ -4,9 +4,10 @@
 //
 
 import Foundation
+import FirebaseFirestore
 
 struct UserDTO: Codable {
-    let id: UUID
+    @DocumentID var id: String?
     var first_name: String?
     var last_name: String?
     var email: String?

@@ -6,6 +6,7 @@
 //
 
 import Foundation
+import FirebaseFirestore
 
 // MARK: - Product Status Enum
 enum ProductStatus: String, Codable {
@@ -16,14 +17,14 @@ enum ProductStatus: String, Codable {
 
 // Nested seller info from users table
 struct ProductSellerDTO: Codable {
-    let id: UUID
+    @DocumentID var id: String?
     let first_name: String?
     let last_name: String?
     let email: String?
 }
 
 struct ProductDTO: Codable {
-    let id: UUID
+    @DocumentID var id: String?
     let title: String
     let description: String?
     let price: Double
@@ -39,15 +40,16 @@ struct ProductDTO: Codable {
     let condition: String?
 
     // Inventory fields
+    let is_active: Bool?
     let quantity: Int?
     let status: ProductStatus?
+    let seller_id: String?
 
     // Seller info (joined from users table)
-    let seller: ProductSellerDTO?
+    var seller: ProductSellerDTO?
 
     enum CodingKeys: String, CodingKey {
-        case id
-        case title
+                case title
         case description
         case price
         case rating
@@ -59,8 +61,10 @@ struct ProductDTO: Codable {
         case category
         case size
         case condition
+        case is_active
         case quantity
         case status
+        case seller_id
         case seller
     }
 

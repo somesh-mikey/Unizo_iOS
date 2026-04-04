@@ -75,8 +75,8 @@ class OrderCardView: UIView {
         // Store order for navigation
         self.currentOrder = order
 
-        // Format order ID (show last 8 characters of UUID)
-        let shortId = String(order.id.uuidString.suffix(8)).uppercased()
+        // Format order ID (show last 8 characters when available)
+        let shortId = String((order.id ?? "--------").suffix(8)).uppercased()
         orderLabel.text = String(format: "Order #%@".localized, shortId)
 
         // Format date
@@ -134,7 +134,7 @@ class OrderCardView: UIView {
         }
 
         // Accessibility
-        let shortIdForA11y = String(order.id.uuidString.suffix(8)).uppercased()
+        let shortIdForA11y = String((order.id ?? "--------").suffix(8)).uppercased()
         let orderStatus = OrderStatus(rawValue: order.status) ?? .pending
         isAccessibilityElement = true
         accessibilityLabel = String(format: "Order %@, %@".localized, shortIdForA11y, orderStatus.rawValue.capitalized)

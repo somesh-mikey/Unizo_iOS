@@ -2,11 +2,11 @@
 //  FeedbackViewController.swift
 //  Unizo_iOS
 //
-//  Allows users to submit feedback to the Supabase feedback table
+//  Allows users to submit feedback to Firestore.
 //
 
 import UIKit
-import Supabase
+import FirebaseFirestore
 
 final class FeedbackViewController: UIViewController, UITextViewDelegate {
 
@@ -249,17 +249,16 @@ final class FeedbackViewController: UIViewController, UITextViewDelegate {
                     return
                 }
 
-                let payload: [String: String] = [
-                    "user_id": userId.uuidString,
+                let payload: [String: Any] = [
+                    "user_id": userId,
                     "category": category,
                     "message": message,
                     "created_at": ISO8601DateFormatter().string(from: Date())
                 ]
 
-                try await SupabaseManager.shared.client
-                    .from("feedback")
-                    .insert(payload)
-                    .execute()
+                try await Firestore.firestore()
+                    .collection("feedback")
+                    .addDocument(data: payload)
 
                 await MainActor.run { [weak self] in
                     self?.setSubmitting(false)

@@ -6,13 +6,8 @@
 //
 
 import UIKit
-import Supabase
 import UserNotifications
-
-let supabase = SupabaseClient(
-    supabaseURL: URL(string: "https://tcaqxwxlrfoxmthigjgd.supabase.co")!,
-    supabaseKey: "sb_publishable_17MrI1DzB2mXj9mbzERurw_kXDz0tZi"
-)
+import FirebaseCore
 
 @main
 class AppDelegate: UIResponder, UIApplicationDelegate, UNUserNotificationCenterDelegate {
@@ -20,6 +15,8 @@ class AppDelegate: UIResponder, UIApplicationDelegate, UNUserNotificationCenterD
 
 
     func application(_ application: UIApplication, didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?) -> Bool {
+        FirebaseApp.configure()
+        
         let notificationCenter = UNUserNotificationCenter.current()
         notificationCenter.delegate = self
 
@@ -51,9 +48,8 @@ class AppDelegate: UIResponder, UIApplicationDelegate, UNUserNotificationCenterD
             let type = userInfo["type"] as? String
 
             if type == "chat",
-               let conversationIdString = userInfo["conversationId"] as? String,
-               let conversationId = UUID(uuidString: conversationIdString) {
-                ChatManager.shared.openChatFromNotification(conversationId: conversationId)
+               let conversationIdString = userInfo["conversationId"] as? String {
+                ChatManager.shared.openChatFromNotification(conversationId: conversationIdString)
                 completionHandler()
                 return
             }
@@ -61,8 +57,7 @@ class AppDelegate: UIResponder, UIApplicationDelegate, UNUserNotificationCenterD
             if type == "order" {
                 let route = (userInfo["route"] as? String) ?? ""
                 let orderIdString = userInfo["orderId"] as? String
-                let orderId = orderIdString.flatMap(UUID.init)
-                NotificationManager.shared.navigateToRoute(route: route, orderId: orderId)
+                NotificationManager.shared.navigateToRoute(route: route, orderId: orderIdString)
                 completionHandler()
                 return
             }

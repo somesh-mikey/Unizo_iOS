@@ -10,6 +10,9 @@ import Foundation
 struct ProductMapper {
 
     static func toUIModel(_ dto: ProductDTO) -> ProductUIModel {
+        if dto.id == nil {
+            print("🟥 [ChatDebug] ProductMapper.toUIModel received ProductDTO with nil id (title=\(dto.title), seller_id=\(dto.seller_id ?? "nil"))")
+        }
 
         return ProductUIModel(
             id: dto.id,
@@ -25,7 +28,7 @@ struct ProductMapper {
             size: dto.size,
             condition: dto.condition,
             sellerName: dto.sellerDisplayName,
-            sellerId: dto.seller?.id,  // Preserve seller ID for notifications
+            sellerId: dto.seller?.id ?? dto.seller_id,
             quantity: dto.quantity ?? 1,
             status: dto.status ?? .available
         )
