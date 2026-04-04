@@ -289,6 +289,14 @@ class LandingScreenViewController: UIViewController {
             object: nil
         )
 
+        // Reload event carousel the moment a new event is posted anywhere in the app
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(handleEventPosted),
+            name: .eventPosted,
+            object: nil
+        )
+
         // Refresh home data when internet is restored after the no-internet overlay
         NotificationCenter.default.addObserver(
             self,
@@ -311,6 +319,11 @@ class LandingScreenViewController: UIViewController {
         super.viewWillAppear(animated)
         navigationController?.setNavigationBarHidden(true, animated: animated)
         (tabBarController as? MainTabBarController)?.showFloatingTabBar()
+
+        // Refresh event carousel each time home appears (picks up newly posted events)
+        Task { [weak self] in
+            await self?.loadBanners()
+        }
     }
 
 
@@ -666,6 +679,13 @@ class LandingScreenViewController: UIViewController {
         startDataLoad()
     }
 
+    /// Called immediately when a new event is posted — refreshes the carousel in real time.
+    @objc private func handleEventPosted() {
+        Task { [weak self] in
+            await self?.loadBanners()
+        }
+    }
+
     @objc private func handleProductDeleted(_ notification: Notification) {
         guard let productId = notification.userInfo?["productId"] as? String else { return }
 
@@ -753,38 +773,38 @@ class LandingScreenViewController: UIViewController {
     @MainActor
     private func loadBanners() async {
         do {
-            let dtos = try await productRepository.fetchBanners()
-            print("🟢 Banner DTOs:", dtos)
+            // Load events from EventRepository — any posted event with an image shows in the carousel
+            let eventRepo = EventRepository()
+            let events = try await eventRepo.fetchFeaturedEvents()
+            print("🟢 Event carousel DTOs:", events.count)
 
-            if dtos.isEmpty {
-                self.banners = [
-                    BannerUIModel(imageURL: ""),
-                    BannerUIModel(imageURL: ""),
-                    BannerUIModel(imageURL: "")
-                ]
+            // Only show events that have an image uploaded
+            let eventsWithImages = events.filter { ($0.image_url ?? "").isEmpty == false }
+
+            if eventsWithImages.isEmpty {
+                // No events with images yet — show empty slots so layout still renders
+                self.banners = []
             } else {
-                self.banners = dtos.map { BannerUIModel(imageURL: $0.image_url) }
+                self.banners = eventsWithImages.map { BannerUIModel(imageURL: $0.image_url ?? "") }
             }
 
-            print("🟢 Banner URLs:", banners.map { $0.imageURL })
+            print("🟢 Carousel event image URLs:", banners.map { $0.imageURL })
 
-            // Setup carousel after banners are loaded
+            // Setup carousel after events are loaded
             if !didSetupCarousel {
                 didSetupCarousel = true
                 setupCarousel()
                 startAutoScroll()
+            } else {
+                // Refresh carousel in place if it was already set up
+                setupCarousel()
             }
 
         } catch let error as NetworkError {
-            print("❌ Network error loading banners:", error)
-            // Overlay already shown by loadProducts catch — no double-show needed
+            print("❌ Network error loading event carousel:", error)
         } catch {
-            print("❌ Failed to load banners:", error)
-            self.banners = [
-                BannerUIModel(imageURL: "banner1"),
-                BannerUIModel(imageURL: "banner2"),
-                BannerUIModel(imageURL: "banner3")
-            ]
+            print("❌ Failed to load event carousel:", error)
+            self.banners = []
             if !didSetupCarousel {
                 didSetupCarousel = true
                 setupCarousel()
@@ -1033,6 +1053,18 @@ class LandingScreenViewController: UIViewController {
 
         carouselScrollView.subviews.forEach { $0.removeFromSuperview() }
 
+        // Hide carousel area entirely when there are no events to show
+        guard !banners.isEmpty else {
+            carouselScrollView.isHidden = true
+            pageControl.isHidden = true
+            pageControl.numberOfPages = 0
+            timer?.invalidate()
+            return
+        }
+
+        carouselScrollView.isHidden = false
+        pageControl.isHidden = false
+
         let cardWidth = view.bounds.width - 40
         let cardHeight: CGFloat = 140
 
@@ -1064,10 +1096,14 @@ class LandingScreenViewController: UIViewController {
             imageView.frame = wrapper.bounds
             imageView.isUserInteractionEnabled = false // Let wrapper handle taps
 
-            ImageLoader.shared.load(
-                banner.imageURL,
-                into: imageView
-            )
+            if let staticImage = UIImage(named: banner.imageURL) {
+                imageView.image = staticImage
+            } else {
+                ImageLoader.shared.load(
+                    banner.imageURL,
+                    into: imageView
+                )
+            }
 
             wrapper.addSubview(imageView)
             carouselScrollView.addSubview(wrapper)

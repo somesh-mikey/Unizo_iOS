@@ -152,6 +152,17 @@ final class PostEventViewController: UIViewController,
 
     // MARK: - Lifecycle
 
+    init() {
+        super.init(nibName: nil, bundle: nil)
+        // Tells iOS to hide the entire tab bar (incl. floating Post button) when pushed
+        hidesBottomBarWhenPushed = true
+    }
+
+    required init?(coder: NSCoder) {
+        super.init(coder: coder)
+        hidesBottomBarWhenPushed = true
+    }
+
     override func viewDidLoad() {
         super.viewDidLoad()
         view.backgroundColor = .systemBackground
@@ -176,8 +187,15 @@ final class PostEventViewController: UIViewController,
     override func viewWillAppear(_ animated: Bool) {
         super.viewWillAppear(animated)
         navigationController?.setNavigationBarHidden(false, animated: animated)
-        (tabBarController as? MainTabBarController)?.hideFloatingTabBar()
         tabBarController?.tabBar.isHidden = true
+        (tabBarController as? MainTabBarController)?.hideFloatingTabBar()
+    }
+
+    override func viewDidAppear(_ animated: Bool) {
+        super.viewDidAppear(animated)
+        // Double-ensure the floating tab bar / blue Post button is gone
+        tabBarController?.tabBar.isHidden = true
+        (tabBarController as? MainTabBarController)?.hideFloatingTabBar()
     }
 
     override func viewWillDisappear(_ animated: Bool) {
@@ -520,6 +538,9 @@ final class PostEventViewController: UIViewController,
                 try await repo.insertEvent(dto)
 
                 print("✅ Event posted successfully")
+
+                // Notify home screen immediately so carousel refreshes with the new event
+                NotificationCenter.default.post(name: .eventPosted, object: nil)
 
                 await MainActor.run {
                     loadingIndicator.stopAnimating()
