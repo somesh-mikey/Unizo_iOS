@@ -590,6 +590,7 @@ final class ProfileViewController: UIViewController {
     @objc private func cameraTapped() {
         let picker = UIImagePickerController()
         picker.sourceType = .photoLibrary
+        picker.allowsEditing = true
         picker.delegate = self
         picker.modalPresentationStyle = .automatic
         present(picker, animated: true)
@@ -704,7 +705,7 @@ extension ProfileViewController: UIImagePickerControllerDelegate, UINavigationCo
                                didFinishPickingMediaWithInfo info: [UIImagePickerController.InfoKey: Any]) {
         picker.dismiss(animated: true)
 
-        guard let image = info[.originalImage] as? UIImage ?? info[.editedImage] as? UIImage else {
+        guard let image = info[.editedImage] as? UIImage ?? info[.originalImage] as? UIImage else {
             return
         }
 
@@ -794,8 +795,9 @@ extension ProfileViewController: UIImagePickerControllerDelegate, UINavigationCo
 
                 let publicURL = try await storageRef.downloadURL()
 
-                // Cache-bust so UIImageView reloads even when URL string is identical
-                let cacheBusted = publicURL.absoluteString + "?v=\(Int(Date().timeIntervalSince1970))"
+                let urlString = publicURL.absoluteString
+                let separator = urlString.contains("?") ? "&" : "?"
+                let cacheBusted = urlString + "\(separator)v=\(Int(Date().timeIntervalSince1970))"
                 print("🌐 Public URL: \(cacheBusted)")
 
                 try await userRepository.updateProfileImageURL(cacheBusted)

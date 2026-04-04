@@ -416,8 +416,13 @@ class ChatDetailViewController: UIViewController {
         roleLabel.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
 
         headerContainer.layoutIfNeeded()
-        let titleSize = headerContainer.systemLayoutSizeFitting(UIView.layoutFittingCompressedSize)
-        headerContainer.frame = CGRect(origin: .zero, size: CGSize(width: min(max(190, titleSize.width), 280), height: 44))
+        // Expand the container width to securely span all remaining Navigation Bar space.
+        // Because the profile avatar is anchored to the leading edge internally, 
+        // this naturally aligns it immediately next to the Back Button without needing leftBarButtonItems!
+        let wideWidth = UIScreen.main.bounds.width - 140
+        headerContainer.widthAnchor.constraint(equalToConstant: wideWidth).isActive = true
+        headerContainer.frame = CGRect(origin: .zero, size: CGSize(width: wideWidth, height: 44))
+        
         navigationItem.leftItemsSupplementBackButton = false
         navigationItem.leftBarButtonItems = nil
         navigationItem.titleView = headerContainer
