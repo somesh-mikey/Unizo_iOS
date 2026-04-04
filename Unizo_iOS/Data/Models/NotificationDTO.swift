@@ -40,17 +40,23 @@ struct NotificationDTO: Codable {
     @DocumentID var id: String?
     let recipient_id: String      // Who receives (seller or buyer)
     let sender_id: String         // Who triggered (buyer or seller)
-    let order_id: String
+    let order_id: String?         // Optional — not all notification types have an order
     let type: String
     let title: String
     let message: String
-    let deeplink_payload: DeeplinkPayload
+    let deeplink_payload: DeeplinkPayload?  // Optional — Firestore may store as map or missing
     let event_key: String?
-    let is_read: Bool
-    let created_at: String
+    let is_read: Bool?
+    let created_at: String?       // Optional — Firestore stores as Timestamp, decoded manually
 
     // Joined sender data (optional, for display)
     var sender: UserDTO?
+
+    // Safe accessors
+    var safeIsRead: Bool { is_read ?? false }
+    var safeDeeplinkPayload: DeeplinkPayload { deeplink_payload ?? DeeplinkPayload(route: "home") }
+    var safeOrderId: String { order_id ?? "" }
+    var safeCreatedAt: String { created_at ?? ISO8601DateFormatter().string(from: Date()) }
 }
 
 // MARK: - Insert DTO (for creating notifications)
@@ -68,10 +74,10 @@ struct NotificationInsertDTO: Encodable {
 
 // MARK: - UI Model (for display in views)
 struct NotificationUIModel {
-    @DocumentID var id: String?
+    let id: String?
     let recipientId: String
     let senderId: String
-    let orderId: String
+    let orderId: String?
     let type: NotificationType
     let title: String
     let message: String
@@ -131,12 +137,12 @@ struct NotificationMapper {
         // Parse ISO8601 date
         let dateFormatter = ISO8601DateFormatter()
         dateFormatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
-        var date = dateFormatter.date(from: dto.created_at)
+        var date = dateFormatter.date(from: dto.safeCreatedAt)
 
         // Fallback without fractional seconds
         if date == nil {
             dateFormatter.formatOptions = [.withInternetDateTime]
-            date = dateFormatter.date(from: dto.created_at)
+            date = dateFormatter.date(from: dto.safeCreatedAt)
         }
 
         return NotificationUIModel(
@@ -147,8 +153,8 @@ struct NotificationMapper {
             type: NotificationType(rawValue: dto.type) ?? .newOrder,
             title: dto.title,
             message: dto.message,
-            deeplinkPayload: dto.deeplink_payload,
-            isRead: dto.is_read,
+            deeplinkPayload: dto.safeDeeplinkPayload,
+            isRead: dto.safeIsRead,
             createdAt: date ?? Date(),
             senderName: dto.sender?.displayName
         )

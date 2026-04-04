@@ -391,7 +391,10 @@ extension NotificationsViewController: UITableViewDataSource, UITableViewDelegat
         }
 
         // Determine the order ID from deeplink or notification
-        let orderId = notification.deeplinkPayload.orderId ?? notification.orderId
+        guard let orderId = notification.deeplinkPayload.orderId ?? notification.orderId else {
+            print("⚠️ NotificationsVC: Notification has no order_id — cannot navigate")
+            return
+        }
 
         // For seller "new order" notifications, check current order status
         // If order is already accepted/rejected, navigate to OrderDetails instead of ConfirmOrder

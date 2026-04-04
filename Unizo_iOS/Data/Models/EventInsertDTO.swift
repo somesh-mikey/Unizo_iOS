@@ -17,4 +17,5 @@ struct EventInsertDTO: Encodable {
     let is_free: Bool
     let image_url: String?
     let is_active: Bool
+    let created_at: String      // ISO8601 timestamp
 }

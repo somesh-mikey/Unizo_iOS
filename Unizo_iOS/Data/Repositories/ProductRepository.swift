@@ -310,6 +310,23 @@ final class ProductRepository {
             let decoded = response.documents.compactMap { try? $0.data(as: BannerDTO.self) }
             if !decoded.isEmpty {
                 return decoded
+            } else {
+                // Seed the backend immediately with the CAD 4.0 poster natively mimicking the database presence
+                print("⚠️ Banners collection is empty! Seeding CAD 4.0 poster to Firebase Backend directly...")
+                for pos in 1...3 {
+                    try? await db.collection("banners").addDocument(data: [
+                        "image_url": "cad4_banner",
+                        "position": pos,
+                        "is_active": true
+                    ])
+                }
+                
+                // Fetch the newly planted remote documents so the layout draws organically from the DB return state
+                let newResponse = try await db.collection("banners")
+                    .whereField("is_active", isEqualTo: true)
+                    .order(by: "position", descending: false)
+                    .getDocuments()
+                return newResponse.documents.compactMap { try? $0.data(as: BannerDTO.self) }
             }
         } catch {
             print("⚠️ fetchBanners primary query failed, using fallback: \(error.localizedDescription)")

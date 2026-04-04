@@ -58,9 +58,8 @@ final class NotificationRepository {
         let deeplinkDict = data["deeplink_payload"] as? [String: Any]
         let orderIdFromDeeplink = deeplinkDict?["order_id"] as? String
 
-        guard let orderId = orderIdFromRoot ?? orderIdFromDeeplink else {
-            return nil
-        }
+        // order_id is optional — some notification types may not have one
+        let orderId = orderIdFromRoot ?? orderIdFromDeeplink
 
         let route = (deeplinkDict?["route"] as? String) ?? routeFallback(for: rawType)
         let sellerId = deeplinkDict?["seller_id"] as? String
@@ -203,7 +202,7 @@ final class NotificationRepository {
         }
 
         var notifications = documents.compactMap { decodeNotification(document: $0) }
-        notifications.sort { date(fromIsoString: $0.created_at) > date(fromIsoString: $1.created_at) }
+        notifications.sort { date(fromIsoString: $0.safeCreatedAt) > date(fromIsoString: $1.safeCreatedAt) }
         try await attachSenders(to: &notifications)
         return notifications
     }

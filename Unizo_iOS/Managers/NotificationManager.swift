@@ -182,8 +182,25 @@ final class NotificationManager {
                     if let notification = self.repository.decodeNotification(document: diff.document) {
                         Task { await self.handleNewNotification(notification) }
                     } else {
-                        print("⚠️ NotificationManager: Failed to decode notification from document \(diff.document.documentID)")
+                        deeplinkPayload = DeeplinkPayload(route: "home")
                     }
+
+                    let notification = NotificationDTO(
+                        id: doc.documentID,
+                        recipient_id: recipientId,
+                        sender_id: senderId,
+                        order_id: data["order_id"] as? String,
+                        type: type,
+                        title: title,
+                        message: message,
+                        deeplink_payload: deeplinkPayload,
+                        event_key: data["event_key"] as? String,
+                        is_read: data["is_read"] as? Bool ?? false,
+                        created_at: createdAt,
+                        sender: nil
+                    )
+
+                    Task { await self.handleNewNotification(notification) }
                 }
             }
 
@@ -195,7 +212,7 @@ final class NotificationManager {
 
         await MainActor.run {
             // Only increment if unread
-            if !notification.is_read {
+            if !notification.safeIsRead {
                 self.unreadCount += 1
             }
             self.delegate?.notificationManager(self, didReceiveNotification: notification)
@@ -206,7 +223,7 @@ final class NotificationManager {
             )
         }
 
-        if !notification.is_read {
+        if !notification.safeIsRead {
             await scheduleLocalNotification(for: notification)
         }
     }
@@ -220,8 +237,8 @@ final class NotificationManager {
         content.sound = .default
         content.userInfo = [
             "type": "order",
-            "route": notification.deeplink_payload.route,
-            "orderId": notification.order_id
+            "route": notification.safeDeeplinkPayload.route,
+            "orderId": notification.safeOrderId
         ]
 
         let request = UNNotificationRequest(

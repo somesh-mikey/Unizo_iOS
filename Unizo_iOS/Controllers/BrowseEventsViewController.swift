@@ -63,6 +63,10 @@ class BrowseEventsViewController: UIViewController {
         navigationController?.setNavigationBarHidden(false, animated: animated)
         (tabBarController as? MainTabBarController)?.hideFloatingTabBar()
         self.tabBarController?.tabBar.isHidden = true
+
+        // Refresh events every time the screen appears
+        // This ensures newly posted events are always visible
+        fetchEvents()
     }
 
     override func viewWillDisappear(_ animated: Bool) {
@@ -129,16 +133,23 @@ class BrowseEventsViewController: UIViewController {
     // MARK: - Fetch Events from Backend
 
     private func fetchEvents() {
+        // Clear existing cards immediately while loading to prevent duplicates
+        contentStack.arrangedSubviews.dropFirst().forEach { $0.removeFromSuperview() }
+
         Task {
             do {
                 let fetchedEvents = try await eventRepository.fetchFeaturedEvents()
                 await MainActor.run {
                     self.events = fetchedEvents
-                    self.loadEventCards()
+                    if fetchedEvents.isEmpty {
+                        self.showEmptyState()
+                    } else {
+                        self.loadEventCards()
+                    }
                 }
             } catch {
                 print("❌ [BrowseEventsVC] \(type(of: error)): \(error)")
-                // Show empty state with error message
+                print("❌ Full error: \(error.localizedDescription)")
                 await MainActor.run {
                     self.showEmptyState(message: "Couldn't load events.\nCheck your connection.")
                 }

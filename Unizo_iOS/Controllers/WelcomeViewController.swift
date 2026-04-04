@@ -70,11 +70,15 @@ class WelcomeViewController: UIViewController {
            accountLabel.textColor = .lightGray
 
            // --- LOGIN BUTTON ---
+           if #available(iOS 15.0, *) {
+               loginButton.configuration = nil
+           }
            loginButton.setTitle("Login".localized, for: .normal)
            loginButton.backgroundColor = UIColor(red: 0/255, green: 76/255, blue: 97/255, alpha: 1)
            loginButton.setTitleColor(.white, for: .normal)
            loginButton.titleLabel?.font = UIFont.systemFont(ofSize: 16, weight: .semibold)
-           loginButton.layer.cornerRadius = 10
+           loginButton.layer.cornerRadius = 24
+           loginButton.clipsToBounds = true
 
            // --- SIGN-UP BUTTONS ---
         setupOutlinedButton(emailSignUpButton,
@@ -167,7 +171,7 @@ class WelcomeViewController: UIViewController {
             emailSignUpButton.topAnchor.constraint(equalTo: accountLabel.bottomAnchor, constant: 20),
             emailSignUpButton.leadingAnchor.constraint(equalTo: bottomCardView.leadingAnchor, constant: 32),
             emailSignUpButton.trailingAnchor.constraint(equalTo: bottomCardView.trailingAnchor, constant: -32),
-            emailSignUpButton.heightAnchor.constraint(equalToConstant: 46)
+            emailSignUpButton.heightAnchor.constraint(equalToConstant: 48)
         ])
 
 
@@ -187,6 +191,10 @@ class WelcomeViewController: UIViewController {
                                      iconName: String,
                                      tintColor: UIColor) {
 
+        if #available(iOS 15.0, *) {
+            button.configuration = nil
+        }
+        
         // Completely clear the button's default content
         button.setTitle("", for: .normal)
         button.setImage(nil, for: .normal)
@@ -194,7 +202,7 @@ class WelcomeViewController: UIViewController {
 
         // Remove any existing subviews (in case called multiple times)
         button.subviews.forEach { subview in
-            if subview is UIStackView {
+            if subview is UIStackView || subview is UIImageView || subview is UILabel {
                 subview.removeFromSuperview()
             }
         }
@@ -202,17 +210,9 @@ class WelcomeViewController: UIViewController {
         // 🔥 Bolder border
         button.layer.borderColor = tintColor.cgColor
         button.layer.borderWidth = 1.4
-        button.layer.cornerRadius = 10
+        button.layer.cornerRadius = 24
         button.layer.masksToBounds = true
         button.backgroundColor = .white
-
-        // ----- CREATE HORIZONTAL STACK FOR ICON + TEXT -----
-        let containerStack = UIStackView()
-        containerStack.axis = .horizontal
-        containerStack.alignment = .center
-        containerStack.spacing = 12
-        containerStack.translatesAutoresizingMaskIntoConstraints = false
-        containerStack.isUserInteractionEnabled = false
 
         // Icon
         let iconImageView = UIImageView()
@@ -232,19 +232,20 @@ class WelcomeViewController: UIViewController {
         label.text = title
         label.font = UIFont.systemFont(ofSize: 15, weight: .medium)
         label.textColor = tintColor
+        label.translatesAutoresizingMaskIntoConstraints = false
 
-        containerStack.addArrangedSubview(iconImageView)
-        containerStack.addArrangedSubview(label)
+        button.addSubview(iconImageView)
+        button.addSubview(label)
 
-        button.addSubview(containerStack)
-
-        // Center the stack in the button
+        // Shift logo specifically to the left and center the text
         NSLayoutConstraint.activate([
+            iconImageView.leadingAnchor.constraint(equalTo: button.leadingAnchor, constant: 24),
+            iconImageView.centerYAnchor.constraint(equalTo: button.centerYAnchor),
             iconImageView.widthAnchor.constraint(equalToConstant: 24),
             iconImageView.heightAnchor.constraint(equalToConstant: 24),
 
-            containerStack.centerXAnchor.constraint(equalTo: button.centerXAnchor),
-            containerStack.centerYAnchor.constraint(equalTo: button.centerYAnchor)
+            label.centerXAnchor.constraint(equalTo: button.centerXAnchor),
+            label.centerYAnchor.constraint(equalTo: button.centerYAnchor)
         ])
     }
 
@@ -259,10 +260,10 @@ class WelcomeViewController: UIViewController {
                             tintColor: UIColor(red: 0/255, green: 76/255, blue: 97/255, alpha: 1))
 
         NSLayoutConstraint.activate([
-            guestBrowseButton.topAnchor.constraint(equalTo: emailSignUpButton.bottomAnchor, constant: 12),
+            guestBrowseButton.topAnchor.constraint(equalTo: emailSignUpButton.bottomAnchor, constant: 16),
             guestBrowseButton.leadingAnchor.constraint(equalTo: bottomCardView.leadingAnchor, constant: 32),
             guestBrowseButton.trailingAnchor.constraint(equalTo: bottomCardView.trailingAnchor, constant: -32),
-            guestBrowseButton.heightAnchor.constraint(equalToConstant: 46),
+            guestBrowseButton.heightAnchor.constraint(equalToConstant: 48),
             guestBrowseButton.bottomAnchor.constraint(lessThanOrEqualTo: bottomCardView.bottomAnchor, constant: -24)
         ])
     }

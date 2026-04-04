@@ -44,16 +44,14 @@ struct EventDTO: Codable, Identifiable {
         is_free = try container.decodeIfPresent(Bool.self, forKey: .is_free)
         image_url = try container.decodeIfPresent(String.self, forKey: .image_url)
         is_active = try container.decodeIfPresent(Bool.self, forKey: .is_active)
-
-        // created_at: Try String first, then Timestamp
-        if let stringDate = try? container.decodeIfPresent(String.self, forKey: .created_at) {
-            created_at = stringDate
-        } else if let ts = try? container.decodeIfPresent(Timestamp.self, forKey: .created_at) {
-            let formatter = ISO8601DateFormatter()
-            formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
-            created_at = formatter.string(from: ts.dateValue())
+        // created_at: Firestore stores this as a Timestamp (via serverTimestamp()),
+        // but may also be a String in older records. Handle both.
+        if let timestamp = try? container.decodeIfPresent(Timestamp.self, forKey: .created_at) {
+            let iso = ISO8601DateFormatter()
+            iso.formatOptions = [.withInternetDateTime]
+            created_at = iso.string(from: timestamp.dateValue())
         } else {
-            created_at = nil
+            created_at = try? container.decodeIfPresent(String.self, forKey: .created_at)
         }
 
         // event_date: Try String first, then Timestamp, then nil

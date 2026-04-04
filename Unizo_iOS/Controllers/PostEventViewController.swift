@@ -152,6 +152,17 @@ final class PostEventViewController: UIViewController,
 
     // MARK: - Lifecycle
 
+    init() {
+        super.init(nibName: nil, bundle: nil)
+        // Tells iOS to hide the entire tab bar (incl. floating Post button) when pushed
+        hidesBottomBarWhenPushed = true
+    }
+
+    required init?(coder: NSCoder) {
+        super.init(coder: coder)
+        hidesBottomBarWhenPushed = true
+    }
+
     override func viewDidLoad() {
         super.viewDidLoad()
         view.backgroundColor = .systemBackground
@@ -176,8 +187,15 @@ final class PostEventViewController: UIViewController,
     override func viewWillAppear(_ animated: Bool) {
         super.viewWillAppear(animated)
         navigationController?.setNavigationBarHidden(false, animated: animated)
-        (tabBarController as? MainTabBarController)?.hideFloatingTabBar()
         tabBarController?.tabBar.isHidden = true
+        (tabBarController as? MainTabBarController)?.hideFloatingTabBar()
+    }
+
+    override func viewDidAppear(_ animated: Bool) {
+        super.viewDidAppear(animated)
+        // Double-ensure the floating tab bar / blue Post button is gone
+        tabBarController?.tabBar.isHidden = true
+        (tabBarController as? MainTabBarController)?.hideFloatingTabBar()
     }
 
     override func viewWillDisappear(_ animated: Bool) {
@@ -497,6 +515,11 @@ final class PostEventViewController: UIViewController,
                 timeFmt.dateFormat = "HH:mm"
                 let timeString = timeFmt.string(from: timePicker.date)
 
+                // Generate ISO8601 created_at for query ordering
+                let iso = ISO8601DateFormatter()
+                iso.formatOptions = [.withInternetDateTime]
+                let createdAt = iso.string(from: Date())
+
                 let dto = EventInsertDTO(
                     organizer_id: userId,
                     title: eventTitle,
@@ -507,13 +530,17 @@ final class PostEventViewController: UIViewController,
                     price: price,
                     is_free: isFree,
                     image_url: imageURL,
-                    is_active: true
+                    is_active: true,
+                    created_at: createdAt
                 )
 
                 let repo = EventRepository()
                 try await repo.insertEvent(dto)
 
                 print("✅ Event posted successfully")
+
+                // Notify home screen immediately so carousel refreshes with the new event
+                NotificationCenter.default.post(name: .eventPosted, object: nil)
 
                 await MainActor.run {
                     loadingIndicator.stopAnimating()
