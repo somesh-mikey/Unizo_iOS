@@ -74,6 +74,7 @@ class ItemDetailsViewController: UIViewController {
     private let contentView = UIView()
     private let wishlistRepo = WishlistRepository()
     private var isWishlisted = false
+    private var wishlistStateVersion = 0
 
     private let descriptionHeaderLabel: UILabel = {
         let l = UILabel()
@@ -388,6 +389,7 @@ class ItemDetailsViewController: UIViewController {
         super.viewWillAppear(animated)
         tabBarController?.tabBar.isHidden = true
         navigationController?.setNavigationBarHidden(false, animated: false)
+        syncWishlistState()
     }
 
     override func viewWillDisappear(_ animated: Bool) {
@@ -450,26 +452,29 @@ class ItemDetailsViewController: UIViewController {
         ratingText.append(NSAttributedString(string: " \(String(format: "%.1f", p.rating))"))
         sellerRatingLabel.attributedText = ratingText
 
-        // Wishlist state
+        syncWishlistState()
+    }
+
+    private func syncWishlistState() {
         Task {
+            let versionAtStart = wishlistStateVersion
+
             do {
-                // Use authenticated user ID instead of local Session.userId
-                guard let userId = await AuthManager.shared.currentUserId else {
-                    print("⚠️ No authenticated user for wishlist check")
+                guard let userId = await AuthManager.shared.currentUserId, !userId.isEmpty else { return }
+
+                guard let productId = self.product?.id, !productId.isEmpty else {
                     return
                 }
 
-                let wishlistProducts = try await wishlistRepo.fetchWishlist(
-                    userId: userId
-                )
-
-                isWishlisted = wishlistProducts.contains { $0.id == product.id }
+                let isCurrentlyWishlisted = try await self.wishlistRepo.contains(productId: productId, userId: userId)
 
                 await MainActor.run {
-                    updateHeartIcon()
+                    guard versionAtStart == self.wishlistStateVersion else { return }
+                    self.isWishlisted = isCurrentlyWishlisted
+                    self.updateHeartIcon()
                 }
             } catch {
-                print("❌ Failed to load wishlist state: \(error)")
+                print("❌ Failed to load wishlist state: \(type(of: error)): \(error)")
             }
         }
     }
@@ -1144,15 +1149,31 @@ class ItemDetailsViewController: UIViewController {
     @objc private func heartTapped() {
         if showGuestGateIfNeeded() { return }
 
-        guard let product, let productId = product.id else { return }
+        guard let product = product else {
+            print("❌ heartTapped: product is nil")
+            return
+        }
+        guard let productId = product.id, !productId.isEmpty else {
+            print("❌ heartTapped: product.id is nil or empty — @DocumentID mapping failed")
+            print("❌ Product name was: \(product.name)")
+            showToastMessage("Unable to wishlist this item. Please try again.".localized)
+            return
+        }
+
+        let previousWishlistState = isWishlisted
+        wishlistStateVersion += 1
 
         Task {
             do {
-                // Use authenticated user ID instead of local Session.userId
-                guard let userId = await AuthManager.shared.currentUserId else {
-                    print("⚠️ No authenticated user for wishlist action")
+                guard let userId = await AuthManager.shared.currentUserId, !userId.isEmpty else {
+                    print("❌ heartTapped: No authenticated Firebase user — Auth.auth().currentUser is nil")
+                    await MainActor.run {
+                        self.showToastMessage("Please sign in to use wishlist".localized)
+                    }
                     return
                 }
+
+                print("✅ heartTapped: userId = \(userId), productId = \(productId)")
 
                 if isWishlisted {
                     try await wishlistRepo.remove(
@@ -1168,12 +1189,58 @@ class ItemDetailsViewController: UIViewController {
                     HapticFeedback.addToWishlist()
                 }
 
-                isWishlisted.toggle()
-                updateHeartIcon() // ❤️ turns red
+                await MainActor.run {
+                    self.isWishlisted.toggle()
+                    self.updateHeartIcon()
+                }
             } catch {
-                print("❌ Wishlist error:", error)
-                HapticFeedback.error()
+                print("❌ Wishlist error type: \(type(of: error))")
+                print("❌ Wishlist error full: \(error)")
+                print("❌ Wishlist error description: \(error.localizedDescription)")
+
+                // Revert to previous state — do NOT leave UI in wrong state
+                await MainActor.run {
+                    self.isWishlisted = previousWishlistState
+                    self.updateHeartIcon()
+                    HapticFeedback.error()
+                    self.showToastMessage(
+                        previousWishlistState
+                            ? "Failed to remove from wishlist".localized
+                            : "Failed to add to wishlist".localized
+                    )
+                }
             }
+        }
+    }
+
+    private func showToastMessage(_ message: String) {
+        let toast = UILabel()
+        toast.text = message
+        toast.backgroundColor = UIColor.label.withAlphaComponent(0.85)
+        toast.textColor = .systemBackground
+        toast.font = UIFont.systemFont(ofSize: 14, weight: .medium)
+        toast.textAlignment = .center
+        toast.layer.cornerRadius = 10
+        toast.clipsToBounds = true
+        toast.alpha = 0
+        toast.translatesAutoresizingMaskIntoConstraints = false
+
+        view.addSubview(toast)
+        NSLayoutConstraint.activate([
+            toast.centerXAnchor.constraint(equalTo: view.centerXAnchor),
+            toast.bottomAnchor.constraint(equalTo: view.safeAreaLayoutGuide.bottomAnchor,
+                                           constant: -80),
+            toast.widthAnchor.constraint(lessThanOrEqualTo: view.widthAnchor,
+                                          constant: -40),
+            toast.heightAnchor.constraint(equalToConstant: 40),
+            toast.leadingAnchor.constraint(greaterThanOrEqualTo: view.leadingAnchor,
+                                            constant: 20)
+        ])
+
+        UIView.animate(withDuration: 0.3, animations: { toast.alpha = 1 }) { _ in
+            UIView.animate(withDuration: 0.3, delay: 2.0, animations: {
+                toast.alpha = 0
+            }) { _ in toast.removeFromSuperview() }
         }
     }
 

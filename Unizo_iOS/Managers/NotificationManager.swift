@@ -181,26 +181,7 @@ final class NotificationManager {
                 for diff in snapshot.documentChanges where diff.type == .added {
                     if let notification = self.repository.decodeNotification(document: diff.document) {
                         Task { await self.handleNewNotification(notification) }
-                    } else {
-                        deeplinkPayload = DeeplinkPayload(route: "home")
                     }
-
-                    let notification = NotificationDTO(
-                        id: doc.documentID,
-                        recipient_id: recipientId,
-                        sender_id: senderId,
-                        order_id: data["order_id"] as? String,
-                        type: type,
-                        title: title,
-                        message: message,
-                        deeplink_payload: deeplinkPayload,
-                        event_key: data["event_key"] as? String,
-                        is_read: data["is_read"] as? Bool ?? false,
-                        created_at: createdAt,
-                        sender: nil
-                    )
-
-                    Task { await self.handleNewNotification(notification) }
                 }
             }
 

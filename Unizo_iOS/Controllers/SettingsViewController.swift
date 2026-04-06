@@ -184,23 +184,10 @@ final class SettingsViewController: UIViewController {
         rateRow.addGestureRecognizer(rateTap)
         rateRow.isUserInteractionEnabled = true
 
-        #if DEBUG
-        let testRow = makeArrowRow(icon: "flask", title: "🧪 Run Integration Tests")
-        let testTap = UITapGestureRecognizer(target: self, action: #selector(runIntegrationTests))
-        testRow.addGestureRecognizer(testTap)
-        testRow.isUserInteractionEnabled = true
-
-        stackRows(card, rows: [
-            contactRow,
-            rateRow,
-            testRow
-        ])
-        #else
         stackRows(card, rows: [
             contactRow,
             rateRow
         ])
-        #endif
         return card
     }
 
@@ -415,12 +402,7 @@ final class SettingsViewController: UIViewController {
         }
     }
 
-    #if DEBUG
-    @objc private func runIntegrationTests() {
-        print("🧪 Integration tests triggered from Settings")
-        UnizoIntegrationTests.runAll()
-    }
-    #endif
+
 
     @objc private func rateAppTapped() {
         if let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene {

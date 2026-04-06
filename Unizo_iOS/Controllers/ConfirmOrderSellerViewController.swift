@@ -640,17 +640,21 @@ private extension ConfirmOrderSellerViewController {
                             )
                             print("✅ Product \(productId) marked as sold (qty: \(item.quantity))")
 
-                            // RULE G — Prevent re-appearance on refresh before backend propagation
-                            DeletedListingsStore.add(productId)
-
                             // RULE H — Clear in-memory product cache
                             await MainActor.run {
                                 ProductStore.shared.removeProduct(id: productId)
                             }
 
-                            // Notify other screens to remove the product immediately.
-                            // Posted on MainActor so all @objc observer handlers
-                            // run synchronously on the main thread — safe for direct UI updates.
+                            // Notify seller-facing screens to update status to "Sold" (not remove)
+                            await MainActor.run {
+                                NotificationCenter.default.post(
+                                    name: .productSold,
+                                    object: nil,
+                                    userInfo: ["productId": productId]
+                                )
+                            }
+
+                            // Notify buyer-facing screens to remove the product from feeds
                             await MainActor.run {
                                 NotificationCenter.default.post(
                                     name: .productDeleted,

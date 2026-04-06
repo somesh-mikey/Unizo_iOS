@@ -6,8 +6,9 @@
 //
 
 import UIKit
+import FirebaseFirestore
 
-class ContactUsViewController: UIViewController {
+class ContactUsViewController: UIViewController, UITextViewDelegate {
 
     // MARK: - Scroll
     private let scrollView = UIScrollView()
@@ -27,10 +28,13 @@ class ContactUsViewController: UIViewController {
 
     private let messageTextView = UITextView()
     private let submitButton = UIButton(type: .system)
+    private let successBanner = UILabel()
 
     // MARK: - Data
     private let categoryOptions = ["General Inquiry", "Bug Report", "Feature Request", "Account Issue", "Payment Issue", "Other"]
     private var selectedCategory: String = "General Inquiry"
+    private let defaultMessagePlaceholder = "Write your message here..."
+    private var isSubmitting = false
 
     // MARK: - Colors
     private let primaryColor = UIColor(red: 0.12, green: 0.28, blue: 0.35, alpha: 1.0)
@@ -152,12 +156,13 @@ class ContactUsViewController: UIViewController {
         categoryButton.addTarget(self, action: #selector(categoryButtonTapped), for: .touchUpInside)
 
         // Message
-        messageTextView.text = "Write your message here...".localized
+        messageTextView.text = defaultMessagePlaceholder.localized
         messageTextView.textColor = .tertiaryLabel
         messageTextView.font = .systemFont(ofSize: 16)
         messageTextView.backgroundColor = .white
         messageTextView.layer.cornerRadius = 14
         messageTextView.textContainerInset = UIEdgeInsets(top: 14, left: 12, bottom: 14, right: 12)
+        messageTextView.delegate = self
 
         // Submit
         submitButton.setTitle("Submit".localized, for: .normal)
@@ -165,6 +170,17 @@ class ContactUsViewController: UIViewController {
         submitButton.titleLabel?.font = .systemFont(ofSize: 17, weight: .semibold)
         submitButton.backgroundColor = primaryColor
         submitButton.layer.cornerRadius = 28
+        submitButton.addTarget(self, action: #selector(submitTapped), for: .touchUpInside)
+
+        // Success banner
+        successBanner.text = "Submitted successfully".localized
+        successBanner.textColor = .white
+        successBanner.backgroundColor = .systemGreen
+        successBanner.textAlignment = .center
+        successBanner.font = .systemFont(ofSize: 14, weight: .semibold)
+        successBanner.layer.cornerRadius = 10
+        successBanner.clipsToBounds = true
+        successBanner.alpha = 0
 
         [
             reachLabel,
@@ -174,7 +190,8 @@ class ContactUsViewController: UIViewController {
             categoryButton,
             explainLabel,
             messageTextView,
-            submitButton
+            submitButton,
+            successBanner
         ].forEach {
             $0.translatesAutoresizingMaskIntoConstraints = false
             contentView.addSubview($0)
@@ -264,6 +281,12 @@ class ContactUsViewController: UIViewController {
             submitButton.leadingAnchor.constraint(equalTo: contactField.leadingAnchor),
             submitButton.trailingAnchor.constraint(equalTo: contactField.trailingAnchor),
             submitButton.heightAnchor.constraint(equalToConstant: 56),
+
+            successBanner.leadingAnchor.constraint(equalTo: submitButton.leadingAnchor),
+            successBanner.trailingAnchor.constraint(equalTo: submitButton.trailingAnchor),
+            successBanner.bottomAnchor.constraint(equalTo: submitButton.topAnchor, constant: -12),
+            successBanner.heightAnchor.constraint(equalToConstant: 36),
+
             submitButton.bottomAnchor.constraint(equalTo: contentView.bottomAnchor, constant: -16)
         ])
     }
@@ -295,6 +318,150 @@ class ContactUsViewController: UIViewController {
             nav.popViewController(animated: true)
         } else {
             dismiss(animated: true)
+        }
+    }
+
+    // MARK: - Submit
+    @objc private func submitTapped() {
+        guard !isSubmitting else { return }
+        dismissKeyboard()
+
+        let contactValue = (contactField.text ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
+        let message = messageTextView.text.trimmingCharacters(in: .whitespacesAndNewlines)
+        let isEmailMode = contactSegment.selectedSegmentIndex == 0
+
+        guard !contactValue.isEmpty else {
+            showAlert(title: "Missing Contact".localized, message: "Please enter your contact information.".localized)
+            return
+        }
+
+        if isEmailMode {
+            guard isValidEmail(contactValue) else {
+                showAlert(title: "Invalid Email".localized, message: "Please enter a valid email address.".localized)
+                return
+            }
+        } else {
+            guard isValidPhone(contactValue) else {
+                showAlert(title: "Invalid Phone".localized, message: "Please enter a valid phone number.".localized)
+                return
+            }
+        }
+
+        guard !message.isEmpty, message != defaultMessagePlaceholder.localized else {
+            showAlert(title: "Missing Message".localized, message: "Please explain your issue before submitting.".localized)
+            return
+        }
+
+        guard NetworkMonitor.shared.isReachable() else {
+            showAlert(title: "No Connection".localized, message: "Please check your internet connection and try again.".localized)
+            return
+        }
+
+        Task {
+            do {
+                guard let userId = await AuthManager.shared.currentUserId, !userId.isEmpty else {
+                    await MainActor.run {
+                        self.showAlert(title: "Sign In Required".localized, message: "Please sign in before submitting Contact Us.".localized)
+                    }
+                    return
+                }
+
+                await MainActor.run { self.setSubmitting(true) }
+
+                let payload: [String: Any] = [
+                    "user_id": userId,
+                    "contact_method": isEmailMode ? "email" : "phone",
+                    "contact_value": contactValue,
+                    "category": selectedCategory,
+                    "message": message,
+                    "created_at": FieldValue.serverTimestamp(),
+                    "status": "new"
+                ]
+
+                try await Firestore.firestore()
+                    .collection("contact_submissions")
+                    .addDocument(data: payload)
+
+                await MainActor.run {
+                    self.setSubmitting(false)
+                    self.resetFormAfterSuccess()
+                    self.showSuccessBanner()
+                }
+            } catch {
+                await MainActor.run {
+                    self.setSubmitting(false)
+                    self.showAlert(
+                        title: "Submission Failed".localized,
+                        message: "Could not submit your request. Please try again.".localized
+                    )
+                }
+                print("❌ Contact submission failed: \(error)")
+            }
+        }
+    }
+
+    private func setSubmitting(_ submitting: Bool) {
+        isSubmitting = submitting
+        submitButton.isEnabled = !submitting
+        contactField.isEnabled = !submitting
+        contactSegment.isEnabled = !submitting
+        categoryButton.isEnabled = !submitting
+        messageTextView.isEditable = !submitting
+        submitButton.alpha = submitting ? 0.7 : 1.0
+
+        let title = submitting ? "Submitting...".localized : "Submit".localized
+        submitButton.setTitle(title, for: .normal)
+    }
+
+    private func resetFormAfterSuccess() {
+        contactField.text = ""
+        selectedCategory = "General Inquiry"
+        var config = categoryButton.configuration
+        config?.title = selectedCategory.localized
+        categoryButton.configuration = config
+
+        messageTextView.text = defaultMessagePlaceholder.localized
+        messageTextView.textColor = .tertiaryLabel
+    }
+
+    private func showSuccessBanner() {
+        UIView.animate(withDuration: 0.2, animations: {
+            self.successBanner.alpha = 1
+        }) { _ in
+            UIView.animate(withDuration: 0.25, delay: 2.0, options: [], animations: {
+                self.successBanner.alpha = 0
+            })
+        }
+    }
+
+    private func isValidEmail(_ value: String) -> Bool {
+        let regex = "[A-Z0-9a-z._%+-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,}"
+        return NSPredicate(format: "SELF MATCHES %@", regex).evaluate(with: value)
+    }
+
+    private func isValidPhone(_ value: String) -> Bool {
+        let digits = value.filter { $0.isNumber }
+        return digits.count >= 7 && digits.count <= 15
+    }
+
+    private func showAlert(title: String, message: String) {
+        let alert = UIAlertController(title: title, message: message, preferredStyle: .alert)
+        alert.addAction(UIAlertAction(title: "OK".localized, style: .default))
+        present(alert, animated: true)
+    }
+
+    // MARK: - UITextViewDelegate
+    func textViewDidBeginEditing(_ textView: UITextView) {
+        if textView.text == defaultMessagePlaceholder.localized {
+            textView.text = ""
+            textView.textColor = .label
+        }
+    }
+
+    func textViewDidEndEditing(_ textView: UITextView) {
+        if textView.text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            textView.text = defaultMessagePlaceholder.localized
+            textView.textColor = .tertiaryLabel
         }
     }
 }

@@ -21,6 +21,7 @@ extension Notification.Name {
     static let chatUnreadCountChanged = Notification.Name("chatUnreadCountChanged")
     static let newChatMessageReceived = Notification.Name("newChatMessageReceived")
     static let productDeleted = Notification.Name("productDeleted")
+    static let productSold = Notification.Name("productSold")
     static let eventPosted = Notification.Name("eventPosted")
 }
 

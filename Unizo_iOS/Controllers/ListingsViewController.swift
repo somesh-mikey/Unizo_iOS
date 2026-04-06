@@ -148,6 +148,57 @@ class ListingsViewController: UIViewController {
         setupCollectionView()
         setupSearchBar()
         setupFilterControl()
+
+        // Observe .productSold — when a product is sold via order acceptance,
+        // update the seller's listings to show "Sold" status badge (do NOT remove)
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(handleProductSold(_:)),
+            name: .productSold,
+            object: nil
+        )
+    }
+
+    deinit {
+        NotificationCenter.default.removeObserver(self, name: .productSold, object: nil)
+    }
+
+    /// When a product is sold, refresh the listings from Firestore to pick up the
+    /// updated "Sold" status. Do NOT remove the product — sellers need sales history.
+    @objc private func handleProductSold(_ notification: Notification) {
+        guard let productId = notification.userInfo?["productId"] as? String else { return }
+
+        print("🏷️ [ListingsVC] Product sold notification received for \(productId) — refreshing listings")
+
+        // Update allListings status locally for immediate UI feedback
+        for i in allListings.indices {
+            if allListings[i].productId == productId {
+                allListings[i] = Listing(
+                    image: allListings[i].image,
+                    imageURL: allListings[i].imageURL,
+                    category: allListings[i].category,
+                    name: allListings[i].name,
+                    status: "Sold",
+                    price: allListings[i].price,
+                    productId: allListings[i].productId,
+                    viewsCount: allListings[i].viewsCount,
+                    createdAt: allListings[i].createdAt,
+                    quantity: 0,
+                    buyerName: allListings[i].buyerName,
+                    orderStatus: allListings[i].orderStatus,
+                    interestedBuyersCount: allListings[i].interestedBuyersCount,
+                    dealRequestsCount: allListings[i].dealRequestsCount,
+                    hasNewInterestedBuyers: allListings[i].hasNewInterestedBuyers,
+                    hasNewDealRequests: allListings[i].hasNewDealRequests
+                )
+            }
+        }
+
+        applyFilters()
+        updateListingsCount()
+
+        // Also trigger a full refresh from Firestore to get authoritative data
+        fetchUserListings()
     }
 
     override func viewWillAppear(_ animated: Bool) {
