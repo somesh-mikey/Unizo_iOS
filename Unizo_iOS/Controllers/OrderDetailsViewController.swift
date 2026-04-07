@@ -82,6 +82,7 @@ class OrderDetailsViewController: UIViewController {
     private let codeErrorLabel = UILabel()
     private let loadingSpinner = UIActivityIndicatorView(style: .medium)
     private var handoffCardHeightConstraint: NSLayoutConstraint?
+    private var isCompactScreen: Bool { UIScreen.main.bounds.height <= 740 }
 
     // MARK: - Lifecycle
     override func viewDidLoad() {
@@ -997,8 +998,16 @@ class OrderDetailsViewController: UIViewController {
     // MARK: - Handoff Card (hidden by default, shown based on status + role)
     private var instructionTopToBuyerCode: NSLayoutConstraint?
     private var instructionTopToSellerField: NSLayoutConstraint?
+    private var instructionTopToSellerError: NSLayoutConstraint?
 
     private func setupHandoffCard() {
+        let topInset: CGFloat = isCompactScreen ? 16 : 20
+        let fieldHeight: CGFloat = isCompactScreen ? 48 : 52
+        let instructionTopSpacing: CGFloat = isCompactScreen ? 6 : 10
+        let instructionAfterErrorSpacing: CGFloat = isCompactScreen ? 4 : 8
+        let errorTopSpacing: CGFloat = isCompactScreen ? 4 : 6
+        let bottomInset: CGFloat = isCompactScreen ? 14 : 20
+
         handoffCard.translatesAutoresizingMaskIntoConstraints = false
         handoffCard.backgroundColor = .white
         handoffCard.layer.cornerRadius = 14
@@ -1028,18 +1037,19 @@ class OrderDetailsViewController: UIViewController {
 
         // Instruction text
         handoffInstructionLabel.translatesAutoresizingMaskIntoConstraints = false
-        handoffInstructionLabel.font = .systemFont(ofSize: 14)
+        handoffInstructionLabel.font = .systemFont(ofSize: isCompactScreen ? 13 : 14)
         handoffInstructionLabel.textColor = .gray
         handoffInstructionLabel.textAlignment = .center
-        handoffInstructionLabel.numberOfLines = 0
+        handoffInstructionLabel.numberOfLines = isCompactScreen ? 3 : 0
         handoffInstructionLabel.isHidden = true
         handoffCard.addSubview(handoffInstructionLabel)
 
         // Error label
         codeErrorLabel.translatesAutoresizingMaskIntoConstraints = false
-        codeErrorLabel.font = .systemFont(ofSize: 13)
+        codeErrorLabel.font = .systemFont(ofSize: isCompactScreen ? 12 : 13)
         codeErrorLabel.textColor = .systemRed
         codeErrorLabel.textAlignment = .center
+        codeErrorLabel.numberOfLines = 2
         codeErrorLabel.isHidden = true
         handoffCard.addSubview(codeErrorLabel)
 
@@ -1049,8 +1059,9 @@ class OrderDetailsViewController: UIViewController {
         handoffCard.addSubview(loadingSpinner)
 
         // Two alternate top constraints for instruction label
-        instructionTopToBuyerCode = handoffInstructionLabel.topAnchor.constraint(equalTo: handoffCodeLabel.bottomAnchor, constant: 10)
-        instructionTopToSellerField = handoffInstructionLabel.topAnchor.constraint(equalTo: codeTextField.bottomAnchor, constant: 10)
+        instructionTopToBuyerCode = handoffInstructionLabel.topAnchor.constraint(equalTo: handoffCodeLabel.bottomAnchor, constant: instructionTopSpacing)
+        instructionTopToSellerField = handoffInstructionLabel.topAnchor.constraint(equalTo: codeTextField.bottomAnchor, constant: instructionTopSpacing)
+        instructionTopToSellerError = handoffInstructionLabel.topAnchor.constraint(equalTo: codeErrorLabel.bottomAnchor, constant: instructionAfterErrorSpacing)
 
         NSLayoutConstraint.activate([
             handoffCard.topAnchor.constraint(equalTo: summaryCard.bottomAnchor, constant: 18),
@@ -1058,23 +1069,23 @@ class OrderDetailsViewController: UIViewController {
             handoffCard.trailingAnchor.constraint(equalTo: contentView.trailingAnchor, constant: -16),
 
             // Buyer code label
-            handoffCodeLabel.topAnchor.constraint(equalTo: handoffCard.topAnchor, constant: 20),
+            handoffCodeLabel.topAnchor.constraint(equalTo: handoffCard.topAnchor, constant: topInset),
             handoffCodeLabel.leadingAnchor.constraint(equalTo: handoffCard.leadingAnchor, constant: 16),
             handoffCodeLabel.trailingAnchor.constraint(equalTo: handoffCard.trailingAnchor, constant: -16),
 
             // Seller code text field
-            codeTextField.topAnchor.constraint(equalTo: handoffCard.topAnchor, constant: 20),
+            codeTextField.topAnchor.constraint(equalTo: handoffCard.topAnchor, constant: topInset),
             codeTextField.leadingAnchor.constraint(equalTo: handoffCard.leadingAnchor, constant: 32),
             codeTextField.trailingAnchor.constraint(equalTo: handoffCard.trailingAnchor, constant: -32),
-            codeTextField.heightAnchor.constraint(equalToConstant: 52),
+            codeTextField.heightAnchor.constraint(equalToConstant: fieldHeight),
 
             // Instruction label (horizontal only; top set dynamically)
             handoffInstructionLabel.leadingAnchor.constraint(equalTo: handoffCard.leadingAnchor, constant: 16),
             handoffInstructionLabel.trailingAnchor.constraint(equalTo: handoffCard.trailingAnchor, constant: -16),
-            handoffInstructionLabel.bottomAnchor.constraint(equalTo: handoffCard.bottomAnchor, constant: -20),
+            handoffInstructionLabel.bottomAnchor.constraint(equalTo: handoffCard.bottomAnchor, constant: -bottomInset),
 
             // Error label
-            codeErrorLabel.topAnchor.constraint(equalTo: codeTextField.bottomAnchor, constant: 6),
+            codeErrorLabel.topAnchor.constraint(equalTo: codeTextField.bottomAnchor, constant: errorTopSpacing),
             codeErrorLabel.leadingAnchor.constraint(equalTo: handoffCard.leadingAnchor, constant: 16),
             codeErrorLabel.trailingAnchor.constraint(equalTo: handoffCard.trailingAnchor, constant: -16),
 
@@ -1152,6 +1163,21 @@ class OrderDetailsViewController: UIViewController {
         codeErrorLabel.isHidden = true
         instructionTopToBuyerCode?.isActive = false
         instructionTopToSellerField?.isActive = false
+        instructionTopToSellerError?.isActive = false
+    }
+
+    private func hideCodeError() {
+        codeErrorLabel.text = nil
+        codeErrorLabel.isHidden = true
+        instructionTopToSellerError?.isActive = false
+        instructionTopToSellerField?.isActive = true
+    }
+
+    private func showCodeError(_ message: String) {
+        codeErrorLabel.text = message
+        codeErrorLabel.isHidden = false
+        instructionTopToSellerField?.isActive = false
+        instructionTopToSellerError?.isActive = true
     }
 
     private func resetHelpButton() {
@@ -1204,13 +1230,16 @@ class OrderDetailsViewController: UIViewController {
             handoffCodeLabel.isHidden = true
             codeTextField.isHidden = false
             handoffInstructionLabel.isHidden = false
-            codeErrorLabel.isHidden = true
+            hideCodeError()
+            codeTextField.layer.borderColor = UIColor(white: 0.85, alpha: 1.0).cgColor
 
             // Anchor instruction below text field
             instructionTopToBuyerCode?.isActive = false
             instructionTopToSellerField?.isActive = true
 
-            handoffInstructionLabel.text = "Enter the code the buyer shows you to confirm delivery.".localized
+            handoffInstructionLabel.text = (isCompactScreen
+                ? "Enter buyer's 6-digit code to confirm delivery."
+                : "Enter the code the buyer shows you to confirm delivery.").localized
 
             helpButton.setTitle("Verify Code".localized, for: .normal)
             helpButton.setTitleColor(.white, for: .normal)
@@ -1411,12 +1440,11 @@ class OrderDetailsViewController: UIViewController {
         let enteredCode = codeTextField.text?.trimmingCharacters(in: .whitespaces) ?? ""
 
         guard enteredCode.count == 6 else {
-            codeErrorLabel.text = "Please enter the full 6-digit code.".localized
-            codeErrorLabel.isHidden = false
+            showCodeError("Please enter the full 6-digit code.".localized)
             return
         }
 
-        codeErrorLabel.isHidden = true
+        hideCodeError()
         helpButton.isEnabled = false
         loadingSpinner.startAnimating()
 
@@ -1439,8 +1467,7 @@ class OrderDetailsViewController: UIViewController {
                     await MainActor.run {
                         self.loadingSpinner.stopAnimating()
                         self.helpButton.isEnabled = true
-                        self.codeErrorLabel.text = "Incorrect code. Please try again.".localized
-                        self.codeErrorLabel.isHidden = false
+                        self.showCodeError("Incorrect code. Please try again.".localized)
                         self.codeTextField.layer.borderColor = UIColor.systemRed.cgColor
                     }
                 }
@@ -1449,8 +1476,7 @@ class OrderDetailsViewController: UIViewController {
                 await MainActor.run {
                     self.loadingSpinner.stopAnimating()
                     self.helpButton.isEnabled = true
-                    self.codeErrorLabel.text = "Something went wrong. Please try again.".localized
-                    self.codeErrorLabel.isHidden = false
+                    self.showCodeError("Something went wrong. Please try again.".localized)
                 }
             }
         }

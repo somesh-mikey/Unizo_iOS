@@ -521,6 +521,7 @@ extension ListingsViewController: EnhancedListingCellDelegate {
 
         let editVC = EditListingViewController()
         editVC.product = product
+        editVC.hidesBottomBarWhenPushed = true
         navigationController?.pushViewController(editVC, animated: true)
     }
 

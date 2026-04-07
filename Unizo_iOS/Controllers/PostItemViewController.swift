@@ -79,12 +79,39 @@ final class PostItemViewController: UIViewController,
     private let finalUploadButton = UIButton(type: .system)
 
     // MARK: - Loading Indicator
+    private let loadingOverlayView: UIView = {
+        let view = UIView()
+        view.backgroundColor = UIColor(white: 0.0, alpha: 0.25)
+        view.isHidden = true
+        view.translatesAutoresizingMaskIntoConstraints = false
+        return view
+    }()
+
+    private let loadingCardView: UIView = {
+        let view = UIView()
+        view.backgroundColor = UIColor(white: 0.12, alpha: 0.9)
+        view.layer.cornerRadius = 14
+        view.translatesAutoresizingMaskIntoConstraints = false
+        return view
+    }()
+
     private let loadingIndicator: UIActivityIndicatorView = {
-        let indicator = UIActivityIndicatorView(style: .medium)
+        let indicator = UIActivityIndicatorView(style: .large)
         indicator.color = .white
         indicator.hidesWhenStopped = true
         indicator.translatesAutoresizingMaskIntoConstraints = false
         return indicator
+    }()
+
+    private let loadingLabel: UILabel = {
+        let label = UILabel()
+        label.text = "Posting your product...".localized
+        label.font = .systemFont(ofSize: 15, weight: .medium)
+        label.textColor = .white
+        label.textAlignment = .center
+        label.numberOfLines = 2
+        label.translatesAutoresizingMaskIntoConstraints = false
+        return label
     }()
 
     // MARK: - Lifecycle
@@ -418,15 +445,47 @@ final class PostItemViewController: UIViewController,
 
     // MARK: - Loading Indicator Setup
     private func setupLoadingIndicator() {
-        view.addSubview(loadingIndicator)
+        view.addSubview(loadingOverlayView)
+        loadingOverlayView.addSubview(loadingCardView)
+        loadingCardView.addSubview(loadingIndicator)
+        loadingCardView.addSubview(loadingLabel)
+
         NSLayoutConstraint.activate([
-            loadingIndicator.centerXAnchor.constraint(equalTo: view.centerXAnchor),
-            loadingIndicator.centerYAnchor.constraint(equalTo: view.centerYAnchor)
+            loadingOverlayView.topAnchor.constraint(equalTo: view.topAnchor),
+            loadingOverlayView.leadingAnchor.constraint(equalTo: view.leadingAnchor),
+            loadingOverlayView.trailingAnchor.constraint(equalTo: view.trailingAnchor),
+            loadingOverlayView.bottomAnchor.constraint(equalTo: view.bottomAnchor),
+
+            loadingCardView.centerXAnchor.constraint(equalTo: loadingOverlayView.centerXAnchor),
+            loadingCardView.centerYAnchor.constraint(equalTo: loadingOverlayView.centerYAnchor),
+            loadingCardView.widthAnchor.constraint(equalToConstant: 220),
+
+            loadingIndicator.topAnchor.constraint(equalTo: loadingCardView.topAnchor, constant: 20),
+            loadingIndicator.centerXAnchor.constraint(equalTo: loadingCardView.centerXAnchor),
+
+            loadingLabel.topAnchor.constraint(equalTo: loadingIndicator.bottomAnchor, constant: 12),
+            loadingLabel.leadingAnchor.constraint(equalTo: loadingCardView.leadingAnchor, constant: 12),
+            loadingLabel.trailingAnchor.constraint(equalTo: loadingCardView.trailingAnchor, constant: -12),
+            loadingLabel.bottomAnchor.constraint(equalTo: loadingCardView.bottomAnchor, constant: -16)
         ])
 
         // Accessibility
         finalUploadButton.accessibilityLabel = "Post item".localized
         loadingIndicator.accessibilityLabel = "Uploading item".localized
+        loadingLabel.accessibilityLabel = "Posting your product, please wait".localized
+    }
+
+    private func setPostingState(_ isPosting: Bool) {
+        loadingOverlayView.isHidden = !isPosting
+        if isPosting {
+            loadingIndicator.startAnimating()
+        } else {
+            loadingIndicator.stopAnimating()
+        }
+
+        finalUploadButton.isEnabled = !isPosting
+        uploadButton.isEnabled = !isPosting
+        scrollView.isScrollEnabled = !isPosting
     }
 
     // MARK: - Upload Logic
@@ -453,9 +512,8 @@ final class PostItemViewController: UIViewController,
             return
         }
 
-        // Show loading indicator and disable button
-        loadingIndicator.startAnimating()
-        finalUploadButton.isEnabled = false
+        // Show an explicit posting state so users know upload is in progress.
+        setPostingState(true)
 
         Task {
             do {
@@ -506,8 +564,7 @@ final class PostItemViewController: UIViewController,
 
                 // Hide loading indicator and show success alert
                 await MainActor.run {
-                    self.loadingIndicator.stopAnimating()
-                    self.finalUploadButton.isEnabled = true
+                    self.setPostingState(false)
 
                     // Clear all form data after successful upload
                     self.clearFormData()
@@ -527,8 +584,7 @@ final class PostItemViewController: UIViewController,
             } catch {
                 print("❌ Upload failed:", error)
                 await MainActor.run {
-                    self.loadingIndicator.stopAnimating()
-                    self.finalUploadButton.isEnabled = true
+                    self.setPostingState(false)
 
                     let alert = UIAlertController(
                         title: "Upload Failed".localized,

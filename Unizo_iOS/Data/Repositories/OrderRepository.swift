@@ -608,12 +608,10 @@ final class OrderRepository {
             review: review
         )
 
-        let data = try Firestore.Encoder().encode(ratingPayload)
+        var data = try Firestore.Encoder().encode(ratingPayload)
+        data["created_at"] = FieldValue.serverTimestamp()
         try await ref.setData(data)
         print("✅ Rating submitted: \(rating)★ for user \(ratedUserId.prefix(8))")
-        
-        // Recalculate average and total
-        try await recalculateUserRating(userId: ratedUserId)
         
         // Send notification to the rated user
         do {
@@ -657,13 +655,22 @@ final class OrderRepository {
     }
 
     func fetchUserRatingSummary(userId: String) async throws -> UserRatingSummary {
-        let snapshot = try await db.collection("users").document(userId).getDocument()
-        guard let data = snapshot.data() else {
-            return UserRatingSummary(average_rating: 0, total_ratings: 0)
+        let snapshot = try await db.collection("order_ratings")
+            .whereField("rated_user_id", isEqualTo: userId)
+            .getDocuments()
+
+        let ratings = snapshot.documents.compactMap { doc -> Double? in
+            if let value = doc.data()["rating"] as? Double { return value }
+            if let value = doc.data()["rating"] as? Int { return Double(value) }
+            return nil
         }
+
+        let total = ratings.count
+        let average = total > 0 ? ratings.reduce(0, +) / Double(total) : 0
+
         return UserRatingSummary(
-            average_rating: data["average_rating"] as? Double,
-            total_ratings: data["total_ratings"] as? Int
+            average_rating: average,
+            total_ratings: total
         )
     }
 
@@ -763,19 +770,4 @@ extension OrderRepository {
         await sendStatusUpdateNotifications(orderId: orderId, status: .confirmed, handoffCode: handoffCode)
     }
 
-    private func recalculateUserRating(userId: String) async throws {
-        let snapshot = try await db.collection("order_ratings")
-            .whereField("rated_user_id", isEqualTo: userId)
-            .getDocuments()
-
-        let ratings = snapshot.documents.compactMap { try? $0.data(as: OrderRatingDTO.self) }
-        let totalRatings = ratings.count
-        let averageRating = totalRatings > 0 ? ratings.reduce(0.0) { $0 + Double($1.rating) } / Double(totalRatings) : 0.0
-
-        try await db.collection("users").document(userId).setData([
-            "average_rating": averageRating,
-            "total_ratings": totalRatings
-        ], merge: true)
-        print("✅ Recalculated rating for \(userId.prefix(8)): average \(averageRating), total \(totalRatings)")
-    }
 }
