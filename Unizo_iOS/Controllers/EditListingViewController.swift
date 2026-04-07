@@ -443,11 +443,13 @@ final class EditListingViewController: UIViewController,
         super.viewWillAppear(animated)
         // Ensure scroll view content is properly laid out
         scrollView.contentInsetAdjustmentBehavior = .never
+        tabBarController?.tabBar.isHidden = true
     }
 
     override func viewWillDisappear(_ animated: Bool) {
         super.viewWillDisappear(animated)
         navigationController?.navigationBar.isHidden = false
+        tabBarController?.tabBar.isHidden = false
     }
 
     private func setupLoadingIndicator() {

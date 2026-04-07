@@ -340,28 +340,39 @@ final class ProductRepository {
 
     // MARK: - Search
     
-    /// Searching relies strictly on a prefix/exact match query on the `category` 
-    /// per NoSQL limitations, rather than an expensive ILIKE query across all fields.
+    /// Firestore does not support full text search natively, so we fetch active
+    /// products and apply keyword matching locally across common searchable fields.
     func searchProducts(keyword: String) async throws -> [ProductDTO] {
         try requireNetwork()
 
         let trimmed = keyword.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else { return [] }
-        
-        // Exact category search fallback mapping
-        let queryCategory = trimmed.capitalized
 
         let currentUserId = await getCurrentUserId()
+        let normalizedKeyword = trimmed.lowercased()
 
-        let query = db.collection("products")
-            .whereField("category", isEqualTo: queryCategory)
-            .whereField("is_active", isEqualTo: true)
-            .limit(to: pageSize * 2)
+        let snapshot: QuerySnapshot
+        do {
+            snapshot = try await db.collection("products")
+                .whereField("is_active", isEqualTo: true)
+                .getDocuments()
+        } catch {
+            print("⚠️ searchProducts indexed query failed, using fallback: \(error.localizedDescription)")
+            snapshot = try await db.collection("products").getDocuments()
+        }
 
-        let snapshot = try await query.getDocuments()
         var products = decodeProducts(from: snapshot.documents)
         
         products = products.filter { $0.quantity ?? 0 > 0 && $0.status != .sold }
+        products = products.filter {
+            ($0.title.lowercased().contains(normalizedKeyword)) ||
+            (($0.description ?? "").lowercased().contains(normalizedKeyword)) ||
+            (($0.category ?? "").lowercased().contains(normalizedKeyword)) ||
+            (($0.colour ?? "").lowercased().contains(normalizedKeyword)) ||
+            (($0.size ?? "").lowercased().contains(normalizedKeyword)) ||
+            (($0.condition ?? "").lowercased().contains(normalizedKeyword))
+        }
+
         if let userId = currentUserId { products = products.filter { $0.seller_id != userId } }
 
         let deletedIds = DeletedListingsStore.all()

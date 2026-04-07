@@ -51,6 +51,17 @@ service cloud.firestore {
     }
 
     // ───────────────────────────────────────────────
+    // ORDER RATINGS — Authenticated create/read; rater can edit/delete own
+    // ───────────────────────────────────────────────
+    match /order_ratings/{ratingId} {
+      allow read: if request.auth != null;
+      allow create: if request.auth != null
+                    && request.resource.data.rater_id == request.auth.uid;
+      allow update, delete: if request.auth != null
+                            && resource.data.rater_id == request.auth.uid;
+    }
+
+    // ───────────────────────────────────────────────
     // FEEDBACK — Authenticated users can submit feedback
     // ───────────────────────────────────────────────
     match /feedback/{feedbackId} {
