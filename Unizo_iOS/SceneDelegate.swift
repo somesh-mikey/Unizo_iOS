@@ -3,6 +3,7 @@ import UIKit
 class SceneDelegate: UIResponder, UIWindowSceneDelegate {
 
     var window: UIWindow?
+    private var pendingOfflineOverlayWorkItem: DispatchWorkItem?
 
     func scene(_ scene: UIScene,
                willConnectTo session: UISceneSession,
@@ -24,9 +25,25 @@ class SceneDelegate: UIResponder, UIWindowSceneDelegate {
         NetworkMonitor.shared.startObserving { [weak self] isConnected in
             DispatchQueue.main.async { [weak self] in
                 guard let window = self?.window else { return }
+                guard NetworkMonitor.shared.hasDeterminedInitialStatus else { return }
+
                 if !isConnected {
-                    NoInternetOverlayView.show(in: window)
+                    self?.pendingOfflineOverlayWorkItem?.cancel()
+
+                    let workItem = DispatchWorkItem { [weak self] in
+                        guard let window = self?.window else { return }
+                        guard NetworkMonitor.shared.hasDeterminedInitialStatus,
+                              !NetworkMonitor.shared.isReachable() else {
+                            return
+                        }
+                        NoInternetOverlayView.show(in: window)
+                    }
+
+                    self?.pendingOfflineOverlayWorkItem = workItem
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.6, execute: workItem)
                 } else {
+                    self?.pendingOfflineOverlayWorkItem?.cancel()
+                    self?.pendingOfflineOverlayWorkItem = nil
                     NoInternetOverlayView.hide(from: window)
                 }
             }
@@ -42,6 +59,7 @@ class SceneDelegate: UIResponder, UIWindowSceneDelegate {
         Task {
             let sessionValid = await AuthManager.shared.validateSession()
             if sessionValid {
+                await AuthManager.shared.syncBlockedUsersFromBackend()
                 await NotificationManager.shared.startListening()
                 await ChatManager.shared.startListening()
             } else {

@@ -125,12 +125,65 @@ final class AuthManager {
         } catch {
             print("⚠️ [AuthManager] Session token refresh failed: \(error)")
             try? auth.signOut()
+            BlockedUsersStore.clearAll()
             return false
+        }
+    }
+
+    func syncBlockedUsersFromBackend() async {
+        let previousBlockedIds = BlockedUsersStore.all()
+        let resolvedUserId: String?
+
+        if let syncUserId = currentUserIdSync {
+            resolvedUserId = syncUserId
+        } else {
+            resolvedUserId = await currentUserId
+        }
+
+        guard let userId = resolvedUserId else {
+            print("⚠️ [Moderation] syncBlockedUsersFromBackend skipped: no authenticated user")
+            BlockedUsersStore.clearAll()
+            if !previousBlockedIds.isEmpty {
+                DispatchQueue.main.async {
+                    NotificationCenter.default.post(name: .blockedUsersDidChange, object: nil)
+                }
+            }
+            return
+        }
+
+        print("🛡️ [Moderation] syncBlockedUsersFromBackend started for userId=\(userId)")
+
+        do {
+            let snapshot = try await db.collection("blocked_users")
+                .whereField("user_id", isEqualTo: userId)
+                .getDocuments()
+
+            let blockedIds = Set(snapshot.documents.compactMap { doc -> String? in
+                doc.data()["blocked_user_id"] as? String
+            })
+
+            // Keep locally-applied fallback blocks while backend catches up.
+            let effectiveBlockedIds = blockedIds.union(previousBlockedIds)
+
+            BlockedUsersStore.replaceAll(with: effectiveBlockedIds)
+
+            if effectiveBlockedIds != previousBlockedIds {
+                DispatchQueue.main.async {
+                    NotificationCenter.default.post(name: .blockedUsersDidChange, object: nil)
+                }
+                print("🔄 [Moderation] Posted blockedUsersDidChange after backend sync")
+            }
+
+            print("✅ [Moderation] syncBlockedUsersFromBackend success userId=\(userId), blockedCount=\(effectiveBlockedIds.count)")
+        } catch {
+            print("❌ [Moderation] syncBlockedUsersFromBackend failed userId=\(userId), error=\(error)")
         }
     }
 
     func signOut() async throws {
         try auth.signOut()
+        BlockedUsersStore.clearAll()
+        print("✅ [Moderation] Cleared blocked users after sign-out")
     }
 
     static func isRequiresRecentLoginError(_ error: Error) -> Bool {

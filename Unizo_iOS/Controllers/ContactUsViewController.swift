@@ -20,6 +20,12 @@ class ContactUsViewController: UIViewController, UITextViewDelegate {
     private let explainLabel = UILabel()
 
     // MARK: - Controls
+    private let contactSegmentBackground: UIView = {
+        let v = UIView()
+        v.backgroundColor = UIColor(red: 0.92, green: 0.93, blue: 0.96, alpha: 1)
+        v.layer.cornerRadius = 22
+        return v
+    }()
     private let contactSegment = UISegmentedControl(items: ["Email".localized, "Phone".localized])
     private let contactField = UITextField()
 
@@ -127,9 +133,8 @@ class ContactUsViewController: UIViewController, UITextViewDelegate {
         explainLabel.font = .systemFont(ofSize: 17, weight: .semibold)
 
         // Segment
-        contactSegment.selectedSegmentIndex = 0
-        contactSegment.backgroundColor = .systemGray6
-        contactSegment.selectedSegmentTintColor = .white
+        contactSegment.applyPrimarySegmentStyle()
+        contactSegment.backgroundColor = .clear
         contactSegment.addTarget(self, action: #selector(segmentChanged), for: .valueChanged)
 
         // Contact field
@@ -184,7 +189,7 @@ class ContactUsViewController: UIViewController, UITextViewDelegate {
 
         [
             reachLabel,
-            contactSegment,
+            contactSegmentBackground,
             contactField,
             helpLabel,
             categoryButton,
@@ -196,6 +201,9 @@ class ContactUsViewController: UIViewController, UITextViewDelegate {
             $0.translatesAutoresizingMaskIntoConstraints = false
             contentView.addSubview($0)
         }
+
+        contactSegment.translatesAutoresizingMaskIntoConstraints = false
+        contactSegmentBackground.addSubview(contactSegment)
     }
 
     private func configureTextField(_ tf: UITextField) {
@@ -251,14 +259,19 @@ class ContactUsViewController: UIViewController, UITextViewDelegate {
             reachLabel.topAnchor.constraint(equalTo: contentView.topAnchor, constant: 24),
             reachLabel.leadingAnchor.constraint(equalTo: contentView.leadingAnchor, constant: 16),
 
-            contactSegment.topAnchor.constraint(equalTo: reachLabel.bottomAnchor, constant: 16),
-            contactSegment.leadingAnchor.constraint(equalTo: contentView.leadingAnchor, constant: 16),
-            contactSegment.trailingAnchor.constraint(equalTo: contentView.trailingAnchor, constant: -16),
-            contactSegment.heightAnchor.constraint(equalToConstant: 36),
+            contactSegmentBackground.topAnchor.constraint(equalTo: reachLabel.bottomAnchor, constant: 16),
+            contactSegmentBackground.leadingAnchor.constraint(equalTo: contentView.leadingAnchor, constant: 16),
+            contactSegmentBackground.trailingAnchor.constraint(equalTo: contentView.trailingAnchor, constant: -16),
+            contactSegmentBackground.heightAnchor.constraint(equalToConstant: 45),
 
-            contactField.topAnchor.constraint(equalTo: contactSegment.bottomAnchor, constant: 16),
-            contactField.leadingAnchor.constraint(equalTo: contactSegment.leadingAnchor),
-            contactField.trailingAnchor.constraint(equalTo: contactSegment.trailingAnchor),
+            contactSegment.topAnchor.constraint(equalTo: contactSegmentBackground.topAnchor, constant: 4),
+            contactSegment.leadingAnchor.constraint(equalTo: contactSegmentBackground.leadingAnchor, constant: 4),
+            contactSegment.trailingAnchor.constraint(equalTo: contactSegmentBackground.trailingAnchor, constant: -4),
+            contactSegment.bottomAnchor.constraint(equalTo: contactSegmentBackground.bottomAnchor, constant: -4),
+
+            contactField.topAnchor.constraint(equalTo: contactSegmentBackground.bottomAnchor, constant: 16),
+            contactField.leadingAnchor.constraint(equalTo: contactSegmentBackground.leadingAnchor),
+            contactField.trailingAnchor.constraint(equalTo: contactSegmentBackground.trailingAnchor),
             contactField.heightAnchor.constraint(equalToConstant: 52),
 
             helpLabel.topAnchor.constraint(equalTo: contactField.bottomAnchor, constant: 24),

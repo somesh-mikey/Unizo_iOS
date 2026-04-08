@@ -9,6 +9,14 @@ import UIKit
 
 class CategoryPageViewController: UIViewController, UITabBarDelegate, UIScrollViewDelegate, UISearchBarDelegate {
 
+    private let categoryTitles: [String] = [
+        "Hostel Essentials".localized,
+        "Furniture".localized,
+        "Fashion".localized,
+        "Sports".localized,
+        "Gadgets".localized
+    ]
+
     // MARK: - Data
     var categoryIndex: Int = 0
     var items: [ProductUIModel] = []
@@ -28,15 +36,47 @@ class CategoryPageViewController: UIViewController, UITabBarDelegate, UIScrollVi
         return btn
     }()
     private let searchBar = UISearchBar()
+    private let recentSearchesContainer = UIView()
+    private let recentSearchesTableView = UITableView(frame: .zero, style: .plain)
+    private let recentSearchesTitleLabel: UILabel = {
+        let label = UILabel()
+        label.text = "Recent Searches".localized
+        label.font = UIFont.systemFont(ofSize: 15, weight: .semibold)
+        label.textColor = .label
+        label.translatesAutoresizingMaskIntoConstraints = false
+        return label
+    }()
+    private let clearRecentSearchesButton: UIButton = {
+        let button = UIButton(type: .system)
+        button.setTitle("Clear".localized, for: .normal)
+        button.titleLabel?.font = UIFont.systemFont(ofSize: 14, weight: .semibold)
+        button.translatesAutoresizingMaskIntoConstraints = false
+        return button
+    }()
+    private var recentSearches: [String] = []
+    private var recentSearchesHeightConstraint: NSLayoutConstraint?
     private let trendingCategoriesbg = UIView()
     private let trendingLabel = UILabel()
     private let categoryStackView = UIStackView()
+    private let lowerBackgroundView = UIView()
 
     private let scrollView = UIScrollView()
     private let contentView = UIView()
 
     private let bannerImage = UIImageView()
     private let collectionView: UICollectionView
+    private let emptyStateLabel: UILabel = {
+        let label = UILabel()
+        label.text = "No products in this category yet.".localized
+        label.textAlignment = .center
+        label.numberOfLines = 0
+        label.textColor = .secondaryLabel
+        label.font = UIFont.preferredFont(forTextStyle: .body)
+        label.adjustsFontForContentSizeCategory = true
+        label.isHidden = true
+        label.translatesAutoresizingMaskIntoConstraints = false
+        return label
+    }()
     // MARK: - Search
     private var filteredItems: [ProductUIModel] = []
     private var isFiltering: Bool { !(searchBar.text ?? "").trimmingCharacters(in: .whitespaces).isEmpty }
@@ -67,11 +107,6 @@ class CategoryPageViewController: UIViewController, UITabBarDelegate, UIScrollVi
     // MARK: - Lifecycle
     override func viewDidLoad() {
         super.viewDidLoad()
-
-        guard !items.isEmpty else {
-                print("⚠️ CategoryPageViewController loaded with empty items")
-                return
-            }
         // Full teal background (same as Landing)
         view.backgroundColor = UIColor(red: 0.239, green: 0.486, blue: 0.596, alpha: 1)
 
@@ -81,7 +116,9 @@ class CategoryPageViewController: UIViewController, UITabBarDelegate, UIScrollVi
         highlightSelectedCategory()
         setupCollectionView()
         loadCategoryBanner()
+        loadRecentSearches()
         collectionView.reloadData()
+        updateEmptyState()
 
         registerForKeyboardNotifications()
 
@@ -94,6 +131,20 @@ class CategoryPageViewController: UIViewController, UITabBarDelegate, UIScrollVi
             name: .productDeleted,
             object: nil
         )
+
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(handleBlockedUsersDidChange(_:)),
+            name: .blockedUsersDidChange,
+            object: nil
+        )
+
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(hideRecentSearchesPanel),
+            name: UIApplication.willResignActiveNotification,
+            object: nil
+        )
     }
 
     @objc private func handleProductDeleted(_ notification: Notification) {
@@ -102,6 +153,68 @@ class CategoryPageViewController: UIViewController, UITabBarDelegate, UIScrollVi
         filteredItems.removeAll { $0.id == productId }
         collectionView.reloadData()
         updateCollectionHeight()
+        updateEmptyState()
+    }
+
+    @objc private func handleBlockedUsersDidChange(_ notification: Notification) {
+        let blockedSellerId = notification.userInfo?["blockedSellerId"] as? String
+        let shouldRefreshData = notification.userInfo?["refreshData"] as? Bool ?? false
+        let blockedSellerSet = BlockedUsersStore.all()
+
+        let shouldRemove: (ProductUIModel) -> Bool = { product in
+            guard let sellerId = product.sellerId else { return false }
+            if let blockedSellerId {
+                return sellerId == blockedSellerId
+            }
+            return blockedSellerSet.contains(sellerId)
+        }
+
+        let beforeCount = items.count
+        items.removeAll(where: shouldRemove)
+        filteredItems.removeAll(where: shouldRemove)
+
+        let removedCount = max(0, beforeCount - items.count)
+        if removedCount > 0 {
+            print("🚫 [Moderation] Category page removed \(removedCount) blocked-seller products")
+            collectionView.reloadData()
+            updateCollectionHeight()
+            updateEmptyState()
+            return
+        }
+
+        if shouldRefreshData {
+            let selectedCategory = categoryTitles.indices.contains(categoryIndex)
+                ? categoryTitles[categoryIndex]
+                : "Hostel Essentials".localized
+            let productRepository = ProductRepository()
+
+            print("🔄 [Moderation] Category page refreshing after unblock for category=\(selectedCategory)")
+
+            Task {
+                do {
+                    let dtos = try await productRepository.fetchProductsByCategory(selectedCategory)
+                    let products = dtos.map(ProductMapper.toUIModel)
+
+                    await MainActor.run {
+                        self.items = products
+                        if self.isFiltering {
+                            let query = self.searchBar.text?.trimmingCharacters(in: .whitespacesAndNewlines).lowercased() ?? ""
+                            self.filteredItems = query.isEmpty
+                                ? []
+                                : products.filter {
+                                    $0.name.lowercased().contains(query) ||
+                                    (($0.description ?? "").lowercased().contains(query))
+                                }
+                        }
+                        self.collectionView.reloadData()
+                        self.updateCollectionHeight()
+                        self.updateEmptyState()
+                    }
+                } catch {
+                    print("❌ [Moderation] Category refresh after unblock failed: \(error)")
+                }
+            }
+        }
     }
 
     deinit {
@@ -176,6 +289,8 @@ class CategoryPageViewController: UIViewController, UITabBarDelegate, UIScrollVi
         homeLabel.text = "Home".localized
         homeLabel.textColor = .white
         homeLabel.font = UIFont.systemFont(ofSize: 35, weight: .bold)
+        homeLabel.isUserInteractionEnabled = false
+        homeLabel.backgroundColor = .clear
         navBarView.addSubview(homeLabel)
         homeLabel.translatesAutoresizingMaskIntoConstraints = false
 
@@ -198,18 +313,128 @@ class CategoryPageViewController: UIViewController, UITabBarDelegate, UIScrollVi
             searchBar.heightAnchor.constraint(equalToConstant: 44)
         ])
 
+        setupRecentSearchesPanel()
+
         // Trending categories will be added to scroll content in setupScrollSection()
+    }
+
+    private func setupRecentSearchesPanel() {
+        recentSearchesContainer.translatesAutoresizingMaskIntoConstraints = false
+        recentSearchesContainer.backgroundColor = .white
+        recentSearchesContainer.layer.cornerRadius = 14
+        recentSearchesContainer.layer.masksToBounds = false
+        recentSearchesContainer.layer.shadowColor = UIColor.black.cgColor
+        recentSearchesContainer.layer.shadowOpacity = 0.08
+        recentSearchesContainer.layer.shadowRadius = 10
+        recentSearchesContainer.layer.shadowOffset = CGSize(width: 0, height: 4)
+        recentSearchesContainer.isHidden = true
+        view.addSubview(recentSearchesContainer)
+
+        NSLayoutConstraint.activate([
+            recentSearchesContainer.topAnchor.constraint(equalTo: searchBar.bottomAnchor, constant: 8),
+            recentSearchesContainer.leadingAnchor.constraint(equalTo: navBarView.leadingAnchor, constant: 20),
+            recentSearchesContainer.trailingAnchor.constraint(equalTo: navBarView.trailingAnchor, constant: -20)
+        ])
+
+        recentSearchesHeightConstraint = recentSearchesContainer.heightAnchor.constraint(equalToConstant: 0)
+        recentSearchesHeightConstraint?.isActive = true
+
+        let header = UIView()
+        header.translatesAutoresizingMaskIntoConstraints = false
+        header.backgroundColor = .white
+        recentSearchesContainer.addSubview(header)
+
+        header.addSubview(recentSearchesTitleLabel)
+        header.addSubview(clearRecentSearchesButton)
+        clearRecentSearchesButton.addTarget(self, action: #selector(clearRecentSearchesTapped), for: .touchUpInside)
+
+        recentSearchesTableView.translatesAutoresizingMaskIntoConstraints = false
+        recentSearchesTableView.dataSource = self
+        recentSearchesTableView.delegate = self
+        recentSearchesTableView.backgroundColor = .white
+        recentSearchesTableView.tableFooterView = UIView()
+        recentSearchesTableView.separatorInset = UIEdgeInsets(top: 0, left: 42, bottom: 0, right: 16)
+        recentSearchesTableView.showsVerticalScrollIndicator = false
+        recentSearchesTableView.register(UITableViewCell.self, forCellReuseIdentifier: "CategoryRecentSearchCell")
+        recentSearchesContainer.addSubview(recentSearchesTableView)
+
+        NSLayoutConstraint.activate([
+            header.topAnchor.constraint(equalTo: recentSearchesContainer.topAnchor),
+            header.leadingAnchor.constraint(equalTo: recentSearchesContainer.leadingAnchor),
+            header.trailingAnchor.constraint(equalTo: recentSearchesContainer.trailingAnchor),
+            header.heightAnchor.constraint(equalToConstant: 40),
+
+            recentSearchesTitleLabel.leadingAnchor.constraint(equalTo: header.leadingAnchor, constant: 12),
+            recentSearchesTitleLabel.centerYAnchor.constraint(equalTo: header.centerYAnchor),
+
+            clearRecentSearchesButton.trailingAnchor.constraint(equalTo: header.trailingAnchor, constant: -12),
+            clearRecentSearchesButton.centerYAnchor.constraint(equalTo: header.centerYAnchor),
+
+            recentSearchesTableView.topAnchor.constraint(equalTo: header.bottomAnchor),
+            recentSearchesTableView.leadingAnchor.constraint(equalTo: recentSearchesContainer.leadingAnchor),
+            recentSearchesTableView.trailingAnchor.constraint(equalTo: recentSearchesContainer.trailingAnchor),
+            recentSearchesTableView.bottomAnchor.constraint(equalTo: recentSearchesContainer.bottomAnchor)
+        ])
+
+        view.bringSubviewToFront(recentSearchesContainer)
+    }
+
+    private func loadRecentSearches() {
+        recentSearches = SearchHistoryStore.all()
+        recentSearchesTableView.reloadData()
+    }
+
+    private func updateRecentSearchesVisibility(for query: String) {
+        let trimmed = query.trimmingCharacters(in: .whitespacesAndNewlines)
+        let shouldShow = searchBar.isFirstResponder && trimmed.isEmpty && !recentSearches.isEmpty
+
+        recentSearchesContainer.isHidden = !shouldShow
+        recentSearchesHeightConstraint?.constant = shouldShow
+            ? min(40 + CGFloat(recentSearches.count) * 48, 300)
+            : 0
+
+        if shouldShow {
+            view.bringSubviewToFront(recentSearchesContainer)
+        }
+    }
+
+    @objc private func clearRecentSearchesTapped() {
+        SearchHistoryStore.clear()
+        loadRecentSearches()
+        updateRecentSearchesVisibility(for: searchBar.text ?? "")
+    }
+
+    private func saveRecentSearch(_ query: String) {
+        SearchHistoryStore.add(query)
+        loadRecentSearches()
+    }
+
+    private func openSearchResults(keyword: String, animated: Bool) {
+        let shouldAutoFocus = keyword.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+        let vc = SearchResultsViewController(keyword: keyword, shouldAutoFocus: shouldAutoFocus)
+        if let nav = navigationController {
+            nav.pushViewController(vc, animated: animated)
+        } else {
+            let nav = UINavigationController(rootViewController: vc)
+            nav.modalPresentationStyle = .fullScreen
+            present(nav, animated: animated)
+        }
+    }
+
+    @objc private func hideRecentSearchesPanel() {
+        recentSearchesContainer.isHidden = true
+        recentSearchesHeightConstraint?.constant = 0
     }
 
     // MARK: - TRENDING BUTTONS
     private func buildTrendingCategories() {
 
         let categories = [
-            ("cart", "Hostel Essentials"),
-            ("tablecells", "Furniture"),
-            ("tshirt", "Fashion"),
-            ("sportscourt", "Sports"),
-            ("headphones", "Gadgets")
+            ("cart", categoryTitles[0]),
+            ("tablecells", categoryTitles[1]),
+            ("tshirt", categoryTitles[2]),
+            ("sportscourt", categoryTitles[3]),
+            ("headphones", categoryTitles[4])
         ]
 
         for i in 0..<5 {
@@ -261,16 +486,15 @@ class CategoryPageViewController: UIViewController, UITabBarDelegate, UIScrollVi
     // MARK: - SCROLL SECTION
     private func setupScrollSection() {
 
-        // --- White background below trending categories (covers tab bar area) ---
-        let whiteBackground = UIView()
-        whiteBackground.backgroundColor = .white
-        whiteBackground.translatesAutoresizingMaskIntoConstraints = false
-        view.addSubview(whiteBackground)
+        // --- White background below trending categories (covers bottom overscroll area) ---
+        lowerBackgroundView.backgroundColor = .white
+        lowerBackgroundView.translatesAutoresizingMaskIntoConstraints = false
+        view.addSubview(lowerBackgroundView)
         NSLayoutConstraint.activate([
-            whiteBackground.topAnchor.constraint(equalTo: searchBar.bottomAnchor, constant: 150),
-            whiteBackground.leadingAnchor.constraint(equalTo: view.leadingAnchor),
-            whiteBackground.trailingAnchor.constraint(equalTo: view.trailingAnchor),
-            whiteBackground.bottomAnchor.constraint(equalTo: view.bottomAnchor)
+            lowerBackgroundView.topAnchor.constraint(equalTo: searchBar.bottomAnchor, constant: 150),
+            lowerBackgroundView.leadingAnchor.constraint(equalTo: view.leadingAnchor),
+            lowerBackgroundView.trailingAnchor.constraint(equalTo: view.trailingAnchor),
+            lowerBackgroundView.bottomAnchor.constraint(equalTo: view.bottomAnchor)
         ])
 
         scrollView.backgroundColor = .clear
@@ -301,7 +525,8 @@ class CategoryPageViewController: UIViewController, UITabBarDelegate, UIScrollVi
             contentView.leadingAnchor.constraint(equalTo: scrollView.leadingAnchor),
             contentView.trailingAnchor.constraint(equalTo: scrollView.trailingAnchor),
             contentView.bottomAnchor.constraint(equalTo: scrollView.bottomAnchor),
-            contentView.widthAnchor.constraint(equalTo: scrollView.widthAnchor)
+            contentView.widthAnchor.constraint(equalTo: scrollView.widthAnchor),
+            contentView.heightAnchor.constraint(greaterThanOrEqualTo: scrollView.frameLayoutGuide.heightAnchor)
         ])
 
         // Tap to dismiss keyboard when tapping the content area
@@ -385,6 +610,7 @@ class CategoryPageViewController: UIViewController, UITabBarDelegate, UIScrollVi
         // Collection
         contentView.addSubview(collectionView)
         collectionView.translatesAutoresizingMaskIntoConstraints = false
+        contentView.addSubview(emptyStateLabel)
 
         let bottomConstraint = collectionView.bottomAnchor.constraint(equalTo: contentView.bottomAnchor, constant: -20)
         bottomConstraint.priority = .required
@@ -393,18 +619,43 @@ class CategoryPageViewController: UIViewController, UITabBarDelegate, UIScrollVi
             collectionView.topAnchor.constraint(equalTo: bannerImage.bottomAnchor, constant: 20),
             collectionView.leadingAnchor.constraint(equalTo: contentView.leadingAnchor, constant: 10),
             collectionView.trailingAnchor.constraint(equalTo: contentView.trailingAnchor, constant: -10),
-            bottomConstraint
+            bottomConstraint,
+
+            emptyStateLabel.topAnchor.constraint(equalTo: bannerImage.bottomAnchor, constant: 40),
+            emptyStateLabel.leadingAnchor.constraint(equalTo: contentView.leadingAnchor, constant: 24),
+            emptyStateLabel.trailingAnchor.constraint(equalTo: contentView.trailingAnchor, constant: -24)
         ])
     }
     private func updateCollectionHeight() {
         collectionView.layoutIfNeeded()
         let contentHeight = collectionView.collectionViewLayout.collectionViewContentSize.height
+        view.layoutIfNeeded()
+
+        let floatingBarCover = (tabBarController?.tabBar.frame.height ?? 70) + 30
+        let collectionTopInView = collectionView.convert(.zero, to: view).y
+        let minHeightToScreenBottom = max(0, view.bounds.height - collectionTopInView)
+        let height = max(contentHeight + floatingBarCover, minHeightToScreenBottom + floatingBarCover)
 
         for constraint in collectionView.constraints where constraint.firstAttribute == .height {
             collectionView.removeConstraint(constraint)
         }
 
-        collectionView.heightAnchor.constraint(equalToConstant: contentHeight).isActive = true
+        collectionView.heightAnchor.constraint(equalToConstant: height).isActive = true
+    }
+
+    private func updateEmptyState() {
+        let source = isFiltering ? filteredItems : items
+        if source.isEmpty {
+            if isFiltering {
+                emptyStateLabel.text = "No matching products found.".localized
+            } else {
+                let categoryName = categoryTitles.indices.contains(categoryIndex)
+                    ? categoryTitles[categoryIndex]
+                    : "this category".localized
+                emptyStateLabel.text = String(format: "No products in %@ yet.".localized, categoryName)
+            }
+        }
+        emptyStateLabel.isHidden = !source.isEmpty
     }
 
     // MARK: - Keyboard Observers
@@ -459,7 +710,7 @@ class CategoryPageViewController: UIViewController, UITabBarDelegate, UIScrollVi
         collectionView.backgroundColor = .clear
         collectionView.dataSource = self
         collectionView.delegate = self
-        collectionView.isScrollEnabled = true
+        collectionView.isScrollEnabled = false
 
         if let layout = collectionView.collectionViewLayout as? UICollectionViewFlowLayout {
             layout.sectionInset = UIEdgeInsets(top: 10, left: 10, bottom: 20, right: 10)
@@ -533,6 +784,8 @@ class CategoryPageViewController: UIViewController, UITabBarDelegate, UIScrollVi
     }
 
     @objc private func categoryTapped(_ sender: UIButton) {
+        hideRecentSearchesPanel()
+
         let index = sender.tag
 
         // If same category, do nothing
@@ -546,15 +799,9 @@ class CategoryPageViewController: UIViewController, UITabBarDelegate, UIScrollVi
         highlightSelectedCategory()
 
         // Fetch new products for selected category
-        let categories = [
-            "Hostel Essentials",
-            "Furniture",
-            "Fashion",
-            "Sports",
-            "Gadgets"
-        ]
-
-        let selectedCategory = categories[index]
+        let selectedCategory = categoryTitles.indices.contains(index)
+            ? categoryTitles[index]
+            : "Hostel Essentials".localized
         let productRepository = ProductRepository()
 
         Task {
@@ -568,6 +815,7 @@ class CategoryPageViewController: UIViewController, UITabBarDelegate, UIScrollVi
                     self.collectionView.reloadData()
                     self.collectionView.layoutIfNeeded()
                     self.updateCollectionHeight()
+                    self.updateEmptyState()
 
                     // Scroll to top
                     self.scrollView.setContentOffset(.zero, animated: true)
@@ -589,19 +837,31 @@ class CategoryPageViewController: UIViewController, UITabBarDelegate, UIScrollVi
 
     // MARK: - UIScrollViewDelegate
     func scrollViewDidScroll(_ scrollView: UIScrollView) {
-        // No-op: header stays fixed
+        guard scrollView == self.scrollView else { return }
+
+        // Keep top pull-down region fully blue; restore white lower background otherwise.
+        lowerBackgroundView.isHidden = scrollView.contentOffset.y < 0
     }
 
 }
 
 // MARK: - Search
 extension CategoryPageViewController {
+    func searchBarTextDidBeginEditing(_ searchBar: UISearchBar) {
+        searchBar.resignFirstResponder()
+        hideRecentSearchesPanel()
+        openSearchResults(keyword: "", animated: false)
+    }
+
     func searchBar(_ searchBar: UISearchBar, textDidChange searchText: String) {
+        updateRecentSearchesVisibility(for: searchText)
+
         let query = searchText.trimmingCharacters(in: .whitespacesAndNewlines)
         if query.isEmpty {
             filteredItems.removeAll()
             collectionView.reloadData()
             updateCollectionHeight()
+            updateEmptyState()
             return
         }
 
@@ -614,10 +874,25 @@ extension CategoryPageViewController {
 
         collectionView.reloadData()
         updateCollectionHeight()
+        updateEmptyState()
     }
 
     func searchBarSearchButtonClicked(_ searchBar: UISearchBar) {
+        let query = (searchBar.text ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !query.isEmpty else {
+            searchBar.resignFirstResponder()
+            updateRecentSearchesVisibility(for: "")
+            return
+        }
+
+        saveRecentSearch(query)
         searchBar.resignFirstResponder()
+        updateRecentSearchesVisibility(for: query)
+        openSearchResults(keyword: query, animated: true)
+    }
+
+    func searchBarTextDidEndEditing(_ searchBar: UISearchBar) {
+        updateRecentSearchesVisibility(for: searchBar.text ?? "")
     }
 }
 
@@ -651,14 +926,15 @@ extension CategoryPageViewController: UICollectionViewDataSource, UICollectionVi
         sizeForItemAt indexPath: IndexPath
     ) -> CGSize {
 
-        let width = (collectionView.bounds.width - 30) / 2
-        return CGSize(width: width, height: 260)
+        let width = floor((collectionView.bounds.width - 30) / 2)
+        return CGSize(width: width, height: ProductCell.preferredHeight(for: traitCollection))
     }
     override func viewWillAppear(_ animated: Bool) {
         super.viewWillAppear(animated)
         // Hide navigation bar (no back button, no title)
         navigationController?.setNavigationBarHidden(true, animated: animated)
         // Show tab bar
+        tabBarController?.tabBar.isHidden = false
         (tabBarController as? MainTabBarController)?.showFloatingTabBar()
     }
 
@@ -667,6 +943,8 @@ extension CategoryPageViewController: UICollectionViewDataSource, UICollectionVi
         navigationController?.setNavigationBarHidden(false, animated: animated)
     }
     func collectionView(_ collectionView: UICollectionView, didSelectItemAt indexPath: IndexPath) {
+        hideRecentSearchesPanel()
+
         let source = isFiltering ? filteredItems : items
         let selected = source[indexPath.item]
 
@@ -728,5 +1006,39 @@ extension UIViewController {
         ])
 
         return UIBarButtonItem(customView: container)
+    }
+}
+
+extension CategoryPageViewController: UITableViewDataSource, UITableViewDelegate {
+
+    func tableView(_ tableView: UITableView, numberOfRowsInSection section: Int) -> Int {
+        recentSearches.count
+    }
+
+    func tableView(_ tableView: UITableView, cellForRowAt indexPath: IndexPath) -> UITableViewCell {
+        let cell = tableView.dequeueReusableCell(withIdentifier: "CategoryRecentSearchCell", for: indexPath)
+
+        var content = cell.defaultContentConfiguration()
+        content.text = recentSearches[indexPath.row]
+        content.textProperties.color = .label
+        content.image = UIImage(systemName: "clock")
+        content.imageProperties.tintColor = .secondaryLabel
+        content.imageToTextPadding = 10
+
+        cell.contentConfiguration = content
+        cell.backgroundColor = .white
+        cell.selectionStyle = .default
+        return cell
+    }
+
+    func tableView(_ tableView: UITableView, didSelectRowAt indexPath: IndexPath) {
+        tableView.deselectRow(at: indexPath, animated: true)
+
+        let term = recentSearches[indexPath.row]
+        searchBar.text = term
+        saveRecentSearch(term)
+        searchBar.resignFirstResponder()
+        updateRecentSearchesVisibility(for: term)
+        openSearchResults(keyword: term, animated: true)
     }
 }

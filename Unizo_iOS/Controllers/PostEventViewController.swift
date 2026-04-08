@@ -19,8 +19,10 @@ final class PostEventViewController: UIViewController,
 
     private let uploadCard: UIView = {
         let v = UIView()
-        v.backgroundColor = .secondarySystemGroupedBackground
+        v.backgroundColor = .white
         v.layer.cornerRadius = 16
+        v.layer.borderWidth = 0.5
+        v.layer.borderColor = UIColor.lightGray.cgColor
         v.translatesAutoresizingMaskIntoConstraints = false
         return v
     }()
@@ -29,15 +31,17 @@ final class PostEventViewController: UIViewController,
         let iv = UIImageView()
         iv.contentMode = .scaleAspectFill
         iv.clipsToBounds = true
-        iv.layer.cornerRadius = 12
+        iv.layer.cornerRadius = 10
+        iv.layer.borderWidth = 0.5
+        iv.layer.borderColor = UIColor.systemGray3.cgColor
         iv.backgroundColor = .systemGray6
         iv.translatesAutoresizingMaskIntoConstraints = false
         return iv
     }()
 
     private let uploadPlaceholderIcon: UIImageView = {
-        let iv = UIImageView(image: UIImage(systemName: "photo.badge.plus"))
-        iv.tintColor = .brandPrimary
+        let iv = UIImageView(image: UIImage(systemName: "plus"))
+        iv.tintColor = .gray
         iv.contentMode = .scaleAspectFit
         iv.translatesAutoresizingMaskIntoConstraints = false
         return iv
@@ -45,19 +49,29 @@ final class PostEventViewController: UIViewController,
 
     private let uploadHintLabel: UILabel = {
         let l = UILabel()
-        l.text = "Tap to add an event image".localized
-        l.font = .systemFont(ofSize: 14, weight: .medium)
-        l.textColor = .secondaryLabel
+        l.text = "Add up to 1 photo (Max 2 MB each)".localized
+        l.font = .systemFont(ofSize: 12)
+        l.textColor = .gray
         l.textAlignment = .center
         l.translatesAutoresizingMaskIntoConstraints = false
         return l
     }()
 
+    private let uploadButton: UIButton = {
+        let button = UIButton(type: .system)
+        button.setTitle("Upload Photos".localized, for: .normal)
+        button.backgroundColor = UIColor(red: 0.07, green: 0.33, blue: 0.42, alpha: 1)
+        button.setTitleColor(.white, for: .normal)
+        button.layer.cornerRadius = 22
+        button.translatesAutoresizingMaskIntoConstraints = false
+        return button
+    }()
+
     // MARK: - Event Details Card
     private let detailsCard: UIView = {
         let v = UIView()
-        v.backgroundColor = .secondarySystemGroupedBackground
-        v.layer.cornerRadius = 16
+        v.backgroundColor = .white
+        v.layer.cornerRadius = 20
         v.translatesAutoresizingMaskIntoConstraints = false
         return v
     }()
@@ -165,7 +179,7 @@ final class PostEventViewController: UIViewController,
 
     override func viewDidLoad() {
         super.viewDidLoad()
-        view.backgroundColor = .systemBackground
+        view.backgroundColor = UIColor(red: 0.96, green: 0.97, blue: 1.0, alpha: 1)
         setupNavBar()
         setupScrollView()
         setupImageUploadCard()
@@ -175,6 +189,7 @@ final class PostEventViewController: UIViewController,
 
         freeSwitch.addTarget(self, action: #selector(freeSwitchChanged), for: .valueChanged)
         postButton.addTarget(self, action: #selector(postEventTapped), for: .touchUpInside)
+        uploadButton.addTarget(self, action: #selector(pickImage), for: .touchUpInside)
 
         // Add Done toolbar for price field (decimal pad has no Return key)
         let priceToolbar = UIToolbar()
@@ -250,31 +265,37 @@ final class PostEventViewController: UIViewController,
     private func setupImageUploadCard() {
         contentView.addSubview(uploadCard)
         uploadCard.addSubview(imagePreview)
-        uploadCard.addSubview(uploadPlaceholderIcon)
+        imagePreview.addSubview(uploadPlaceholderIcon)
         uploadCard.addSubview(uploadHintLabel)
+        uploadCard.addSubview(uploadButton)
 
         let tap = UITapGestureRecognizer(target: self, action: #selector(pickImage))
-        uploadCard.addGestureRecognizer(tap)
-        uploadCard.isUserInteractionEnabled = true
+        imagePreview.addGestureRecognizer(tap)
+        imagePreview.isUserInteractionEnabled = true
 
         NSLayoutConstraint.activate([
             uploadCard.topAnchor.constraint(equalTo: contentView.topAnchor, constant: 20),
             uploadCard.leadingAnchor.constraint(equalTo: contentView.leadingAnchor, constant: 20),
             uploadCard.trailingAnchor.constraint(equalTo: contentView.trailingAnchor, constant: -20),
-            uploadCard.heightAnchor.constraint(equalToConstant: 200),
 
             imagePreview.topAnchor.constraint(equalTo: uploadCard.topAnchor, constant: 12),
             imagePreview.leadingAnchor.constraint(equalTo: uploadCard.leadingAnchor, constant: 12),
-            imagePreview.trailingAnchor.constraint(equalTo: uploadCard.trailingAnchor, constant: -12),
-            imagePreview.bottomAnchor.constraint(equalTo: uploadCard.bottomAnchor, constant: -12),
+            imagePreview.widthAnchor.constraint(equalToConstant: 100),
+            imagePreview.heightAnchor.constraint(equalToConstant: 100),
 
-            uploadPlaceholderIcon.centerXAnchor.constraint(equalTo: uploadCard.centerXAnchor),
-            uploadPlaceholderIcon.centerYAnchor.constraint(equalTo: uploadCard.centerYAnchor, constant: -14),
-            uploadPlaceholderIcon.widthAnchor.constraint(equalToConstant: 40),
-            uploadPlaceholderIcon.heightAnchor.constraint(equalToConstant: 40),
+            uploadPlaceholderIcon.centerXAnchor.constraint(equalTo: imagePreview.centerXAnchor),
+            uploadPlaceholderIcon.centerYAnchor.constraint(equalTo: imagePreview.centerYAnchor),
+            uploadPlaceholderIcon.widthAnchor.constraint(equalToConstant: 36),
+            uploadPlaceholderIcon.heightAnchor.constraint(equalToConstant: 36),
 
-            uploadHintLabel.topAnchor.constraint(equalTo: uploadPlaceholderIcon.bottomAnchor, constant: 8),
+            uploadHintLabel.topAnchor.constraint(equalTo: imagePreview.bottomAnchor, constant: 12),
             uploadHintLabel.centerXAnchor.constraint(equalTo: uploadCard.centerXAnchor),
+
+            uploadButton.topAnchor.constraint(equalTo: uploadHintLabel.bottomAnchor, constant: 12),
+            uploadButton.leadingAnchor.constraint(equalTo: uploadCard.leadingAnchor, constant: 40),
+            uploadButton.trailingAnchor.constraint(equalTo: uploadCard.trailingAnchor, constant: -40),
+            uploadButton.heightAnchor.constraint(equalToConstant: 45),
+            uploadButton.bottomAnchor.constraint(equalTo: uploadCard.bottomAnchor, constant: -16),
         ])
     }
 
@@ -324,9 +345,9 @@ final class PostEventViewController: UIViewController,
             stack.trailingAnchor.constraint(equalTo: detailsCard.trailingAnchor, constant: -16),
             stack.bottomAnchor.constraint(equalTo: detailsCard.bottomAnchor, constant: -20),
 
-            titleField.heightAnchor.constraint(equalToConstant: 48),
-            venueField.heightAnchor.constraint(equalToConstant: 48),
-            priceField.heightAnchor.constraint(equalToConstant: 48),
+            titleField.heightAnchor.constraint(equalToConstant: 50),
+            venueField.heightAnchor.constraint(equalToConstant: 50),
+            priceField.heightAnchor.constraint(equalToConstant: 50),
             descriptionTextView.heightAnchor.constraint(greaterThanOrEqualToConstant: 100),
 
             descriptionPlaceholder.topAnchor.constraint(equalTo: descriptionTextView.topAnchor, constant: 12),
@@ -370,13 +391,8 @@ final class PostEventViewController: UIViewController,
         let tf = UITextField()
         tf.placeholder = placeholder
         tf.borderStyle = .none
-        tf.font = .systemFont(ofSize: 16)
-        tf.backgroundColor = .systemBackground
-        tf.layer.cornerRadius = 10
-        tf.layer.borderWidth = 1
-        tf.layer.borderColor = UIColor.systemGray4.cgColor
-        tf.leftView = UIView(frame: CGRect(x: 0, y: 0, width: 14, height: 0))
-        tf.leftViewMode = .always
+        tf.font = .systemFont(ofSize: 15)
+        tf.backgroundColor = .clear
         tf.translatesAutoresizingMaskIntoConstraints = false
         return tf
     }
@@ -458,7 +474,7 @@ final class PostEventViewController: UIViewController,
                 self.selectedImage = image
                 self.imagePreview.image = image
                 self.uploadPlaceholderIcon.isHidden = true
-                self.uploadHintLabel.isHidden = true
+                self.uploadButton.setTitle("Change Photo".localized, for: .normal)
             }
         }
     }
@@ -633,7 +649,7 @@ final class PostEventViewController: UIViewController,
         selectedImage = nil
         imagePreview.image = nil
         uploadPlaceholderIcon.isHidden = false
-        uploadHintLabel.isHidden = false
+        uploadButton.setTitle("Upload Photos".localized, for: .normal)
         freeSwitch.isOn = false
         priceField.isEnabled = true
         priceField.alpha = 1.0

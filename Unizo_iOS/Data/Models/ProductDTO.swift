@@ -28,7 +28,7 @@ struct ProductDTO: Codable {
     let title: String
     let description: String?
     let price: Double
-    let rating: Double?
+    var rating: Double?
     let isNegotiable: Bool?
     let imageUrl: String?
     let galleryImages: [String]?  // Array of additional image URLs

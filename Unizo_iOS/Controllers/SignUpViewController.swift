@@ -11,6 +11,9 @@ import FirebaseFirestore
 
 final class SignUpViewController: UIViewController {
 
+    private let requiredCollegeDomain = "srmist.edu.in"
+    private let collegeEmailValidationMessage = "Please enter your registered college ID"
+
     // MARK: - UI
 
     private let cardView: UIView = {
@@ -77,6 +80,7 @@ final class SignUpViewController: UIViewController {
 
     // Keyboard handling
     private var cardBottomConstraint: NSLayoutConstraint!
+    private var emailErrorHeightConstraint: NSLayoutConstraint?
 
     // Interactive terms label
     private let termsLabel: UILabel = {
@@ -85,6 +89,16 @@ final class SignUpViewController: UIViewController {
         l.font = UIFont.systemFont(ofSize: 13)   // ← FIX 1 (bigger font)
         l.textColor = .gray
         return l
+    }()
+
+    private let emailErrorLabel: UILabel = {
+        let label = UILabel()
+        label.text = ""
+        label.textColor = .systemRed
+        label.font = UIFont.systemFont(ofSize: 12, weight: .medium)
+        label.numberOfLines = 0
+        label.isHidden = true
+        return label
     }()
 
     // Sign up button ENABLED ONLY WHEN CHECKBOX IS TICKED
@@ -237,6 +251,8 @@ final class SignUpViewController: UIViewController {
         let allFields = [firstNameTF, lastNameTF, regTF, emailTF,
                          phoneTF, createPasswordTF, confirmPasswordTF]
 
+        emailTF.addTarget(self, action: #selector(emailEditingChanged), for: .editingChanged)
+
         for (index, tf) in allFields.enumerated() {
             tf.delegate = self
             tf.returnKeyType = (index == allFields.count - 1) ? .done : .next
@@ -255,6 +271,7 @@ final class SignUpViewController: UIViewController {
 
         scrollContentView.addSubview(titleLabel)
         scrollContentView.addSubview(fieldsContainer)
+        scrollContentView.addSubview(emailErrorLabel)
 
         let fields = [
             firstNameTF, lastNameTF, regTF, emailTF,
@@ -347,6 +364,13 @@ final class SignUpViewController: UIViewController {
             return
         }
 
+        guard isValidCollegeEmail(email) else {
+            showEmailValidationError()
+            return
+        }
+
+        clearEmailValidationError()
+
         // Show loading state
         signUpButton.isEnabled = false
         signUpButton.setTitle("Creating account...".localized, for: .normal)
@@ -382,6 +406,8 @@ final class SignUpViewController: UIViewController {
 
                 try await Firestore.firestore().collection("users").document(userId).setData(userPayload, merge: true)
                 print("✅ User profile created in Firestore")
+
+                await AuthManager.shared.syncBlockedUsersFromBackend()
 
                 // Start notification listener
                 await NotificationManager.shared.startListening()
@@ -422,6 +448,38 @@ final class SignUpViewController: UIViewController {
         let alert = UIAlertController(title: "Error".localized, message: message, preferredStyle: .alert)
         alert.addAction(UIAlertAction(title: "OK".localized, style: .default))
         present(alert, animated: true)
+    }
+
+    private func isValidCollegeEmail(_ email: String) -> Bool {
+        let trimmed = email.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        let parts = trimmed.split(separator: "@", omittingEmptySubsequences: false)
+        guard parts.count == 2, !parts[0].isEmpty else { return false }
+        return parts[1] == requiredCollegeDomain
+    }
+
+    private func showEmailValidationError() {
+        emailErrorLabel.text = collegeEmailValidationMessage
+        emailErrorLabel.isHidden = false
+        emailErrorHeightConstraint?.constant = 18
+        emailTF.layer.borderWidth = 1
+        emailTF.layer.borderColor = UIColor.systemRed.cgColor
+        emailTF.layer.cornerRadius = 8
+        emailTF.layer.masksToBounds = true
+    }
+
+    private func clearEmailValidationError() {
+        emailErrorLabel.text = ""
+        emailErrorLabel.isHidden = true
+        emailErrorHeightConstraint?.constant = 0
+        emailTF.layer.borderWidth = 0
+        emailTF.layer.borderColor = UIColor.clear.cgColor
+    }
+
+    @objc private func emailEditingChanged() {
+        let email = emailTF.text ?? ""
+        if email.isEmpty || isValidCollegeEmail(email) {
+            clearEmailValidationError()
+        }
     }
 
     // MARK: - Terms / Privacy Setup  (Fix 1, 3, 5)
@@ -475,7 +533,7 @@ final class SignUpViewController: UIViewController {
 
     private func setupConstraints() {
         [cardView, scrollView, scrollContentView, titleLabel, fieldsContainer,
-         checkBoxButton, termsLabel, signUpButton]
+            emailErrorLabel, checkBoxButton, termsLabel, signUpButton]
             .forEach { $0.translatesAutoresizingMaskIntoConstraints = false }
 
         let fields = [
@@ -551,7 +609,11 @@ final class SignUpViewController: UIViewController {
         ])
 
         NSLayoutConstraint.activate([
-            checkBoxButton.topAnchor.constraint(equalTo: fieldsContainer.bottomAnchor, constant: 14),
+            emailErrorLabel.topAnchor.constraint(equalTo: fieldsContainer.bottomAnchor, constant: 6),
+            emailErrorLabel.leadingAnchor.constraint(equalTo: fieldsContainer.leadingAnchor, constant: 8),
+            emailErrorLabel.trailingAnchor.constraint(equalTo: fieldsContainer.trailingAnchor, constant: -8),
+
+            checkBoxButton.topAnchor.constraint(equalTo: emailErrorLabel.bottomAnchor, constant: 8),
             checkBoxButton.leadingAnchor.constraint(equalTo: fieldsContainer.leadingAnchor),
             checkBoxButton.widthAnchor.constraint(equalToConstant: 22),
             checkBoxButton.heightAnchor.constraint(equalToConstant: 22),
@@ -560,6 +622,9 @@ final class SignUpViewController: UIViewController {
             termsLabel.leadingAnchor.constraint(equalTo: checkBoxButton.trailingAnchor, constant: 8),
             termsLabel.trailingAnchor.constraint(equalTo: scrollContentView.trailingAnchor, constant: -20)
         ])
+
+        emailErrorHeightConstraint = emailErrorLabel.heightAnchor.constraint(equalToConstant: 0)
+        emailErrorHeightConstraint?.isActive = true
 
         NSLayoutConstraint.activate([
             signUpButton.topAnchor.constraint(equalTo: termsLabel.bottomAnchor, constant: 18),

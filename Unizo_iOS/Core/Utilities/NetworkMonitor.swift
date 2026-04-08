@@ -20,6 +20,7 @@ final class NetworkMonitor {
     // Starts as `false` to prevent a race condition where the first API call passes
     // the network guard before NWPathMonitor has fired its initial callback.
     private(set) var isConnected: Bool = false
+    private(set) var hasDeterminedInitialStatus: Bool = false
 
     var onStatusChange: ((Bool) -> Void)?
 
@@ -27,6 +28,7 @@ final class NetworkMonitor {
         monitor.pathUpdateHandler = { [weak self] path in
             let connected = path.status == .satisfied
             self?.isConnected = connected
+            self?.hasDeterminedInitialStatus = true
             self?.onStatusChange?(connected)
         }
         monitor.start(queue: queue)
@@ -39,6 +41,7 @@ final class NetworkMonitor {
     /// to cover the case where NWPathMonitor's initial update fired before
     /// the closure was assigned (launch-time gap).
     func checkInitialState() {
+        guard hasDeterminedInitialStatus else { return }
         let currentState = isConnected
         onStatusChange?(currentState)
     }

@@ -38,4 +38,24 @@ final class Unizo_iOSUITests: XCTestCase {
             XCUIApplication().launch()
         }
     }
+
+    @MainActor
+    func testAppRemainsPortraitWhenDeviceRotates() throws {
+        let app = XCUIApplication()
+        app.launch()
+
+        let window = app.windows.firstMatch
+        XCTAssertTrue(window.waitForExistence(timeout: 5))
+
+        XCUIDevice.shared.orientation = .portrait
+        XCUIDevice.shared.orientation = .landscapeLeft
+
+        XCTAssertGreaterThanOrEqual(
+            window.frame.height,
+            window.frame.width,
+            "App should stay in portrait even when the device rotates to landscape."
+        )
+
+        XCUIDevice.shared.orientation = .portrait
+    }
 }

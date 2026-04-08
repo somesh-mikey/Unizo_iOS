@@ -8,7 +8,7 @@ import UIKit
 final class NotificationsViewController: UIViewController {
 
     // MARK: - Colors
-    private let bgColor = UIColor(red: 0.94, green: 0.95, blue: 0.98, alpha: 1)
+    private let bgColor = UIColor(red: 0.95, green: 0.96, blue: 0.98, alpha: 1)
 
     // MARK: - Data
     private let repository = NotificationRepository()
@@ -19,36 +19,17 @@ final class NotificationsViewController: UIViewController {
     private var currentData: [NotificationUIModel] = []
     private var isLoading = false
 
-    // MARK: - Custom Navigation
-    private let backButton: UIButton = {
-        let btn = UIButton(type: .system)
-        btn.setImage(UIImage(systemName: "chevron.left"), for: .normal)
-        btn.tintColor = .black
-        btn.backgroundColor = .white
-        btn.layer.cornerRadius = 22
-        btn.layer.shadowColor = UIColor.black.cgColor
-        btn.layer.shadowOpacity = 0.1
-        btn.layer.shadowRadius = 8
-        btn.layer.shadowOffset = CGSize(width: 0, height: 2)
-        btn.translatesAutoresizingMaskIntoConstraints = false
-        return btn
-    }()
+    private lazy var clearAllMenuButtonItem: UIBarButtonItem = {
+        let clearAction = UIAction(
+            title: "Clear All".localized,
+            image: UIImage(systemName: "trash"),
+            attributes: .destructive
+        ) { [weak self] _ in
+            self?.clearAllTapped()
+        }
 
-    private let titleLabel: UILabel = {
-        let lbl = UILabel()
-        lbl.text = "Notifications".localized
-        lbl.font = UIFont.systemFont(ofSize: 24, weight: .bold)
-        lbl.translatesAutoresizingMaskIntoConstraints = false
-        return lbl
-    }()
-
-    private let menuButton: UIButton = {
-        let btn = UIButton(type: .system)
-        btn.setImage(UIImage(systemName: "ellipsis.circle"), for: .normal)
-        btn.tintColor = UIColor.label
-        btn.showsMenuAsPrimaryAction = true
-        btn.translatesAutoresizingMaskIntoConstraints = false
-        return btn
+        let menu = UIMenu(children: [clearAction])
+        return UIBarButtonItem(title: nil, image: UIImage(systemName: "ellipsis.circle"), primaryAction: nil, menu: menu)
     }()
 
     // MARK: - Segmented Control Wrapper
@@ -105,7 +86,7 @@ final class NotificationsViewController: UIViewController {
         super.viewDidLoad()
         view.backgroundColor = bgColor
 
-        setupNavigation()
+        configureNavigationBar()
         setupSegment()
         setupTable()
         setupLoadingState()
@@ -113,7 +94,7 @@ final class NotificationsViewController: UIViewController {
 
     override func viewWillAppear(_ animated: Bool) {
         super.viewWillAppear(animated)
-        navigationController?.setNavigationBarHidden(true, animated: false)
+        navigationController?.setNavigationBarHidden(false, animated: false)
         self.tabBarController?.tabBar.isHidden = true
         loadNotifications()
     }
@@ -125,46 +106,15 @@ final class NotificationsViewController: UIViewController {
     }
 
     // MARK: - Navigation Bar
-    private func setupNavigation() {
-        view.addSubview(backButton)
-        view.addSubview(titleLabel)
-        view.addSubview(menuButton)
-
-        backButton.addTarget(self, action: #selector(backPressed), for: .touchUpInside)
-        
-        let clearAction = UIAction(
-            title: "Clear All".localized,
-            image: UIImage(systemName: "trash"),
-            attributes: .destructive
-        ) { [weak self] _ in
-            self?.clearAllTapped()
-        }
-        menuButton.menu = UIMenu(children: [clearAction])
-
-        NSLayoutConstraint.activate([
-            backButton.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor, constant: 10),
-            backButton.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 20),
-            backButton.widthAnchor.constraint(equalToConstant: 44),
-            backButton.heightAnchor.constraint(equalToConstant: 44),
-
-            titleLabel.centerYAnchor.constraint(equalTo: backButton.centerYAnchor),
-            titleLabel.leadingAnchor.constraint(equalTo: backButton.trailingAnchor, constant: 16),
-
-            menuButton.centerYAnchor.constraint(equalTo: backButton.centerYAnchor),
-            menuButton.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -20),
-            menuButton.widthAnchor.constraint(equalToConstant: 44),
-            menuButton.heightAnchor.constraint(equalToConstant: 44)
-        ])
-
-        // Accessibility
-        backButton.accessibilityLabel = "Go back".localized
-        backButton.accessibilityHint = "Return to previous screen".localized
-        titleLabel.accessibilityTraits = .header
-        menuButton.accessibilityLabel = "Options".localized
+    private func configureNavigationBar() {
+        title = "Notifications".localized
+        navigationItem.largeTitleDisplayMode = .never
+        navigationItem.rightBarButtonItem = clearAllMenuButtonItem
+        updateClearMenuVisibility()
     }
 
-    @objc private func backPressed() {
-        navigationController?.popViewController(animated: true)
+    private func updateClearMenuVisibility() {
+        navigationItem.rightBarButtonItem = allNotifications.isEmpty ? nil : clearAllMenuButtonItem
     }
 
     @objc private func markAllRead() {
@@ -200,7 +150,7 @@ final class NotificationsViewController: UIViewController {
                     self.tableView.reloadData()
                     self.loadingIndicator.stopAnimating()
                     self.emptyStateLabel.isHidden = false
-                    self.menuButton.isHidden = true
+                    self.updateClearMenuVisibility()
                     // Reset badge count
                     NotificationManager.shared.resetUnreadCount()
                 }
@@ -270,7 +220,7 @@ final class NotificationsViewController: UIViewController {
 
                     // Show empty state if needed
                     self.emptyStateLabel.isHidden = !self.currentData.isEmpty
-                    self.menuButton.isHidden = self.allNotifications.isEmpty
+                    self.updateClearMenuVisibility()
 
                     print("🔔 [Stage 3 Complete] NotificationsVC showing \(mapped.count) notifications (selling: \(self.sellingNotifications.count), buying: \(self.buyingNotifications.count))")
                 }
@@ -303,7 +253,7 @@ final class NotificationsViewController: UIViewController {
         )
 
         NSLayoutConstraint.activate([
-            segmentBackground.topAnchor.constraint(equalTo: backButton.bottomAnchor, constant: 16),
+            segmentBackground.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor, constant: 16),
             segmentBackground.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 20),
             segmentBackground.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -20),
             segmentBackground.heightAnchor.constraint(equalToConstant: 45),

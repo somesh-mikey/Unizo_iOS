@@ -129,7 +129,7 @@ class ListingsViewController: UIViewController {
         var hasNewDealRequests: Bool
 
         var hasNewActivity: Bool {
-            hasNewInterestedBuyers || hasNewDealRequests
+            status.caseInsensitiveCompare("Sold") != .orderedSame && (hasNewInterestedBuyers || hasNewDealRequests)
         }
     }
 
@@ -186,10 +186,10 @@ class ListingsViewController: UIViewController {
                     quantity: 0,
                     buyerName: allListings[i].buyerName,
                     orderStatus: allListings[i].orderStatus,
-                    interestedBuyersCount: allListings[i].interestedBuyersCount,
-                    dealRequestsCount: allListings[i].dealRequestsCount,
-                    hasNewInterestedBuyers: allListings[i].hasNewInterestedBuyers,
-                    hasNewDealRequests: allListings[i].hasNewDealRequests
+                    interestedBuyersCount: 0,
+                    dealRequestsCount: 0,
+                    hasNewInterestedBuyers: false,
+                    hasNewDealRequests: false
                 )
             }
         }
@@ -271,6 +271,8 @@ class ListingsViewController: UIViewController {
                             displayStatus = "Available"
                         }
 
+                        let isSold = displayStatus.caseInsensitiveCompare("Sold") == .orderedSame
+
                         return Listing(
                             image: nil,
                             imageURL: product.imageUrl,
@@ -284,10 +286,10 @@ class ListingsViewController: UIViewController {
                             quantity: product.quantity ?? 1,
                             buyerName: nil,
                             orderStatus: nil,
-                            interestedBuyersCount: interestedBuyersMap[productId] ?? 0,
-                            dealRequestsCount: dealRequestsMap[productId] ?? 0,
-                            hasNewInterestedBuyers: (interestedBuyersMap[productId] ?? 0) > ListingMenuBadgeStore.lastSeenInterestedCount(for: productId, userId: userId),
-                            hasNewDealRequests: (dealRequestsMap[productId] ?? 0) > ListingMenuBadgeStore.lastSeenDealRequestsCount(for: productId, userId: userId)
+                            interestedBuyersCount: isSold ? 0 : (interestedBuyersMap[productId] ?? 0),
+                            dealRequestsCount: isSold ? 0 : (dealRequestsMap[productId] ?? 0),
+                            hasNewInterestedBuyers: isSold ? false : ((interestedBuyersMap[productId] ?? 0) > ListingMenuBadgeStore.lastSeenInterestedCount(for: productId, userId: userId)),
+                            hasNewDealRequests: isSold ? false : ((dealRequestsMap[productId] ?? 0) > ListingMenuBadgeStore.lastSeenDealRequestsCount(for: productId, userId: userId))
                         )
                     }
 
@@ -581,6 +583,8 @@ extension ListingsViewController: EnhancedListingCellDelegate {
         guard let indexPath = collectionView.indexPath(for: cell) else { return }
         let listing = filteredListings[indexPath.row]
 
+        guard listing.status.caseInsensitiveCompare("Sold") != .orderedSame else { return }
+
         markDealRequestsSeen(for: listing)
 
         let dealRequestsVC = DealRequestsViewController(productId: listing.productId, productTitle: listing.name)
@@ -590,6 +594,8 @@ extension ListingsViewController: EnhancedListingCellDelegate {
     func didTapInterestedBuyers(on cell: EnhancedListingCell) {
         guard let indexPath = collectionView.indexPath(for: cell) else { return }
         let listing = filteredListings[indexPath.row]
+
+        guard listing.status.caseInsensitiveCompare("Sold") != .orderedSame else { return }
 
         markInterestedBuyersSeen(for: listing)
 
