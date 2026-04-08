@@ -312,7 +312,7 @@ class ConfirmOrderSellerViewController: UIViewController {
 
     // MARK: - Update UI with Real Data
     private func updateUIWithOrderData() {
-        guard let order = orderDetails else { return }
+        guard orderDetails != nil else { return }
 
         // Update buyer info
         let fallbackName = buyerUser?.displayName ?? "Unknown Buyer".localized

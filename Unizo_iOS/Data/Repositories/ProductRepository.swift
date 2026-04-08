@@ -387,7 +387,7 @@ final class ProductRepository {
                 // Seed the backend immediately with the CAD 4.0 poster natively mimicking the database presence
                 print("⚠️ Banners collection is empty! Seeding CAD 4.0 poster to Firebase Backend directly...")
                 for pos in 1...3 {
-                    try? await db.collection("banners").addDocument(data: [
+                    _ = try? await db.collection("banners").addDocument(data: [
                         "image_url": "cad4_banner",
                         "position": pos,
                         "is_active": true

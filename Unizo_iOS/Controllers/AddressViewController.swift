@@ -468,7 +468,7 @@ class AddressViewController: UIViewController {
                 do {
                     guard let addressId = address.id else { return }
                     try await self.addressRepository.deleteAddress(id: addressId)
-                    print("🗑️ Hotspot deleted:", address.id)
+                    print("🗑️ Hotspot deleted:", addressId)
                     await self.loadAddresses()
                 } catch let error as AddressError {
                     await MainActor.run {
@@ -536,7 +536,13 @@ class AddressViewController: UIViewController {
         addNewAddressButton.layer.cornerRadius = 18
         addNewAddressButton.layer.borderWidth = 1.5
         addNewAddressButton.layer.borderColor = primaryTeal.cgColor
-        addNewAddressButton.contentEdgeInsets = UIEdgeInsets(top: 8, left: 16, bottom: 8, right: 16)
+        if #available(iOS 15.0, *) {
+            var config = addNewAddressButton.configuration ?? UIButton.Configuration.plain()
+            config.contentInsets = NSDirectionalEdgeInsets(top: 8, leading: 16, bottom: 8, trailing: 16)
+            addNewAddressButton.configuration = config
+        } else {
+            addNewAddressButton.contentEdgeInsets = UIEdgeInsets(top: 8, left: 16, bottom: 8, right: 16)
+        }
         addNewAddressButton.translatesAutoresizingMaskIntoConstraints = false
         addNewAddressButton.addTarget(self, action: #selector(addAddressTapped), for: .touchUpInside)
 

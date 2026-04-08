@@ -456,7 +456,9 @@ class ItemDetailsViewController: UIViewController {
 
         UIView.animate(withDuration: duration, delay: 0, options: [animationOptions, .beginFromCurrentState]) {
             self.scrollView.contentInset.bottom = self.keyboardBottomInset
-            self.scrollView.scrollIndicatorInsets.bottom = self.keyboardBottomInset
+            var indicatorInsets = self.scrollView.verticalScrollIndicatorInsets
+            indicatorInsets.bottom = self.keyboardBottomInset
+            self.scrollView.verticalScrollIndicatorInsets = indicatorInsets
         }
     }
 

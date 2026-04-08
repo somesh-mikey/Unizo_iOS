@@ -120,7 +120,7 @@ final class NotificationsViewController: UIViewController {
     @objc private func markAllRead() {
         Task {
             await NotificationManager.shared.markAllAsRead()
-            await loadNotifications()
+            loadNotifications()
         }
     }
 

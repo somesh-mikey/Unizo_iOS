@@ -259,10 +259,6 @@ final class ProfileViewController: UIViewController {
     override func viewWillDisappear(_ animated: Bool) {
         super.viewWillDisappear(animated)
         tabBarController?.tabBar.isHidden = false
-
-        // Restore floating tab bar style if custom class
-        if let tab = tabBarController as? MainTabBarController {
-        }
         self.tabBarController?.tabBar.isHidden = false
     }
 
@@ -707,9 +703,16 @@ final class ProfileViewController: UIViewController {
         let toolbar = UIToolbar()
         toolbar.sizeToFit()
 
+        let doneStyle: UIBarButtonItem.Style
+        if #available(iOS 26.0, *) {
+            doneStyle = .prominent
+        } else {
+            doneStyle = .done
+        }
+
         let cancel = UIBarButtonItem(title: "Cancel".localized, style: .plain, target: self, action: #selector(cancelDOBPicker))
         let space = UIBarButtonItem(systemItem: .flexibleSpace)
-        let done = UIBarButtonItem(title: "Done".localized, style: .done, target: self, action: #selector(doneDOBPicker))
+        let done = UIBarButtonItem(title: "Done".localized, style: doneStyle, target: self, action: #selector(doneDOBPicker))
 
         toolbar.setItems([cancel, space, done], animated: false)
 
@@ -736,9 +739,16 @@ final class ProfileViewController: UIViewController {
         let toolbar = UIToolbar()
         toolbar.sizeToFit()
 
+        let doneStyle: UIBarButtonItem.Style
+        if #available(iOS 26.0, *) {
+            doneStyle = .prominent
+        } else {
+            doneStyle = .done
+        }
+
         let cancel = UIBarButtonItem(title: "Cancel".localized, style: .plain, target: self, action: #selector(cancelGenderPicker))
         let space = UIBarButtonItem(systemItem: .flexibleSpace)
-        let done = UIBarButtonItem(title: "Done".localized, style: .done, target: self, action: #selector(doneGenderPicker))
+        let done = UIBarButtonItem(title: "Done".localized, style: doneStyle, target: self, action: #selector(doneGenderPicker))
 
         toolbar.setItems([cancel, space, done], animated: false)
 
@@ -987,7 +997,7 @@ private extension ProfileViewController {
 
         let divider = UIView()
         divider.backgroundColor = .separator
-        divider.heightAnchor.constraint(equalToConstant: 1 / UIScreen.main.scale).isActive = true
+        divider.heightAnchor.constraint(equalToConstant: 1 / max(view.traitCollection.displayScale, 1)).isActive = true
 
         let wrapper = UIStackView(arrangedSubviews: [row, divider])
         wrapper.axis = .vertical
@@ -1008,7 +1018,7 @@ private extension ProfileViewController {
 
         let divider = UIView()
         divider.backgroundColor = .separator
-        divider.heightAnchor.constraint(equalToConstant: 1 / UIScreen.main.scale).isActive = true
+        divider.heightAnchor.constraint(equalToConstant: 1 / max(view.traitCollection.displayScale, 1)).isActive = true
 
         let wrapper = UIStackView(arrangedSubviews: [row, divider])
         wrapper.axis = .vertical

@@ -406,7 +406,11 @@ final class SettingsViewController: UIViewController {
 
     @objc private func rateAppTapped() {
         if let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene {
-            SKStoreReviewController.requestReview(in: windowScene)
+            if #available(iOS 18.0, *) {
+                AppStore.requestReview(in: windowScene)
+            } else {
+                SKStoreReviewController.requestReview(in: windowScene)
+            }
         } else {
             // Fallback: open App Store page
             if let url = URL(string: "itms-apps://itunes.apple.com/app/idYOUR_APP_ID?action=write-review") {
@@ -442,7 +446,7 @@ final class SettingsViewController: UIViewController {
                 // Stop realtime listeners first
                 await NotificationManager.shared.stopListening()
                 await ChatManager.shared.stopListening()
-                await OrderRealtimeManager.shared.unsubscribeAll()
+                OrderRealtimeManager.shared.unsubscribeAll()
 
                 // Sign out from Firebase
                 try await AuthManager.shared.signOut()
@@ -504,7 +508,7 @@ final class SettingsViewController: UIViewController {
                 // Stop realtime listeners after successful deletion.
                 await NotificationManager.shared.stopListening()
                 await ChatManager.shared.stopListening()
-                await OrderRealtimeManager.shared.unsubscribeAll()
+                OrderRealtimeManager.shared.unsubscribeAll()
 
                 print("✅ Account deleted successfully")
 

@@ -681,9 +681,11 @@ final class OrderRepository {
             ])
         }
 
+        let reviewText = newReview ?? ""
+
         try await db.collection("order_ratings").document(ratingId).updateData([
             "rating": newRating,
-            "review": newReview ?? ""
+            "review": reviewText
         ])
         print("✅ Rating updated: \(newRating)★")
     }

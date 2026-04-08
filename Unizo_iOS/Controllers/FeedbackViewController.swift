@@ -58,18 +58,32 @@ final class FeedbackViewController: UIViewController, UITextViewDelegate {
         button.layer.borderWidth = 1
         button.layer.borderColor = UIColor.borderColor.cgColor
         button.contentHorizontalAlignment = .leading
-        button.contentEdgeInsets = UIEdgeInsets(
-            top: 0,
-            left: Spacing.lg,
-            bottom: 0,
-            right: Spacing.lg
-        )
+        if #available(iOS 15.0, *) {
+            var config = button.configuration ?? UIButton.Configuration.plain()
+            config.contentInsets = NSDirectionalEdgeInsets(
+                top: 0,
+                leading: Spacing.lg,
+                bottom: 0,
+                trailing: Spacing.lg
+            )
+            config.imagePadding = Spacing.sm
+            button.configuration = config
+        } else {
+            button.contentEdgeInsets = UIEdgeInsets(
+                top: 0,
+                left: Spacing.lg,
+                bottom: 0,
+                right: Spacing.lg
+            )
+        }
         // Add a chevron on the right
         let chevron = UIImage(systemName: "chevron.down")
         button.setImage(chevron, for: .normal)
         button.tintColor = .textSecondary
         button.semanticContentAttribute = .forceRightToLeft
-        button.imageEdgeInsets = UIEdgeInsets(top: 0, left: Spacing.sm, bottom: 0, right: -Spacing.sm)
+        if #unavailable(iOS 15.0) {
+            button.imageEdgeInsets = UIEdgeInsets(top: 0, left: Spacing.sm, bottom: 0, right: -Spacing.sm)
+        }
         button.translatesAutoresizingMaskIntoConstraints = false
         return button
     }()

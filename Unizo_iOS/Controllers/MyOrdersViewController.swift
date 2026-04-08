@@ -149,10 +149,7 @@ class MyOrdersViewController: UIViewController {
         
         // Show again when leaving
         tabBarController?.tabBar.isHidden = false
-        
-        // Restore floating pill shape + position
-        if let mainTab = tabBarController as? MainTabBarController {
-        }
+
         navigationController?.setNavigationBarHidden(false, animated: false)
         self.tabBarController?.tabBar.isHidden = false
 

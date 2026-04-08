@@ -329,11 +329,11 @@ class EventDetailsViewController: UIViewController {
                 await MainActor.run {
                     self.bookButton.isEnabled = true
 
-                    let title = (event.is_free ?? false) ? "Registration".localized : "Booking".localized
+                    let title = (self.event.is_free ?? false) ? "Registration".localized : "Booking".localized
                     let message: String
 
                     if isNewResponse {
-                        message = (event.is_free ?? false)
+                        message = (self.event.is_free ?? false)
                             ? "You have successfully registered for this event!".localized
                             : "Your booking response has been saved.".localized
                     } else {

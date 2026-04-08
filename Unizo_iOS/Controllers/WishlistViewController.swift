@@ -216,10 +216,6 @@ extension WishlistViewController: UICollectionViewDataSource, UICollectionViewDe
         super.viewWillDisappear(animated)
         navigationController?.setNavigationBarHidden(false, animated: false)
         tabBarController?.tabBar.isHidden = false
-
-        // If you have a custom floating tab bar
-        if let tab = tabBarController as? MainTabBarController {
-        }
     }
 
 }

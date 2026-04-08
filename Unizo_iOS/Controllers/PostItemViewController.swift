@@ -239,9 +239,16 @@ final class PostItemViewController: UIViewController,
         let toolbar = UIToolbar()
         toolbar.sizeToFit()
 
+        let doneStyle: UIBarButtonItem.Style
+        if #available(iOS 26.0, *) {
+            doneStyle = .prominent
+        } else {
+            doneStyle = .done
+        }
+
         toolbar.items = [
             UIBarButtonItem(barButtonSystemItem: .flexibleSpace, target: nil, action: nil),
-            UIBarButtonItem(title: "Done".localized, style: .done, target: self, action: #selector(donePicking))
+            UIBarButtonItem(title: "Done".localized, style: doneStyle, target: self, action: #selector(donePicking))
         ]
         return toolbar
     }

@@ -90,7 +90,9 @@ class CategoryPageViewController: UIViewController, UITabBarDelegate, UIScrollVi
         // Extend scroll behind tab bar but avoid clipping content
         if let tabBarHeight = self.tabBarController?.tabBar.frame.height {
             scrollView.contentInset.bottom = tabBarHeight + 20
-            scrollView.scrollIndicatorInsets.bottom = tabBarHeight
+            var indicatorInsets = scrollView.verticalScrollIndicatorInsets
+            indicatorInsets.bottom = tabBarHeight
+            scrollView.verticalScrollIndicatorInsets = indicatorInsets
         }
     }
 
@@ -992,7 +994,13 @@ extension UIViewController {
         btn.tintColor = .black
 
         // IMPORTANT — remove automatic padding
-        btn.contentEdgeInsets = .zero
+        if #available(iOS 15.0, *) {
+            var config = btn.configuration ?? UIButton.Configuration.plain()
+            config.contentInsets = .zero
+            btn.configuration = config
+        } else {
+            btn.contentEdgeInsets = .zero
+        }
 
         btn.addTarget(target, action: action, for: .touchUpInside)
 

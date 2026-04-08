@@ -61,10 +61,6 @@ class OrderAcceptedViewController: UIViewController {
         super.viewWillDisappear(animated)
         navigationController?.setNavigationBarHidden(false, animated: false)
         tabBarController?.tabBar.isHidden = false
-
-        // Restore floating tab bar frame
-        if let mainTab = tabBarController as? MainTabBarController {
-        }
     }
 
     // MARK: - Scroll View

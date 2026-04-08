@@ -31,10 +31,6 @@ class TermsAndConditionsViewController: UIViewController {
     override func viewWillDisappear(_ animated: Bool) {
         super.viewWillDisappear(animated)
         tabBarController?.tabBar.isHidden = false
-
-        // If using a custom floating tab bar in MainTabBarController
-        if let tab = tabBarController as? MainTabBarController {
-        }
         self.tabBarController?.tabBar.isHidden = false
     }
 

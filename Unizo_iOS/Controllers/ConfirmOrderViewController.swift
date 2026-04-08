@@ -93,10 +93,6 @@ class ConfirmOrderViewController: UIViewController {
         super.viewWillDisappear(animated)
         navigationController?.setNavigationBarHidden(false, animated: false)
         tabBarController?.tabBar.isHidden = false
-
-        // Restore floating tab bar frame when returning
-        if let mainTab = tabBarController as? MainTabBarController {
-        }
     }
 
     // MARK: - Container layout

@@ -79,7 +79,8 @@ final class UnizoIntegrationTests {
                 print("  ⚠️  CHECK: is_active field, status != sold, quantity > 0, Firestore composite indexes")
             } else {
                 let first = products[0]
-                print("  ✅ PASS: Loaded \(products.count) products. First: \"\(first.title ?? "untitled")\" (id: \(first.id ?? "nil"))")
+                let idText = first.id ?? "nil"
+                print("  ✅ PASS: Loaded \(products.count) products. First: \"\(first.title)\" (id: \(idText))")
             }
         } catch {
             print("  ❌ FAIL: Product fetch failed: \(error)")

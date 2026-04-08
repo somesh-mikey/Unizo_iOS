@@ -138,7 +138,6 @@ struct ConversationUIModel: Identifiable {
         guard let time = lastMessageTime else { return "" }
 
         let calendar = Calendar.current
-        let now = Date()
 
         if calendar.isDateInToday(time) {
             let formatter = DateFormatter()

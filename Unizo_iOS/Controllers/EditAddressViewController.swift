@@ -74,12 +74,21 @@ final class EditAddressViewController: UIViewController {
             action: #selector(goBack)
         )
 
-        navigationItem.rightBarButtonItem = UIBarButtonItem(
-            title: "Save".localized,
-            style: .done,
-            target: self,
-            action: #selector(savePressed)
-        )
+        if #available(iOS 26.0, *) {
+            navigationItem.rightBarButtonItem = UIBarButtonItem(
+                title: "Save".localized,
+                style: .prominent,
+                target: self,
+                action: #selector(savePressed)
+            )
+        } else {
+            navigationItem.rightBarButtonItem = UIBarButtonItem(
+                title: "Save".localized,
+                style: .done,
+                target: self,
+                action: #selector(savePressed)
+            )
+        }
     }
 
     private func setupForm() {

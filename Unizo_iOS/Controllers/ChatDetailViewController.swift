@@ -419,7 +419,8 @@ class ChatDetailViewController: UIViewController {
         // Expand the container width to securely span all remaining Navigation Bar space.
         // Because the profile avatar is anchored to the leading edge internally, 
         // this naturally aligns it immediately next to the Back Button without needing leftBarButtonItems!
-        let wideWidth = UIScreen.main.bounds.width - 140
+        let contextScreenWidth = view.window?.windowScene?.screen.bounds.width ?? view.bounds.width
+        let wideWidth = contextScreenWidth - 140
         headerContainer.widthAnchor.constraint(equalToConstant: wideWidth).isActive = true
         headerContainer.frame = CGRect(origin: .zero, size: CGSize(width: wideWidth, height: 44))
         

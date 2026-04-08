@@ -90,11 +90,6 @@ class AccountCreatedViewController: UIViewController {
 
         // Un-hide the tab bar when leaving
         tabBarController?.tabBar.isHidden = false
-
-        // Restore floating position & height
-        if let mainTab = tabBarController as? MainTabBarController {
-
-        }
     }
 
     

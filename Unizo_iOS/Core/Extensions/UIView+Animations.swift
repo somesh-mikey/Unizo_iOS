@@ -100,7 +100,9 @@ extension UIView {
     /// Slides in from below the parent view (or screen edge if no superview).
     func slideInFromBottom(duration: TimeInterval = AnimationDuration.smooth, completion: (() -> Void)? = nil) {
         let originalY = frame.origin.y
-        frame.origin.y = superview?.bounds.height ?? UIScreen.main.bounds.height
+        frame.origin.y = superview?.bounds.height
+            ?? window?.windowScene?.screen.bounds.height
+            ?? bounds.height
         isHidden = false
         alpha = 1
 
@@ -117,7 +119,9 @@ extension UIView {
 
     func slideOutToBottom(duration: TimeInterval = AnimationDuration.smooth, completion: (() -> Void)? = nil) {
         UIView.animate(withDuration: duration, delay: 0, options: .curveEaseIn) {
-            self.frame.origin.y = self.superview?.bounds.height ?? UIScreen.main.bounds.height
+            self.frame.origin.y = self.superview?.bounds.height
+                ?? self.window?.windowScene?.screen.bounds.height
+                ?? self.bounds.height
         } completion: { _ in
             self.isHidden = true
             completion?()

@@ -195,9 +195,10 @@ final class SearchResultsViewController: UIViewController {
         guard !trimmed.isEmpty else { return }
 
         searchTask = Task { [weak self] in
-            try? await Task.sleep(nanoseconds: debounceDelay)
+            guard let self = self else { return }
+            try? await Task.sleep(nanoseconds: self.debounceDelay)
             guard !Task.isCancelled else { return }
-            await self?.performSearch(trimmed)
+            await self.performSearch(trimmed)
         }
     }
 
@@ -212,9 +213,10 @@ final class SearchResultsViewController: UIViewController {
         }
 
         suggestionsTask = Task { [weak self] in
-            try? await Task.sleep(nanoseconds: suggestionsDebounceDelay)
+            guard let self = self else { return }
+            try? await Task.sleep(nanoseconds: self.suggestionsDebounceDelay)
             guard !Task.isCancelled else { return }
-            await self?.fetchPredictiveSuggestions(trimmed)
+            await self.fetchPredictiveSuggestions(trimmed)
         }
     }
 

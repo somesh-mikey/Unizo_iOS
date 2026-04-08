@@ -164,8 +164,7 @@ final class SignUpViewController: UIViewController {
     }
 
     @objc private func keyboardWillShow(_ notification: Notification) {
-        guard let keyboardFrame = notification.userInfo?[UIResponder.keyboardFrameEndUserInfoKey] as? CGRect,
-              let duration = notification.userInfo?[UIResponder.keyboardAnimationDurationUserInfoKey] as? Double else {
+        guard let keyboardFrame = notification.userInfo?[UIResponder.keyboardFrameEndUserInfoKey] as? CGRect else {
             return
         }
 
@@ -674,7 +673,7 @@ extension SignUpViewController: UITextFieldDelegate {
 
 extension UITapGestureRecognizer {
     func didTapRange(in label: UILabel, range: NSRange) -> Bool {
-        guard let string = label.attributedText?.string else { return false }
+        guard label.attributedText?.string != nil else { return false }
         guard range.location != NSNotFound else { return false }
 
         let layoutManager = NSLayoutManager()

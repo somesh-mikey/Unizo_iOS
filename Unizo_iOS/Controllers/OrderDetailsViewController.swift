@@ -82,7 +82,10 @@ class OrderDetailsViewController: UIViewController {
     private let codeErrorLabel = UILabel()
     private let loadingSpinner = UIActivityIndicatorView(style: .medium)
     private var handoffCardHeightConstraint: NSLayoutConstraint?
-    private var isCompactScreen: Bool { UIScreen.main.bounds.height <= 740 }
+    private var isCompactScreen: Bool {
+        let contextHeight = view.window?.windowScene?.screen.bounds.height ?? view.bounds.height
+        return contextHeight <= 740
+    }
 
     // MARK: - Lifecycle
     override func viewDidLoad() {
@@ -136,7 +139,7 @@ class OrderDetailsViewController: UIViewController {
         // Subscribe to realtime updates for this order
         if let id = orderId {
             Task {
-                await OrderRealtimeManager.shared.subscribeToOrder(id)
+                OrderRealtimeManager.shared.subscribeToOrder(id)
             }
             // Also do a one-time refresh in case status changed while away
             refreshOrderStatus()
@@ -268,7 +271,7 @@ class OrderDetailsViewController: UIViewController {
         // Unsubscribe from realtime updates when leaving
         if let id = orderId {
             Task {
-                await OrderRealtimeManager.shared.unsubscribeFromOrder(id)
+                OrderRealtimeManager.shared.unsubscribeFromOrder(id)
             }
         }
     }

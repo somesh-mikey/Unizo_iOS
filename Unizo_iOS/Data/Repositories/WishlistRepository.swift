@@ -47,9 +47,12 @@ final class WishlistRepository {
 
                         // Try Codable decode first
                         do {
-                            var product = try productSnap.data(as: ProductDTO.self)
-                            if product.id == nil {
-                                product.id = productSnap.documentID
+                            let product: ProductDTO = try await MainActor.run {
+                                var decoded = try productSnap.data(as: ProductDTO.self)
+                                if decoded.id == nil {
+                                    decoded.id = productSnap.documentID
+                                }
+                                return decoded
                             }
                             return product
                         } catch {
@@ -65,26 +68,29 @@ final class WishlistRepository {
 
                         // Return a minimal ProductDTO if Codable decode fails
                         // This prevents one malformed product from breaking the whole wishlist
-                        var dto = ProductDTO(
-                            title: title,
-                            description: data["description"] as? String,
-                            price: data["price"] as? Double ?? 0,
-                            rating: data["rating"] as? Double,
-                            isNegotiable: data["is_negotiable"] as? Bool,
-                            imageUrl: data["image_url"] as? String,
-                            galleryImages: data["gallery_images"] as? [String],
-                            viewsCount: data["views_count"] as? Int,
-                            colour: data["colour"] as? String,
-                            category: data["category"] as? String,
-                            size: data["size"] as? String,
-                            condition: data["condition"] as? String,
-                            is_active: data["is_active"] as? Bool,
-                            quantity: data["quantity"] as? Int,
-                            status: ProductStatus(rawValue: data["status"] as? String ?? "available"),
-                            seller_id: data["seller_id"] as? String,
-                            seller: nil
-                        )
-                        dto.id = productSnap.documentID
+                        let dto: ProductDTO = await MainActor.run {
+                            var value = ProductDTO(
+                                title: title,
+                                description: data["description"] as? String,
+                                price: data["price"] as? Double ?? 0,
+                                rating: data["rating"] as? Double,
+                                isNegotiable: data["is_negotiable"] as? Bool,
+                                imageUrl: data["image_url"] as? String,
+                                galleryImages: data["gallery_images"] as? [String],
+                                viewsCount: data["views_count"] as? Int,
+                                colour: data["colour"] as? String,
+                                category: data["category"] as? String,
+                                size: data["size"] as? String,
+                                condition: data["condition"] as? String,
+                                is_active: data["is_active"] as? Bool,
+                                quantity: data["quantity"] as? Int,
+                                status: ProductStatus(rawValue: data["status"] as? String ?? "available"),
+                                seller_id: data["seller_id"] as? String,
+                                seller: nil
+                            )
+                            value.id = productSnap.documentID
+                            return value
+                        }
                         return dto
 
                     } catch {
