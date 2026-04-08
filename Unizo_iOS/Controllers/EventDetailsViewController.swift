@@ -11,6 +11,7 @@ class EventDetailsViewController: UIViewController {
 
     // MARK: - Event Data
     var event: EventDTO!
+    private let eventRepository = EventRepository()
 
     // MARK: - UI Components
     private let scrollView: UIScrollView = {
@@ -303,13 +304,62 @@ class EventDetailsViewController: UIViewController {
     // MARK: - Actions
 
     @objc private func bookButtonTapped() {
-        // TODO: Implement booking/registration flow
-        let alert = UIAlertController(
-            title: (event.is_free ?? false) ? "Registration".localized : "Booking".localized,
-            message: (event.is_free ?? false) ? "You have successfully registered for this event!".localized : "Proceed to payment for this event.".localized,
-            preferredStyle: .alert
-        )
-        alert.addAction(UIAlertAction(title: "OK".localized, style: .default))
-        present(alert, animated: true)
+        bookButton.isEnabled = false
+
+        Task { [weak self] in
+            guard let self = self else { return }
+
+            guard let userId = await AuthManager.shared.currentUserId else {
+                await MainActor.run {
+                    self.bookButton.isEnabled = true
+                    let alert = UIAlertController(
+                        title: "Authentication Required".localized,
+                        message: "Please log in to register for events".localized,
+                        preferredStyle: .alert
+                    )
+                    alert.addAction(UIAlertAction(title: "OK".localized, style: .default))
+                    self.present(alert, animated: true)
+                }
+                return
+            }
+
+            do {
+                let isNewResponse = try await eventRepository.submitEventResponse(event: event, userId: userId)
+
+                await MainActor.run {
+                    self.bookButton.isEnabled = true
+
+                    let title = (event.is_free ?? false) ? "Registration".localized : "Booking".localized
+                    let message: String
+
+                    if isNewResponse {
+                        message = (event.is_free ?? false)
+                            ? "You have successfully registered for this event!".localized
+                            : "Your booking response has been saved.".localized
+                    } else {
+                        message = "You have already responded to this event.".localized
+                    }
+
+                    let alert = UIAlertController(
+                        title: title,
+                        message: message,
+                        preferredStyle: .alert
+                    )
+                    alert.addAction(UIAlertAction(title: "OK".localized, style: .default))
+                    self.present(alert, animated: true)
+                }
+            } catch {
+                await MainActor.run {
+                    self.bookButton.isEnabled = true
+                    let alert = UIAlertController(
+                        title: "Registration Failed".localized,
+                        message: error.localizedDescription,
+                        preferredStyle: .alert
+                    )
+                    alert.addAction(UIAlertAction(title: "OK".localized, style: .default))
+                    self.present(alert, animated: true)
+                }
+            }
+        }
     }
 }

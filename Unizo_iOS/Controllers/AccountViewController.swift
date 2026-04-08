@@ -83,7 +83,7 @@ final class AccountViewController: UIViewController {
 
     // MARK: - Rows
     private lazy var rowProfile = makeRow("Edit Profile".localized, icon: "person", action: #selector(openProfile))
-    private lazy var rowAddress = makeRow("My Addresses".localized, icon: "mappin.and.ellipse", action: #selector(openAddress))
+    private lazy var rowAddress = makeRow("My Hotspots".localized, icon: "mappin.and.ellipse", action: #selector(openAddress))
     private lazy var rowNotifications = makeRow("Notifications".localized, icon: "bell", action: #selector(openNotifications))
 
     private lazy var rowTerms = makeRow("Terms & Conditions".localized, icon: "doc.text", action: #selector(openTerms))

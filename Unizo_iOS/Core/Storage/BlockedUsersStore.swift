@@ -40,5 +40,12 @@ enum BlockedUsersStore {
     /// Clear all blocked users
     static func clearAll() {
         UserDefaults.standard.removeObject(forKey: key)
+        print("🧹 [Moderation] Cleared all blocked users from local store")
+    }
+
+    /// Replace local blocked IDs with backend-synced values.
+    static func replaceAll(with userIds: Set<String>) {
+        UserDefaults.standard.set(Array(userIds), forKey: key)
+        print("🔄 [Moderation] Synced blocked users into local store: \(userIds.count)")
     }
 }

@@ -101,8 +101,24 @@ final class WishlistRepository {
             }
         }
 
-        print("✅ WishlistRepository: returning \(products.count) products")
-        return products
+        let blockedUsers = BlockedUsersStore.all()
+        if !blockedUsers.isEmpty {
+            let beforeCount = products.count
+            products = products.filter { product in
+                guard let sellerId = product.seller_id else { return true }
+                return !blockedUsers.contains(sellerId)
+            }
+
+            let removedCount = beforeCount - products.count
+            if removedCount > 0 {
+                print("🚫 [Moderation] WishlistRepository.fetchWishlist filtered \(removedCount) blocked-seller products")
+            }
+        }
+
+        let enrichedProducts = await ProductRepository().applySellerAverageRatings(to: products)
+
+        print("✅ WishlistRepository: returning \(enrichedProducts.count) products")
+        return enrichedProducts
     }
 }
 

@@ -80,6 +80,32 @@ service cloud.firestore {
     }
 
     // ───────────────────────────────────────────────
+    // REPORTS — Authenticated users can report listings/sellers
+    // ───────────────────────────────────────────────
+    match /reports/{reportId} {
+      allow create: if request.auth != null
+                    && request.resource.data.reporter_id == request.auth.uid;
+      allow read: if request.auth != null
+                  && resource.data.reporter_id == request.auth.uid;
+      allow update, delete: if false;
+    }
+
+    // ───────────────────────────────────────────────
+    // BLOCKED USERS — Owner-scoped block list for filtering sellers
+    // ───────────────────────────────────────────────
+    match /blocked_users/{entryId} {
+      allow create: if request.auth != null
+                    && request.resource.data.user_id == request.auth.uid;
+      allow read: if request.auth != null
+                  && resource.data.user_id == request.auth.uid;
+      allow update: if request.auth != null
+                    && resource.data.user_id == request.auth.uid
+                    && request.resource.data.user_id == request.auth.uid;
+      allow delete: if request.auth != null
+                    && resource.data.user_id == request.auth.uid;
+    }
+
+    // ───────────────────────────────────────────────
     // USERS — Public read, owner write
     // ───────────────────────────────────────────────
     match /users/{userId} {

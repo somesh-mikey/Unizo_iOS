@@ -28,6 +28,11 @@ class MainTabBarController: UITabBarController, UITabBarControllerDelegate {
         return true
     }
 
+    func tabBarController(_ tabBarController: UITabBarController, didSelect viewController: UIViewController) {
+        // Ensure tab bar/backdrop are visible after any tab switch.
+        showFloatingTabBar()
+    }
+
         override func viewDidAppear(_ animated: Bool) {
             super.viewDidAppear(animated)
             fixFloatingBar()   // <— Apply only here
@@ -142,6 +147,8 @@ class MainTabBarController: UITabBarController, UITabBarControllerDelegate {
         tabBar.isHidden = false
         fixFloatingBar()
     }
-    }
+
+}
+
 
 

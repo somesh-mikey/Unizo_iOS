@@ -386,17 +386,20 @@ final class EnhancedListingCell: UICollectionViewCell {
     }
 
     private func configureActivityMenu(for listing: ListingsViewController.Listing) {
-        let interestedTitle = listing.interestedBuyersCount > 0
+        let isSold = listing.status.caseInsensitiveCompare("Sold") == .orderedSame
+
+        let interestedTitle = (!isSold && listing.interestedBuyersCount > 0)
             ? String(format: "Interested Buyers (%d)".localized, listing.interestedBuyersCount)
             : "Interested Buyers".localized
 
-        let dealTitle = listing.dealRequestsCount > 0
+        let dealTitle = (!isSold && listing.dealRequestsCount > 0)
             ? String(format: "Deal Requests (%d)".localized, listing.dealRequestsCount)
             : "Deal Requests".localized
 
         let interestedAction = UIAction(
             title: interestedTitle,
-            image: UIImage(systemName: "person.2.fill")
+            image: UIImage(systemName: "person.2.fill"),
+            attributes: isSold ? [.disabled] : []
         ) { [weak self] _ in
             guard let self = self else { return }
             HapticFeedback.light()
@@ -405,7 +408,8 @@ final class EnhancedListingCell: UICollectionViewCell {
 
         let dealAction = UIAction(
             title: dealTitle,
-            image: UIImage(systemName: "cart.fill")
+            image: UIImage(systemName: "cart.fill"),
+            attributes: isSold ? [.disabled] : []
         ) { [weak self] _ in
             guard let self = self else { return }
             HapticFeedback.light()

@@ -13,7 +13,7 @@ class TermsAndConditionsViewController: UIViewController {
 
     override func viewDidLoad() {
         super.viewDidLoad()
-        view.backgroundColor = .white
+        view.backgroundColor = UIColor(red: 0.95, green: 0.96, blue: 0.98, alpha: 1)
 
         // ✅ Navigation Bar Title
         self.title = "Terms and Conditions".localized
@@ -44,7 +44,7 @@ class TermsAndConditionsViewController: UIViewController {
         textView.isSelectable = true
         textView.isScrollEnabled = true
         textView.textContainerInset = UIEdgeInsets(top: 20, left: 20, bottom: 20, right: 20)
-        textView.backgroundColor = .white
+        textView.backgroundColor = .clear
         textView.attributedText = getFormattedText()
         view.addSubview(textView)
     }
@@ -140,8 +140,7 @@ class TermsAndConditionsViewController: UIViewController {
 
         17. Contact and Grievance Redressal
         • For grievances, complaints, or queries regarding these Terms, please contact:
-        ◦ Email: [unizo.grievances@gmail.com]
-        ◦ Designated Grievance Officer: [Soham Bhattacharya]
+        ◦ Email: [unizoapp00@gmail.com]
 
         18. Severability and Waiver
         • If any provision of these Terms is found invalid or unenforceable, it will not affect the validity of the remaining provisions. No waiver of any term shall be deemed a further or continuing waiver of such term or any other.

@@ -30,6 +30,10 @@ extension Notification.Name {
     /// Posted on main queue when a new notification arrives in realtime.
     /// userInfo: ["notification": NotificationDTO]
     static let newNotificationReceived = Notification.Name("newNotificationReceived")
+
+    /// Posted on main queue whenever blocked user IDs change.
+    /// userInfo: ["blockedSellerId": String]
+    static let blockedUsersDidChange = Notification.Name("blockedUsersDidChange")
 }
 
 // MARK: - NotificationManager

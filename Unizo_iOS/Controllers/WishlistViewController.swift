@@ -11,8 +11,6 @@ class WishlistViewController: UIViewController {
 
     // MARK: - UI
     var items: [ProductUIModel] = []
-    private let backButton = UIButton(type: .system)
-    private let titleLabel = UILabel()
     private var collectionView: UICollectionView!
     private let refreshControl = UIRefreshControl()
 
@@ -22,17 +20,23 @@ class WishlistViewController: UIViewController {
 
     override func viewDidLoad() {
         super.viewDidLoad()
-        view.backgroundColor = .systemGroupedBackground
+        view.backgroundColor = UIColor(red: 0.95, green: 0.96, blue: 0.98, alpha: 1)
 
-        setupNavigationBar()
+        configureNavigationBar()
         setupCollectionView()
-        backButton.addTarget(self, action: #selector(backPressed), for: .touchUpInside)
 
         // RULE D — Observe product sold/deleted notifications
         NotificationCenter.default.addObserver(
             self,
             selector: #selector(handleProductDeleted(_:)),
             name: .productDeleted,
+            object: nil
+        )
+
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(handleBlockedUsersDidChange(_:)),
+            name: .blockedUsersDidChange,
             object: nil
         )
 
@@ -55,43 +59,40 @@ class WishlistViewController: UIViewController {
         collectionView.reloadData()
     }
 
+    @objc private func handleBlockedUsersDidChange(_ notification: Notification) {
+        let blockedSellerId = notification.userInfo?["blockedSellerId"] as? String
+        let shouldRefreshData = notification.userInfo?["refreshData"] as? Bool ?? false
+        let blockedSellerSet = BlockedUsersStore.all()
+
+        let beforeCount = wishlistItems.count
+        wishlistItems.removeAll { product in
+            guard let sellerId = product.sellerId else { return false }
+            if let blockedSellerId {
+                return sellerId == blockedSellerId
+            }
+            return blockedSellerSet.contains(sellerId)
+        }
+
+        let removedCount = max(0, beforeCount - wishlistItems.count)
+        if removedCount > 0 {
+            print("🚫 [Moderation] Wishlist removed \(removedCount) blocked-seller products")
+            collectionView.reloadData()
+            return
+        }
+
+        if shouldRefreshData {
+            print("🔄 [Moderation] Wishlist refreshing after unblock")
+            Task {
+                await self.loadWishlist()
+            }
+        }
+    }
+
 
     // MARK: - Navigation Bar Setup
-    private func setupNavigationBar() {
-        // Back Button with glowing style
-        backButton.setImage(UIImage(systemName: "chevron.backward"), for: .normal)
-        backButton.tintColor = .label
-        backButton.backgroundColor = .secondarySystemBackground
-        backButton.layer.cornerRadius = Spacing.minTouchTarget / 2
-        backButton.layer.shadowColor = UIColor.cardShadow.cgColor
-        backButton.layer.shadowOpacity = 0.1
-        backButton.layer.shadowRadius = 8
-        backButton.layer.shadowOffset = CGSize(width: 0, height: 2)
-
-        // Title with Dynamic Type
-        titleLabel.text = "My Wishlist".localized
-        titleLabel.font = UIFont.preferredFont(forTextStyle: .title3)
-        titleLabel.adjustsFontForContentSizeCategory = true
-        titleLabel.textColor = .label
-
-        // Add to View
-        view.addSubview(backButton)
-        view.addSubview(titleLabel)
-
-        backButton.translatesAutoresizingMaskIntoConstraints = false
-        titleLabel.translatesAutoresizingMaskIntoConstraints = false
-
-        NSLayoutConstraint.activate([
-            // Back button
-            backButton.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 16),
-            backButton.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor, constant: 10),
-            backButton.widthAnchor.constraint(equalToConstant: 44),
-            backButton.heightAnchor.constraint(equalToConstant: 44),
-
-            // Title centered
-            titleLabel.centerXAnchor.constraint(equalTo: view.centerXAnchor),
-            titleLabel.centerYAnchor.constraint(equalTo: backButton.centerYAnchor)
-        ])
+    private func configureNavigationBar() {
+        title = "My Wishlist".localized
+        navigationItem.largeTitleDisplayMode = .never
     }
 
 
@@ -99,6 +100,7 @@ class WishlistViewController: UIViewController {
     private func setupCollectionView() {
         let layout = UICollectionViewFlowLayout()
         layout.scrollDirection = .vertical
+        layout.sectionInset = UIEdgeInsets(top: 10, left: 10, bottom: 20, right: 10)
 
         collectionView = UICollectionView(frame: .zero, collectionViewLayout: layout)
         collectionView.backgroundColor = .clear
@@ -118,7 +120,7 @@ class WishlistViewController: UIViewController {
         collectionView.translatesAutoresizingMaskIntoConstraints = false
 
         NSLayoutConstraint.activate([
-            collectionView.topAnchor.constraint(equalTo: titleLabel.bottomAnchor, constant: 16),
+            collectionView.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor, constant: 10),
             collectionView.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 10),
             collectionView.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -10),
             collectionView.bottomAnchor.constraint(equalTo: view.bottomAnchor)
@@ -151,10 +153,9 @@ extension WishlistViewController: UICollectionViewDataSource, UICollectionViewDe
                         layout collectionViewLayout: UICollectionViewLayout,
                         sizeForItemAt indexPath: IndexPath) -> CGSize {
 
-        let totalSpacing: CGFloat = 10 + 10 + 10  // left + right + between
-        let width = (collectionView.bounds.width - totalSpacing) / 2
-
-        return CGSize(width: width, height: 250)
+        let availableWidth = collectionView.bounds.width - 30 // spacing + section insets
+        let width = floor(availableWidth / 2)
+        return CGSize(width: width, height: ProductCell.preferredHeight(for: traitCollection))
     }
 
     func collectionView(_ collectionView: UICollectionView,
@@ -168,26 +169,6 @@ extension WishlistViewController: UICollectionViewDataSource, UICollectionViewDe
                         minimumLineSpacingForSectionAt section: Int) -> CGFloat {
         15
     }
-    @objc private func backPressed() {
-
-        // CASE 1 — If opened with Navigation Controller
-        if let nav = navigationController {
-            nav.popViewController(animated: true)
-            return
-        }
-
-        // CASE 2 — If presented modally
-        if presentingViewController != nil {
-            dismiss(animated: true)
-            return
-        }
-
-        // CASE 3 — Fallback (rare)
-        let landingVC = LandingScreenViewController()
-        landingVC.modalPresentationStyle = .fullScreen
-        present(landingVC, animated: true)
-    }
-
     @objc private func handleRefresh() {
         HapticFeedback.pullToRefresh()
 
@@ -223,7 +204,7 @@ extension WishlistViewController: UICollectionViewDataSource, UICollectionViewDe
 
     override func viewWillAppear(_ animated: Bool) {
         super.viewWillAppear(animated)
-        navigationController?.setNavigationBarHidden(true, animated: false)
+        navigationController?.setNavigationBarHidden(false, animated: false)
         tabBarController?.tabBar.isHidden = true
 
         Task {

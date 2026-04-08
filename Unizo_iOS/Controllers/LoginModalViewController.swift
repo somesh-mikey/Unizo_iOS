@@ -9,6 +9,8 @@ import FirebaseAuth
 final class LoginModalViewController: UIViewController {
 
     private let userRepository = UserRepository()
+    private let requiredCollegeDomain = "srmist.edu.in"
+    private let collegeEmailValidationMessage = "Please enter your registered college ID"
 
     // MARK: - Containers (Card + Group)
     private let cardView: UIView = {
@@ -65,6 +67,16 @@ final class LoginModalViewController: UIViewController {
 
     private lazy var collegeEmailField = styledField("College Email".localized)
 
+    private let emailErrorLabel: UILabel = {
+        let label = UILabel()
+        label.text = ""
+        label.textColor = .systemRed
+        label.font = UIFont.systemFont(ofSize: 12, weight: .medium)
+        label.numberOfLines = 0
+        label.isHidden = true
+        return label
+    }()
+
     private lazy var passwordField: UITextField = styledField("Password".localized, secure: true)
 
     // MARK: - Dividers
@@ -97,6 +109,7 @@ final class LoginModalViewController: UIViewController {
 
     // MARK: - Keyboard Handling
     private var cardBottomConstraint: NSLayoutConstraint!
+    private var emailErrorHeightConstraint: NSLayoutConstraint?
 
     // MARK: - Lifecycle
     override func viewDidLoad() {
@@ -176,7 +189,7 @@ final class LoginModalViewController: UIViewController {
         view.addSubview(cardView)
         [
             titleLabel, fieldsGroupView,
-            forgotPasswordButton, loginButton
+            emailErrorLabel, forgotPasswordButton, loginButton
         ].forEach { cardView.addSubview($0) }
     }
 
@@ -256,9 +269,18 @@ final class LoginModalViewController: UIViewController {
         ])
 
         // Forgot Password
+        emailErrorLabel.translatesAutoresizingMaskIntoConstraints = false
+        NSLayoutConstraint.activate([
+            emailErrorLabel.topAnchor.constraint(equalTo: fieldsGroupView.bottomAnchor, constant: 8),
+            emailErrorLabel.leadingAnchor.constraint(equalTo: fieldsGroupView.leadingAnchor, constant: 4),
+            emailErrorLabel.trailingAnchor.constraint(equalTo: fieldsGroupView.trailingAnchor, constant: -4)
+        ])
+        emailErrorHeightConstraint = emailErrorLabel.heightAnchor.constraint(equalToConstant: 0)
+        emailErrorHeightConstraint?.isActive = true
+
         forgotPasswordButton.translatesAutoresizingMaskIntoConstraints = false
         NSLayoutConstraint.activate([
-            forgotPasswordButton.topAnchor.constraint(equalTo: fieldsGroupView.bottomAnchor, constant: 14),
+            forgotPasswordButton.topAnchor.constraint(equalTo: emailErrorLabel.bottomAnchor, constant: 8),
             forgotPasswordButton.centerXAnchor.constraint(equalTo: cardView.centerXAnchor)
         ])
 
@@ -276,6 +298,31 @@ final class LoginModalViewController: UIViewController {
     private func setupActions() {
         loginButton.addTarget(self, action: #selector(loginTapped), for: .touchUpInside)
         forgotPasswordButton.addTarget(self, action: #selector(forgotPasswordTapped), for: .touchUpInside)
+        collegeEmailField.addTarget(self, action: #selector(emailEditingChanged), for: .editingChanged)
+    }
+
+    private func isValidCollegeEmail(_ email: String) -> Bool {
+        let trimmed = email.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        let parts = trimmed.split(separator: "@", omittingEmptySubsequences: false)
+        guard parts.count == 2, !parts[0].isEmpty else { return false }
+        return parts[1] == requiredCollegeDomain
+    }
+
+    private func setEmailErrorVisible(_ visible: Bool) {
+        emailErrorLabel.text = visible ? collegeEmailValidationMessage : ""
+        emailErrorLabel.isHidden = !visible
+        emailErrorHeightConstraint?.constant = visible ? 18 : 0
+        collegeEmailField.layer.borderWidth = visible ? 1 : 0
+        collegeEmailField.layer.borderColor = visible ? UIColor.systemRed.cgColor : UIColor.clear.cgColor
+        collegeEmailField.layer.cornerRadius = 8
+        collegeEmailField.layer.masksToBounds = true
+    }
+
+    @objc private func emailEditingChanged() {
+        let email = collegeEmailField.text ?? ""
+        if email.isEmpty || isValidCollegeEmail(email) {
+            setEmailErrorVisible(false)
+        }
     }
 
     @objc private func loginTapped() {
@@ -290,6 +337,13 @@ final class LoginModalViewController: UIViewController {
         // Trim whitespace from email and password
         let email = emailRaw.trimmingCharacters(in: .whitespacesAndNewlines)
         let password = passwordRaw.trimmingCharacters(in: .whitespacesAndNewlines)
+
+        guard isValidCollegeEmail(email) else {
+            setEmailErrorVisible(true)
+            return
+        }
+
+        setEmailErrorVisible(false)
 
         // Show loading state
         loginButton.isEnabled = false
@@ -312,6 +366,8 @@ final class LoginModalViewController: UIViewController {
                     // Non-fatal: user is authenticated, so continue into app.
                     print("⚠️ Failed to sync profile after login:", error)
                 }
+
+                await AuthManager.shared.syncBlockedUsersFromBackend()
 
                 // Start notification listeners
                 await NotificationManager.shared.startListening()
@@ -353,10 +409,32 @@ final class LoginModalViewController: UIViewController {
                 await MainActor.run {
                     loginButton.isEnabled = true
                     loginButton.setTitle("Login".localized, for: .normal)
-                    showAlert(message: "\("Login failed".localized): \(error.localizedDescription)")
+                    showAlert(message: userFriendlyLoginErrorMessage(for: error))
                 }
             }
         }
+    }
+
+    private func userFriendlyLoginErrorMessage(for error: Error) -> String {
+        let nsError = error as NSError
+
+        if nsError.domain == AuthErrorDomain,
+           let code = AuthErrorCode(rawValue: nsError.code) {
+            switch code {
+            case .wrongPassword, .userNotFound, .invalidCredential, .invalidEmail:
+                return "Incorrect email or password".localized
+            case .tooManyRequests:
+                return "Too many login attempts. Please try again later.".localized
+            case .userDisabled:
+                return "Your account has been disabled. Contact support.".localized
+            case .networkError:
+                return "Please check your internet connection and try again.".localized
+            default:
+                break
+            }
+        }
+
+        return "Login failed. Please try again.".localized
     }
 
     private func showAlert(message: String) {

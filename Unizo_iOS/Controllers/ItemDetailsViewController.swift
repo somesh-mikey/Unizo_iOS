@@ -31,6 +31,7 @@ class ItemDetailsViewController: UIViewController {
 
     // MARK: - Repository
     private let productRepository = ProductRepository()
+    private let orderRepository = OrderRepository()
 
     // MARK: - Image Gallery
     private var galleryImages: [String] = []
@@ -75,6 +76,8 @@ class ItemDetailsViewController: UIViewController {
     private let wishlistRepo = WishlistRepository()
     private var isWishlisted = false
     private var wishlistStateVersion = 0
+    private var keyboardBottomInset: CGFloat = 0
+    private var isKeyboardObserving = false
 
     private let descriptionHeaderLabel: UILabel = {
         let l = UILabel()
@@ -86,24 +89,6 @@ class ItemDetailsViewController: UIViewController {
     }()
 
     private let descriptionBodyLabel: UILabel = {
-        let l = UILabel()
-        l.font = UIFont.preferredFont(forTextStyle: .body)
-        l.adjustsFontForContentSizeCategory = true
-        l.textColor = .label
-        l.numberOfLines = 0
-        return l
-    }()
-
-    private let featuresHeaderLabel: UILabel = {
-        let l = UILabel()
-        l.text = "Features".localized
-        l.font = UIFont.preferredFont(forTextStyle: .headline)
-        l.adjustsFontForContentSizeCategory = true
-        l.textColor = .secondaryLabel
-        return l
-    }()
-
-    private let featuresBodyLabel: UILabel = {
         let l = UILabel()
         l.font = UIFont.preferredFont(forTextStyle: .body)
         l.adjustsFontForContentSizeCategory = true
@@ -247,6 +232,7 @@ class ItemDetailsViewController: UIViewController {
         super.viewDidLoad()
         descriptionTextView?.isHidden = true
         featuresTextView?.isHidden = true
+        setupKeyboardHandling()
         setupNavigationBar()
         setupUIForIBOutlets()   // ensure IBOutlets are styled
         setupProgrammaticUI()   // add programmatic labels & layout
@@ -389,12 +375,89 @@ class ItemDetailsViewController: UIViewController {
         super.viewWillAppear(animated)
         tabBarController?.tabBar.isHidden = true
         navigationController?.setNavigationBarHidden(false, animated: false)
+        registerKeyboardObserversIfNeeded()
         syncWishlistState()
     }
 
     override func viewWillDisappear(_ animated: Bool) {
         super.viewWillDisappear(animated)
         tabBarController?.tabBar.isHidden = false
+        unregisterKeyboardObserversIfNeeded()
+        dismissKeyboard()
+    }
+
+    // MARK: - Keyboard Handling
+    private func setupKeyboardHandling() {
+        scrollView.keyboardDismissMode = .interactive
+
+        let dismissTap = UITapGestureRecognizer(target: self, action: #selector(dismissKeyboard))
+        dismissTap.cancelsTouchesInView = false
+        scrollView.addGestureRecognizer(dismissTap)
+    }
+
+    private func registerKeyboardObserversIfNeeded() {
+        guard !isKeyboardObserving else { return }
+        isKeyboardObserving = true
+
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(handleKeyboardWillShow(_:)),
+            name: UIResponder.keyboardWillShowNotification,
+            object: nil
+        )
+
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(handleKeyboardWillHide(_:)),
+            name: UIResponder.keyboardWillHideNotification,
+            object: nil
+        )
+    }
+
+    private func unregisterKeyboardObserversIfNeeded() {
+        guard isKeyboardObserving else { return }
+        isKeyboardObserving = false
+
+        NotificationCenter.default.removeObserver(self, name: UIResponder.keyboardWillShowNotification, object: nil)
+        NotificationCenter.default.removeObserver(self, name: UIResponder.keyboardWillHideNotification, object: nil)
+    }
+
+    @objc private func dismissKeyboard() {
+        view.endEditing(true)
+    }
+
+    @objc private func handleKeyboardWillShow(_ notification: Notification) {
+        guard let keyboardFrameValue = notification.userInfo?[UIResponder.keyboardFrameEndUserInfoKey] as? NSValue else {
+            return
+        }
+
+        let keyboardFrameInView = view.convert(keyboardFrameValue.cgRectValue, from: nil)
+        let overlap = max(0, view.bounds.maxY - keyboardFrameInView.minY)
+        let inset = max(0, overlap - view.safeAreaInsets.bottom)
+        keyboardBottomInset = inset
+        applyKeyboardInset(notification: notification)
+
+        if let firstResponder = view.currentFirstResponder {
+            let responderRect = firstResponder.convert(firstResponder.bounds, to: scrollView)
+            scrollView.scrollRectToVisible(responderRect.insetBy(dx: 0, dy: -20), animated: true)
+        }
+    }
+
+    @objc private func handleKeyboardWillHide(_ notification: Notification) {
+        keyboardBottomInset = 0
+        applyKeyboardInset(notification: notification)
+    }
+
+    private func applyKeyboardInset(notification: Notification) {
+        let duration = (notification.userInfo?[UIResponder.keyboardAnimationDurationUserInfoKey] as? NSNumber)?.doubleValue ?? 0.25
+        let curveRawValue = (notification.userInfo?[UIResponder.keyboardAnimationCurveUserInfoKey] as? NSNumber)?.uintValue
+            ?? UInt(UIView.AnimationCurve.easeInOut.rawValue)
+        let animationOptions = UIView.AnimationOptions(rawValue: curveRawValue << 16)
+
+        UIView.animate(withDuration: duration, delay: 0, options: [animationOptions, .beginFromCurrentState]) {
+            self.scrollView.contentInset.bottom = self.keyboardBottomInset
+            self.scrollView.scrollIndicatorInsets.bottom = self.keyboardBottomInset
+        }
     }
 
 
@@ -442,6 +505,35 @@ class ItemDetailsViewController: UIViewController {
         }
 
         // Seller rating (SF Symbol star + brand color)
+        updateSellerRatingLabel(p.rating)
+
+        if let sellerId = p.sellerId, !sellerId.isEmpty {
+            fetchAndDisplaySellerRating(for: sellerId, fallback: p.rating)
+        }
+
+        syncWishlistState()
+    }
+
+    private func fetchAndDisplaySellerRating(for sellerId: String, fallback: Double) {
+        Task {
+            do {
+                let summary = try await orderRepository.fetchUserRatingSummary(userId: sellerId)
+                let average = (summary.total_ratings ?? 0) > 0 ? (summary.average_rating ?? fallback) : fallback
+
+                await MainActor.run {
+                    guard self.product?.sellerId == sellerId else { return }
+                    self.updateSellerRatingLabel(average)
+                }
+            } catch {
+                await MainActor.run {
+                    guard self.product?.sellerId == sellerId else { return }
+                    self.updateSellerRatingLabel(fallback)
+                }
+            }
+        }
+    }
+
+    private func updateSellerRatingLabel(_ rating: Double) {
         let ratingText = NSMutableAttributedString()
         let starImage = UIImage(systemName: "star.fill")?
             .withTintColor(.brandPrimary, renderingMode: .alwaysOriginal)
@@ -449,10 +541,8 @@ class ItemDetailsViewController: UIViewController {
         starAttachment.image = starImage
         starAttachment.bounds = CGRect(x: 0, y: -2, width: 14, height: 14)
         ratingText.append(NSAttributedString(attachment: starAttachment))
-        ratingText.append(NSAttributedString(string: " \(String(format: "%.1f", p.rating))"))
+        ratingText.append(NSAttributedString(string: " \(String(format: "%.1f", rating))"))
         sellerRatingLabel.attributedText = ratingText
-
-        syncWishlistState()
     }
 
     private func syncWishlistState() {
@@ -535,7 +625,7 @@ class ItemDetailsViewController: UIViewController {
 
         // Add programmatic elements to contentView.
         // NOTE: We intentionally do NOT add descriptionTextView / featuresTextView here because
-        // we now use descriptionBodyLabel and featuresBodyLabel.
+        // we now use descriptionBodyLabel.
         // Rating moved to seller card, so not included here
         let programmaticViews: [UIView] = [
             imageCarouselCollectionView,
@@ -545,8 +635,6 @@ class ItemDetailsViewController: UIViewController {
             priceLabel,
             descriptionHeaderLabel,
             descriptionBodyLabel,
-            featuresHeaderLabel,
-            featuresBodyLabel,
             colourTitleLabel, colourValueLabel,
             sizeTitleLabel, sizeValueLabel,
             conditionTitleLabel, conditionValueLabel,
@@ -626,19 +714,9 @@ class ItemDetailsViewController: UIViewController {
             descriptionBodyLabel.trailingAnchor.constraint(equalTo: contentView.trailingAnchor),
         ])
 
-        // Features section
-        NSLayoutConstraint.activate([
-            featuresHeaderLabel.topAnchor.constraint(equalTo: descriptionBodyLabel.bottomAnchor, constant: 18),
-            featuresHeaderLabel.leadingAnchor.constraint(equalTo: contentView.leadingAnchor),
-
-            featuresBodyLabel.topAnchor.constraint(equalTo: featuresHeaderLabel.bottomAnchor, constant: 8),
-            featuresBodyLabel.leadingAnchor.constraint(equalTo: contentView.leadingAnchor),
-            featuresBodyLabel.trailingAnchor.constraint(equalTo: contentView.trailingAnchor),
-        ])
-
         // Colour / Size / Condition rows (stacked vertically)
         NSLayoutConstraint.activate([
-            colourTitleLabel.topAnchor.constraint(equalTo: featuresBodyLabel.bottomAnchor, constant: 18),
+            colourTitleLabel.topAnchor.constraint(equalTo: descriptionBodyLabel.bottomAnchor, constant: 18),
             colourTitleLabel.leadingAnchor.constraint(equalTo: contentView.leadingAnchor),
 
             colourValueLabel.topAnchor.constraint(equalTo: colourTitleLabel.bottomAnchor, constant: 6),
@@ -701,7 +779,6 @@ class ItemDetailsViewController: UIViewController {
 
         // make sure contentCompressionResistance so labels wrap correctly
         descriptionBodyLabel.setContentCompressionResistancePriority(.required, for: .vertical)
-        featuresBodyLabel.setContentCompressionResistancePriority(.required, for: .vertical)
     }
 
     // MARK: - Navigation bar setup
@@ -736,6 +813,13 @@ class ItemDetailsViewController: UIViewController {
 
     // MARK: - Report & Block (App Store Requirement)
     @objc private func showMoreOptions() {
+        if showGuestGateIfNeeded() {
+            print("🚫 [Moderation] showMoreOptions blocked for guest user")
+            return
+        }
+
+        print("🛡️ [Moderation] Opened more-options menu for productId=\(product.id ?? "unknown")")
+
         Task { @MainActor in
             var activeOrderId: String? = nil
             do {
@@ -770,9 +854,9 @@ class ItemDetailsViewController: UIViewController {
             ))
         }
 
-        // Report Listing action
+        // Report Seller action
         actionSheet.addAction(UIAlertAction(
-            title: "Report Listing".localized,
+            title: "Report Seller".localized,
             style: .destructive,
             handler: { [weak self] _ in
                 self?.showReportOptions()
@@ -803,8 +887,13 @@ class ItemDetailsViewController: UIViewController {
     }
 
     private func showReportOptions() {
+        if showGuestGateIfNeeded() {
+            print("🚫 [Moderation] showReportOptions blocked for guest user")
+            return
+        }
+
         let reportSheet = UIAlertController(
-            title: "Report Listing".localized,
+            title: "Report Seller".localized,
             message: "Why are you reporting this listing?".localized,
             preferredStyle: .actionSheet
         )
@@ -823,6 +912,7 @@ class ItemDetailsViewController: UIViewController {
                 title: reason,
                 style: .default,
                 handler: { [weak self] _ in
+                    print("🛡️ [Moderation] Selected report reason='\(reason)'")
                     self?.submitReport(reason: reason)
                 }
             ))
@@ -840,18 +930,19 @@ class ItemDetailsViewController: UIViewController {
 
     private func submitReport(reason: String) {
         guard let product = product,
-              let productId = product.id else { return }
+              let productId = product.id else {
+            print("❌ [Moderation] submitReport aborted: missing product/productId")
+            return
+        }
 
-        // TODO: Persist report through repository once reports are centralized.
-        // For now, show confirmation
         Task {
             do {
                 guard let userId = await AuthManager.shared.currentUserId else {
+                    print("❌ [Moderation] submitReport aborted: no authenticated user")
                     showAlert(title: "Error".localized, message: "Please log in to report listings".localized)
                     return
                 }
 
-                // Create report in Firestore
                 let reportDTO = ReportInsertDTO(
                     reporter_id: userId,
                     product_id: productId,
@@ -859,6 +950,8 @@ class ItemDetailsViewController: UIViewController {
                     reason: reason,
                     status: "pending"
                 )
+
+                print("🛡️ [Moderation] submitReport started reporterId=\(userId), productId=\(productId), sellerId=\(reportDTO.seller_id), reason='\(reason)'")
 
                 try await Firestore.firestore().collection("reports").addDocument(data: [
                     "reporter_id": reportDTO.reporter_id,
@@ -869,6 +962,15 @@ class ItemDetailsViewController: UIViewController {
                     "created_at": ISO8601DateFormatter().string(from: Date())
                 ])
 
+                try await Firestore.firestore().collection("products").document(productId).setData([
+                    "is_reported": true,
+                    "last_reported_at": ISO8601DateFormatter().string(from: Date()),
+                    "last_report_reason": reason,
+                    "report_count": FieldValue.increment(Int64(1))
+                ], merge: true)
+
+                print("✅ [Moderation] submitReport success reporterId=\(userId), productId=\(productId)")
+
                 await MainActor.run {
                     self.showAlert(
                         title: "Report Submitted".localized,
@@ -876,11 +978,11 @@ class ItemDetailsViewController: UIViewController {
                     )
                 }
             } catch {
-                print("❌ Failed to submit report: \(error)")
+                print("❌ [Moderation] submitReport failed productId=\(productId), error=\(error)")
                 await MainActor.run {
                     self.showAlert(
-                        title: "Report Submitted".localized,
-                        message: "Thank you for helping keep Unizo safe. Our team will review this listing.".localized
+                        title: "Report Failed".localized,
+                        message: "We couldn't submit your report right now. Please try again.".localized
                     )
                 }
             }
@@ -888,11 +990,28 @@ class ItemDetailsViewController: UIViewController {
     }
 
     private func blockSeller() {
+        if showGuestGateIfNeeded() {
+            print("🚫 [Moderation] blockSeller blocked for guest user")
+            return
+        }
+
         guard let product = product,
               let sellerId = product.sellerId else {
+            print("❌ [Moderation] blockSeller aborted: missing sellerId")
             showAlert(title: "Error".localized, message: "Unable to block this seller".localized)
             return
         }
+
+        if BlockedUsersStore.isBlocked(sellerId) {
+            print("ℹ️ [Moderation] blockSeller skipped: seller already blocked sellerId=\(sellerId)")
+            showAlert(
+                title: "Seller Blocked".localized,
+                message: String(format: "You won't see listings from %@ anymore.".localized, product.sellerName)
+            )
+            return
+        }
+
+        print("🛡️ [Moderation] blockSeller confirmation opened sellerId=\(sellerId), sellerName=\(product.sellerName)")
 
         let confirmAlert = UIAlertController(
             title: "Block Seller".localized,
@@ -912,9 +1031,12 @@ class ItemDetailsViewController: UIViewController {
         Task {
             do {
                 guard let userId = await AuthManager.shared.currentUserId else {
+                    print("❌ [Moderation] performBlockSeller aborted: no authenticated user")
                     showAlert(title: "Error".localized, message: "Please log in to block sellers".localized)
                     return
                 }
+
+                print("🛡️ [Moderation] performBlockSeller started userId=\(userId), sellerId=\(sellerId)")
 
                 // Add to blocked_users collection in Firestore
                 let blockDTO = BlockedUserInsertDTO(
@@ -928,7 +1050,19 @@ class ItemDetailsViewController: UIViewController {
                     "created_at": ISO8601DateFormatter().string(from: Date())
                 ])
 
+                print("✅ [Moderation] performBlockSeller backend write success userId=\(userId), sellerId=\(sellerId)")
+
                 BlockedUsersStore.add(sellerId)
+                print("✅ [Moderation] performBlockSeller local store updated sellerId=\(sellerId)")
+
+                await MainActor.run {
+                    NotificationCenter.default.post(
+                        name: .blockedUsersDidChange,
+                        object: nil,
+                        userInfo: ["blockedSellerId": sellerId]
+                    )
+                }
+                print("🔄 [Moderation] posted blockedUsersDidChange for sellerId=\(sellerId)")
 
                 await MainActor.run {
                     self.showAlert(
@@ -940,10 +1074,18 @@ class ItemDetailsViewController: UIViewController {
                     }
                 }
             } catch {
-                print("❌ Failed to block seller: \(error)")
+                print("❌ [Moderation] performBlockSeller backend write failed sellerId=\(sellerId), error=\(error)")
                 await MainActor.run {
-                    // Still show success for MVP (local blocking)
                     BlockedUsersStore.add(sellerId)
+                    print("✅ [Moderation] performBlockSeller local fallback applied sellerId=\(sellerId)")
+
+                    NotificationCenter.default.post(
+                        name: .blockedUsersDidChange,
+                        object: nil,
+                        userInfo: ["blockedSellerId": sellerId]
+                    )
+                    print("🔄 [Moderation] posted blockedUsersDidChange for sellerId=\(sellerId) via local fallback")
+
                     self.showAlert(
                         title: "Seller Blocked".localized,
                         message: String(format: "You won't see listings from %@ anymore.".localized, sellerName)
@@ -1328,6 +1470,22 @@ private class ImageCarouselCell: UICollectionViewCell {
         super.prepareForReuse()
         imageView.image = nil
         imageView.contentMode = .scaleAspectFit
+    }
+}
+
+private extension UIView {
+    var currentFirstResponder: UIView? {
+        if isFirstResponder {
+            return self
+        }
+
+        for subview in subviews {
+            if let responder = subview.currentFirstResponder {
+                return responder
+            }
+        }
+
+        return nil
     }
 }
 

@@ -12,6 +12,29 @@ final class ProductCell: UICollectionViewCell {
     // MARK: - Reuse
     static let reuseIdentifier = "ProductCell"
 
+    static func preferredHeight(for traitCollection: UITraitCollection) -> CGFloat {
+        let category = traitCollection.preferredContentSizeCategory
+
+        if category.isAccessibilityCategory {
+            return 320
+        }
+
+        switch category {
+        case .extraExtraExtraLarge:
+            return 290
+        case .extraExtraLarge:
+            return 282
+        case .extraLarge:
+            return 274
+        case .large:
+            return 260
+        case .medium, .small, .extraSmall:
+            return 252
+        default:
+            return 260
+        }
+    }
+
     // MARK: - UI Elements
     private let cardView = UIView()
     private let productImageView = UIImageView()

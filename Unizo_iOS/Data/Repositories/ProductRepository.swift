@@ -25,6 +25,7 @@ final class ProductRepository {
     /// In-memory cache populated on page 1. Used for cart suggestions and
     /// category reuse across screens without a round-trip.
     private(set) var cachedProducts: [ProductDTO] = []
+    private var sellerRatingCache: [String: Double] = [:]
     
     /// Pagination cursor
     private var lastDocument: DocumentSnapshot?
@@ -46,6 +47,23 @@ final class ProductRepository {
         guard NetworkMonitor.shared.isReachable() else {
             throw NetworkError.noConnection
         }
+    }
+
+    private func filterBlockedSellers(_ products: [ProductDTO], context: String) -> [ProductDTO] {
+        let blockedUsers = BlockedUsersStore.all()
+        guard !blockedUsers.isEmpty else { return products }
+
+        let filteredProducts = products.filter { product in
+            guard let sellerId = product.seller_id else { return true }
+            return !blockedUsers.contains(sellerId)
+        }
+
+        let removedCount = products.count - filteredProducts.count
+        if removedCount > 0 {
+            print("🚫 [Moderation] \(context): filtered \(removedCount) blocked-seller products")
+        }
+
+        return filteredProducts
     }
 
     private func decodeProduct(from document: DocumentSnapshot) -> ProductDTO? {
@@ -93,6 +111,61 @@ final class ProductRepository {
                 products[index].seller = ProductSellerDTO(id: user.id, first_name: user.first_name, last_name: user.last_name, email: user.email)
             }
         }
+    }
+
+    private func attachSellerAverageRatings(to products: inout [ProductDTO]) async {
+        let sellerIds = Set(products.compactMap { $0.seller_id })
+        guard !sellerIds.isEmpty else { return }
+
+        var ratingSums: [String: Double] = [:]
+        var ratingCounts: [String: Int] = [:]
+
+        do {
+            for chunk in Array(sellerIds).chunked(into: 10) {
+                let snapshot = try await db.collection("order_ratings")
+                    .whereField("rated_user_id", in: chunk)
+                    .getDocuments()
+
+                for doc in snapshot.documents {
+                    guard let ratedUserId = doc.data()["rated_user_id"] as? String else { continue }
+
+                    let value: Double?
+                    if let d = doc.data()["rating"] as? Double {
+                        value = d
+                    } else if let i = doc.data()["rating"] as? Int {
+                        value = Double(i)
+                    } else {
+                        value = nil
+                    }
+
+                    guard let ratingValue = value else { continue }
+                    ratingSums[ratedUserId, default: 0] += ratingValue
+                    ratingCounts[ratedUserId, default: 0] += 1
+                }
+            }
+
+            for sellerId in sellerIds {
+                if let sum = ratingSums[sellerId], let count = ratingCounts[sellerId], count > 0 {
+                    sellerRatingCache[sellerId] = sum / Double(count)
+                }
+            }
+        } catch {
+            print("⚠️ Failed to fetch seller average ratings: \(error)")
+        }
+
+        for index in products.indices {
+            guard let sellerId = products[index].seller_id,
+                  let average = sellerRatingCache[sellerId] else {
+                continue
+            }
+            products[index].rating = average
+        }
+    }
+
+    func applySellerAverageRatings(to products: [ProductDTO]) async -> [ProductDTO] {
+        var enrichedProducts = products
+        await attachSellerAverageRatings(to: &enrichedProducts)
+        return enrichedProducts
     }
 
     // MARK: - Fetch All (Paginated)
@@ -148,14 +221,7 @@ final class ProductRepository {
             products = products.filter { $0.seller_id != userId }
         }
 
-        // Apply local blocked-user filter
-        let blockedUsers = BlockedUsersStore.all()
-        if !blockedUsers.isEmpty {
-            products = products.filter { product in
-                guard let seller_id = product.seller_id else { return true }
-                return !blockedUsers.contains(seller_id)
-            }
-        }
+        products = filterBlockedSellers(products, context: "fetchAllProducts(page:\(page))")
 
         // Filter out locally-deleted product IDs
         let deletedIds = DeletedListingsStore.all()
@@ -168,6 +234,7 @@ final class ProductRepository {
 
         products = Array(products.prefix(pageSize))
         try await attachSellers(to: &products)
+        await attachSellerAverageRatings(to: &products)
 
         print("📥 Firestore returned:", products.count)
 
@@ -208,6 +275,7 @@ final class ProductRepository {
 
         products = products.filter { ($0.is_active ?? true) && ($0.quantity ?? 1) > 0 && $0.status != .sold }
         if let userId = currentUserId { products = products.filter { $0.seller_id != userId } }
+        products = filterBlockedSellers(products, context: "fetchPopularProducts")
 
         products.sort { ($0.viewsCount ?? 0) > ($1.viewsCount ?? 0) }
 
@@ -218,6 +286,7 @@ final class ProductRepository {
 
         products = Array(products.prefix(pageSize))
         try await attachSellers(to: &products)
+        await attachSellerAverageRatings(to: &products)
         return products
     }
 
@@ -254,9 +323,11 @@ final class ProductRepository {
             $0.status != .sold
         }
         if let userId = currentUserId { products = products.filter { $0.seller_id != userId } }
+        products = filterBlockedSellers(products, context: "fetchNegotiableProducts")
 
         products = Array(products.prefix(pageSize))
         try await attachSellers(to: &products)
+        await attachSellerAverageRatings(to: &products)
         return products
     }
 
@@ -293,9 +364,11 @@ final class ProductRepository {
             $0.status != .sold
         }
         if let userId = currentUserId { products = products.filter { $0.seller_id != userId } }
+        products = filterBlockedSellers(products, context: "fetchProductsByCategory(\(category))")
 
         products = Array(products.prefix(pageSize))
         try await attachSellers(to: &products)
+        await attachSellerAverageRatings(to: &products)
         return products
     }
 
@@ -374,6 +447,7 @@ final class ProductRepository {
         }
 
         if let userId = currentUserId { products = products.filter { $0.seller_id != userId } }
+        products = filterBlockedSellers(products, context: "searchProducts(keyword:\(trimmed))")
 
         let deletedIds = DeletedListingsStore.all()
         if !deletedIds.isEmpty {
@@ -382,6 +456,7 @@ final class ProductRepository {
 
         products = Array(products.prefix(pageSize))
         try await attachSellers(to: &products)
+        await attachSellerAverageRatings(to: &products)
         return products
     }
 
@@ -453,18 +528,32 @@ final class ProductRepository {
         guard snapshot.exists, var product = decodeProduct(from: snapshot) else {
             return nil
         }
+
+        if let sellerId = product.seller_id, BlockedUsersStore.isBlocked(sellerId) {
+            print("🚫 [Moderation] fetchProduct(id:\(id)) blocked seller \(sellerId)")
+            return nil
+        }
         
         // Populate seller
         if let seller_id = product.seller_id {
             let sellerDoc = try await db.collection("users").document(seller_id).getDocument()
             if let u = try? sellerDoc.data(as: UserDTO.self) { product.seller = ProductSellerDTO(id: u.id, first_name: u.first_name, last_name: u.last_name, email: u.email) }
         }
+
+        var wrapped = [product]
+        await attachSellerAverageRatings(to: &wrapped)
+        product = wrapped[0]
         
         return product
     }
 
     /// Returns all listings for `seller_id`, including the seller's own.
     func fetchSellerProducts(seller_id: String) async throws -> [ProductDTO] {
+        if BlockedUsersStore.isBlocked(seller_id) {
+            print("🚫 [Moderation] fetchSellerProducts(seller_id:) blocked seller \(seller_id)")
+            return []
+        }
+
         let indexedQuery = db.collection("products")
             .whereField("seller_id", isEqualTo: seller_id)
             .whereField("is_active", isEqualTo: true)
@@ -489,6 +578,7 @@ final class ProductRepository {
 
         var products = decodeProducts(from: documents)
         try await attachSellers(to: &products) // Overkill since it's the same seller, but conforms
+        await attachSellerAverageRatings(to: &products)
         return products
     }
 

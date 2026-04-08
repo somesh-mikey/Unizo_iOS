@@ -40,11 +40,31 @@ class LandingScreenViewController: UIViewController {
         sb.searchBarStyle = .minimal
         return sb
     }()
+    private let recentSearchesContainer = UIView()
+    private let recentSearchesTableView = UITableView(frame: .zero, style: .plain)
+    private let recentSearchesTitleLabel: UILabel = {
+        let label = UILabel()
+        label.text = "Recent Searches".localized
+        label.font = UIFont.systemFont(ofSize: 15, weight: .semibold)
+        label.textColor = .label
+        label.translatesAutoresizingMaskIntoConstraints = false
+        return label
+    }()
+    private let clearRecentSearchesButton: UIButton = {
+        let button = UIButton(type: .system)
+        button.setTitle("Clear".localized, for: .normal)
+        button.titleLabel?.font = UIFont.systemFont(ofSize: 14, weight: .semibold)
+        button.translatesAutoresizingMaskIntoConstraints = false
+        return button
+    }()
+    private var recentSearches: [String] = []
+    private var recentSearchesHeightConstraint: NSLayoutConstraint?
     private let trendingLabel = UILabel()
     private let categoryStackView = UIStackView()
 
     private let mainScrollView = UIScrollView()
     private let contentView = UIView()
+    private let lowerBackgroundView = UIView()
 
     private let carouselScrollView = UIScrollView()
     private let pageControl = UIPageControl()
@@ -276,6 +296,7 @@ class LandingScreenViewController: UIViewController {
         setupViews()
         setupCarousel()
         setupCollectionView()
+        loadRecentSearches()
 
         navigationController?.setNavigationBarHidden(true, animated: false)
         searchBar.delegate = self
@@ -305,15 +326,14 @@ class LandingScreenViewController: UIViewController {
             object: nil
         )
 
-        // RULE 4A — Proactive offline check BEFORE launching any async Tasks.
-        // If offline, show full-screen overlay immediately. Do NOT start loader.
-        if !NetworkMonitor.shared.isReachable() {
-            showOfflineOverlay()
-            return
-        }
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(handleBlockedUsersDidChange(_:)),
+            name: .blockedUsersDidChange,
+            object: nil
+        )
 
-        // Online — start loading data
-        startDataLoad()
+        beginInitialLoadWithConnectivityGuard()
     }
     override func viewWillAppear(_ animated: Bool) {
         super.viewWillAppear(animated)
@@ -334,6 +354,26 @@ class LandingScreenViewController: UIViewController {
     }
 
     // MARK: - Data Loading (extracted for retry)
+
+    private func beginInitialLoadWithConnectivityGuard() {
+        // If monitor currently says offline, wait briefly before deciding.
+        // This avoids launch-time false negatives while NWPath settles.
+        if NetworkMonitor.shared.hasDeterminedInitialStatus && !NetworkMonitor.shared.isReachable() {
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.6) { [weak self] in
+                guard let self = self else { return }
+
+                if NetworkMonitor.shared.hasDeterminedInitialStatus && !NetworkMonitor.shared.isReachable() {
+                    self.showOfflineOverlay()
+                } else {
+                    self.startDataLoad()
+                }
+            }
+            return
+        }
+
+        // Online (or monitor still resolving) — start loading data.
+        startDataLoad()
+    }
 
     /// Starts the loader and fires product + banner Tasks.
     /// Call this from viewDidLoad (online path) or from retry.
@@ -411,7 +451,7 @@ class LandingScreenViewController: UIViewController {
             navBarView.trailingAnchor.constraint(equalTo: topContainer.trailingAnchor),
             navBarView.bottomAnchor.constraint(equalTo: topContainer.bottomAnchor) // fill entire top container
         ])
-        
+
         // --- Menu Button (Apple HIG: Use plain buttons, not toolbars, for navigation areas) ---
         navBarView.addSubview(menuButton)
         configureMenuButton()
@@ -438,7 +478,7 @@ class LandingScreenViewController: UIViewController {
             homeLabel.leadingAnchor.constraint(equalTo: navBarView.leadingAnchor, constant: 20),
             homeLabel.centerYAnchor.constraint(equalTo: menuButton.centerYAnchor)
         ])
-
+        
         // --- Search Bar ---
         //topContainer.addSubview(searchBar)
         navBarView.addSubview(searchBar)
@@ -451,17 +491,18 @@ class LandingScreenViewController: UIViewController {
             searchBar.trailingAnchor.constraint(equalTo: navBarView.trailingAnchor, constant: -20),
             searchBar.heightAnchor.constraint(equalToConstant: 44)
         ])
+
+        setupRecentSearchesPanel()
         
-        // --- White background below trending categories (covers tab bar area) ---
-        let whiteBackground = UIView()
-        whiteBackground.backgroundColor = .white
-        whiteBackground.translatesAutoresizingMaskIntoConstraints = false
-        view.addSubview(whiteBackground)
+        // --- White background below trending categories (covers bottom overscroll area) ---
+        lowerBackgroundView.backgroundColor = .white
+        lowerBackgroundView.translatesAutoresizingMaskIntoConstraints = false
+        view.addSubview(lowerBackgroundView)
         NSLayoutConstraint.activate([
-            whiteBackground.topAnchor.constraint(equalTo: searchBar.bottomAnchor, constant: 150), // below trending categories
-            whiteBackground.leadingAnchor.constraint(equalTo: view.leadingAnchor),
-            whiteBackground.trailingAnchor.constraint(equalTo: view.trailingAnchor),
-            whiteBackground.bottomAnchor.constraint(equalTo: view.bottomAnchor)
+            lowerBackgroundView.topAnchor.constraint(equalTo: searchBar.bottomAnchor, constant: 150), // below trending categories
+            lowerBackgroundView.leadingAnchor.constraint(equalTo: view.leadingAnchor),
+            lowerBackgroundView.trailingAnchor.constraint(equalTo: view.trailingAnchor),
+            lowerBackgroundView.bottomAnchor.constraint(equalTo: view.bottomAnchor)
         ])
 
         // --- Main Scroll Section ---
@@ -483,7 +524,8 @@ class LandingScreenViewController: UIViewController {
             contentView.leadingAnchor.constraint(equalTo: mainScrollView.leadingAnchor),
             contentView.trailingAnchor.constraint(equalTo: mainScrollView.trailingAnchor),
             contentView.bottomAnchor.constraint(equalTo: mainScrollView.bottomAnchor),
-            contentView.widthAnchor.constraint(equalTo: mainScrollView.widthAnchor)
+            contentView.widthAnchor.constraint(equalTo: mainScrollView.widthAnchor),
+            contentView.heightAnchor.constraint(greaterThanOrEqualTo: mainScrollView.frameLayoutGuide.heightAnchor)
         ])
 
         // --- Add teal background strip behind trending categories for rounded corner effect ---
@@ -663,7 +705,7 @@ class LandingScreenViewController: UIViewController {
             collectionView.topAnchor.constraint(equalTo: segmentedControl.bottomAnchor, constant: 10),
             collectionView.leadingAnchor.constraint(equalTo: contentView.leadingAnchor, constant: 10),
             collectionView.trailingAnchor.constraint(equalTo: contentView.trailingAnchor, constant: -10),
-            collectionView.bottomAnchor.constraint(equalTo: contentView.bottomAnchor, constant: -20)
+            collectionView.bottomAnchor.constraint(equalTo: contentView.bottomAnchor)
         ])
         refreshControl.addTarget(
             self,
@@ -672,6 +714,110 @@ class LandingScreenViewController: UIViewController {
         )
 
         mainScrollView.refreshControl = refreshControl
+    }
+
+    private func setupRecentSearchesPanel() {
+        recentSearchesContainer.translatesAutoresizingMaskIntoConstraints = false
+        recentSearchesContainer.backgroundColor = .white
+        recentSearchesContainer.layer.cornerRadius = 14
+        recentSearchesContainer.layer.masksToBounds = false
+        recentSearchesContainer.layer.shadowColor = UIColor.black.cgColor
+        recentSearchesContainer.layer.shadowOpacity = 0.08
+        recentSearchesContainer.layer.shadowRadius = 10
+        recentSearchesContainer.layer.shadowOffset = CGSize(width: 0, height: 4)
+        recentSearchesContainer.isHidden = true
+        view.addSubview(recentSearchesContainer)
+
+        NSLayoutConstraint.activate([
+            recentSearchesContainer.topAnchor.constraint(equalTo: searchBar.bottomAnchor, constant: 8),
+            recentSearchesContainer.leadingAnchor.constraint(equalTo: navBarView.leadingAnchor, constant: 20),
+            recentSearchesContainer.trailingAnchor.constraint(equalTo: navBarView.trailingAnchor, constant: -20)
+        ])
+
+        recentSearchesHeightConstraint = recentSearchesContainer.heightAnchor.constraint(equalToConstant: 0)
+        recentSearchesHeightConstraint?.isActive = true
+
+        let header = UIView()
+        header.translatesAutoresizingMaskIntoConstraints = false
+        header.backgroundColor = .white
+        recentSearchesContainer.addSubview(header)
+
+        header.addSubview(recentSearchesTitleLabel)
+        header.addSubview(clearRecentSearchesButton)
+        clearRecentSearchesButton.addTarget(self, action: #selector(clearRecentSearchesTapped), for: .touchUpInside)
+
+        recentSearchesTableView.translatesAutoresizingMaskIntoConstraints = false
+        recentSearchesTableView.dataSource = self
+        recentSearchesTableView.delegate = self
+        recentSearchesTableView.backgroundColor = .white
+        recentSearchesTableView.tableFooterView = UIView()
+        recentSearchesTableView.separatorInset = UIEdgeInsets(top: 0, left: 42, bottom: 0, right: 16)
+        recentSearchesTableView.showsVerticalScrollIndicator = false
+        recentSearchesTableView.register(UITableViewCell.self, forCellReuseIdentifier: "HomeRecentSearchCell")
+        recentSearchesContainer.addSubview(recentSearchesTableView)
+
+        NSLayoutConstraint.activate([
+            header.topAnchor.constraint(equalTo: recentSearchesContainer.topAnchor),
+            header.leadingAnchor.constraint(equalTo: recentSearchesContainer.leadingAnchor),
+            header.trailingAnchor.constraint(equalTo: recentSearchesContainer.trailingAnchor),
+            header.heightAnchor.constraint(equalToConstant: 40),
+
+            recentSearchesTitleLabel.leadingAnchor.constraint(equalTo: header.leadingAnchor, constant: 12),
+            recentSearchesTitleLabel.centerYAnchor.constraint(equalTo: header.centerYAnchor),
+
+            clearRecentSearchesButton.trailingAnchor.constraint(equalTo: header.trailingAnchor, constant: -12),
+            clearRecentSearchesButton.centerYAnchor.constraint(equalTo: header.centerYAnchor),
+
+            recentSearchesTableView.topAnchor.constraint(equalTo: header.bottomAnchor),
+            recentSearchesTableView.leadingAnchor.constraint(equalTo: recentSearchesContainer.leadingAnchor),
+            recentSearchesTableView.trailingAnchor.constraint(equalTo: recentSearchesContainer.trailingAnchor),
+            recentSearchesTableView.bottomAnchor.constraint(equalTo: recentSearchesContainer.bottomAnchor)
+        ])
+
+        view.bringSubviewToFront(recentSearchesContainer)
+    }
+
+    private func loadRecentSearches() {
+        recentSearches = SearchHistoryStore.all()
+        recentSearchesTableView.reloadData()
+    }
+
+    private func updateRecentSearchesVisibility(for query: String) {
+        let trimmed = query.trimmingCharacters(in: .whitespacesAndNewlines)
+        let shouldShow = searchBar.isFirstResponder && trimmed.isEmpty && !recentSearches.isEmpty
+
+        recentSearchesContainer.isHidden = !shouldShow
+        recentSearchesHeightConstraint?.constant = shouldShow
+            ? min(40 + CGFloat(recentSearches.count) * 48, 300)
+            : 0
+
+        if shouldShow {
+            view.bringSubviewToFront(recentSearchesContainer)
+        }
+    }
+
+    @objc private func clearRecentSearchesTapped() {
+        SearchHistoryStore.clear()
+        loadRecentSearches()
+        updateRecentSearchesVisibility(for: searchBar.text ?? "")
+    }
+
+    private func saveRecentSearch(_ query: String) {
+        SearchHistoryStore.add(query)
+        loadRecentSearches()
+    }
+
+    private func openSearchResults(keyword: String, animated: Bool) {
+        let shouldAutoFocus = keyword.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+        let vc = SearchResultsViewController(keyword: keyword, shouldAutoFocus: shouldAutoFocus)
+
+        if let nav = navigationController {
+            nav.pushViewController(vc, animated: animated)
+        } else {
+            let nav = UINavigationController(rootViewController: vc)
+            nav.modalPresentationStyle = .fullScreen
+            present(nav, animated: animated)
+        }
     }
     
     /// Called when internet is restored — reloads home screen data.
@@ -704,6 +850,54 @@ class LandingScreenViewController: UIViewController {
             object: nil
         )
         perform(#selector(debouncedCollectionReload), with: nil, afterDelay: 0)
+    }
+
+    @objc private func handleBlockedUsersDidChange(_ notification: Notification) {
+        let blockedSellerId = notification.userInfo?["blockedSellerId"] as? String
+        let shouldRefreshData = notification.userInfo?["refreshData"] as? Bool ?? false
+        let blockedSellerSet = BlockedUsersStore.all()
+
+        let shouldRemove: (ProductUIModel) -> Bool = { product in
+            guard let sellerId = product.sellerId else { return false }
+            if let blockedSellerId {
+                return sellerId == blockedSellerId
+            }
+            return blockedSellerSet.contains(sellerId)
+        }
+
+        let beforeCount = allProducts.count + popularProducts.count + negotiableProducts.count
+
+        allProducts.removeAll(where: shouldRemove)
+        popularProducts.removeAll(where: shouldRemove)
+        negotiableProducts.removeAll(where: shouldRemove)
+
+        switch segmentedControl.selectedSegmentIndex {
+        case 0:
+            displayedProducts = allProducts
+        case 1:
+            displayedProducts = popularProducts
+        case 2:
+            displayedProducts = negotiableProducts
+        default:
+            displayedProducts = allProducts
+        }
+
+        let afterCount = allProducts.count + popularProducts.count + negotiableProducts.count
+        let removedCount = max(0, beforeCount - afterCount)
+
+        if removedCount > 0 {
+            print("🚫 [Moderation] Landing removed \(removedCount) blocked-seller products")
+            collectionView.reloadData()
+            updateCollectionHeight()
+            return
+        }
+
+        if shouldRefreshData {
+            print("🔄 [Moderation] Landing refreshing after unblock")
+            Task { [weak self] in
+                await self?.refreshProducts()
+            }
+        }
     }
 
     /// Single layout pass after all product arrays have been updated.
@@ -1168,7 +1362,14 @@ class LandingScreenViewController: UIViewController {
     private func updateCollectionHeight() {
         collectionView.layoutIfNeeded()
 
-        let height = collectionView.collectionViewLayout.collectionViewContentSize.height
+        let contentHeight = collectionView.collectionViewLayout.collectionViewContentSize.height
+        view.layoutIfNeeded()
+
+        let floatingBarCover = (tabBarController?.tabBar.frame.height ?? 70) + 30
+
+        let collectionTopInView = collectionView.convert(.zero, to: view).y
+        let minHeightToScreenBottom = max(0, view.bounds.height - collectionTopInView)
+        let height = max(contentHeight + floatingBarCover, minHeightToScreenBottom + floatingBarCover)
 
         collectionView.constraints
             .filter { $0.firstAttribute == .height }
@@ -1193,9 +1394,13 @@ extension LandingScreenViewController: UIScrollViewDelegate {
             return
         }
 
-        //  PAGINATION TRIGGER (main scroll view)
-        guard scrollView == mainScrollView,
-              hasMorePages,
+          guard scrollView == mainScrollView else { return }
+
+          // Keep top pull-down region fully blue; restore white lower background otherwise.
+          lowerBackgroundView.isHidden = scrollView.contentOffset.y < 0
+
+          //  PAGINATION TRIGGER (main scroll view)
+          guard hasMorePages,
               !isLoadingMore else { return }
 
         let offsetY = scrollView.contentOffset.y
@@ -1271,7 +1476,7 @@ extension LandingScreenViewController: UICollectionViewDataSource, UICollectionV
                             sizeForItemAt indexPath: IndexPath) -> CGSize {
             let availableWidth = collectionView.bounds.width - 30 // spacing and insets
             let width = floor(availableWidth / 2)
-            return CGSize(width: width, height: 260)
+            return CGSize(width: width, height: ProductCell.preferredHeight(for: traitCollection))
         }
 
         func collectionView(_ collectionView: UICollectionView,
@@ -1299,15 +1504,31 @@ extension LandingScreenViewController: UICollectionViewDataSource, UICollectionV
 extension LandingScreenViewController: UISearchBarDelegate {
 
     func searchBarTextDidBeginEditing(_ searchBar: UISearchBar) {
-        // Resign focus BEFORE pushing — prevents the delegate from
-        // re-firing when we pop back (which would create a push loop).
         searchBar.resignFirstResponder()
+        updateRecentSearchesVisibility(for: "")
+        openSearchResults(keyword: "", animated: false)
+    }
 
-        let vc = SearchResultsViewController(
-            keyword: searchBar.text ?? ""
-        )
+    func searchBar(_ searchBar: UISearchBar, textDidChange searchText: String) {
+        updateRecentSearchesVisibility(for: searchText)
+    }
 
-        navigationController?.pushViewController(vc, animated: false)
+    func searchBarSearchButtonClicked(_ searchBar: UISearchBar) {
+        let query = (searchBar.text ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !query.isEmpty else {
+            searchBar.resignFirstResponder()
+            updateRecentSearchesVisibility(for: "")
+            return
+        }
+
+        saveRecentSearch(query)
+        searchBar.resignFirstResponder()
+        updateRecentSearchesVisibility(for: query)
+        openSearchResults(keyword: query, animated: true)
+    }
+
+    func searchBarTextDidEndEditing(_ searchBar: UISearchBar) {
+        updateRecentSearchesVisibility(for: searchBar.text ?? "")
     }
 
     @objc private func openEventsPage() {
@@ -1341,6 +1562,41 @@ extension LandingScreenViewController: UISearchBarDelegate {
         pageControl.accessibilityLabel = "Banner page indicator".localized
     }
 }
+
+extension LandingScreenViewController: UITableViewDataSource, UITableViewDelegate {
+
+    func tableView(_ tableView: UITableView, numberOfRowsInSection section: Int) -> Int {
+        recentSearches.count
+    }
+
+    func tableView(_ tableView: UITableView, cellForRowAt indexPath: IndexPath) -> UITableViewCell {
+        let cell = tableView.dequeueReusableCell(withIdentifier: "HomeRecentSearchCell", for: indexPath)
+
+        var content = cell.defaultContentConfiguration()
+        content.text = recentSearches[indexPath.row]
+        content.textProperties.color = .label
+        content.image = UIImage(systemName: "clock")
+        content.imageProperties.tintColor = .secondaryLabel
+        content.imageToTextPadding = 10
+
+        cell.contentConfiguration = content
+        cell.backgroundColor = .white
+        cell.selectionStyle = .default
+        return cell
+    }
+
+    func tableView(_ tableView: UITableView, didSelectRowAt indexPath: IndexPath) {
+        tableView.deselectRow(at: indexPath, animated: true)
+
+        let term = recentSearches[indexPath.row]
+        searchBar.text = term
+        saveRecentSearch(term)
+        searchBar.resignFirstResponder()
+        updateRecentSearchesVisibility(for: term)
+        openSearchResults(keyword: term, animated: true)
+    }
+}
+
 final class ImageLoader {
     static let shared = ImageLoader()
     private let cache = NSCache<NSString, UIImage>()

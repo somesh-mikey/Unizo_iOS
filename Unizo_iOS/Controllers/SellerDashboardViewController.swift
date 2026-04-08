@@ -204,10 +204,12 @@ final class SellerDashboardViewController: UIViewController {
 
     // MARK: - Repository
     private let repository = SellerDashboardRepository()
+    private let orderRepository = OrderRepository()
 
     // MARK: - Data
     private var sellerOrders: [SellerOrder] = []
     private var statistics: SellerStatistics?
+    private var ratingSummary: OrderRepository.UserRatingSummary?
     private var userProfile: UserDTO?
 
     // MARK: - Loading
@@ -329,12 +331,14 @@ final class SellerDashboardViewController: UIViewController {
                 async let profileTask = repository.fetchSellerProfile()
                 async let ordersTask = repository.fetchSellerOrders()
                 async let statsTask = repository.fetchSellerStatistics()
+                async let ratingTask = fetchSellerRatingSummary()
 
-                let (profile, orders, stats) = try await (profileTask, ordersTask, statsTask)
+                let (profile, orders, stats, rating) = try await (profileTask, ordersTask, statsTask, ratingTask)
 
                 self.userProfile = profile
                 self.sellerOrders = orders
                 self.statistics = stats
+                self.ratingSummary = rating
 
                 await MainActor.run {
                     self.configureData()
@@ -352,6 +356,11 @@ final class SellerDashboardViewController: UIViewController {
                 }
             }
         }
+    }
+
+    private func fetchSellerRatingSummary() async throws -> OrderRepository.UserRatingSummary? {
+        guard let userId = await AuthManager.shared.currentUserId else { return nil }
+        return try await orderRepository.fetchUserRatingSummary(userId: userId)
     }
 
     private func showErrorState(message: String) {
@@ -401,26 +410,26 @@ final class SellerDashboardViewController: UIViewController {
 
         // Profile Container
         profileContainer.translatesAutoresizingMaskIntoConstraints = false
-        profileContainer.backgroundColor = UIColor(red: 0.10, green: 0.42, blue: 0.60, alpha: 1)
+        profileContainer.backgroundColor = .systemBackground
         contentView.addSubview(profileContainer)
 
         nameLabel.translatesAutoresizingMaskIntoConstraints = false
         nameLabel.font = .systemFont(ofSize: 28, weight: .bold)
-        nameLabel.textColor = .white
+        nameLabel.textColor = .label
 
         emailLabel.translatesAutoresizingMaskIntoConstraints = false
         emailLabel.font = .systemFont(ofSize: 14)
-        emailLabel.textColor = UIColor.white.withAlphaComponent(0.9)
+        emailLabel.textColor = .secondaryLabel
 
         salesProgressView.translatesAutoresizingMaskIntoConstraints = false
-        salesProgressView.progressTintColor = .systemGray6
-        salesProgressView.trackTintColor = UIColor.white.withAlphaComponent(0.3)
+        salesProgressView.progressTintColor = .systemYellow
+        salesProgressView.trackTintColor = .systemGray5
         salesProgressView.layer.cornerRadius = 6
         salesProgressView.clipsToBounds = true
 
         salesAmountLabel.translatesAutoresizingMaskIntoConstraints = false
         salesAmountLabel.font = .systemFont(ofSize: 14, weight: .semibold)
-        salesAmountLabel.textColor = .white
+        salesAmountLabel.textColor = .secondaryLabel
 
         [nameLabel, emailLabel, salesProgressView, salesAmountLabel].forEach { profileContainer.addSubview($0) }
 
@@ -539,12 +548,19 @@ final class SellerDashboardViewController: UIViewController {
             emailLabel.text = ""
         }
 
-        // Sales statistics
+        // Rating summary (replaces earnings display)
+        if let summary = ratingSummary, (summary.total_ratings ?? 0) > 0 {
+            let averageRating = max(0.0, min(summary.average_rating ?? 0.0, 5.0))
+            let totalRatings = summary.total_ratings ?? 0
+            salesAmountLabel.text = String(format: "%.1f★ from %d ratings".localized, averageRating, totalRatings)
+            salesProgressView.progress = Float(averageRating / 5.0)
+        } else {
+            salesAmountLabel.text = "No ratings yet".localized
+            salesProgressView.progress = 0
+        }
+
+        // Sales statistics for breakdown/orders
         if let stats = statistics {
-            let totalSales = stats.totalSales
-            let salesGoal = stats.salesGoal
-            salesAmountLabel.text = "₹\(String(format: "%.2f", totalSales)) / ₹\(String(format: "%.0f", salesGoal))"
-            salesProgressView.progress = Float(min(totalSales / salesGoal, 1.0))
 
             // Items sold in pie chart center
             itemsSoldLabel.text = "\(stats.itemsSold)"
@@ -565,8 +581,6 @@ final class SellerDashboardViewController: UIViewController {
             // Update legend
             updateLegend(with: stats.categoryBreakdown)
         } else {
-            salesAmountLabel.text = "₹0.00 / ₹5000.00"
-            salesProgressView.progress = 0
             itemsSoldLabel.text = "0"
             pieChartView.configure(segments: [(.systemGray4, 1)])
         }
