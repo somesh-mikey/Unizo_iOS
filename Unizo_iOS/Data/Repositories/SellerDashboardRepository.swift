@@ -88,6 +88,35 @@ final class SellerDashboardRepository {
         return product
     }
 
+    private func attachCurrentSeller(to products: inout [ProductDTO], sellerId: String, profile: UserDTO?) async {
+        guard !products.isEmpty else { return }
+
+        let sellerProfile: UserDTO?
+        if let profile {
+            sellerProfile = profile
+        } else {
+            do {
+                let sellerDoc = try await db.collection("users").document(sellerId).getDocument(source: .server)
+                sellerProfile = try sellerDoc.data(as: UserDTO.self)
+            } catch {
+                print("⚠️ SellerDashboardRepository.attachCurrentSeller failed to fetch user \(sellerId): \(error.localizedDescription)")
+                sellerProfile = nil
+            }
+        }
+
+        guard let sellerProfile else { return }
+        let sellerDTO = ProductSellerDTO(
+            id: sellerProfile.id ?? sellerId,
+            first_name: sellerProfile.first_name,
+            last_name: sellerProfile.last_name,
+            email: sellerProfile.email
+        )
+
+        for index in products.indices {
+            products[index].seller = sellerDTO
+        }
+    }
+
     // MARK: - Get Current User ID
     private func getCurrentUserId() async throws -> String {
         guard let userId = await AuthManager.shared.currentUserId else {
@@ -118,6 +147,7 @@ final class SellerDashboardRepository {
     func fetchSellerProducts() async throws -> [ProductDTO] {
         try requireNetwork()
         let userId = try await getCurrentUserId()
+        let sellerProfile = try await fetchSellerProfile()
 
         do {
             let indexedQuery = db.collection("products")
@@ -125,7 +155,8 @@ final class SellerDashboardRepository {
                 .order(by: "created_at", descending: true)
                 
             let snapshot = try await indexedQuery.getDocuments()
-            let results = snapshot.documents.compactMap { decodeProduct(from: $0) }
+            var results = snapshot.documents.compactMap { decodeProduct(from: $0) }
+            await attachCurrentSeller(to: &results, sellerId: userId, profile: sellerProfile)
             
             // If empty, fallback because order(by) silently drops documents missing the field
             if results.isEmpty {
@@ -143,7 +174,9 @@ final class SellerDashboardRepository {
                 createdAtDate(for: $0) > createdAtDate(for: $1)
             }
 
-            return sortedDocuments.compactMap { decodeProduct(from: $0) }
+            var results = sortedDocuments.compactMap { decodeProduct(from: $0) }
+            await attachCurrentSeller(to: &results, sellerId: userId, profile: sellerProfile)
+            return results
         }
     }
 
