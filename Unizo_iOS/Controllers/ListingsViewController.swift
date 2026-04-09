@@ -137,6 +137,7 @@ class ListingsViewController: UIViewController {
     private var filteredListings: [Listing] = []
     private var products: [ProductDTO] = []
     private var currentUserId: String?
+    private var keyboardBottomInset: CGFloat = 0
 
     private var currentSearchText: String = ""
     private var currentFilter: String = "All"
@@ -148,6 +149,7 @@ class ListingsViewController: UIViewController {
         setupCollectionView()
         setupSearchBar()
         setupFilterControl()
+        setupKeyboardHandling()
 
         // Observe .productSold — when a product is sold via order acceptance,
         // update the seller's listings to show "Sold" status badge (do NOT remove)
@@ -161,6 +163,58 @@ class ListingsViewController: UIViewController {
 
     deinit {
         NotificationCenter.default.removeObserver(self, name: .productSold, object: nil)
+        NotificationCenter.default.removeObserver(self, name: UIResponder.keyboardWillChangeFrameNotification, object: nil)
+        NotificationCenter.default.removeObserver(self, name: UIResponder.keyboardWillHideNotification, object: nil)
+    }
+
+    private func setupKeyboardHandling() {
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(handleKeyboardWillChangeFrame(_:)),
+            name: UIResponder.keyboardWillChangeFrameNotification,
+            object: nil
+        )
+
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(handleKeyboardWillHide(_:)),
+            name: UIResponder.keyboardWillHideNotification,
+            object: nil
+        )
+    }
+
+    @objc private func handleKeyboardWillHide(_ notification: Notification) {
+        applyKeyboardInset(0, notification: notification)
+    }
+
+    @objc private func handleKeyboardWillChangeFrame(_ notification: Notification) {
+        guard
+            let userInfo = notification.userInfo,
+            let endFrameValue = userInfo[UIResponder.keyboardFrameEndUserInfoKey] as? NSValue
+        else {
+            return
+        }
+
+        let endFrameInView = view.convert(endFrameValue.cgRectValue, from: nil)
+        let overlap = max(0, view.bounds.maxY - endFrameInView.minY - view.safeAreaInsets.bottom)
+        applyKeyboardInset(overlap, notification: notification)
+    }
+
+    private func applyKeyboardInset(_ inset: CGFloat, notification: Notification) {
+        let duration = (notification.userInfo?[UIResponder.keyboardAnimationDurationUserInfoKey] as? NSNumber)?.doubleValue ?? 0.25
+        let curveRaw = (notification.userInfo?[UIResponder.keyboardAnimationCurveUserInfoKey] as? NSNumber)?.uintValue
+            ?? UInt(UIView.AnimationCurve.easeInOut.rawValue)
+        let options = UIView.AnimationOptions(rawValue: curveRaw << 16)
+
+        keyboardBottomInset = max(0, inset)
+
+        UIView.animate(withDuration: duration, delay: 0, options: [options, .beginFromCurrentState]) {
+            self.collectionView.contentInset.bottom = self.keyboardBottomInset
+            var indicatorInsets = self.collectionView.verticalScrollIndicatorInsets
+            indicatorInsets.bottom = self.keyboardBottomInset
+            self.collectionView.verticalScrollIndicatorInsets = indicatorInsets
+            self.view.layoutIfNeeded()
+        }
     }
 
     /// When a product is sold, refresh the listings from Firestore to pick up the

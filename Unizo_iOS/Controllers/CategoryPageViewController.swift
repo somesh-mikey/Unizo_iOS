@@ -849,10 +849,12 @@ class CategoryPageViewController: UIViewController, UITabBarDelegate, UIScrollVi
 
 // MARK: - Search
 extension CategoryPageViewController {
-    func searchBarTextDidBeginEditing(_ searchBar: UISearchBar) {
+    func searchBarShouldBeginEditing(_ searchBar: UISearchBar) -> Bool {
         searchBar.resignFirstResponder()
         hideRecentSearchesPanel()
-        openSearchResults(keyword: "", animated: false)
+        let query = (searchBar.text ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
+        openSearchResults(keyword: query, animated: false)
+        return false
     }
 
     func searchBar(_ searchBar: UISearchBar, textDidChange searchText: String) {

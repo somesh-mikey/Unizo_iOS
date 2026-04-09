@@ -358,6 +358,8 @@ final class ChatViewController: UIViewController {
     private var archivedConversations: [ConversationUIModel] = []
     private var isArchivedExpanded = false
     private var currentUserId: String?
+    private var keyboardBottomInset: CGFloat = 0
+    private var tableViewBottomConstraint: NSLayoutConstraint?
 
     // MARK: - Lifecycle
     override func viewDidLoad() {
@@ -367,6 +369,8 @@ final class ChatViewController: UIViewController {
         setupTable()
         setupEmptyState()
         setupNotifications()
+        setupKeyboardHandling()
+        setupDismissKeyboardGesture()
     }
 
     override func viewWillAppear(_ animated: Bool) {
@@ -385,10 +389,15 @@ final class ChatViewController: UIViewController {
         searchContainer.backgroundColor = .white
         searchContainer.layer.cornerRadius = 20
         searchField.placeholder = "Search".localized
+        searchField.returnKeyType = .search
+        searchField.clearButtonMode = .whileEditing
+        searchField.delegate = self
         searchField.translatesAutoresizingMaskIntoConstraints = false
         searchContainer.addSubview(searchField)
         segmentedControl.addTarget(self, action: #selector(segmentChanged), for: .valueChanged)
         searchField.addTarget(self, action: #selector(searchChanged), for: .editingChanged)
+        tableViewBottomConstraint = tableView.bottomAnchor.constraint(equalTo: view.bottomAnchor)
+
         NSLayoutConstraint.activate([
             titleLabel.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 20),
             titleLabel.topAnchor.constraint(equalTo: view.topAnchor, constant: 75),
@@ -408,7 +417,7 @@ final class ChatViewController: UIViewController {
             tableView.topAnchor.constraint(equalTo: segmentedControl.bottomAnchor, constant: 12),
             tableView.leadingAnchor.constraint(equalTo: view.leadingAnchor),
             tableView.trailingAnchor.constraint(equalTo: view.trailingAnchor),
-            tableView.bottomAnchor.constraint(equalTo: view.bottomAnchor)
+            tableViewBottomConstraint!
         ])
         titleLabel.accessibilityTraits = .header
         searchField.accessibilityLabel = "Search conversations".localized
@@ -421,6 +430,7 @@ final class ChatViewController: UIViewController {
         tableView.backgroundColor = .clear
         tableView.dataSource = self
         tableView.delegate = self
+        tableView.keyboardDismissMode = .onDrag
         refreshControl.addTarget(self, action: #selector(handleRefresh), for: .valueChanged)
         tableView.refreshControl = refreshControl
     }
@@ -450,6 +460,67 @@ final class ChatViewController: UIViewController {
                                                name: .newChatMessageReceived, object: nil)
         NotificationCenter.default.addObserver(self, selector: #selector(handleProductDeleted(_:)),
                                                name: .productDeleted, object: nil)
+    }
+
+    private func setupKeyboardHandling() {
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(handleKeyboardWillChangeFrame(_:)),
+            name: UIResponder.keyboardWillChangeFrameNotification,
+            object: nil
+        )
+
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(handleKeyboardWillHide(_:)),
+            name: UIResponder.keyboardWillHideNotification,
+            object: nil
+        )
+    }
+
+    private func setupDismissKeyboardGesture() {
+        let tapGesture = UITapGestureRecognizer(target: self, action: #selector(handleBackgroundTap))
+        tapGesture.cancelsTouchesInView = false
+        tableView.addGestureRecognizer(tapGesture)
+    }
+
+    @objc private func handleBackgroundTap() {
+        view.endEditing(true)
+    }
+
+    @objc private func handleKeyboardWillHide(_ notification: Notification) {
+        applyKeyboardInset(0, notification: notification)
+    }
+
+    @objc private func handleKeyboardWillChangeFrame(_ notification: Notification) {
+        guard
+            let userInfo = notification.userInfo,
+            let endFrameValue = userInfo[UIResponder.keyboardFrameEndUserInfoKey] as? NSValue
+        else {
+            return
+        }
+
+        let endFrameInView = view.convert(endFrameValue.cgRectValue, from: nil)
+        let overlap = max(0, view.bounds.maxY - endFrameInView.minY - view.safeAreaInsets.bottom)
+        applyKeyboardInset(overlap, notification: notification)
+    }
+
+    private func applyKeyboardInset(_ inset: CGFloat, notification: Notification) {
+        let duration = (notification.userInfo?[UIResponder.keyboardAnimationDurationUserInfoKey] as? NSNumber)?.doubleValue ?? 0.25
+        let curveRaw = (notification.userInfo?[UIResponder.keyboardAnimationCurveUserInfoKey] as? NSNumber)?.uintValue
+            ?? UInt(UIView.AnimationCurve.easeInOut.rawValue)
+        let options = UIView.AnimationOptions(rawValue: curveRaw << 16)
+
+        keyboardBottomInset = max(0, inset)
+
+        UIView.animate(withDuration: duration, delay: 0, options: [options, .beginFromCurrentState]) {
+            self.tableViewBottomConstraint?.constant = -self.keyboardBottomInset
+            self.tableView.contentInset.bottom = 0
+            var indicatorInsets = self.tableView.verticalScrollIndicatorInsets
+            indicatorInsets.bottom = 0
+            self.tableView.verticalScrollIndicatorInsets = indicatorInsets
+            self.view.layoutIfNeeded()
+        }
     }
 
     // MARK: - Fetch
@@ -616,6 +687,7 @@ final class ChatViewController: UIViewController {
     }
 
     private func openConversation(_ conversation: ConversationUIModel) {
+        view.endEditing(true)
         guard let conversationId = conversation.id else { return }
         let detailVC = ChatDetailViewController()
         detailVC.conversationIdString = conversationId
@@ -626,6 +698,13 @@ final class ChatViewController: UIViewController {
         detailVC.otherUserImageURL = conversation.otherUserImageURL
         detailVC.productStatus = conversation.productStatus ?? "available"
         navigationController?.pushViewController(detailVC, animated: true)
+    }
+}
+
+extension ChatViewController: UITextFieldDelegate {
+    func textFieldShouldReturn(_ textField: UITextField) -> Bool {
+        textField.resignFirstResponder()
+        return true
     }
 }
 

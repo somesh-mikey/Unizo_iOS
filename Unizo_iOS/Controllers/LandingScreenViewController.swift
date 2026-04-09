@@ -1503,10 +1503,12 @@ extension LandingScreenViewController: UICollectionViewDataSource, UICollectionV
 
 extension LandingScreenViewController: UISearchBarDelegate {
 
-    func searchBarTextDidBeginEditing(_ searchBar: UISearchBar) {
+    func searchBarShouldBeginEditing(_ searchBar: UISearchBar) -> Bool {
         searchBar.resignFirstResponder()
-        updateRecentSearchesVisibility(for: "")
-        openSearchResults(keyword: "", animated: false)
+        let query = (searchBar.text ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
+        updateRecentSearchesVisibility(for: query)
+        openSearchResults(keyword: query, animated: false)
+        return false
     }
 
     func searchBar(_ searchBar: UISearchBar, textDidChange searchText: String) {

@@ -164,6 +164,9 @@ final class PostEventViewController: UIViewController,
         return ai
     }()
 
+    private weak var activeInputView: UIView?
+    private var keyboardBottomInset: CGFloat = 0
+
     // MARK: - Lifecycle
 
     init() {
@@ -186,6 +189,8 @@ final class PostEventViewController: UIViewController,
         setupDetailsCard()
         setupPostButton()
         setupKeyboardDismiss()
+        setupKeyboardHandling()
+        setupFieldDelegates()
 
         freeSwitch.addTarget(self, action: #selector(freeSwitchChanged), for: .valueChanged)
         postButton.addTarget(self, action: #selector(postEventTapped), for: .touchUpInside)
@@ -197,6 +202,10 @@ final class PostEventViewController: UIViewController,
         let doneButton = UIBarButtonItem(barButtonSystemItem: .done, target: self, action: #selector(dismissKeyboard))
         priceToolbar.items = [UIBarButtonItem.flexibleSpace(), doneButton]
         priceField.inputAccessoryView = priceToolbar
+    }
+
+    deinit {
+        NotificationCenter.default.removeObserver(self)
     }
 
     override func viewWillAppear(_ animated: Bool) {
@@ -379,6 +388,74 @@ final class PostEventViewController: UIViewController,
         let tap = UITapGestureRecognizer(target: view, action: #selector(UIView.endEditing))
         tap.cancelsTouchesInView = false
         view.addGestureRecognizer(tap)
+    }
+
+    private func setupKeyboardHandling() {
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(handleKeyboardWillChangeFrame(_:)),
+            name: UIResponder.keyboardWillChangeFrameNotification,
+            object: nil
+        )
+
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(handleKeyboardWillHide(_:)),
+            name: UIResponder.keyboardWillHideNotification,
+            object: nil
+        )
+    }
+
+    private func setupFieldDelegates() {
+        titleField.delegate = self
+        venueField.delegate = self
+        priceField.delegate = self
+
+        titleField.returnKeyType = .next
+        venueField.returnKeyType = .next
+        priceField.returnKeyType = .done
+    }
+
+    @objc private func handleKeyboardWillHide(_ notification: Notification) {
+        applyKeyboardInset(0, notification: notification)
+    }
+
+    @objc private func handleKeyboardWillChangeFrame(_ notification: Notification) {
+        guard
+            let userInfo = notification.userInfo,
+            let endFrameValue = userInfo[UIResponder.keyboardFrameEndUserInfoKey] as? NSValue
+        else {
+            return
+        }
+
+        let endFrameInView = view.convert(endFrameValue.cgRectValue, from: nil)
+        let overlap = max(0, view.bounds.maxY - endFrameInView.minY - view.safeAreaInsets.bottom)
+        applyKeyboardInset(overlap, notification: notification)
+        scrollActiveInputIntoView()
+    }
+
+    private func applyKeyboardInset(_ inset: CGFloat, notification: Notification) {
+        let duration = (notification.userInfo?[UIResponder.keyboardAnimationDurationUserInfoKey] as? NSNumber)?.doubleValue ?? 0.25
+        let curveRawValue = (notification.userInfo?[UIResponder.keyboardAnimationCurveUserInfoKey] as? NSNumber)?.uintValue
+            ?? UInt(UIView.AnimationCurve.easeInOut.rawValue)
+        let options = UIView.AnimationOptions(rawValue: curveRawValue << 16)
+
+        keyboardBottomInset = max(0, inset)
+
+        UIView.animate(withDuration: duration, delay: 0, options: [options, .beginFromCurrentState]) {
+            self.scrollView.contentInset.bottom = self.keyboardBottomInset
+            var indicatorInsets = self.scrollView.verticalScrollIndicatorInsets
+            indicatorInsets.bottom = self.keyboardBottomInset
+            self.scrollView.verticalScrollIndicatorInsets = indicatorInsets
+            self.view.layoutIfNeeded()
+        }
+    }
+
+    private func scrollActiveInputIntoView() {
+        guard let activeInputView else { return }
+        let rectInScroll = activeInputView.convert(activeInputView.bounds, to: scrollView)
+        let visibleRect = rectInScroll.insetBy(dx: 0, dy: -24)
+        scrollView.scrollRectToVisible(visibleRect, animated: true)
     }
 
     @objc private func dismissKeyboard() {
@@ -667,7 +744,42 @@ final class PostEventViewController: UIViewController,
 // MARK: - UITextViewDelegate
 
 extension PostEventViewController: UITextViewDelegate {
+    func textViewDidBeginEditing(_ textView: UITextView) {
+        activeInputView = textView
+        scrollActiveInputIntoView()
+    }
+
+    func textViewDidEndEditing(_ textView: UITextView) {
+        if activeInputView === textView {
+            activeInputView = nil
+        }
+    }
+
     func textViewDidChange(_ textView: UITextView) {
         descriptionPlaceholder.isHidden = !textView.text.isEmpty
+    }
+}
+
+extension PostEventViewController: UITextFieldDelegate {
+    func textFieldDidBeginEditing(_ textField: UITextField) {
+        activeInputView = textField
+        scrollActiveInputIntoView()
+    }
+
+    func textFieldDidEndEditing(_ textField: UITextField) {
+        if activeInputView === textField {
+            activeInputView = nil
+        }
+    }
+
+    func textFieldShouldReturn(_ textField: UITextField) -> Bool {
+        if textField == titleField {
+            venueField.becomeFirstResponder()
+        } else if textField == venueField {
+            descriptionTextView.becomeFirstResponder()
+        } else {
+            textField.resignFirstResponder()
+        }
+        return true
     }
 }
