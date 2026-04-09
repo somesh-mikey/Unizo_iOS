@@ -681,12 +681,14 @@ final class OrderRepository {
             ])
         }
 
-        let reviewText = newReview ?? ""
+        let reviewText = newReview?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
 
-        try await db.collection("order_ratings").document(ratingId).updateData([
+        let payload: [AnyHashable: Any] = [
             "rating": newRating,
             "review": reviewText
-        ])
+        ]
+
+        try await db.collection("order_ratings").document(ratingId).updateData(payload)
         print("✅ Rating updated: \(newRating)★")
     }
 

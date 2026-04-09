@@ -21,6 +21,7 @@ final class EditAddressViewController: UIViewController {
     private let stateField = UITextField()
     private let pincodeField = UITextField()
     private let defaultSwitch = UISwitch()
+    private weak var activeTextField: UITextField?
 
     // MARK: - Init
     init(address: AddressDTO) {
@@ -45,6 +46,19 @@ final class EditAddressViewController: UIViewController {
 
     // MARK: - Keyboard Handling
     private func setupKeyboardHandling() {
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(handleKeyboardWillChangeFrame(_:)),
+            name: UIResponder.keyboardWillChangeFrameNotification,
+            object: nil
+        )
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(handleKeyboardWillHide(_:)),
+            name: UIResponder.keyboardWillHideNotification,
+            object: nil
+        )
+
         // Dismiss keyboard on tap
         let tap = UITapGestureRecognizer(target: self, action: #selector(dismissKeyboard))
         tap.cancelsTouchesInView = false
@@ -53,6 +67,40 @@ final class EditAddressViewController: UIViewController {
 
     @objc private func dismissKeyboard() {
         view.endEditing(true)
+    }
+
+    @objc private func handleKeyboardWillHide(_ notification: Notification) {
+        applyKeyboardShift(0, notification: notification)
+    }
+
+    @objc private func handleKeyboardWillChangeFrame(_ notification: Notification) {
+        guard
+            let userInfo = notification.userInfo,
+            let endFrameValue = userInfo[UIResponder.keyboardFrameEndUserInfoKey] as? NSValue,
+            let activeField = activeTextField
+        else {
+            return
+        }
+
+        let keyboardFrame = view.convert(endFrameValue.cgRectValue, from: nil)
+        let fieldFrame = activeField.convert(activeField.bounds, to: view)
+        let overlap = fieldFrame.maxY + 16 - keyboardFrame.minY
+        applyKeyboardShift(max(0, overlap), notification: notification)
+    }
+
+    private func applyKeyboardShift(_ shift: CGFloat, notification: Notification) {
+        let duration = (notification.userInfo?[UIResponder.keyboardAnimationDurationUserInfoKey] as? NSNumber)?.doubleValue ?? 0.25
+        let curveRawValue = (notification.userInfo?[UIResponder.keyboardAnimationCurveUserInfoKey] as? NSNumber)?.uintValue
+            ?? UInt(UIView.AnimationCurve.easeInOut.rawValue)
+        let options = UIView.AnimationOptions(rawValue: curveRawValue << 16)
+
+        UIView.animate(withDuration: duration, delay: 0, options: [options, .beginFromCurrentState]) {
+            self.view.transform = CGAffineTransform(translationX: 0, y: -max(0, shift))
+        }
+    }
+
+    deinit {
+        NotificationCenter.default.removeObserver(self)
     }
     override func viewWillAppear(_ animated: Bool) {
         super.viewWillAppear(animated)
@@ -116,6 +164,15 @@ final class EditAddressViewController: UIViewController {
 
         phoneField.keyboardType = .phonePad
         pincodeField.keyboardType = .numberPad
+
+        [nameField, phoneField, line1Field, cityField, stateField, pincodeField].forEach {
+            $0.delegate = self
+        }
+        nameField.returnKeyType = .next
+        line1Field.returnKeyType = .next
+        cityField.returnKeyType = .next
+        stateField.returnKeyType = .next
+        pincodeField.returnKeyType = .done
 
         // Add Done toolbar for numeric keypads (no Return key)
         let phoneToolbar = UIToolbar()
@@ -222,5 +279,33 @@ final class EditAddressViewController: UIViewController {
         let alert = UIAlertController(title: "Error".localized, message: msg, preferredStyle: .alert)
         alert.addAction(.init(title: "OK".localized, style: .default))
         present(alert, animated: true)
+    }
+}
+
+extension EditAddressViewController: UITextFieldDelegate {
+    func textFieldDidBeginEditing(_ textField: UITextField) {
+        activeTextField = textField
+    }
+
+    func textFieldDidEndEditing(_ textField: UITextField) {
+        if activeTextField === textField {
+            activeTextField = nil
+        }
+    }
+
+    func textFieldShouldReturn(_ textField: UITextField) -> Bool {
+        switch textField {
+        case nameField:
+            line1Field.becomeFirstResponder()
+        case line1Field:
+            cityField.becomeFirstResponder()
+        case cityField:
+            stateField.becomeFirstResponder()
+        case stateField:
+            pincodeField.becomeFirstResponder()
+        default:
+            textField.resignFirstResponder()
+        }
+        return true
     }
 }

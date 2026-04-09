@@ -24,6 +24,7 @@ class OrderRatingViewController: UIViewController {
     private let reviewTextView = UITextView()
     private let submitButton = UIButton(type: .system)
     private let loadingIndicator = UIActivityIndicatorView(style: .medium)
+    private var keyboardShift: CGFloat = 0
     
     // MARK: - Lifecycle
     override func viewDidLoad() {
@@ -31,6 +32,12 @@ class OrderRatingViewController: UIViewController {
         setupUI()
         setupConstraints()
         setupNavigationBar()
+        setupKeyboardHandling()
+        setupKeyboardDismissal()
+    }
+
+    deinit {
+        NotificationCenter.default.removeObserver(self)
     }
     
     // MARK: - Setup Navigation
@@ -102,6 +109,61 @@ class OrderRatingViewController: UIViewController {
             view.addSubview($0)
         }
     }
+
+    private func setupKeyboardHandling() {
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(handleKeyboardWillChangeFrame(_:)),
+            name: UIResponder.keyboardWillChangeFrameNotification,
+            object: nil
+        )
+
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(handleKeyboardWillHide(_:)),
+            name: UIResponder.keyboardWillHideNotification,
+            object: nil
+        )
+    }
+
+    private func setupKeyboardDismissal() {
+        let tap = UITapGestureRecognizer(target: self, action: #selector(dismissKeyboard))
+        tap.cancelsTouchesInView = false
+        view.addGestureRecognizer(tap)
+    }
+
+    @objc private func dismissKeyboard() {
+        view.endEditing(true)
+    }
+
+    @objc private func handleKeyboardWillHide(_ notification: Notification) {
+        applyKeyboardShift(0, notification: notification)
+    }
+
+    @objc private func handleKeyboardWillChangeFrame(_ notification: Notification) {
+        guard
+            let userInfo = notification.userInfo,
+            let endFrameValue = userInfo[UIResponder.keyboardFrameEndUserInfoKey] as? NSValue
+        else {
+            return
+        }
+
+        let keyboardFrame = view.convert(endFrameValue.cgRectValue, from: nil)
+        let overlap = submitButton.frame.maxY + 16 - keyboardFrame.minY
+        applyKeyboardShift(max(0, overlap), notification: notification)
+    }
+
+    private func applyKeyboardShift(_ shift: CGFloat, notification: Notification) {
+        let duration = (notification.userInfo?[UIResponder.keyboardAnimationDurationUserInfoKey] as? NSNumber)?.doubleValue ?? 0.25
+        let curveRawValue = (notification.userInfo?[UIResponder.keyboardAnimationCurveUserInfoKey] as? NSNumber)?.uintValue
+            ?? UInt(UIView.AnimationCurve.easeInOut.rawValue)
+        let options = UIView.AnimationOptions(rawValue: curveRawValue << 16)
+
+        keyboardShift = max(0, shift)
+        UIView.animate(withDuration: duration, delay: 0, options: [options, .beginFromCurrentState]) {
+            self.view.transform = CGAffineTransform(translationX: 0, y: -self.keyboardShift)
+        }
+    }
     
     // MARK: - Setup Constraints
     private func setupConstraints() {
@@ -148,10 +210,12 @@ class OrderRatingViewController: UIViewController {
     }
     
     @objc private func closeTapped() {
+        dismissKeyboard()
         dismiss(animated: true)
     }
     
     @objc private func submitTapped() {
+        dismissKeyboard()
         guard selectedRating > 0 else {
             showAlert(title: "Error".localized, message: "Please select a rating".localized)
             return

@@ -21,11 +21,18 @@ class SearchViewController: UIViewController, UITableViewDelegate, UITableViewDa
     
     // MARK: - Data
     private let recentSearches = ["cap", "headphones", "chair", "sports"]
+    private var keyboardBottomInset: CGFloat = 0
     
     // MARK: - View Lifecycle
     override func viewDidLoad() {
         super.viewDidLoad()
         setupUI()
+        setupKeyboardHandling()
+        setupKeyboardDismissGesture()
+    }
+
+    deinit {
+        NotificationCenter.default.removeObserver(self)
     }
     
     // MARK: - UI Setup
@@ -71,6 +78,7 @@ class SearchViewController: UIViewController, UITableViewDelegate, UITableViewDa
         searchTextField.placeholder = "Search"
         searchTextField.font = UIFont.systemFont(ofSize: 16)
         searchTextField.textColor = .black
+        searchTextField.returnKeyType = .search
         searchTextField.delegate = self
         searchTextField.translatesAutoresizingMaskIntoConstraints = false
         NSLayoutConstraint.activate([
@@ -130,12 +138,80 @@ class SearchViewController: UIViewController, UITableViewDelegate, UITableViewDa
         tableView.dataSource = self
         tableView.separatorStyle = .none
         tableView.backgroundColor = .clear
+        tableView.keyboardDismissMode = .interactive
         tableView.register(SearchTableViewCell.self, forCellReuseIdentifier: "SearchCell")
+    }
+
+    private func setupKeyboardHandling() {
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(handleKeyboardWillChangeFrame(_:)),
+            name: UIResponder.keyboardWillChangeFrameNotification,
+            object: nil
+        )
+
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(handleKeyboardWillHide(_:)),
+            name: UIResponder.keyboardWillHideNotification,
+            object: nil
+        )
+    }
+
+    private func setupKeyboardDismissGesture() {
+        let tap = UITapGestureRecognizer(target: self, action: #selector(dismissKeyboard))
+        tap.cancelsTouchesInView = false
+        view.addGestureRecognizer(tap)
+    }
+
+    @objc private func dismissKeyboard() {
+        view.endEditing(true)
+    }
+
+    @objc private func handleKeyboardWillHide(_ notification: Notification) {
+        applyKeyboardInset(0, notification: notification)
+    }
+
+    @objc private func handleKeyboardWillChangeFrame(_ notification: Notification) {
+        guard
+            let userInfo = notification.userInfo,
+            let endFrameValue = userInfo[UIResponder.keyboardFrameEndUserInfoKey] as? NSValue
+        else {
+            return
+        }
+
+        let keyboardFrame = view.convert(endFrameValue.cgRectValue, from: nil)
+        let overlap = max(0, view.bounds.maxY - keyboardFrame.minY - view.safeAreaInsets.bottom)
+        applyKeyboardInset(overlap, notification: notification)
+    }
+
+    private func applyKeyboardInset(_ inset: CGFloat, notification: Notification) {
+        let duration = (notification.userInfo?[UIResponder.keyboardAnimationDurationUserInfoKey] as? NSNumber)?.doubleValue ?? 0.25
+        let curveRawValue = (notification.userInfo?[UIResponder.keyboardAnimationCurveUserInfoKey] as? NSNumber)?.uintValue
+            ?? UInt(UIView.AnimationCurve.easeInOut.rawValue)
+        let options = UIView.AnimationOptions(rawValue: curveRawValue << 16)
+
+        keyboardBottomInset = max(0, inset)
+
+        UIView.animate(withDuration: duration, delay: 0, options: [options, .beginFromCurrentState]) {
+            self.tableView.contentInset.bottom = self.keyboardBottomInset
+            var indicatorInsets = self.tableView.verticalScrollIndicatorInsets
+            indicatorInsets.bottom = self.keyboardBottomInset
+            self.tableView.verticalScrollIndicatorInsets = indicatorInsets
+            self.view.layoutIfNeeded()
+        }
     }
     
     // MARK: - Actions
     @objc private func closeTapped() {
+        dismissKeyboard()
         dismiss(animated: true, completion: nil)
+    }
+
+    // MARK: - UITextFieldDelegate
+    func textFieldShouldReturn(_ textField: UITextField) -> Bool {
+        textField.resignFirstResponder()
+        return true
     }
     
     // MARK: - TableView

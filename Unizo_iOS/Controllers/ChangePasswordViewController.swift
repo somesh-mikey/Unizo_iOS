@@ -21,6 +21,7 @@ class ChangePasswordViewController: UIViewController {
     private let forgotPasswordButton = UIButton(type: .system)
     private let saveButton = UIButton(type: .system)
     private let loadingSpinner = UIActivityIndicatorView(style: .medium)
+    private var saveButtonBottomConstraint: NSLayoutConstraint?
 
     // MARK: - Colors
     private let primaryButtonColor = UIColor(red: 0.12, green: 0.28, blue: 0.35, alpha: 1.0)
@@ -42,18 +43,69 @@ class ChangePasswordViewController: UIViewController {
     override func viewWillDisappear(_ animated: Bool) {
         super.viewWillDisappear(animated)
         self.tabBarController?.tabBar.isHidden = false
+    }
+
+    deinit {
         NotificationCenter.default.removeObserver(self)
     }
 
     // MARK: - Keyboard Handling
     private func setupKeyboardHandling() {
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(handleKeyboardWillChangeFrame(_:)),
+            name: UIResponder.keyboardWillChangeFrameNotification,
+            object: nil
+        )
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(handleKeyboardWillHide(_:)),
+            name: UIResponder.keyboardWillHideNotification,
+            object: nil
+        )
+
         let tap = UITapGestureRecognizer(target: self, action: #selector(dismissKeyboard))
         tap.cancelsTouchesInView = false
         view.addGestureRecognizer(tap)
+
+        oldPasswordField.delegate = self
+        newPasswordField.delegate = self
+        oldPasswordField.returnKeyType = .next
+        newPasswordField.returnKeyType = .done
     }
 
     @objc private func dismissKeyboard() {
         view.endEditing(true)
+    }
+
+    @objc private func handleKeyboardWillHide(_ notification: Notification) {
+        applyKeyboardOffset(0, notification: notification)
+    }
+
+    @objc private func handleKeyboardWillChangeFrame(_ notification: Notification) {
+        guard
+            let userInfo = notification.userInfo,
+            let endFrameValue = userInfo[UIResponder.keyboardFrameEndUserInfoKey] as? NSValue
+        else {
+            return
+        }
+
+        let endFrameInView = view.convert(endFrameValue.cgRectValue, from: nil)
+        let overlap = max(0, view.bounds.maxY - endFrameInView.minY - view.safeAreaInsets.bottom)
+        applyKeyboardOffset(overlap, notification: notification)
+    }
+
+    private func applyKeyboardOffset(_ overlap: CGFloat, notification: Notification) {
+        let duration = (notification.userInfo?[UIResponder.keyboardAnimationDurationUserInfoKey] as? NSNumber)?.doubleValue ?? 0.25
+        let curveRaw = (notification.userInfo?[UIResponder.keyboardAnimationCurveUserInfoKey] as? NSNumber)?.uintValue
+            ?? UInt(UIView.AnimationCurve.easeInOut.rawValue)
+        let options = UIView.AnimationOptions(rawValue: curveRaw << 16)
+
+        saveButtonBottomConstraint?.constant = -(16 + max(0, overlap))
+
+        UIView.animate(withDuration: duration, delay: 0, options: [options, .beginFromCurrentState]) {
+            self.view.layoutIfNeeded()
+        }
     }
 
     // MARK: - UI Setup
@@ -172,13 +224,15 @@ class ChangePasswordViewController: UIViewController {
             // Save button
             saveButton.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 16),
             saveButton.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -16),
-            saveButton.bottomAnchor.constraint(equalTo: view.safeAreaLayoutGuide.bottomAnchor, constant: -16),
             saveButton.heightAnchor.constraint(equalToConstant: 56),
 
             // Loading spinner (centered on save button)
             loadingSpinner.centerXAnchor.constraint(equalTo: saveButton.centerXAnchor),
             loadingSpinner.centerYAnchor.constraint(equalTo: saveButton.centerYAnchor)
         ])
+
+        saveButtonBottomConstraint = saveButton.bottomAnchor.constraint(equalTo: view.safeAreaLayoutGuide.bottomAnchor, constant: -16)
+        saveButtonBottomConstraint?.isActive = true
     }
 
     // MARK: - Actions
@@ -276,5 +330,16 @@ class ChangePasswordViewController: UIViewController {
             self?.navigationController?.popViewController(animated: true)
         })
         present(alert, animated: true)
+    }
+}
+
+extension ChangePasswordViewController: UITextFieldDelegate {
+    func textFieldShouldReturn(_ textField: UITextField) -> Bool {
+        if textField == oldPasswordField {
+            newPasswordField.becomeFirstResponder()
+        } else {
+            textField.resignFirstResponder()
+        }
+        return true
     }
 }
