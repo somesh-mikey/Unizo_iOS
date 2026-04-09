@@ -317,7 +317,10 @@ final class SearchResultsViewController: UIViewController {
             print("🔍 Search results:", results.count)
         } catch {
             print("❌ Search failed:", error)
+            results = []
             loadingIndicator.stopAnimating()
+            collectionView.reloadData()
+            updateCollectionHeight()
             emptyStateLabel.isHidden = false
         }
     }
@@ -682,6 +685,10 @@ extension SearchResultsViewController: UICollectionViewDataSource, UICollectionV
             for: indexPath
         ) as! ProductCell
 
+        guard indexPath.item < results.count else {
+            return cell
+        }
+
         cell.configure(with: results[indexPath.item])
         return cell
     }
@@ -697,6 +704,7 @@ extension SearchResultsViewController: UICollectionViewDataSource, UICollectionV
     func collectionView(_ collectionView: UICollectionView,
                         didSelectItemAt indexPath: IndexPath) {
 
+        guard indexPath.item < results.count else { return }
         let selected = results[indexPath.item]
 
         let vc = ItemDetailsViewController(
@@ -729,9 +737,11 @@ extension SearchResultsViewController: UITableViewDataSource, UITableViewDelegat
         let iconName: String
         switch dropdownMode {
         case .recent:
+            guard indexPath.row < recentSearches.count else { return cell }
             term = recentSearches[indexPath.row]
             iconName = "clock"
         case .suggestions:
+            guard indexPath.row < predictiveSuggestions.count else { return cell }
             term = predictiveSuggestions[indexPath.row]
             iconName = "magnifyingglass"
         case .hidden:
@@ -758,8 +768,10 @@ extension SearchResultsViewController: UITableViewDataSource, UITableViewDelegat
         let term: String
         switch dropdownMode {
         case .recent:
+            guard indexPath.row < recentSearches.count else { return }
             term = recentSearches[indexPath.row]
         case .suggestions:
+            guard indexPath.row < predictiveSuggestions.count else { return }
             term = predictiveSuggestions[indexPath.row]
         case .hidden:
             return
